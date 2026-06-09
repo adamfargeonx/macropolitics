@@ -117,7 +117,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
         )}
       </div>
 
-      <Header />
+      <Header onHome={() => onView('home')} />
       {hoveredPoint ? (
         <aside className="panel panel--detail" dir="rtl">
           <h1 className="panel__title">{hoveredPoint.e.he}</h1>

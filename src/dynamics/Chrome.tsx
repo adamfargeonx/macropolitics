@@ -1,10 +1,10 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
 // Kept together (all small, presentational) — split out if any grows past ~40 lines.
 
-export function Header() {
+export function Header({ onHome }: { onHome?: () => void }) {
   return (
     <header className="hdr">
-      <span className="hdr__logo">מאקרופוליטיקה</span>
+      <button className="hdr__logo" onClick={onHome} aria-label="דף הבית">מאקרופוליטיקה</button>
       <span className="hdr__info" aria-hidden>ⓘ</span>
     </header>
   )
@@ -91,7 +91,7 @@ export function RightRail() {
   )
 }
 
-export type View = 'forces' | 'relations' | 'dynamics'
+export type View = 'home' | 'forces' | 'relations' | 'dynamics'
 const TABS: { he: string; view: View; ready?: boolean }[] = [
   { he: 'הכוחות', view: 'forces', ready: true },
   { he: 'היחסים', view: 'relations', ready: true },

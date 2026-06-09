@@ -96,7 +96,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           )
         })}
       </div>
-      <Header />
+      <Header onHome={() => onView('home')} />
       {selected ? (
         <SidePanel detail={detail} onClose={() => setSelected(null)} />
       ) : (

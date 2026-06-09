@@ -60,7 +60,7 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
       <canvas ref={canvasRef} className="field" />
       {ready && <LabelLayer engine={engineRef.current} />}
       {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
-      <Header />
+      <Header onHome={() => onView('home')} />
       <SidePanel detail={detail} onClose={() => engineRef.current?.clearSelection()} />
       <RightRail />
       <TabBar view={view} onView={onView} />
