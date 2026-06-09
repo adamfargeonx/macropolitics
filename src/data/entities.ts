@@ -87,6 +87,21 @@ export const NODES: Entity[] = [
   { id: 'pij', he: 'הג׳יהאד האסלאמי', kind: 'nonstate', parent: 'iran', R: 225, omega: -5.0, ang0: 340, power: 9, dispo: DISPO.agg, tier: TIER.nonstate },
 ]
 
+// Allegiance (bloc) — drives a whisper-subtle temperature rim, not a fill.
+export type Axis = 'west' | 'east' | 'neutral' | 'none'
+export const AXIS: Record<string, Axis> = {
+  usa: 'west', israel: 'west', egypt: 'west', jordan: 'west', saudi: 'west', sdf: 'west',
+  uae: 'west', bahrain: 'west', kuwait: 'west', fatah: 'west', europe: 'west',
+  russia: 'east', china: 'east', iran: 'east', hezbollah: 'east', yemen: 'east',
+  iraq: 'east', militias: 'east', hamas: 'east', pij: 'east',
+  turkey: 'neutral', qatar: 'neutral', oman: 'neutral', syria: 'neutral',
+  lebanon: 'neutral', india: 'neutral', pakistan: 'neutral',
+  isis: 'none', qaeda: 'none',
+}
+export const AXIS_LABEL: Record<Axis, string> = {
+  west: 'הציר המערבי', east: 'הציר המזרחי', neutral: 'גוש ניטרלי', none: 'ללא שיוך',
+}
+
 export const LINKS: [string, string][] = [
   ['usa', 'israel'], ['usa', 'saudi'], ['usa', 'egypt'], ['usa', 'europe'],
   ['saudi', 'uae'], ['saudi', 'bahrain'], ['saudi', 'kuwait'], ['saudi', 'qatar'],

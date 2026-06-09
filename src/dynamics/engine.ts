@@ -3,7 +3,7 @@
 // World space ≈ original px; a camera (zoom default 1.4, pan) maps world → screen.
 // The particle starfield lives in SCREEN space (interactive background, unaffected by camera).
 
-import { NODES, LINKS, ANCHORS, RINGS, AXES, powerSize, type Entity } from '../data/entities'
+import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, powerSize, type Entity } from '../data/entities'
 
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
@@ -11,6 +11,24 @@ const WHITE = '255,255,255'
 const DARK = '11,0,36'
 const D2R = Math.PI / 180
 const TAU = Math.PI * 2
+
+// ── Tunable visual config (set a flag false / value 0 to revert that piece) ──
+const VISUALS = {
+  allegianceRim: true, // whisper-subtle temperature rim by bloc
+  rimAlpha: 0.4,
+  nonStateHollow: true, // non-state actors render hollow (taxonomy)
+  greatCorona: true, // superpowers get a faint corona ring
+  zoomGatedLabels: true, // hide minor labels until zoomed past gate
+  labelGate: 0.95,
+  speedScale: 0.62, // calm the motion (1 = original measured speeds)
+}
+// Muted bloc temperatures — read as warm/cool, not "team colors"
+const AXIS_COLOR: Record<string, string> = {
+  west: '132,160,196', // cool steel
+  east: '198,134,98', // warm terracotta
+  neutral: '150,150,160', // grey
+  none: '120,120,128', // faint grey
+}
 
 interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number }
 
@@ -56,11 +74,13 @@ export class OrbitalField {
   private down: { x: number; y: number } | null = null
   private dragging = false
   private hovered: string | null = null
+  private selected: string | null = null
   private hoverSince = 0
   private connected = new Set<string>()
   private start = 0; private raf = 0; private now = 0
   private reduced: boolean
   onHover?: (id: string | null, screen: { x: number; y: number } | null) => void
+  onSelect?: (id: string | null) => void
   onZoom?: (z: number) => void
 
   constructor(private canvas: HTMLCanvasElement, private container: HTMLElement) {
@@ -155,10 +175,16 @@ export class OrbitalField {
   }
   private onUp = () => {
     if (this.down && !this.dragging) {
-      // a click (not a drag) → scatter particles around it
-      const R = 180
-      for (const p of this.particles) { const dx = p.x - this.down.x, dy = p.y - this.down.y, d = Math.hypot(dx, dy) || 1; if (d < R) { const f = (1 - d / R) * 7; p.vx += (dx / d) * f; p.vy += (dy / d) * f } }
-      this.click = { x: this.down.x, y: this.down.y, t: this.now }
+      if (this.hovered) {
+        // click on a body → pin/unpin it
+        this.setSelected(this.selected === this.hovered ? null : this.hovered)
+      } else {
+        // click on empty space → deselect + scatter particles
+        if (this.selected) this.setSelected(null)
+        const R = 180
+        for (const p of this.particles) { const dx = p.x - this.down.x, dy = p.y - this.down.y, d = Math.hypot(dx, dy) || 1; if (d < R) { const f = (1 - d / R) * 7; p.vx += (dx / d) * f; p.vy += (dy / d) * f } }
+        this.click = { x: this.down.x, y: this.down.y, t: this.now }
+      }
     }
     this.down = null; this.dragging = false
   }
@@ -177,14 +203,26 @@ export class OrbitalField {
     }
     this.setHovered(best)
   }
+  private get focusId() { return this.selected ?? this.hovered }
+  private refreshConnected() {
+    const id = this.focusId
+    this.connected = new Set(id ? [id, ...(neighbors.get(id) ?? [])] : [])
+  }
   private setHovered(id: string | null) {
     if (id === this.hovered) return
     this.hovered = id; this.hoverSince = this.now
-    this.connected = new Set(id ? [id, ...(neighbors.get(id) ?? [])] : [])
+    this.refreshConnected()
     let screen: { x: number; y: number } | null = null
     if (id) { const ns = this.nodes[idIndex.get(id)!]; screen = { x: ns.sx, y: ns.sy } }
     this.onHover?.(id, screen)
   }
+  private setSelected(id: string | null) {
+    if (id === this.selected) return
+    this.selected = id; this.hoverSince = this.now
+    this.refreshConnected()
+    this.onSelect?.(id)
+  }
+  clearSelection() { this.setSelected(null) }
 
   private resolve(t: number) {
     const W = this.world
@@ -192,7 +230,7 @@ export class OrbitalField {
     for (const i of ORDER) {
       const ns = this.nodes[i]; const e = ns.e
       const par = W.get(e.parent) ?? { x: 0, y: 0 }
-      const ang = (e.ang0 + (this.reduced ? 0 : e.omega * t)) * D2R
+      const ang = (e.ang0 + (this.reduced ? 0 : e.omega * VISUALS.speedScale * t)) * D2R
       ns.wx = par.x + Math.cos(ang) * e.R
       ns.wy = par.y + Math.sin(ang) * e.R
       W.set(e.id, { x: ns.wx, y: ns.wy })
@@ -250,8 +288,8 @@ export class OrbitalField {
     for (const ring of RINGS) {
       const anc = this.world.get(ring.around); if (!anc) continue
       const c = this.toScreen(anc.x, anc.y)
-      const lit = this.hovered && (ring.around === this.hovered || this.connected.has(ring.around))
-      const dim = this.hovered && !lit
+      const lit = this.focusId && (ring.around === this.focusId || this.connected.has(ring.around))
+      const dim = this.focusId && !lit
       const base = ring.he ? 0.3 : 0.16
       ctx.beginPath(); ctx.arc(c.x, c.y, ring.r * s, 0, TAU * easeOutCubic(intro))
       ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * intro})`
@@ -291,8 +329,8 @@ export class OrbitalField {
       const [a, b] = LINKS[li]
       const na = this.nodes[idIndex.get(a)!], nb = this.nodes[idIndex.get(b)!]
       if (!na || !nb) continue
-      const lit = this.hovered ? this.connected.has(a) && this.connected.has(b) : false
-      if (!lit && this.hovered) continue
+      const lit = this.focusId ? this.connected.has(a) && this.connected.has(b) : false
+      if (!lit && this.focusId) continue
       const dx = nb.sx - na.sx, dy = nb.sy - na.sy
       const cx = (na.sx + nb.sx) / 2 - dy * 0.1, cy = (na.sy + nb.sy) / 2 + dx * 0.1
       ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
@@ -311,21 +349,40 @@ export class OrbitalField {
   private drawNode(ns: NodeState, t: number) {
     const ctx = this.ctx; const e = ns.e
     const a = easeOutCubic(ns.appear); if (a <= 0) return
-    const isHover = this.hovered === e.id
-    const dimmed = this.hovered && !this.connected.has(e.id)
+    const focus = this.focusId
+    const isFocus = e.id === focus
+    const inWeb = !focus || isFocus || this.connected.has(e.id)
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.6 + ns.pulse)
-    const r = ns.sr * a * (isHover ? 1.2 : 1) * pulse
+    const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse
     const nonstate = e.kind === 'nonstate'
-    ctx.save(); ctx.globalAlpha = a * (dimmed ? 0.25 : 1)
-    if (!dimmed && !nonstate) this.glow(ns.sx, ns.sy, r * (isHover ? 2.6 : 1.8), e.kind === 'great' ? 0.13 : 0.09)
-    if (isHover) { const since = (this.now - this.hoverSince) / 1000; for (let k = 0; k < 2; k++) { const pp = (since * 0.9 + k * 0.5) % 1; ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.5})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 6 + pp * 42, 0, TAU); ctx.stroke() } }
-    if (nonstate) { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, Math.max(2.5, r), 0, TAU); ctx.fillStyle = `rgba(${DARK},0.95)`; ctx.fill(); ctx.strokeStyle = `rgba(${YELLOW},${isHover ? 0.9 : 0.55})`; ctx.lineWidth = 1; ctx.stroke() }
-    else { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r, 0, TAU); ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill() }
+    const axisCol = AXIS_COLOR[AXIS[e.id] ?? 'none']
+    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2)
+
+    // soft glow / corona — states only (great powers a touch stronger)
+    if (inWeb && !nonstate) this.glow(ns.sx, ns.sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
+    // focus pulse rings
+    if (isFocus) {
+      const since = (this.now - this.hoverSince) / 1000
+      for (let k = 0; k < 2; k++) { const pp = (since * 0.9 + k * 0.5) % 1; ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.5})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 6 + pp * 42, 0, TAU); ctx.stroke() }
+    }
+
+    if (nonstate && VISUALS.nonStateHollow) {
+      // hollow body → reads as a non-state actor; ring carries the bloc colour
+      const rr = Math.max(2.6, r)
+      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, rr, 0, TAU); ctx.fillStyle = `rgba(${DARK},0.55)`; ctx.fill()
+      ctx.strokeStyle = `rgba(${axisCol},${isFocus ? 1 : 0.82})`; ctx.lineWidth = 1.3; ctx.stroke()
+    } else {
+      // filled state disk
+      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r, 0, TAU); ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
+      if (VISUALS.allegianceRim) { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r, 0, TAU); ctx.strokeStyle = `rgba(${axisCol},${VISUALS.rimAlpha})`; ctx.lineWidth = 1.5; ctx.stroke() }
+      if (e.kind === 'great' && VISUALS.greatCorona) { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 4, 0, TAU); ctx.strokeStyle = `rgba(${WHITE},0.2)`; ctx.lineWidth = 1; ctx.stroke() }
+    }
     ctx.restore()
   }
 
   private updateLabels() {
     const placed: { x: number; y: number; w: number; h: number }[] = []
+    const showMinor = !VISUALS.zoomGatedLabels || this.zoom >= VISUALS.labelGate
     for (const ns of this.labelOrder) {
       const el = this.labels.get(ns.e.id); if (!el) continue
       const a = easeOutCubic(ns.appear)
@@ -333,10 +390,12 @@ export class OrbitalField {
       el.style.transform = `translate(-50%,-50%) translate(${x}px, ${y}px)`
       const fs = ns.e.kind === 'great' || ns.e.kind === 'regional' ? 15 : ns.e.kind === 'nonstate' ? 11 : 12
       const w = ns.e.he.length * fs * 0.58, hh = fs * 1.3
-      const forced = !!this.hovered && this.connected.has(ns.e.id)
+      const forced = !!this.focusId && this.connected.has(ns.e.id)
+      const minor = ns.e.kind === 'intermediate' || ns.e.kind === 'edge' || ns.e.kind === 'nonstate'
       let hide = ns.sx < -40 || ns.sx > this.w + 40 || ns.sy < -40 || ns.sy > this.h + 40
+      if (!forced && minor && !showMinor) hide = true
       if (!hide && !forced) for (const p of placed) { if (Math.abs(x - p.x) < (w + p.w) / 2 - 4 && Math.abs(y - p.y) < (hh + p.h) / 2 - 1) { hide = true; break } }
-      const dim = this.hovered && !this.connected.has(ns.e.id) ? 0.14 : 1
+      const dim = this.focusId && !this.connected.has(ns.e.id) ? 0.14 : 1
       el.style.opacity = String(hide ? 0 : a * dim)
       if (!hide) placed.push({ x, y, w, h: hh })
     }

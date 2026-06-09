@@ -10,7 +10,44 @@ export function Header() {
   )
 }
 
-export function SidePanel() {
+export interface EntityDetail {
+  he: string; power: number; tier: string; dispo: string
+  axisLabel: string; parentHe: string | null; relations: string[]
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="panel__row">
+      <span className="panel__row-k">{label}</span>
+      <span className="panel__row-v">{value}</span>
+    </div>
+  )
+}
+
+export function SidePanel({ detail, onClose }: { detail?: EntityDetail | null; onClose?: () => void }) {
+  if (detail) {
+    return (
+      <aside className="panel panel--detail" dir="rtl">
+        <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+        <h1 className="panel__title">{detail.he}</h1>
+        <div className="panel__meta">
+          <MetaRow label="כוח משיכה" value={`${detail.power} / 100`} />
+          <MetaRow label="מעמד" value={detail.tier} />
+          <MetaRow label="אופי" value={detail.dispo} />
+          <MetaRow label="שיוך" value={detail.axisLabel} />
+          {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
+        </div>
+        {detail.relations.length > 0 && (
+          <div className="panel__rels">
+            <span className="panel__rels-h">יחסים</span>
+            <div className="panel__rels-list">
+              {detail.relations.map((r) => <span key={r} className="panel__rel">{r}</span>)}
+            </div>
+          </div>
+        )}
+      </aside>
+    )
+  }
   return (
     <aside className="panel" dir="rtl">
       <h1 className="panel__title">יחסי הכוחות</h1>
@@ -20,7 +57,7 @@ export function SidePanel() {
         מעידים על אופי היחסים שלהם.
       </p>
       <h2 className="panel__eq">יחסי הכוחות = הכוחות + היחסים</h2>
-      <p className="panel__note">יחסי הכוחות הם השילוב בין מעגלי היחסים ומשוואת הכוחות.</p>
+      <p className="panel__note">בחרו גוף במפה כדי לראות את נתוניו.</p>
     </aside>
   )
 }
