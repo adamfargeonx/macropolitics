@@ -102,6 +102,25 @@ export const AXIS_LABEL: Record<Axis, string> = {
   west: 'הציר המערבי', east: 'הציר המזרחי', neutral: 'גוש ניטרלי', none: 'ללא שיוך',
 }
 
+// FORCES lens — attraction power = economic + military + geo-strategic (0–10 each).
+// Headline score derives from `power` (size stays consistent). Components are placeholder
+// (illustrative) until wired to empirical indices — same plan as `power`.
+export const forceScore = (power: number) => Math.round(power) / 10 // 0–10, one decimal
+export const FORCE_AXES = [
+  { key: 'eco', he: 'כלכלי' },
+  { key: 'mil', he: 'צבאי' },
+  { key: 'geo', he: 'גאו-אסטרטגי' },
+] as const
+export const FORCES: Record<string, { eco: number; mil: number; geo: number }> = {
+  usa: { eco: 10, mil: 10, geo: 10 }, china: { eco: 10, mil: 8, geo: 9 }, russia: { eco: 6, mil: 9, geo: 8 },
+  europe: { eco: 9, mil: 6, geo: 7 }, india: { eco: 7, mil: 6, geo: 6 }, iran: { eco: 4, mil: 7, geo: 8 },
+  saudi: { eco: 8, mil: 5, geo: 7 }, israel: { eco: 7, mil: 9, geo: 7 }, turkey: { eco: 6, mil: 7, geo: 7 },
+  egypt: { eco: 4, mil: 6, geo: 7 }, pakistan: { eco: 3, mil: 6, geo: 6 }, uae: { eco: 7, mil: 4, geo: 5 },
+  iraq: { eco: 4, mil: 3, geo: 5 }, qatar: { eco: 6, mil: 2, geo: 5 }, syria: { eco: 2, mil: 3, geo: 4 },
+  jordan: { eco: 2, mil: 3, geo: 4 }, kuwait: { eco: 5, mil: 2, geo: 3 }, oman: { eco: 3, mil: 2, geo: 4 },
+  lebanon: { eco: 2, mil: 2, geo: 3 }, bahrain: { eco: 3, mil: 2, geo: 3 }, yemen: { eco: 1, mil: 3, geo: 3 },
+}
+
 export const LINKS: [string, string][] = [
   ['usa', 'israel'], ['usa', 'saudi'], ['usa', 'egypt'], ['usa', 'europe'],
   ['saudi', 'uae'], ['saudi', 'bahrain'], ['saudi', 'kuwait'], ['saudi', 'qatar'],

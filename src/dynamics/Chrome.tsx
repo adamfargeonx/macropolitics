@@ -13,6 +13,8 @@ export function Header() {
 export interface EntityDetail {
   he: string; power: number; tier: string; dispo: string
   axisLabel: string; parentHe: string | null; relations: string[]
+  scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
+  forces?: { eco: number; mil: number; geo: number }
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -24,6 +26,16 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function ForceBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="fbar">
+      <span className="fbar__k">{label}</span>
+      <span className="fbar__track"><span className="fbar__fill" style={{ width: `${value * 10}%` }} /></span>
+      <span className="fbar__v">{value}</span>
+    </div>
+  )
+}
+
 export function SidePanel({ detail, onClose }: { detail?: EntityDetail | null; onClose?: () => void }) {
   if (detail) {
     return (
@@ -31,12 +43,20 @@ export function SidePanel({ detail, onClose }: { detail?: EntityDetail | null; o
         <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
         <h1 className="panel__title">{detail.he}</h1>
         <div className="panel__meta">
-          <MetaRow label="כוח משיכה" value={`${detail.power} / 100`} />
+          <MetaRow label="כוח משיכה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
           <MetaRow label="מעמד" value={detail.tier} />
-          <MetaRow label="אופי" value={detail.dispo} />
+          {!detail.forces && <MetaRow label="אופי" value={detail.dispo} />}
           <MetaRow label="שיוך" value={detail.axisLabel} />
           {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
         </div>
+        {detail.forces && (
+          <div className="panel__forces">
+            <span className="panel__rels-h">מרכיבי הכוח</span>
+            <ForceBar label="כלכלי" value={detail.forces.eco} />
+            <ForceBar label="צבאי" value={detail.forces.mil} />
+            <ForceBar label="גאו-אסטרטגי" value={detail.forces.geo} />
+          </div>
+        )}
         {detail.relations.length > 0 && (
           <div className="panel__rels">
             <span className="panel__rels-h">יחסים</span>
@@ -71,19 +91,24 @@ export function RightRail() {
   )
 }
 
-const TABS = [
-  { he: 'הכוחות', href: '#forces' },
-  { he: 'היחסים', href: '#relations' },
-  { he: 'יחסי הכוחות', href: '#dynamics', active: true },
+export type View = 'forces' | 'relations' | 'dynamics'
+const TABS: { he: string; view: View; ready?: boolean }[] = [
+  { he: 'הכוחות', view: 'forces', ready: true },
+  { he: 'היחסים', view: 'relations' },
+  { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
 ]
 
-export function TabBar() {
+export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
     <nav className="tabs" dir="rtl" aria-label="תצוגות">
       {TABS.map((t) => (
-        <a key={t.he} href={t.href} className={`tab${t.active ? ' tab--active' : ''}`}>
+        <button
+          key={t.he}
+          className={`tab${view === t.view ? ' tab--active' : ''}${t.ready === false ? ' tab--soon' : ''}`}
+          onClick={() => t.ready !== false && onView(t.view)}
+        >
           {t.he}
-        </a>
+        </button>
       ))}
     </nav>
   )

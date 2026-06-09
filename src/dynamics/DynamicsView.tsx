@@ -3,7 +3,7 @@ import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
 import { CustomCursor } from './CustomCursor'
 import { HoverReadout } from './HoverReadout'
-import { Header, SidePanel, RightRail, TabBar, type EntityDetail } from './Chrome'
+import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
 
 interface Hover { id: string | null; screen: { x: number; y: number } | null }
@@ -26,7 +26,7 @@ function buildDetail(id: string | null): EntityDetail | null {
   }
 }
 
-export default function DynamicsView() {
+export default function DynamicsView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<OrbitalField | null>(null)
@@ -63,7 +63,7 @@ export default function DynamicsView() {
       <Header />
       <SidePanel detail={detail} onClose={() => engineRef.current?.clearSelection()} />
       <RightRail />
-      <TabBar />
+      <TabBar view={view} onView={onView} />
       <div className="zoomctl" dir="ltr">
         <button onClick={() => engineRef.current?.zoomBy(1.25)} aria-label="התקרבות">+</button>
         <span className="zoomctl__val">{Math.round(zoom * 100)}%</span>
