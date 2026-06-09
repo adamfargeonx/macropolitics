@@ -1,0 +1,207 @@
+/* ── Macropolitics · /dynamics ───────────────────────────────── */
+/* Tel Aviv Brutalist (Hebrew display) + Futurism (Latin) — supplied fonts. */
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistLight.ttf') format('truetype');
+  font-weight: 300; font-display: swap;
+}
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistRegular.ttf') format('truetype');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistBold.ttf') format('truetype');
+  font-weight: 700 900; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-ExtraLight.otf') format('opentype');
+  font-weight: 200; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Light.otf') format('opentype');
+  font-weight: 300; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Regular.otf') format('opentype');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Bold.otf') format('opentype');
+  font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Black.otf') format('opentype');
+  font-weight: 900; font-display: swap;
+}
+
+:root {
+  --bg: #06030f;
+  --yellow: #fbff00;
+  --light: #f4f2ec;
+  --white: #ffffff;
+  --display: 'Tel Aviv Brutalist', 'Heebo', 'Arial Hebrew', system-ui, sans-serif;
+  --latin: 'Futurism', var(--display);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--light);
+  font-family: var(--display);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Stage ───────────────────────────────────────────────────── */
+.stage {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 31% 44%, rgba(40, 20, 70, 0.35), transparent 60%),
+    radial-gradient(120% 90% at 69% 56%, rgba(60, 55, 10, 0.18), transparent 55%),
+    var(--bg);
+  overflow: hidden;
+  cursor: none;
+}
+.field { position: absolute; inset: 0; display: block; }
+
+/* soft scrim: revolving nodes fade out behind the side panel (depth) */
+.stage::before {
+  content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 440px;
+  background: linear-gradient(to left, var(--bg) 28%, rgba(6, 3, 15, 0.82) 52%, transparent);
+  z-index: 3; pointer-events: none;
+}
+/* thin column divider */
+.stage::after {
+  content: ''; position: absolute; top: 0; bottom: 0; right: 380px;
+  width: 1px; background: rgba(255, 255, 255, 0.06); z-index: 4;
+}
+@media (max-width: 900px) { .stage::before, .stage::after { display: none; } }
+
+/* Labels (engine-driven transforms) ───────────────────────── */
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.lbl {
+  position: absolute;
+  top: 0; left: 0;
+  white-space: nowrap;
+  letter-spacing: 0.12em;
+  will-change: transform, opacity;
+  transition: color 0.25s ease, opacity 0.25s ease;
+  user-select: none;
+}
+.lbl--great    { color: var(--white); font-weight: 700; font-size: 15px; }
+.lbl--regional { color: var(--yellow); font-weight: 900; font-size: 15px; }
+.lbl--intermediate { color: var(--yellow); font-weight: 400; font-size: 12px; }
+.lbl--edge     { color: var(--yellow); font-weight: 400; font-size: 12px; opacity: 0.9; }
+.lbl--nonstate { color: var(--yellow); font-weight: 400; font-size: 11px; opacity: 0.75; }
+
+/* Custom cursor ───────────────────────────────────────────── */
+.cursor {
+  position: fixed;
+  top: 0; left: 0;
+  width: 26px; height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2147483647;
+  transition: width 0.22s ease, height 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  mix-blend-mode: difference;
+}
+.cursor::after {
+  content: ''; position: absolute; inset: 50%;
+  width: 3px; height: 3px; transform: translate(-50%, -50%);
+  background: var(--white); border-radius: 50%;
+}
+.cursor--active {
+  width: 54px; height: 54px;
+  border-color: var(--yellow);
+  background: rgba(251, 255, 0, 0.08);
+}
+
+/* Zoom controls ───────────────────────────────────────────── */
+.zoomctl {
+  position: absolute; bottom: 26px; left: 36px; z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+}
+.zoomctl button {
+  width: 34px; height: 34px;
+  background: rgba(6, 3, 15, 0.6);
+  border: 1px solid rgba(251, 255, 0, 0.35);
+  color: var(--yellow); font-size: 18px; line-height: 1;
+  cursor: none; transition: background 0.18s ease, border-color 0.18s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.zoomctl button:hover { background: rgba(251, 255, 0, 0.14); border-color: var(--yellow); }
+.zoomctl__reset { font-size: 15px !important; }
+.zoomctl__val { color: var(--yellow); font-size: 12px; opacity: 0.7; min-width: 38px; text-align: center; letter-spacing: 0.05em; }
+
+/* Hover readout (data revealed on hover) ──────────────────── */
+.readout {
+  position: absolute; top: 0; left: 0; z-index: 50;
+  pointer-events: none;
+  display: flex; flex-direction: column; gap: 1px;
+  margin: -62px 0 0 16px; padding: 8px 12px;
+  background: rgba(6, 3, 15, 0.78);
+  border: 1px solid rgba(251, 255, 0, 0.4);
+  backdrop-filter: blur(5px);
+  white-space: nowrap;
+  animation: readoutIn 0.16s ease-out;
+}
+@keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
+.readout__name { color: var(--white); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; }
+.readout__row { color: var(--yellow); font-size: 11px; letter-spacing: 0.08em; opacity: 0.85; }
+.readout__dispo { opacity: 0.6; }
+
+/* Chrome ──────────────────────────────────────────────────── */
+.hdr {
+  position: absolute; top: 26px; left: 40px; z-index: 6;
+  display: flex; align-items: center; gap: 12px;
+}
+.hdr__logo { color: var(--white); font-size: 18px; letter-spacing: 0.18em; }
+.hdr__info { color: var(--white); opacity: 0.7; font-size: 15px; }
+
+.panel {
+  position: absolute; top: 50%; right: 48px; transform: translateY(-50%);
+  width: 320px; z-index: 5; text-align: right;
+}
+.panel__title { font-size: 30px; font-weight: 900; color: var(--yellow); letter-spacing: -0.01em; }
+.panel__body { margin-top: 18px; font-size: 15px; line-height: 1.5; color: var(--yellow); opacity: 0.92; }
+.panel__eq { margin-top: 26px; font-size: 17px; font-weight: 900; color: var(--yellow); }
+.panel__note { margin-top: 10px; font-size: 14px; line-height: 1.5; color: var(--yellow); opacity: 0.7; }
+
+.rail {
+  position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 56px; z-index: 6;
+}
+.rail__item {
+  writing-mode: vertical-rl;
+  font-size: 13px; letter-spacing: 0.32em; color: var(--yellow);
+  opacity: 0.8;
+}
+
+.tabs {
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px; z-index: 6;
+  border: 1px solid rgba(251, 255, 0, 0.4);
+}
+.tab {
+  padding: 9px 22px; font-size: 16px; font-weight: 700;
+  color: var(--yellow); text-decoration: none; letter-spacing: 0.04em;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.tab:hover { background: rgba(251, 255, 0, 0.12); }
+.tab--active { background: var(--yellow); color: var(--bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor { transition: none; }
+  .lbl { transition: none; }
+}
