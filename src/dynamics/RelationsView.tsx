@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entities'
 import { Header, RightRail, TabBar, type View } from './Chrome'
-import { CustomCursor } from './CustomCursor'
 import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
 
@@ -148,7 +147,6 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
       )}
       <RightRail />
       <TabBar view={view} onView={onView} />
-      <CustomCursor active={!!hovered} />
     </div>
   )
 }

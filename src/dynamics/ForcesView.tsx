@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
 import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
-import { CustomCursor } from './CustomCursor'
 import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
 
@@ -111,7 +110,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       )}
       <RightRail />
       <TabBar view={view} onView={onView} />
-      <CustomCursor active={!!hovered} />
     </div>
   )
 }

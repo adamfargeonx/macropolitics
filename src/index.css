@@ -104,28 +104,41 @@ body {
 .lbl--edge     { color: var(--yellow); font-weight: 400; font-size: 12px; opacity: 0.9; }
 .lbl--nonstate { color: var(--yellow); font-weight: 400; font-size: 11px; opacity: 0.75; }
 
-/* Custom cursor ───────────────────────────────────────────── */
+/* Custom cursor (reactive: dot + trailing ring) ───────────── */
 .cursor {
-  position: fixed;
-  top: 0; left: 0;
-  width: 26px; height: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  position: fixed; top: 0; left: 0;
+  width: 30px; height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 50%;
-  pointer-events: none;
-  z-index: 2147483647;
-  transition: width 0.22s ease, height 0.22s ease, border-color 0.22s ease, background 0.22s ease;
-  mix-blend-mode: difference;
+  pointer-events: none; z-index: 2147483646;
+  will-change: transform, opacity;
+  transition: border-color 0.2s ease, background 0.2s ease, opacity 0.25s ease;
 }
-.cursor::after {
-  content: ''; position: absolute; inset: 50%;
-  width: 3px; height: 3px; transform: translate(-50%, -50%);
-  background: var(--white); border-radius: 50%;
+.cursor--on { border-color: var(--yellow); background: rgba(251, 255, 0, 0.06); }
+.cursor-dot {
+  position: fixed; top: 0; left: 0;
+  width: 5px; height: 5px;
+  background: var(--yellow); border-radius: 50%;
+  pointer-events: none; z-index: 2147483647;
+  will-change: transform, opacity;
+  transition: opacity 0.2s ease;
 }
-.cursor--active {
-  width: 54px; height: 54px;
-  border-color: var(--yellow);
-  background: rgba(251, 255, 0, 0.08);
+@media (pointer: coarse) { .cursor, .cursor-dot { display: none; } }
+
+/* Sound toggle (equalizer pulses when on, flat when muted) */
+.soundtoggle {
+  position: fixed; top: 26px; right: 36px; z-index: 60;
+  width: 34px; height: 34px; background: none; border: none; cursor: none;
+  display: flex; align-items: center; justify-content: center;
 }
+.soundtoggle__bars { display: flex; align-items: center; gap: 2px; height: 16px; }
+.soundtoggle__bars i { width: 2px; height: 6px; background: var(--yellow); opacity: 0.85; animation: eq 0.9s ease-in-out infinite alternate; }
+.soundtoggle__bars i:nth-child(2) { animation-delay: 0.18s; }
+.soundtoggle__bars i:nth-child(3) { animation-delay: 0.36s; }
+.soundtoggle__bars i:nth-child(4) { animation-delay: 0.54s; }
+.soundtoggle__bars--off i { animation: none; height: 3px; opacity: 0.4; }
+.soundtoggle:hover .soundtoggle__bars i { background: var(--white); }
+@keyframes eq { from { height: 4px; opacity: 0.55; } to { height: 16px; opacity: 1; } }
 
 /* Zoom controls ───────────────────────────────────────────── */
 .zoomctl {

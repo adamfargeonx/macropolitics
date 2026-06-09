@@ -1,5 +1,4 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import { CustomCursor } from './CustomCursor'
 import type { View } from './Chrome'
 
 const TAU = Math.PI * 2
@@ -87,7 +86,6 @@ export default function HomeView({ onView }: { onView: (v: View) => void }) {
           ))}
         </nav>
       </div>
-      <CustomCursor active={false} />
     </div>
   )
 }

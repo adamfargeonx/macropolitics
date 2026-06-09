@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
-import { CustomCursor } from './CustomCursor'
 import { HoverReadout } from './HoverReadout'
 import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
+import { sound } from '../sound'
 
 interface Hover { id: string | null; screen: { x: number; y: number } | null }
 
@@ -38,8 +38,8 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
   useEffect(() => {
     if (!canvasRef.current || !stageRef.current) return
     const engine = new OrbitalField(canvasRef.current, stageRef.current)
-    engine.onHover = (id, screen) => setHover({ id, screen })
-    engine.onSelect = (id) => setSelected(id)
+    engine.onHover = (id, screen) => { if (id) sound.play('hover'); setHover({ id, screen }) }
+    engine.onSelect = (id) => { if (id) sound.play('select'); setSelected(id) }
     engine.onZoom = (z) => setZoom(z)
     engineRef.current = engine
     engine.start_()
@@ -70,7 +70,6 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
         <button onClick={() => engineRef.current?.zoomBy(0.8)} aria-label="התרחקות">−</button>
         <button className="zoomctl__reset" onClick={() => engineRef.current?.resetView()} aria-label="איפוס">⟲</button>
       </div>
-      <CustomCursor active={!!hover.id} />
     </div>
   )
 }
