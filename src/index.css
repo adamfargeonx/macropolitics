@@ -341,8 +341,34 @@ body {
 .home__lens-sub { font-size: 12px; color: var(--yellow); opacity: 0.7; }
 @keyframes homeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ── Microanimations & transitions ─────────────────────────── */
+.stage { animation: stageIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes stageIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* node pop-ins (forces + relations) */
+.fnode { animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.rnode {
+  animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: left 0.6s cubic-bezier(0.16, 1, 0.3, 1), top 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+@keyframes popIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.55); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* animated bar fills (forces breakdown + relations) */
+.fbar__fill { transform-origin: right; animation: barGrow 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* relations triangle draws itself in */
+.rel-tri polygon { stroke-dasharray: 2200; stroke-dashoffset: 2200; animation: triDraw 1.2s 0.1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes triDraw { to { stroke-dashoffset: 0; } }
+
+/* press feedback */
+.tab:active, .zoomctl button:active, .panel__close:active, .soundtoggle:active { transform: scale(0.93); }
+.home__lens:active { transform: translateY(-1px) scale(0.98); }
+
 @media (prefers-reduced-motion: reduce) {
   .cursor { transition: none; }
   .lbl { transition: none; }
-  .home__eyebrow, .home__title, .home__intro, .home__lens { animation: none; }
+  .home__eyebrow, .home__title, .home__intro, .home__lens,
+  .stage, .fnode, .rnode, .fbar__fill, .rel-tri polygon { animation: none; }
+  .rnode { transition: none; }
 }

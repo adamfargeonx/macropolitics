@@ -72,7 +72,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           </div>
         ))}
         {/* bodies */}
-        {layout.nodes.map(({ e, x, y, d }) => {
+        {layout.nodes.map(({ e, x, y, d }, i) => {
           const isFocus = e.id === focus
           const dim = focus && !isFocus
           const nonstate = e.kind === 'nonstate'
@@ -83,7 +83,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               data-id={e.id}
               data-power={e.power}
               className={`fnode${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
-              style={{ left: x, top: y }}
+              style={{ left: x, top: y, animationDelay: `${Math.min(i * 0.018, 0.4)}s` }}
               onMouseEnter={() => setHovered(e.id)}
               onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
               onClick={(ev) => { ev.stopPropagation(); setSelected((s) => (s === e.id ? null : e.id)) }}

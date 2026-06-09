@@ -91,7 +91,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
               <span className="rel-ref__tag">מדינת ייחוס</span>
             </div>
             {/* plotted states */}
-            {geo.points.map(({ e, x, y, d }) => {
+            {geo.points.map(({ e, x, y, d }, i) => {
               const isHover = e.id === hovered
               const dim = hovered && !isHover
               const rim = AXIS[e.id] === 'west' ? '132,160,196' : AXIS[e.id] === 'east' ? '198,134,98' : '150,150,160'
@@ -101,7 +101,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
                   data-id={e.id}
                   data-power={e.power}
                   className={`rnode${isHover ? ' rnode--hover' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y }}
+                  style={{ left: x, top: y, animationDelay: `${Math.min(i * 0.02, 0.35)}s` }}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onClick={() => { setRefId(e.id); setHovered(null) }}
