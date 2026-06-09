@@ -52,6 +52,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* keyboard focus (custom cursor hides the native pointer) */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--yellow); outline-offset: 3px;
+}
+
 html, body, #root { height: 100%; }
 body {
   background: var(--bg);
@@ -211,9 +216,13 @@ body {
 .panel__rels-h { font-size: 12px; color: var(--yellow); opacity: 0.55; letter-spacing: 0.08em; }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
-  font-size: 12px; color: var(--yellow); padding: 3px 9px;
+  font-size: 12px; color: var(--yellow); padding: 4px 9px;
   border: 1px solid rgba(251, 255, 0, 0.3); white-space: nowrap;
+  background: none; cursor: none; font-family: var(--display);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
+.panel__rel:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
+.panel__rel:active { transform: scale(0.94); }
 
 .rail {
   position: absolute; top: 50%; right: 14px; transform: translateY(-50%);

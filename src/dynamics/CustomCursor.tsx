@@ -10,13 +10,13 @@ export function CustomCursor() {
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
     let mx = innerWidth / 2, my = innerHeight / 2, rx = mx, ry = my
-    let active = false, pressed = false, visible = false, raf = 0
+    let targetActive = false, pressed = false, visible = false, raf = 0
 
     const onMove = (e: PointerEvent) => { mx = e.clientX; my = e.clientY; visible = true }
     const onOver = (e: PointerEvent) => {
       const i = isInteractive(e.target)
-      if (i && !active) sound.play('hover')
-      active = i
+      if (i && !targetActive) sound.play('hover')
+      targetActive = i
     }
     const onDown = (e: PointerEvent) => { pressed = true; sound.start(); if (isInteractive(e.target)) sound.play('click') }
     const onUp = () => { pressed = false }
@@ -30,6 +30,7 @@ export function CustomCursor() {
     const loop = () => {
       const k = reduce ? 1 : 0.2
       rx += (mx - rx) * k; ry += (my - ry) * k
+      const active = targetActive || document.body.classList.contains('cursor-grab')
       const ring = ringRef.current, dot = dotRef.current
       if (ring) {
         const s = (active ? 1.8 : 1) * (pressed ? 0.82 : 1)

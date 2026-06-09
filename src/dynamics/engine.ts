@@ -223,6 +223,7 @@ export class OrbitalField {
     this.onSelect?.(id)
   }
   clearSelection() { this.setSelected(null) }
+  select(id: string | null) { this.setSelected(id) }
 
   private resolve(t: number) {
     const W = this.world

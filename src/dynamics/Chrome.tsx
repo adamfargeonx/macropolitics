@@ -12,7 +12,7 @@ export function Header({ onHome }: { onHome?: () => void }) {
 
 export interface EntityDetail {
   he: string; power: number; tier: string; dispo: string
-  axisLabel: string; parentHe: string | null; relations: string[]
+  axisLabel: string; parentHe: string | null; relations: { id: string; he: string }[]
   scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
   forces?: { eco: number; mil: number; geo: number }
 }
@@ -36,7 +36,7 @@ function ForceBar({ label, value }: { label: string; value: number }) {
   )
 }
 
-export function SidePanel({ detail, onClose }: { detail?: EntityDetail | null; onClose?: () => void }) {
+export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDetail | null; onClose?: () => void; onRelSelect?: (id: string) => void }) {
   if (detail) {
     return (
       <aside className="panel panel--detail" dir="rtl">
@@ -61,7 +61,9 @@ export function SidePanel({ detail, onClose }: { detail?: EntityDetail | null; o
           <div className="panel__rels">
             <span className="panel__rels-h">יחסים</span>
             <div className="panel__rels-list">
-              {detail.relations.map((r) => <span key={r} className="panel__rel">{r}</span>)}
+              {detail.relations.map((r) => (
+                <button key={r.id} className="panel__rel" onClick={() => onRelSelect?.(r.id)}>{r.he}</button>
+              ))}
             </div>
           </div>
         )}
