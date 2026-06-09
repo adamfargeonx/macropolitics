@@ -3,6 +3,7 @@ import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entiti
 import { Header, RightRail, TabBar, type View } from './Chrome'
 import { CustomCursor } from './CustomCursor'
 import { useStarfield } from './useStarfield'
+import { useDeCollide } from './useDeCollide'
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
 const STATES = NODES.filter((n) => n.kind !== 'nonstate')
@@ -50,17 +51,19 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
   const geo = useMemo(() => {
     const { w, h } = size
     if (!w || !h) return null
-    const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.42
+    const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.47
     const Vt = { x: cx, y: cy - s * 0.95 }       // מתח (tension) — top
     const Vf = { x: cx - s * 0.92, y: cy + s * 0.72 } // חיכוך (friction) — bottom-left
     const Vh = { x: cx + s * 0.92, y: cy + s * 0.72 } // הרמוניה (harmony) — bottom-right
     const points = STATES.filter((e) => e.id !== refId).map((e) => {
       const r = relation(refId, e.id)
+      const jx = ((hash(e.id) % 1000) / 1000 - 0.5) * 30
+      const jy = ((hash(e.id + '~') % 1000) / 1000 - 0.5) * 30
       return {
         e, r,
-        x: r.tension * Vt.x + r.friction * Vf.x + r.harmony * Vh.x,
-        y: r.tension * Vt.y + r.friction * Vf.y + r.harmony * Vh.y,
-        d: Math.max(9, Math.min(34, powerSize(e.power) * 0.46)),
+        x: r.tension * Vt.x + r.friction * Vf.x + r.harmony * Vh.x + jx,
+        y: r.tension * Vt.y + r.friction * Vf.y + r.harmony * Vh.y + jy,
+        d: Math.max(9, Math.min(30, powerSize(e.power) * 0.42)),
       }
     })
     return { cx, cy, Vt, Vf, Vh, points }
@@ -68,6 +71,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
 
   const refNode = byId.get(refId)!
   const hoveredPoint = geo?.points.find((p) => p.e.id === hovered)
+  useDeCollide(fieldRef, '.rnode', '.rnode__name', hovered, [size, refId, hovered])
 
   return (
     <div className="stage relations" dir="rtl">
@@ -95,6 +99,8 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
               return (
                 <div
                   key={e.id}
+                  data-id={e.id}
+                  data-power={e.power}
                   className={`rnode${isHover ? ' rnode--hover' : ''}${dim ? ' rnode--dim' : ''}`}
                   style={{ left: x, top: y }}
                   onMouseEnter={() => setHovered(e.id)}

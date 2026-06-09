@@ -228,7 +228,7 @@ body {
 .tab--soon:hover { background: none; }
 
 /* ── Forces view ───────────────────────────────────────────── */
-.forces-field { position: absolute; top: 0; bottom: 0; left: 0; right: 380px; z-index: 2; }
+.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: 380px; z-index: 2; }
 .forces-ring {
   position: absolute; transform: translate(-50%, -50%);
   border: 1px solid rgba(251, 255, 0, 0.1); border-radius: 50%; pointer-events: none;
@@ -263,7 +263,7 @@ body {
 .fbar__v { font-size: 12px; font-weight: 700; color: var(--white); width: 18px; }
 
 /* ── Relations view (triangle) ─────────────────────────────── */
-.rel-field { position: absolute; top: 0; bottom: 0; left: 0; right: 380px; z-index: 2; }
+.rel-field { position: absolute; top: 20px; bottom: 64px; left: 0; right: 380px; z-index: 2; }
 .rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);

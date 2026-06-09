@@ -3,10 +3,11 @@ import { NODES, FORCES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/
 import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { CustomCursor } from './CustomCursor'
 import { useStarfield } from './useStarfield'
+import { useDeCollide } from './useDeCollide'
 
 const TAU = Math.PI * 2
 const BANDS = ['great', 'regional', 'intermediate', 'edge', 'nonstate'] as const
-const BAND_R: Record<string, number> = { great: 0.16, regional: 0.37, intermediate: 0.58, edge: 0.77, nonstate: 0.94 }
+const BAND_R: Record<string, number> = { great: 0.26, regional: 0.47, intermediate: 0.65, edge: 0.81, nonstate: 0.96 }
 const TIER_LABEL: Record<string, string> = {
   great: 'כוח-על', regional: 'כוח אזורי', intermediate: 'כוח ביניים', edge: 'כוח קצה', nonstate: 'שחקנים לא-מדינתיים',
 }
@@ -50,8 +51,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       const R = BAND_R[kind] * halfMin
       const off = kind === 'great' ? 0.4 : kind.length * 0.7
       items.forEach((e, i) => {
-        const ang = (i / items.length) * TAU - Math.PI / 2 + off
-        nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: Math.max(8, powerSize(e.power) * 0.72) })
+        const ang = (i / items.length) * TAU + Math.PI / 2 + off
+        nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: Math.max(8, Math.min(66, powerSize(e.power) * 0.5)) })
       })
     }
     return { nodes, rings, cx, cy }
@@ -59,6 +60,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
 
   const focus = selected ?? hovered
   const detail = useMemo(() => buildForceDetail(selected), [selected])
+  useDeCollide(fieldRef, '.fnode', '.fnode__name', focus, [size, hovered, selected])
 
   return (
     <div className="stage forces" dir="rtl" onClick={() => setSelected(null)}>
@@ -79,6 +81,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           return (
             <div
               key={e.id}
+              data-id={e.id}
+              data-power={e.power}
               className={`fnode${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
               style={{ left: x, top: y }}
               onMouseEnter={() => setHovered(e.id)}
