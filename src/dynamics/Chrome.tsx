@@ -94,7 +94,7 @@ export function RightRail() {
 export type View = 'forces' | 'relations' | 'dynamics'
 const TABS: { he: string; view: View; ready?: boolean }[] = [
   { he: 'הכוחות', view: 'forces', ready: true },
-  { he: 'היחסים', view: 'relations' },
+  { he: 'היחסים', view: 'relations', ready: true },
   { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
 ]
 

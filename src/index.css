@@ -262,6 +262,36 @@ body {
 .fbar__fill { display: block; height: 100%; background: var(--yellow); }
 .fbar__v { font-size: 12px; font-weight: 700; color: var(--white); width: 18px; }
 
+/* ── Relations view (triangle) ─────────────────────────────── */
+.rel-field { position: absolute; top: 0; bottom: 0; left: 0; right: 380px; z-index: 2; }
+.rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
+.rel-vtx {
+  position: absolute; transform: translate(-50%, -50%);
+  font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--yellow);
+  opacity: 0.7; white-space: nowrap;
+}
+.rel-ref {
+  position: absolute; transform: translate(-50%, -50%); z-index: 4; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px rgba(251, 255, 0, 0.5); }
+.rel-ref__name { font-size: 14px; font-weight: 900; color: var(--yellow); }
+.rel-ref__tag { font-size: 10px; color: var(--white); opacity: 0.5; letter-spacing: 0.1em; }
+.rnode {
+  position: absolute; transform: translate(-50%, -50%); z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: none; transition: opacity 0.25s ease;
+}
+.rnode__disk {
+  border-radius: 50%; background: var(--light); border: 1.5px solid;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.rnode__name { font-size: 11px; font-weight: 700; color: var(--white); white-space: nowrap; }
+.rnode--hover { z-index: 5; }
+.rnode--hover .rnode__disk { transform: scale(1.15); box-shadow: 0 0 22px rgba(251, 255, 0, 0.3); }
+.rnode--dim { opacity: 0.28; }
+.panel__rel-toward { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--yellow); opacity: 0.85; }
+
 @media (prefers-reduced-motion: reduce) {
   .cursor { transition: none; }
   .lbl { transition: none; }

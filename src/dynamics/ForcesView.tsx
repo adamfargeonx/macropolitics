@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
 import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { CustomCursor } from './CustomCursor'
+import { useStarfield } from './useStarfield'
 
 const TAU = Math.PI * 2
 const BANDS = ['great', 'regional', 'intermediate', 'edge', 'nonstate'] as const
@@ -21,42 +22,6 @@ function buildForceDetail(id: string | null): EntityDetail | null {
     axisLabel: AXIS_LABEL[AXIS[id] ?? 'none'], parentHe: null, relations: [],
     scoreLabel: `${forceScore(e.power).toFixed(1)} / 10`, forces: FORCES[id],
   }
-}
-
-// drifting starfield background (calm; the interactive field is the /dynamics signature)
-function useStarfield(canvasRef: RefObject<HTMLCanvasElement | null>) {
-  useEffect(() => {
-    const cv = canvasRef.current; if (!cv) return
-    const ctx = cv.getContext('2d')!
-    let raf = 0, w = 0, h = 0
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
-    let stars: { x: number; y: number; vx: number; vy: number; s: number; b: number }[] = []
-    const resize = () => {
-      const r = cv.parentElement!.getBoundingClientRect(); w = r.width; h = r.height
-      cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      stars = Array.from({ length: Math.min(150, Math.round((w * h) / 9000)) }, () => ({
-        x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.08, vy: (Math.random() - 0.5) * 0.08,
-        s: 0.6 + Math.random() * 1.2, b: 0.12 + Math.random() * 0.4,
-      }))
-    }
-    resize(); window.addEventListener('resize', resize)
-    let t = 0
-    const loop = () => {
-      t += 0.016; ctx.clearRect(0, 0, w, h)
-      for (const p of stars) {
-        p.x += p.vx; p.y += p.vy
-        if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w
-        if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h
-        const tw = 0.6 + 0.4 * Math.sin(t * 1.1 + p.x * 0.04)
-        ctx.fillStyle = `rgba(255,255,255,${p.b * tw})`
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, TAU); ctx.fill()
-      }
-      raf = requestAnimationFrame(loop)
-    }
-    loop()
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
-  }, [canvasRef])
 }
 
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
