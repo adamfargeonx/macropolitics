@@ -4,6 +4,7 @@ import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
+import { Legend } from './dynamics/Legend'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
 
@@ -40,6 +41,7 @@ export default function App() {
         : <DynamicsView view={view} onView={setView} />}
       <CustomCursor />
       <SoundToggle />
+      <Legend view={view} />
     </>
   )
 }
