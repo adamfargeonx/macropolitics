@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import OpenerView from './dynamics/OpenerView'
 import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
@@ -8,11 +9,11 @@ import { Legend } from './dynamics/Legend'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
 
-function SoundToggle() {
+function SoundToggle({ home = false }: { home?: boolean }) {
   const [muted, setMuted] = useState(false)
   return (
     <button
-      className="soundtoggle"
+      className={`soundtoggle${home ? ' soundtoggle--home' : ''}`}
       aria-label={muted ? 'הפעלת קול' : 'השתקה'}
       onClick={() => { sound.start(); setMuted(sound.toggle()) }}
     >
@@ -24,6 +25,7 @@ function SoundToggle() {
 }
 
 export default function App() {
+  const [entered, setEntered] = useState(false)
   const [view, setView] = useState<View>('home')
   const prev = useRef<View>(view)
   useEffect(() => {
@@ -35,12 +37,13 @@ export default function App() {
 
   return (
     <>
-      {view === 'home' ? <HomeView onView={setView} />
+      {!entered ? <OpenerView onEnter={() => setEntered(true)} />
+        : view === 'home' ? <HomeView onView={setView} />
         : view === 'forces' ? <ForcesView view={view} onView={setView} />
         : view === 'relations' ? <RelationsView view={view} onView={setView} />
         : <DynamicsView view={view} onView={setView} />}
       <CustomCursor />
-      <SoundToggle />
+      {entered && <SoundToggle home={view === 'home'} />}
       <Legend view={view} />
     </>
   )

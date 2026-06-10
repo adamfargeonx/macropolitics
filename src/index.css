@@ -41,15 +41,57 @@
   font-weight: 900; font-display: swap;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — single source of truth. See docs/design-system.md.
+   ════════════════════════════════════════════════════════════════ */
 :root {
-  --bg: #06030f;
-  --yellow: #fbff00;
-  --light: #f4f2ec;
-  --white: #ffffff;
+  /* ── Color ───────────────────────────────────────────────── */
+  --bg: #06030f;            /* base canvas */
+  --bg-2: #0a0618;          /* raised surface base */
+  --yellow: #fbff00;        /* accent — the only chromatic note */
+  --white: #ffffff;         /* states / emphasis */
+  --light: #f4f2ec;         /* primary ink (warm off-white) */
+  --ink-dim: rgba(244, 242, 236, 0.55);
+  --ink-faint: rgba(244, 242, 236, 0.3);
+  --surface-1: rgba(255, 255, 255, 0.03);   /* faint chip / cell */
+  --surface-2: rgba(10, 6, 22, 0.96);        /* panel / overlay */
+  --line: rgba(255, 255, 255, 0.08);         /* hairline divider */
+  --line-2: rgba(255, 255, 255, 0.06);       /* fainter divider */
+  --line-yellow: rgba(251, 255, 0, 0.16);    /* accent hairline */
+  --yellow-12: rgba(251, 255, 0, 0.12);
+  --yellow-30: rgba(251, 255, 0, 0.3);
+  /* allegiance rims (bloc temperature) — used as rgb() triplets */
+  --rim-west: 132, 160, 196;
+  --rim-east: 198, 134, 98;
+  --rim-neutral: 150, 150, 160;
+  --rim-none: 120, 120, 128;
+
+  /* ── Type ────────────────────────────────────────────────── */
   --display: 'Tel Aviv Brutalist', 'Heebo', 'Arial Hebrew', system-ui, sans-serif;
-  /* Body text — Futurism leads (Latin/numerals), Hebrew falls back per-glyph to Tel Aviv. */
+  /* Body — Futurism leads (Latin/numerals), Hebrew falls back per-glyph to Tel Aviv. */
   --body: 'Futurism', 'Tel Aviv Brutalist', 'Heebo', system-ui, sans-serif;
   --latin: 'Futurism', var(--display);
+  --fw-light: 300; --fw-regular: 400; --fw-bold: 700; --fw-black: 900;
+  --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
+  --text-lg: 15px; --text-xl: 17px; --text-2xl: 20px; --text-3xl: 30px;
+  --display-hero: clamp(46px, 7.4vw, 112px);
+  --tracking-tight: -0.01em; --tracking-wide: 0.08em; --tracking-wider: 0.18em;
+
+  /* ── Space (4px base) ────────────────────────────────────── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 26px; --sp-7: 32px; --sp-8: 40px; --sp-9: 48px;
+
+  /* ── Radius ──────────────────────────────────────────────── */
+  --r-sm: 4px; --r-pill: 999px;
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --dur-fast: 0.2s; --dur-base: 0.4s; --dur-slow: 0.8s;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* ── Elevation (z-index scale) ───────────────────────────── */
+  --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;
+  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-cursor: 2147483646;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -134,10 +176,12 @@ body {
 
 /* Sound toggle (equalizer pulses when on, flat when muted) */
 .soundtoggle {
-  position: fixed; top: 26px; right: 36px; z-index: 60;
+  position: fixed; top: 26px; right: 36px; z-index: var(--z-toggle);
   width: 34px; height: 34px; background: none; border: none; cursor: none;
   display: flex; align-items: center; justify-content: center;
 }
+/* on home the top-right corner holds the logo — move the toggle to bottom-right */
+.soundtoggle--home { top: auto; bottom: var(--sp-6); right: var(--sp-8); }
 .soundtoggle__bars { display: flex; align-items: center; gap: 2px; height: 16px; }
 .soundtoggle__bars i { width: 2px; height: 6px; background: var(--yellow); opacity: 0.85; animation: eq 0.9s ease-in-out infinite alternate; }
 .soundtoggle__bars i:nth-child(2) { animation-delay: 0.18s; }
@@ -412,69 +456,100 @@ body {
 .rnode--dim { opacity: 0.28; }
 .panel__rel-toward { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--yellow); opacity: 0.85; }
 
-/* ── Home (the hero) ───────────────────────────────────────── */
+/* ── Home (the hero) — matched to reference ────────────────── */
 .home { cursor: none; }
+.home .hdr { left: auto; right: var(--sp-8); }       /* logo top-right on home (per ref) */
 
-/* the orbiting-circle motif — a thin ring with a dot travelling its perimeter */
+/* the orbiting-circle motif — thin ring, dot travelling its perimeter, no glow */
 .home-orbit {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: min(52vmin, 560px); height: min(52vmin, 560px);
-  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 50%;
-  z-index: 2; pointer-events: none;
-  animation: orbitIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  width: min(62vmin, 640px); height: min(62vmin, 640px);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 50%;
+  z-index: var(--z-field); pointer-events: none;
+  animation: orbitIn 1.4s var(--ease-out-expo) both;
 }
-.home-orbit__spin { position: absolute; inset: 0; animation: orbitSpin 18s linear infinite; }
+.home-orbit__spin { position: absolute; inset: 0; animation: orbitSpin 44s linear infinite; }
 .home-orbit__dot {
-  position: absolute; top: -4.5px; left: 50%; transform: translateX(-50%);
-  width: 9px; height: 9px; border-radius: 50%; background: var(--white);
-  box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.7);
+  position: absolute; top: -5px; left: 50%; transform: translateX(-50%);
+  width: 11px; height: 11px; border-radius: 50%; background: var(--white);
 }
 @keyframes orbitSpin { to { transform: rotate(360deg); } }
-@keyframes orbitIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.86); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes orbitIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-/* brand + nav, centred over the orbit */
-.home2 {
-  position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 0 24px;
+/* brand wordmark — light, airy, centred over the ring */
+.home-title {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: var(--z-content); white-space: nowrap;
+  font-family: var(--display); font-weight: var(--fw-light);
+  font-size: clamp(42px, 6.6vw, 98px); letter-spacing: 0.05em; color: var(--white);
+  animation: homeIn 1.1s 0.2s var(--ease-out-expo) both;
 }
-.home2__title {
-  display: flex; align-items: center; justify-content: center;
-  font-size: clamp(38px, 6.6vw, 104px); font-weight: 700; line-height: 1; color: var(--white);
-  letter-spacing: 0.02em;
-  animation: homeUp 1s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.home2__sep {
-  display: inline-block; width: 0.16em; height: 0.16em; border-radius: 50%;
-  background: var(--yellow); margin: 0 0.32em; box-shadow: 0 0 14px 2px rgba(251, 255, 0, 0.6);
-}
-.home2__nav {
-  margin-top: 34px; display: flex; gap: 30px; pointer-events: auto;
-  animation: homeUp 1s 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.home2__nav-item {
-  position: relative; background: none; border: none; cursor: none; font-family: var(--body);
-  font-size: 14px; letter-spacing: 0.16em; color: var(--yellow); opacity: 0.7; padding: 4px 2px;
-  transition: opacity 0.22s ease, color 0.22s ease, text-shadow 0.22s ease;
-}
-.home2__nav-item::after {
-  content: ''; position: absolute; left: 50%; bottom: -3px; width: 0; height: 1px;
-  background: var(--yellow); transform: translateX(-50%); transition: width 0.26s var(--ease, cubic-bezier(0.16,1,0.3,1));
-}
-.home2__nav-item:hover { opacity: 1; color: var(--white); text-shadow: 0 0 14px rgba(255, 255, 255, 0.4); }
-.home2__nav-item:hover::after { width: 100%; }
-.home2__nav-item:active { transform: scale(0.96); }
 
-.home2__tagline {
-  position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 3;
-  font-family: var(--body); font-size: 15px; letter-spacing: 0.08em; color: var(--yellow);
-  white-space: nowrap; animation: homeUpX 1s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* tagline — top centre, accent */
+.home-tagline {
+  position: absolute; top: var(--sp-6); left: 50%; transform: translateX(-50%);
+  z-index: var(--z-content); white-space: nowrap;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-lg);
+  letter-spacing: var(--tracking-wide); color: var(--yellow);
+  animation: homeInX 1s 0.55s var(--ease-out-expo) both;
 }
-@keyframes homeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes homeUpX { from { opacity: 0; transform: translate(-50%, 18px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* nav anchored around the ring (dynamics top · forces bottom-left · relations bottom-right) */
+.home-nav { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: var(--z-content); }
+.home-nav__item {
+  position: absolute; top: 0; left: 0; white-space: nowrap;
+  background: none; border: none; cursor: none; font-family: var(--display);
+  font-size: var(--text-2xl); font-weight: var(--fw-regular); letter-spacing: 0.04em;
+  color: var(--white); opacity: 0.82; padding: 6px 10px;
+  transition: opacity var(--dur-fast) var(--ease-out-expo), color var(--dur-fast) ease;
+  animation: navIn 0.9s 0.7s var(--ease-out-expo) both;
+}
+.home-nav__item--top { transform: translate(-50%, -50%) translateY(-20vmin); }
+.home-nav__item--bl  { transform: translate(-50%, -50%) translate(-21vmin, 20vmin); }
+.home-nav__item--br  { transform: translate(-50%, -50%) translate(21vmin, 20vmin); }
+.home-nav__item:hover { opacity: 1; color: var(--yellow); }
+.home-nav__item:active { opacity: 0.7; }
+
+@keyframes homeIn { from { opacity: 0; transform: translate(-50%, calc(-50% + 14px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes homeInX { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes navIn { from { opacity: 0; } to { opacity: 0.82; } }
 @media (prefers-reduced-motion: reduce) {
   .home-orbit__spin { animation: none; }
-  .home-orbit, .home2__title, .home2__nav, .home2__tagline { animation: none; }
+  .home-orbit, .home-title, .home-tagline, .home-nav__item { animation: none; }
+}
+
+/* ── Opener (post-loader; click to open the orbit) ─────────── */
+.opener { cursor: none; }
+.opener-core {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: var(--z-content); display: grid; place-items: center;
+}
+.opener-core__ring {
+  grid-area: 1 / 1; width: 74px; height: 74px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  animation: coreBreath 2.8s var(--ease-in-out-quart) infinite;
+}
+.opener-core__dot {
+  grid-area: 1 / 1; width: 14px; height: 14px; border-radius: 50%; background: var(--white);
+  animation: coreDotBreath 2.8s var(--ease-in-out-quart) infinite;
+}
+@keyframes coreBreath { 0%, 100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.16); opacity: 1; } }
+@keyframes coreDotBreath { 0%, 100% { transform: scale(0.9); } 50% { transform: scale(1.1); } }
+.opener-hint {
+  position: absolute; bottom: var(--sp-9); left: 50%; transform: translateX(-50%); z-index: var(--z-content);
+  font-family: var(--body); font-size: var(--text-sm); letter-spacing: var(--tracking-wider);
+  color: var(--ink-dim); animation: hintPulse 2.8s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.65; } }
+
+/* exit: the breathing ring opens (expands) while the screen fades into the homepage */
+.opener--leaving { animation: openerFade 0.85s ease forwards; }
+.opener--leaving .opener-core__ring { animation: none; transform: scale(8.5); opacity: 0; transition: transform 0.85s var(--ease-out-expo), opacity 0.85s ease; }
+.opener--leaving .opener-core__dot { animation: none; opacity: 0; transition: opacity 0.4s ease; }
+.opener--leaving .opener-hint { opacity: 0; transition: opacity 0.3s ease; }
+@keyframes openerFade { 0%, 68% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .opener-core__ring, .opener-core__dot, .opener-hint { animation: none; }
 }
 
 /* ── Microanimations & transitions ─────────────────────────── */

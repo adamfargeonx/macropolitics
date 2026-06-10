@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import type { View } from './Chrome'
+import { Header, type View } from './Chrome'
 
 // Warp-speed starfield — particles stream outward from a vanishing point (the hero motif).
 // The vanishing point eases toward the pointer (parallax); a click gives a brief warp boost.
@@ -71,10 +71,11 @@ function useWarpField(canvasRef: RefObject<HTMLCanvasElement | null>) {
   }, [canvasRef])
 }
 
-const NAV: { view: View; he: string }[] = [
-  { view: 'forces', he: 'הכוחות' },
-  { view: 'relations', he: 'היחסים' },
-  { view: 'dynamics', he: 'יחסי הכוחות' },
+// Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
+const NAV: { view: View; he: string; pos: string }[] = [
+  { view: 'dynamics', he: 'יחסי הכוחות', pos: 'top' },
+  { view: 'forces', he: 'הכוחות', pos: 'bl' },
+  { view: 'relations', he: 'היחסים', pos: 'br' },
 ]
 
 export default function HomeView({ onView }: { onView: (v: View) => void }) {
@@ -89,16 +90,16 @@ export default function HomeView({ onView }: { onView: (v: View) => void }) {
         <div className="home-orbit__spin"><span className="home-orbit__dot" /></div>
       </div>
 
-      <div className="home2">
-        <h1 className="home2__title">מאקרו<span className="home2__sep" />פוליטיקה</h1>
-        <nav className="home2__nav" aria-label="כניסה">
-          {NAV.map((n) => (
-            <button key={n.view} className="home2__nav-item" onClick={() => onView(n.view)}>{n.he}</button>
-          ))}
-        </nav>
-      </div>
+      <p className="home-tagline">תורת היחסות של המזרח התיכון</p>
+      <h1 className="home-title">מאקרופוליטיקה</h1>
 
-      <p className="home2__tagline">תורת היחסות של המזרח התיכון</p>
+      <nav className="home-nav" aria-label="כניסה">
+        {NAV.map((n) => (
+          <button key={n.view} className={`home-nav__item home-nav__item--${n.pos}`} onClick={() => onView(n.view)}>{n.he}</button>
+        ))}
+      </nav>
+
+      <Header onHome={() => {}} />
     </div>
   )
 }
