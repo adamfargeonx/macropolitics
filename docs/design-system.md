@@ -56,7 +56,11 @@ The hero wordmark is **Light**; data labels are Bold/Black.
 `--text-lg 15` · `--text-xl 17` · `--text-2xl 20` · `--text-3xl 30` · `--display-hero clamp(46px,7.4vw,112px)`.
 
 **Tracking:** `--tracking-tight -.01em` · `--tracking-wide .08em` · `--tracking-wider .18em`.
-Headlines tight; eyebrows/labels wide.
+
+**Kerning rule (weight-coupled):**
+- **Bold/black titles → tight** (low kerning): `-0.01em` to `-0.02em` (panel titles, logo, legend title).
+- **Light titles → wide** (high kerning): `0.1em` to `0.4em` (the home wordmark is `0.38em`).
+- **Body text → slightly open**: `~0.02em` for readability.
 
 ---
 

@@ -34,6 +34,26 @@ class SoundEngine {
     if (this.started) return
     this.started = true
     this.startAmbient()
+    void this.loadAmbientFile() // if a licensed /audio/ambient.mp3 exists, swell it in
+  }
+
+  // Optional drop-in: place a LICENSED track at public/audio/ambient.mp3 and it becomes
+  // the ambient bed (building in over a few seconds; the procedural bed ducks under it).
+  private fileLoaded = false
+  private async loadAmbientFile() {
+    const ctx = this.ctx; if (!ctx || !this.master || !this.ambBus || this.fileLoaded) return
+    try {
+      const res = await fetch('/audio/ambient.mp3', { cache: 'force-cache' })
+      if (!res.ok) return
+      const audio = await ctx.decodeAudioData(await res.arrayBuffer())
+      const src = ctx.createBufferSource(); src.buffer = audio; src.loop = true
+      const g = ctx.createGain(); g.gain.value = 0
+      src.connect(g); g.connect(this.master); src.start()
+      const t = ctx.currentTime
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.7, t + 6)   // dramatic build
+      this.ambBus.gain.linearRampToValueAtTime(0.06, t + 5)                      // duck the procedural bed
+      this.fileLoaded = true
+    } catch { /* no file / decode error → keep the procedural bed */ }
   }
 
   setMuted(m: boolean) {
@@ -42,20 +62,36 @@ class SoundEngine {
   }
   toggle() { this.setMuted(!this._muted); return this._muted }
 
-  // ── Ambient bed: detuned low drones + slow filtered noise, breathing LFO ──
+  // ── Ambient bed: detuned drones + a swelling pad + filtered noise, that BUILDS UP ──
   private startAmbient() {
     const ctx = this.ctx!, amb = this.ambBus!
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480; lp.Q.value = 0.6; lp.connect(amb)
+    const t0 = ctx.currentTime
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240; lp.Q.value = 0.7; lp.connect(amb)
+    // the filter slowly OPENS over the first ~16s → a cinematic build, then drifts
+    lp.frequency.setValueAtTime(240, t0)
+    lp.frequency.linearRampToValueAtTime(820, t0 + 16)
+    const fsweep = ctx.createOscillator(); fsweep.type = 'sine'; fsweep.frequency.value = 0.018
+    const fg = ctx.createGain(); fg.gain.value = 220; fsweep.connect(fg); fg.connect(lp.frequency); fsweep.start()
+
     const freqs = [55, 82.4, 110.3, 164.8] // A1, E2, A2-ish, E3
     for (const f of freqs) {
       const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f
       const g = ctx.createGain(); g.gain.value = 0.16
       o.connect(g); g.connect(lp); o.start()
-      // slow per-voice shimmer
       const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.03 + Math.random() * 0.05
       const lg = ctx.createGain(); lg.gain.value = 0.06
       lfo.connect(lg); lg.connect(g.gain); lfo.start()
     }
+
+    // swelling upper pad (the "build") — two fifths that rise in over ~12s and breathe
+    for (const f of [220, 329.6]) {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.05, t0 + 12)
+      o.connect(g); g.connect(lp); o.start()
+      const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.05 + Math.random() * 0.04
+      const lg = ctx.createGain(); lg.gain.value = 0.035; lfo.connect(lg); lg.connect(g.gain); lfo.start()
+    }
+
     // airy noise texture
     const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate)
     const data = buf.getChannelData(0)
@@ -63,16 +99,18 @@ class SoundEngine {
     for (let i = 0; i < data.length; i++) { const wn = Math.random() * 2 - 1; last = (last + 0.02 * wn) / 1.02; data[i] = last * 3 }
     const noise = ctx.createBufferSource(); noise.buffer = buf; noise.loop = true
     const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 700; nf.Q.value = 0.7
-    const ng = ctx.createGain(); ng.gain.value = 0.04
+    const ng = ctx.createGain(); ng.gain.value = 0.045
     noise.connect(nf); nf.connect(ng); ng.connect(amb); noise.start()
+
     // breathing master LFO on the ambient bus
     const breath = ctx.createOscillator(); breath.type = 'sine'; breath.frequency.value = 0.08
-    const bg = ctx.createGain(); bg.gain.value = 0.18
+    const bg = ctx.createGain(); bg.gain.value = 0.2
     breath.connect(bg); bg.connect(amb.gain); breath.start()
-    // fade ambient in
-    amb.gain.cancelScheduledValues(ctx.currentTime)
-    amb.gain.setValueAtTime(0, ctx.currentTime)
-    amb.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 3.5)
+
+    // overall level builds in over ~6s (slower, more dramatic than a quick fade)
+    amb.gain.cancelScheduledValues(t0)
+    amb.gain.setValueAtTime(0, t0)
+    amb.gain.linearRampToValueAtTime(0.62, t0 + 6)
   }
 
   private blip(freq: number, dur: number, type: OscillatorType, gain: number, slideTo?: number) {
@@ -107,14 +145,19 @@ class SoundEngine {
     const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
     const src = ctx.createBufferSource(); src.buffer = nb
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600; hp.Q.value = 0.7
-    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.07, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.022)
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.13, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.024)
     src.connect(hp); hp.connect(ng); ng.connect(this.uiBus); src.start(t); src.stop(t + 0.03)
     // 2) body: a quick low "tock" that snaps down in pitch
     const o = ctx.createOscillator(); o.type = 'triangle'
-    o.frequency.setValueAtTime(430, t); o.frequency.exponentialRampToValueAtTime(150, t + 0.05)
+    o.frequency.setValueAtTime(440, t); o.frequency.exponentialRampToValueAtTime(150, t + 0.055)
     const g = ctx.createGain(); g.gain.setValueAtTime(0, t)
-    g.gain.linearRampToValueAtTime(0.06, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07)
-    o.connect(g); g.connect(this.uiBus); o.start(t); o.stop(t + 0.09)
+    g.gain.linearRampToValueAtTime(0.11, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08)
+    o.connect(g); g.connect(this.uiBus); o.start(t); o.stop(t + 0.1)
+    // 3) a touch of low-end thump for weight
+    const sub = ctx.createOscillator(); sub.type = 'sine'
+    sub.frequency.setValueAtTime(150, t); sub.frequency.exponentialRampToValueAtTime(70, t + 0.06)
+    const sg = ctx.createGain(); sg.gain.setValueAtTime(0.07, t); sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.09)
+    sub.connect(sg); sg.connect(this.uiBus); sub.start(t); sub.stop(t + 0.11)
   }
 
   play(v: Voice) {

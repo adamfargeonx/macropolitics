@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
-import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
+import { Header, SidePanel, PanelDock, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
 
@@ -96,18 +96,20 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         })}
       </div>
       <Header onHome={() => onView('home')} />
-      {selected ? (
-        <SidePanel detail={detail} onClose={() => setSelected(null)} />
-      ) : (
-        <aside className="panel" dir="rtl">
-          <h1 className="panel__title">כוחות המשיכה</h1>
-          <p className="panel__body">
-            כוח המשיכה של מדינה נמדד לפי כוחה הכלכלי, הצבאי והגאו-אסטרטגי — ומהווה את כוחה הפוליטי.
-            ככל שהגוף קרוב למרכז וגדול יותר, כך כוח משיכתו רב יותר.
-          </p>
-          <p className="panel__note">בחרו מדינה כדי לראות את מרכיבי כוחה.</p>
-        </aside>
-      )}
+      <PanelDock>
+        {selected ? (
+          <SidePanel detail={detail} onClose={() => setSelected(null)} />
+        ) : (
+          <aside className="panel" dir="rtl">
+            <h1 className="panel__title">כוחות המשיכה</h1>
+            <p className="panel__body">
+              כוח המשיכה של מדינה נמדד לפי כוחה הכלכלי, הצבאי והגאו-אסטרטגי — ומהווה את כוחה הפוליטי.
+              ככל שהגוף קרוב למרכז וגדול יותר, כך כוח משיכתו רב יותר.
+            </p>
+            <p className="panel__note">בחרו מדינה כדי לראות את מרכיבי כוחה.</p>
+          </aside>
+        )}
+      </PanelDock>
       <RightRail />
       <TabBar view={view} onView={onView} />
     </div>

@@ -1,6 +1,27 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
 // Kept together (all small, presentational) — split out if any grows past ~40 lines.
+import { useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
+import { sound } from '../sound'
+
+// Collapsible dock for the side panel: a grip handle that slides the panel off the
+// right edge; when collapsed, hovering the handle peeks it open to signal it's clickable.
+export function PanelDock({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className={`pdock${open ? '' : ' pdock--closed'}`}>
+      <button
+        className="pdock__handle"
+        onClick={() => { sound.play('tab'); setOpen((o) => !o) }}
+        aria-label={open ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
+        aria-expanded={open}
+      >
+        <span className="pdock__grip" />
+      </button>
+      <div className="pdock__body">{children}</div>
+    </div>
+  )
+}
 
 export function Header({ onHome }: { onHome?: () => void }) {
   return (

@@ -1,75 +1,7 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useRef } from 'react'
 import { Header, type View } from './Chrome'
-
-// Warp-speed starfield — particles stream outward from a vanishing point (the hero motif).
-// The vanishing point eases toward the pointer (parallax); a click gives a brief warp boost.
-function useWarpField(canvasRef: RefObject<HTMLCanvasElement | null>) {
-  useEffect(() => {
-    const cv = canvasRef.current; if (!cv) return
-    const ctx = cv.getContext('2d')!
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
-    let raf = 0, w = 0, h = 0, focal = 0
-    let vx = 0, vy = 0            // current vanishing point
-    let mx = 0, my = 0           // pointer target
-    let boost = 0                // click warp boost (decays)
-    type S = { x: number; y: number; z: number; px: number; py: number }
-    let stars: S[] = []
-
-    const project = (s: S) => { const k = focal / s.z; return [vx + s.x * k, vy + s.y * k] as const }
-    const spawn = (s: S, fresh = false) => {
-      s.x = (Math.random() * 2 - 1); s.y = (Math.random() * 2 - 1)
-      s.z = fresh ? 0.2 + Math.random() * 0.8 : 1
-      const [sx, sy] = project(s); s.px = sx; s.py = sy
-    }
-    const resize = () => {
-      const r = cv.parentElement!.getBoundingClientRect(); w = r.width; h = r.height
-      cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      focal = Math.max(w, h) * 0.5
-      vx = w / 2; vy = h / 2; mx = w / 2; my = h / 2
-      stars = Array.from({ length: Math.min(850, Math.round((w * h) / 2000)) }, () => {
-        const s = { x: 0, y: 0, z: 1, px: 0, py: 0 }; spawn(s, true); return s
-      })
-    }
-    resize(); window.addEventListener('resize', resize)
-
-    const onMove = (e: PointerEvent) => { mx = e.clientX; my = e.clientY }
-    const onDown = () => { boost = 1 }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerdown', onDown)
-
-    let intro = 0
-    const loop = () => {
-      intro = Math.min(1, intro + 0.012)
-      // vanishing point eases toward pointer (subtle parallax)
-      vx += ((w / 2 + (mx - w / 2) * 0.10) - vx) * 0.06
-      vy += ((h / 2 + (my - h / 2) * 0.10) - vy) * 0.06
-      boost *= 0.94
-      const speed = (reduce ? 0.4 : 1) * (1 + boost * 2.2)
-
-      ctx.clearRect(0, 0, w, h)
-      for (const s of stars) {
-        s.z -= 0.0055 * speed
-        if (s.z < 0.04) { spawn(s); continue }
-        const [sx, sy] = project(s)
-        const near = 1 - s.z                     // 0 (far) → 1 (close)
-        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.95, (0.09 + near * 0.8)) * intro})`
-        ctx.lineWidth = 0.6 + near * 2.0
-        ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(sx, sy); ctx.stroke()
-        s.px = sx; s.py = sy
-      }
-      raf = requestAnimationFrame(loop)
-    }
-    loop()
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', resize)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerdown', onDown)
-    }
-  }, [canvasRef])
-}
+import { useGravityField, type Impulse } from './useGravityField'
+import { sound } from '../sound'
 
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
 const NAV: { view: View; he: string; pos: string }[] = [
@@ -78,27 +10,49 @@ const NAV: { view: View; he: string; pos: string }[] = [
   { view: 'relations', he: 'היחסים', pos: 'br' },
 ]
 
-export default function HomeView({ onView }: { onView: (v: View) => void }) {
+/**
+ * The home is one circle in two states:
+ *  - closed → a breathing core (the opener), particles drifting inward
+ *  - open   → the orbit ring expands, wordmark + nav + tagline reveal
+ * Clicking the centre toggles between them; the expansion is animated, not a dissolve.
+ */
+export default function HomeView({ open, onToggle, onView }: { open: boolean; onToggle: () => void; onView: (v: View) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  useWarpField(canvasRef)
+  const impulseRef = useRef<Impulse | null>(null)
+  useGravityField(canvasRef, impulseRef)
+
+  // every click scatters particles; the centre core toggles open/close
+  const scatter = (e: React.PointerEvent) => { impulseRef.current = { x: e.clientX, y: e.clientY, t: performance.now() } }
+  const toggle = () => { sound.start(); sound.play(open ? 'back' : 'open'); onToggle() }
+
   return (
-    <div className="stage home" dir="rtl">
+    <div className={`stage home ${open ? 'home--open' : 'home--closed'}`} dir="rtl" onPointerDown={scatter}>
       <canvas ref={canvasRef} className="field" />
 
-      {/* the orbiting-circle motif */}
-      <div className="home-orbit" aria-hidden>
-        <div className="home-orbit__spin"><span className="home-orbit__dot" /></div>
+      <div className="home-center" aria-hidden>
+        <div className="home-orbit"><div className="home-orbit__spin"><span className="home-orbit__dot" /></div></div>
       </div>
+      <button className="home-core" onClick={toggle} aria-label={open ? 'סגירת המעגל' : 'פתיחת המעגל'}>
+        <span className="home-core__dot" />
+      </button>
 
-      <p className="home-tagline">תורת היחסות של המזרח התיכון</p>
-      <h1 className="home-title">מאקרופוליטיקה</h1>
+      <p className="home-tagline"><span>תורת היחסות של המזרח התיכון</span></p>
+      <h1 className="home-title"><span>מאקרופוליטיקה</span></h1>
 
       <nav className="home-nav" aria-label="כניסה">
-        {NAV.map((n) => (
-          <button key={n.view} className={`home-nav__item home-nav__item--${n.pos}`} onClick={() => onView(n.view)}>{n.he}</button>
+        {NAV.map((n, i) => (
+          <button
+            key={n.view}
+            className={`home-nav__item home-nav__item--${n.pos}`}
+            style={{ '--bd': `${i * 0.6}s` } as React.CSSProperties}
+            onClick={() => onView(n.view)}
+          >
+            <span>{n.he}</span>
+          </button>
         ))}
       </nav>
 
+      <p className="home-hint">לחצו</p>
       <Header onHome={() => {}} />
     </div>
   )
