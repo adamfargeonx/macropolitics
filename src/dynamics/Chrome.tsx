@@ -1,5 +1,6 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
 // Kept together (all small, presentational) — split out if any grows past ~40 lines.
+import type { PowerNotes } from '../data/entities'
 
 export function Header({ onHome }: { onHome?: () => void }) {
   return (
@@ -15,6 +16,7 @@ export interface EntityDetail {
   axisLabel: string; parentHe: string | null; relations: { id: string; he: string }[]
   scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
   forces?: { eco: number; mil: number; geo: number }
+  powerNotes?: PowerNotes // forces view: four short paragraphs (general + components)
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -26,12 +28,20 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ForceBar({ label, value }: { label: string; value: number }) {
+// One power note: a label, an optional 0–10 bar (the three components), and ≤20-word text.
+function PowerNote({ label, text, value }: { label: string; text: string; value?: number }) {
   return (
-    <div className="fbar">
-      <span className="fbar__k">{label}</span>
-      <span className="fbar__track"><span className="fbar__fill" style={{ width: `${value * 10}%` }} /></span>
-      <span className="fbar__v">{value}</span>
+    <div className="pnote">
+      <div className="pnote__head">
+        <span className="pnote__label">{label}</span>
+        {value != null && (
+          <>
+            <span className="pnote__track"><span className="pnote__fill" style={{ width: `${value * 10}%` }} /></span>
+            <span className="pnote__val">{value}</span>
+          </>
+        )}
+      </div>
+      <p className="pnote__text">{text}</p>
     </div>
   )
 }
@@ -45,16 +55,17 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
         <div className="panel__meta">
           <MetaRow label="כוח משיכה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
           <MetaRow label="מעמד" value={detail.tier} />
-          {!detail.forces && <MetaRow label="אופי" value={detail.dispo} />}
+          {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
           <MetaRow label="שיוך" value={detail.axisLabel} />
           {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
         </div>
-        {detail.forces && (
-          <div className="panel__forces">
-            <span className="panel__rels-h">מרכיבי הכוח</span>
-            <ForceBar label="כלכלי" value={detail.forces.eco} />
-            <ForceBar label="צבאי" value={detail.forces.mil} />
-            <ForceBar label="גאו-אסטרטגי" value={detail.forces.geo} />
+        {detail.powerNotes && (
+          <div className="pnotes">
+            <span className="pnotes__h">פרופיל הכוח</span>
+            <PowerNote label="כללי" text={detail.powerNotes.general} />
+            <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
+            <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />
+            <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} />
           </div>
         )}
         {detail.relations.length > 0 && (

@@ -101,7 +101,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
                   data-id={e.id}
                   data-power={e.power}
                   className={`rnode${isHover ? ' rnode--hover' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y, animationDelay: `${Math.min(i * 0.02, 0.35)}s` }}
+                  style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.05}s` }}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onClick={() => { setRefId(e.id); setHovered(null) }}

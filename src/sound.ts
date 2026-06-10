@@ -97,11 +97,31 @@ class SoundEngine {
     src.connect(bp); bp.connect(g); g.connect(this.uiBus); src.start(t); src.stop(t + dur)
   }
 
+  // A satisfying, physical click: a sharp noise transient (the "tick") layered with
+  // a short pitched body that drops fast (the "tock") — like a real button press.
+  private clickHit() {
+    const ctx = this.ctx; if (!ctx || !this.uiBus) return
+    const t = ctx.currentTime
+    // 1) transient: ~7ms of high-passed noise for the crisp attack
+    const nb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.02), ctx.sampleRate)
+    const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
+    const src = ctx.createBufferSource(); src.buffer = nb
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600; hp.Q.value = 0.7
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.07, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.022)
+    src.connect(hp); hp.connect(ng); ng.connect(this.uiBus); src.start(t); src.stop(t + 0.03)
+    // 2) body: a quick low "tock" that snaps down in pitch
+    const o = ctx.createOscillator(); o.type = 'triangle'
+    o.frequency.setValueAtTime(430, t); o.frequency.exponentialRampToValueAtTime(150, t + 0.05)
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07)
+    o.connect(g); g.connect(this.uiBus); o.start(t); o.stop(t + 0.09)
+  }
+
   play(v: Voice) {
     if (!this.ctx || this._muted) return
     switch (v) {
       case 'hover': { const now = performance.now(); if (now - this.lastHover < 45) return; this.lastHover = now; this.blip(1180, 0.06, 'sine', 0.025); break }
-      case 'click': this.blip(560, 0.09, 'triangle', 0.05, 780); break
+      case 'click': this.clickHit(); break
       case 'select': this.blip(440, 0.12, 'sine', 0.05); this.blip(660, 0.16, 'sine', 0.035); break
       case 'open': this.blip(330, 0.18, 'sine', 0.045, 520); break
       case 'tab': this.noiseSweep(0.22, 500, 1800, 0.04); this.blip(700, 0.1, 'sine', 0.03); break

@@ -8,8 +8,7 @@ export function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-    let mx = innerWidth / 2, my = innerHeight / 2, rx = mx, ry = my
+    let mx = innerWidth / 2, my = innerHeight / 2
     let targetActive = false, pressed = false, visible = false, raf = 0
 
     const onMove = (e: PointerEvent) => { mx = e.clientX; my = e.clientY; visible = true }
@@ -28,13 +27,12 @@ export function CustomCursor() {
     document.addEventListener('pointerleave', onLeave)
 
     const loop = () => {
-      const k = reduce ? 1 : 0.2
-      rx += (mx - rx) * k; ry += (my - ry) * k
+      // No positional lag — ring tracks the pointer exactly (scale still eases via CSS).
       const active = targetActive || document.body.classList.contains('cursor-grab')
       const ring = ringRef.current, dot = dotRef.current
       if (ring) {
         const s = (active ? 1.8 : 1) * (pressed ? 0.82 : 1)
-        ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%) scale(${s})`
+        ring.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%) scale(${s})`
         ring.style.opacity = visible ? '1' : '0'
         ring.classList.toggle('cursor--on', active)
       }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, FORCES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
+import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
 import { Header, SidePanel, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
 import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
@@ -20,7 +20,7 @@ function buildForceDetail(id: string | null): EntityDetail | null {
   return {
     he: e.he, power: e.power, tier: e.tier, dispo: e.dispo,
     axisLabel: AXIS_LABEL[AXIS[id] ?? 'none'], parentHe: null, relations: [],
-    scoreLabel: `${forceScore(e.power).toFixed(1)} / 10`, forces: FORCES[id],
+    scoreLabel: `${forceScore(e.power).toFixed(1)} / 10`, forces: FORCES[id], powerNotes: POWER_NOTES[id],
   }
 }
 
@@ -83,7 +83,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               data-id={e.id}
               data-power={e.power}
               className={`fnode${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
-              style={{ left: x, top: y, animationDelay: `${Math.min(i * 0.018, 0.4)}s` }}
+              style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.055}s` }}
               onMouseEnter={() => setHovered(e.id)}
               onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
               onClick={(ev) => { ev.stopPropagation(); setSelected((s) => (s === e.id ? null : e.id)) }}
