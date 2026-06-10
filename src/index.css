@@ -514,9 +514,40 @@ body {
 .rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--yellow);
-  opacity: 0.7; white-space: nowrap;
+  opacity: 0.78; white-space: nowrap; text-align: center;
 }
+.rel-vtx i {
+  font-style: normal; font-family: var(--body); font-weight: 400;
+  font-size: 10px; letter-spacing: 0.06em; color: var(--light); opacity: 0.45;
+}
+.rel-guides line { transition: stroke-opacity 0.25s ease; }
+.rnode--pin .rnode__disk { box-shadow: 0 0 0 3px rgba(251, 255, 0, 0.25), 0 0 22px rgba(251, 255, 0, 0.3); }
+.rnode--pin .rnode__name { color: var(--yellow); }
+
+/* relationship why-line — the editorial beat of the panel */
+.panel__why {
+  margin-top: 12px; padding: 10px 12px;
+  font-family: var(--body); font-size: 13.5px; line-height: 1.6; letter-spacing: 0.05em;
+  color: var(--light); opacity: 0.92;
+  background: rgba(251, 255, 0, 0.05); border-right: 2px solid rgba(251, 255, 0, 0.5);
+  animation: textRise 0.6s 0.06s var(--ease-out-expo) both;
+}
+/* set-as-reference action */
+.panel__setref {
+  margin-top: 18px; width: 100%; text-align: right;
+  background: none; border: 1px solid rgba(251, 255, 0, 0.3); padding: 10px 13px;
+  font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--yellow); cursor: none;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.panel__setref:hover { background: rgba(251, 255, 0, 0.1); border-color: var(--yellow); }
+.panel__setref:active { transform: scale(0.985); }
+/* reference picker (default panel) */
+.panel__refpick { margin-top: 20px; }
+.panel__rel--on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
+.panel__rel--on:hover { background: var(--yellow); }
 .rel-ref {
   position: absolute; transform: translate(-50%, -50%); z-index: 4; pointer-events: none;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
