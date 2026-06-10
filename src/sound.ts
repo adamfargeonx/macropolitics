@@ -27,14 +27,14 @@ class SoundEngine {
     return ctx
   }
 
-  // Resume + start ambient. Safe to call repeatedly.
+  // Resume the audio context (for UI sounds). The procedural ambient bed is OFF by default —
+  // it read as annoying. A licensed track dropped at /audio/ambient.mp3 still loads if present.
   start() {
     const ctx = this.ensure(); if (!ctx) return
     if (ctx.state === 'suspended') ctx.resume()
     if (this.started) return
     this.started = true
-    this.startAmbient()
-    void this.loadAmbientFile() // if a licensed /audio/ambient.mp3 exists, swell it in
+    void this.loadAmbientFile()
   }
 
   // Optional drop-in: place a LICENSED track at public/audio/ambient.mp3 and it becomes
@@ -135,29 +135,23 @@ class SoundEngine {
     src.connect(bp); bp.connect(g); g.connect(this.uiBus); src.start(t); src.stop(t + dur)
   }
 
-  // A satisfying, physical click: a sharp noise transient (the "tick") layered with
-  // a short pitched body that drops fast (the "tock") — like a real button press.
+  // A crisp, modern UI click — a bright filtered-noise tick + a fast resonant "pock".
+  // Tight and snappy (~55ms), clearly audible without an ambient bed under it.
   private clickHit() {
     const ctx = this.ctx; if (!ctx || !this.uiBus) return
     const t = ctx.currentTime
-    // 1) transient: ~7ms of high-passed noise for the crisp attack
-    const nb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.02), ctx.sampleRate)
-    const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
+    // 1) bright tick: ~5ms of band-passed noise around 3.2kHz (the "snap")
+    const nb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.012), ctx.sampleRate)
+    const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2)
     const src = ctx.createBufferSource(); src.buffer = nb
-    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600; hp.Q.value = 0.7
-    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.13, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.024)
-    src.connect(hp); hp.connect(ng); ng.connect(this.uiBus); src.start(t); src.stop(t + 0.03)
-    // 2) body: a quick low "tock" that snaps down in pitch
-    const o = ctx.createOscillator(); o.type = 'triangle'
-    o.frequency.setValueAtTime(440, t); o.frequency.exponentialRampToValueAtTime(150, t + 0.055)
-    const g = ctx.createGain(); g.gain.setValueAtTime(0, t)
-    g.gain.linearRampToValueAtTime(0.11, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08)
-    o.connect(g); g.connect(this.uiBus); o.start(t); o.stop(t + 0.1)
-    // 3) a touch of low-end thump for weight
-    const sub = ctx.createOscillator(); sub.type = 'sine'
-    sub.frequency.setValueAtTime(150, t); sub.frequency.exponentialRampToValueAtTime(70, t + 0.06)
-    const sg = ctx.createGain(); sg.gain.setValueAtTime(0.07, t); sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.09)
-    sub.connect(sg); sg.connect(this.uiBus); sub.start(t); sub.stop(t + 0.11)
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 1.1
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.16, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.018)
+    src.connect(bp); bp.connect(ng); ng.connect(this.uiBus); src.start(t); src.stop(t + 0.02)
+    // 2) resonant pock: a fast sine snapping 900→320Hz, plucky envelope
+    const o = ctx.createOscillator(); o.type = 'sine'
+    o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(320, t + 0.045)
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06)
+    o.connect(g); g.connect(this.uiBus); o.start(t); o.stop(t + 0.08)
   }
 
   play(v: Voice) {

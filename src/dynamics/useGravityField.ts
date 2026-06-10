@@ -33,7 +33,7 @@ export function useGravityField(
       const r = cv.parentElement!.getBoundingClientRect(); w = r.width; h = r.height; cx = w * 0.5; cy = h * 0.5
       cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ps = Array.from({ length: Math.min(440, Math.round((w * h) / 3400)) }, spawn)
+      ps = Array.from({ length: Math.min(520, Math.round((w * h) / 2600)) }, spawn)
     }
     resize(); window.addEventListener('resize', resize)
 
@@ -44,13 +44,16 @@ export function useGravityField(
       const cur = impulseRef.current
       if (cur && cur.t !== lastImpT) { lastImpT = cur.t; imp = { x: cur.x, y: cur.y, s: 1 } }
 
-      ctx.clearRect(0, 0, w, h)
+      // fade-clear (instead of a hard clear) → particles leave a soft trail; the near-black
+      // fill also covers the stage gradient, matching the reference's flat dark field.
+      ctx.fillStyle = 'rgba(6,3,15,0.16)'
+      ctx.fillRect(0, 0, w, h)
       for (const p of ps) {
         const dx = cx - p.x, dy = cy - p.y, d2 = dx * dx + dy * dy
         const d = Math.sqrt(d2) || 1
         // gentle inward pull (stronger near centre, capped so it stays calm)
-        const a = Math.min(0.06, 18 / (d2 + 3200))
-        p.vx += (dx / d) * a * d * 0.06; p.vy += (dy / d) * a * d * 0.06
+        const a = Math.min(0.08, 22 / (d2 + 3000))
+        p.vx += (dx / d) * a * d * 0.11; p.vy += (dy / d) * a * d * 0.11
         // click impulse: push away from the impulse point
         if (imp && imp.s > 0.02) {
           const ix = p.x - imp.x, iy = p.y - imp.y, id2 = ix * ix + iy * iy
@@ -58,12 +61,12 @@ export function useGravityField(
           const il = Math.sqrt(id2) || 1
           p.vx += (ix / il) * infl * 2.6; p.vy += (iy / il) * infl * 2.6
         }
-        p.vx *= 0.965; p.vy *= 0.965                    // damping → no runaway speed
+        p.vx *= 0.98; p.vy *= 0.98                       // light damping → visible drift
         p.px = p.x; p.py = p.y; p.x += p.vx; p.y += p.vy
         const speed = Math.hypot(p.vx, p.vy)
         const near = 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
-        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.6, (0.08 + speed * 0.4) * p.b) * intro})`
-        ctx.lineWidth = 0.5 + near * 1.1
+        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.8, (0.22 + speed * 0.5) * p.b) * intro})`
+        ctx.lineWidth = 0.6 + near * 1.4
         ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
         if (d < 11) Object.assign(p, spawn())
       }

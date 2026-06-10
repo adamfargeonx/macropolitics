@@ -8,8 +8,11 @@ import { sound } from '../sound'
 // right edge; when collapsed, hovering the handle peeks it open to signal it's clickable.
 export function PanelDock({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true)
+  // Handle is pinned (never moves) so hovering it can't jitter; only the panel slides.
+  // The panel renders BEFORE the handle so the handle paints on top while peeking.
   return (
     <div className={`pdock${open ? '' : ' pdock--closed'}`}>
+      <div className="pdock__panel">{children}</div>
       <button
         className="pdock__handle"
         onClick={() => { sound.play('tab'); setOpen((o) => !o) }}
@@ -18,7 +21,6 @@ export function PanelDock({ children }: { children: ReactNode }) {
       >
         <span className="pdock__grip" />
       </button>
-      <div className="pdock__body">{children}</div>
     </div>
   )
 }
@@ -74,7 +76,7 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
         <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
         <h1 className="panel__title">{detail.he}</h1>
         <div className="panel__meta">
-          <MetaRow label="כוח משיכה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
+          <MetaRow label="כבידה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
           <MetaRow label="מעמד" value={detail.tier} />
           {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
           <MetaRow label="שיוך" value={detail.axisLabel} />
@@ -82,7 +84,7 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
         </div>
         {detail.powerNotes && (
           <div className="pnotes">
-            <span className="pnotes__h">פרופיל הכוח</span>
+            <span className="pnotes__h">פרופיל הכבידה</span>
             <PowerNote label="כללי" text={detail.powerNotes.general} />
             <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
             <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />

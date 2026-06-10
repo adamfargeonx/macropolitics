@@ -4,10 +4,11 @@ import { useGravityField, type Impulse } from './useGravityField'
 import { sound } from '../sound'
 
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
-const NAV: { view: View; he: string; pos: string }[] = [
-  { view: 'dynamics', he: 'יחסי הכוחות', pos: 'top' },
-  { view: 'forces', he: 'הכוחות', pos: 'bl' },
-  { view: 'relations', he: 'היחסים', pos: 'br' },
+// `sub` is the brief explainer revealed on hover.
+const NAV: { view: View; he: string; sub: string; pos: string }[] = [
+  { view: 'dynamics', he: 'יחסי הכוחות', sub: 'התמונה המלאה', pos: 'top' },
+  { view: 'forces', he: 'הכוחות', sub: 'כבידתן של המדינות', pos: 'bl' },
+  { view: 'relations', he: 'היחסים', sub: 'מערכות היחסים ביניהן', pos: 'br' },
 ]
 
 /**
@@ -47,7 +48,8 @@ export default function HomeView({ open, onToggle, onView }: { open: boolean; on
             style={{ '--bd': `${i * 0.6}s` } as React.CSSProperties}
             onClick={() => onView(n.view)}
           >
-            <span>{n.he}</span>
+            <span className="home-nav__label"><span>{n.he}</span></span>
+            <span className="home-nav__sub">{n.sub}</span>
           </button>
         ))}
       </nav>

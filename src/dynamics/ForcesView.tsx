@@ -101,12 +101,12 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           <SidePanel detail={detail} onClose={() => setSelected(null)} />
         ) : (
           <aside className="panel" dir="rtl">
-            <h1 className="panel__title">כוחות המשיכה</h1>
+            <h1 className="panel__title">כבידה</h1>
             <p className="panel__body">
-              כוח המשיכה של מדינה נמדד לפי כוחה הכלכלי, הצבאי והגאו-אסטרטגי — ומהווה את כוחה הפוליטי.
-              ככל שהגוף קרוב למרכז וגדול יותר, כך כוח משיכתו רב יותר.
+              כבידתה של מדינה נמדדת לפי כוחה הכלכלי, הצבאי והגאו-אסטרטגי — והיא המבטאת את משקלה הפוליטי.
+              ככל שהגוף קרוב למרכז וגדול יותר, כך כבידתו רבה יותר.
             </p>
-            <p className="panel__note">בחרו מדינה כדי לראות את מרכיבי כוחה.</p>
+            <p className="panel__note">בחרו מדינה כדי לראות את מרכיבי כבידתה.</p>
           </aside>
         )}
       </PanelDock>
