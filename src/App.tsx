@@ -6,6 +6,7 @@ import ForcesView from './dynamics/ForcesView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { Legend } from './dynamics/Legend'
+import { AboutOverlay } from './dynamics/AboutView'
 import { panelAB, usePanelVariant } from './dynamics/panelAB'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
@@ -59,6 +60,7 @@ export default function App() {
       <SoundToggle />
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
+      <AboutOverlay />
       {!loaded && <LoaderView onDone={() => setLoaded(true)} />}
     </>
   )

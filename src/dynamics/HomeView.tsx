@@ -39,6 +39,7 @@ export default function HomeView({ open, onToggle, onView }: { open: boolean; on
 
       <p className="home-tagline"><span>תורת היחסות של המזרח התיכון</span></p>
       <h1 className="home-title"><span>מאקרופוליטיקה</span></h1>
+      <p className="home-eq" aria-hidden><span>יחסי הכוחות = הכוחות + היחסים</span></p>
 
       <nav className="home-nav" aria-label="כניסה">
         {NAV.map((n, i) => (

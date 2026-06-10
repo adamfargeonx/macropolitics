@@ -30,6 +30,7 @@ export function Header({ onHome }: { onHome?: () => void }) {
   return (
     <header className="hdr">
       <button className="hdr__logo" onClick={onHome} aria-label="דף הבית">מאקרופוליטיקה</button>
+      <button className="hdr__model" onClick={() => window.dispatchEvent(new Event('mp-about'))}>המודל</button>
       <button className="hdr__info" aria-label="מקרא" onClick={() => window.dispatchEvent(new Event('mp-legend'))}>ⓘ</button>
     </header>
   )

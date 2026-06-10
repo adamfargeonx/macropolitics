@@ -21,6 +21,8 @@ const VISUALS = {
   zoomGatedLabels: true, // hide minor labels until zoomed past gate
   labelGate: 0.95,
   speedScale: 0.62, // calm the motion (1 = original measured speeds)
+  allianceWeb: true, // the alliance web stays faintly visible at rest (informative layer)
+  allianceWebAlpha: 0.1,
 }
 // Muted bloc temperatures — read as warm/cool, not "team colors"
 const AXIS_COLOR: Record<string, string> = {
@@ -332,10 +334,11 @@ export class OrbitalField {
       if (!na || !nb) continue
       const lit = this.focusId ? this.connected.has(a) && this.connected.has(b) : false
       if (!lit && this.focusId) continue
+      if (!lit && !VISUALS.allianceWeb) continue
       const dx = nb.sx - na.sx, dy = nb.sy - na.sy
       const cx = (na.sx + nb.sx) / 2 - dy * 0.1, cy = (na.sy + nb.sy) / 2 + dx * 0.1
       ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.85 : 0.05) * intro})`; ctx.lineWidth = lit ? 1.4 : 1; ctx.stroke()
+      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.85 : VISUALS.allianceWebAlpha) * intro})`; ctx.lineWidth = lit ? 1.4 : 1; ctx.stroke()
       if (lit) { const p = (t * 0.45 + li * 0.13) % 1, q = 1 - p; const lx = q * q * na.sx + 2 * q * p * cx + p * p * nb.sx, ly = q * q * na.sy + 2 * q * p * cy + p * p * nb.sy; ctx.fillStyle = `rgba(${YELLOW},0.95)`; ctx.beginPath(); ctx.arc(lx, ly, 2.4, 0, TAU); ctx.fill() }
     }
   }

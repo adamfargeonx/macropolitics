@@ -217,7 +217,8 @@ body {
   animation: readoutIn 0.16s ease-out;
 }
 @keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
-.readout__name { color: var(--white); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; }
+.readout__name { color: var(--white); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; display: flex; align-items: baseline; gap: 8px; }
+.readout__g { font-family: var(--body); font-weight: 700; font-size: 12px; color: var(--yellow); }
 .readout__row { font-family: var(--body); color: var(--yellow); font-size: 11px; letter-spacing: 0.08em; opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
 
@@ -240,6 +241,49 @@ body {
 }
 .hdr__info:hover { opacity: 1; transform: scale(1.15); }
 .hdr__info:active { transform: scale(0.92); }
+.hdr__model {
+  color: var(--yellow); opacity: 0.6; font-family: var(--body); font-size: var(--text-sm);
+  letter-spacing: 0.1em; background: none; border: none; cursor: none; padding: 2px 4px;
+  transition: opacity var(--dur-fast) ease;
+}
+.hdr__model:hover { opacity: 1; }
+
+/* "המודל" — the methodology overlay */
+.about {
+  position: relative; width: min(620px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: none;
+  padding: 32px 36px 24px; text-align: right;
+  background: linear-gradient(180deg, rgba(14, 9, 28, 0.97), rgba(8, 4, 18, 0.97));
+  border: 1px solid rgba(251, 255, 0, 0.18);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  animation: legendIn 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.about::-webkit-scrollbar { display: none; }
+.about__head { display: flex; align-items: baseline; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid rgba(251, 255, 0, 0.16); }
+.about__title { font-size: 26px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); }
+.about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: 0.08em; color: var(--light); opacity: 0.55; }
+.about__lede { margin-top: 18px; font-family: var(--body); font-size: 15px; line-height: 1.75; letter-spacing: 0.05em; color: var(--light); opacity: 0.92; }
+.about__eq {
+  margin: 24px 0; padding: 18px 0; display: flex; align-items: baseline; justify-content: center; gap: 14px;
+  border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2);
+}
+.about__eq-term { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; color: var(--white); }
+.about__eq-term:first-child { color: var(--yellow); }
+.about__eq-op { font-family: var(--body); font-size: 17px; color: var(--yellow); opacity: 0.7; }
+.about__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin-bottom: 7px; }
+.about__col p { font-family: var(--body); font-size: 12.5px; line-height: 1.65; letter-spacing: 0.04em; color: var(--light); opacity: 0.78; }
+.about__honesty {
+  margin-top: 22px; padding: 12px 14px; font-family: var(--body);
+  font-size: 12.5px; line-height: 1.7; letter-spacing: 0.04em; color: var(--yellow); opacity: 0.85;
+  background: rgba(251, 255, 0, 0.05); border-right: 2px solid rgba(251, 255, 0, 0.5);
+}
+.about__foot {
+  margin-top: 18px; display: flex; justify-content: space-between;
+  font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--light); opacity: 0.38;
+}
+@media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .about { animation: none; } }
 
 /* Legend overlay (the visual-language key, opened by ⓘ) */
 .legend__scrim {
@@ -648,6 +692,15 @@ body {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-lg);
   letter-spacing: var(--tracking-wide); color: var(--yellow);
 }
+/* the equation — the project's thesis, whispered under the wordmark */
+.home-eq {
+  position: absolute; top: calc(50% + clamp(30px, 4vw, 56px)); left: 50%; transform: translateX(-50%);
+  z-index: var(--z-content); white-space: nowrap; pointer-events: none; overflow: hidden;
+  font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.14em; color: var(--ink-dim);
+}
+.home-eq > span { display: inline-block; transform: translateY(110%); transition: transform 0.9s var(--ease-out-expo); }
+.home--open .home-eq > span { transform: translateY(0); transition-delay: 0.42s; }
+@media (prefers-reduced-motion: reduce) { .home-eq > span { transition: none; transform: none; } }
 
 /* nav anchored around the ring; subtly breathing, mask-revealed */
 .home-nav { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: var(--z-content); transition: opacity var(--dur-base) ease; }
@@ -712,6 +765,15 @@ body {
 }
 .loader-brand > span { display: inline-block; transform: translateY(110%); animation: loaderBrandIn 0.9s 1.3s var(--ease-out-expo) forwards; }
 .loader--out .loader-brand { opacity: 0; }
+.loader-sub {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% + min(28vmin, 250px) + clamp(26px, 3vw, 42px)));
+  overflow: hidden; white-space: nowrap;
+  font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.18em; color: var(--yellow); opacity: 0.75;
+  transition: opacity 0.5s ease;
+}
+.loader-sub > span { display: inline-block; transform: translateY(110%); animation: loaderBrandIn 0.9s 1.8s var(--ease-out-expo) forwards; }
+.loader--out .loader-sub { opacity: 0; }
 .loader-bar { position: absolute; bottom: var(--sp-9); left: 50%; transform: translateX(-50%); width: min(220px, 40vw); height: 1px; background: var(--line); overflow: hidden; }
 .loader-bar i { display: block; height: 100%; width: 0; background: var(--yellow); animation: loaderBar 4.2s linear forwards; }
 @keyframes ringDraw { to { stroke-dashoffset: 0; } }
@@ -720,7 +782,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .loader-ring circle { animation: none; stroke-dashoffset: 0; }
   .loader-dot, .loader-bar i { animation: none; }
-  .loader-brand > span { animation: none; transform: none; }
+  .loader-brand > span, .loader-sub > span { animation: none; transform: none; }
 }
 
 /* ── Microanimations & transitions ─────────────────────────── */
