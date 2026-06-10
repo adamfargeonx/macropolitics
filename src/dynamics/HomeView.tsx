@@ -56,6 +56,7 @@ export default function HomeView({ open, onToggle, onView }: { open: boolean; on
       </nav>
 
       <p className="home-hint">לחצו</p>
+      <p className="home-credit">מודל 0.9 · השיפוט פרשני · מקרא ומתודולוגיה בכותרת</p>
       <Header onHome={() => {}} />
     </div>
   )

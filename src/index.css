@@ -729,6 +729,14 @@ body {
 .home-nav__item--br  { transform: translate(-50%, -50%) translate(22vmin, 21vmin); }
 @keyframes navBreathe { 0%, 100% { opacity: 0.66; } 50% { opacity: 0.94; } }
 
+/* credit micro-line (open state, bottom-right; the toggle sits at the corner) */
+.home-credit {
+  position: absolute; bottom: var(--sp-6); left: var(--sp-8); z-index: var(--z-content);
+  font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-faint);
+  opacity: 0; transition: opacity 0.6s ease 0.8s; pointer-events: none;
+}
+.home--open .home-credit { opacity: 1; }
+
 /* hint (closed state only) */
 .home-hint {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, calc(-50% + 76px));
@@ -779,6 +787,11 @@ body {
 @keyframes ringDraw { to { stroke-dashoffset: 0; } }
 @keyframes loaderBrandIn { to { transform: translateY(0); } }
 @keyframes loaderBar { to { width: 100%; } }
+/* quick variant (repeat visits) — same beats, compressed */
+.loader--quick .loader-ring circle { animation-duration: 0.8s; animation-delay: 0.05s; }
+.loader--quick .loader-brand > span { animation-delay: 0.2s; animation-duration: 0.6s; }
+.loader--quick .loader-sub > span { animation-delay: 0.35s; animation-duration: 0.6s; }
+.loader--quick .loader-bar i { animation-duration: 1.2s; }
 @media (prefers-reduced-motion: reduce) {
   .loader-ring circle { animation: none; stroke-dashoffset: 0; }
   .loader-dot, .loader-bar i { animation: none; }

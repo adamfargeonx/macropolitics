@@ -38,17 +38,52 @@ function SoundToggle() {
   )
 }
 
+const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relations: '#/relations', dynamics: '#/dynamics' }
+const hashToView = (h: string): View | null =>
+  h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
+
 export default function App() {
+  // repeat visits (same session) get a quick loader — the moment, without the wait
+  const revisit = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mp-visited') === '1'
   const [loaded, setLoaded] = useState(false)
-  const [homeOpen, setHomeOpen] = useState(false)
-  const [view, setView] = useState<View>('home')
+  const initial = hashToView(window.location.hash) ?? 'home'
+  const [homeOpen, setHomeOpen] = useState(initial !== 'home') // deep-linked → the circle is already open
+  const [view, setView] = useState<View>(initial)
   const prev = useRef<View>(view)
+
   useEffect(() => {
     if (prev.current !== view) {
       sound.play(view === 'home' ? 'back' : 'transition')
       prev.current = view
+      if (view !== 'home') setHomeOpen(true) // returning home lands on the open circle
     }
+    // URL ↔ view (replaceState: no history spam while exploring)
+    const want = VIEW_HASH[view]
+    if (window.location.hash !== want) history.replaceState(null, '', want || window.location.pathname)
   }, [view])
+
+  // back/forward + hand-edited hashes
+  useEffect(() => {
+    const onHash = () => { const v = hashToView(window.location.hash); if (v) setView(v) }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  // keyboard: 1/2/3 → lenses, Escape → home (overlays consume their own Escape first)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const overlayOpen = !!document.querySelector('.legend, .about')
+      if (e.key === '1') setView('forces')
+      else if (e.key === '2') setView('relations')
+      else if (e.key === '3') setView('dynamics')
+      else if (e.key === 'Escape' && !overlayOpen) setView('home')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const onLoaderDone = () => { setLoaded(true); try { sessionStorage.setItem('mp-visited', '1') } catch { /* private mode */ } }
 
   return (
     <>
@@ -61,7 +96,7 @@ export default function App() {
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
       <AboutOverlay />
-      {!loaded && <LoaderView onDone={() => setLoaded(true)} />}
+      {!loaded && <LoaderView quick={revisit} onDone={onLoaderDone} />}
     </>
   )
 }
