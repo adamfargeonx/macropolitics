@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import LoaderView from './dynamics/LoaderView'
 import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
@@ -37,6 +38,7 @@ function SoundToggle() {
 }
 
 export default function App() {
+  const [loaded, setLoaded] = useState(false)
   const [homeOpen, setHomeOpen] = useState(false)
   const [view, setView] = useState<View>('home')
   const prev = useRef<View>(view)
@@ -57,6 +59,7 @@ export default function App() {
       <SoundToggle />
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
+      {!loaded && <LoaderView onDone={() => setLoaded(true)} />}
     </>
   )
 }

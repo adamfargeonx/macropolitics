@@ -12,18 +12,24 @@
 
 ## Active polish backlog (fast loop — not phases)
 Tracked here so it's explicit without GSD ceremony. Knocked out in batches.
-- [ ] 10% kerning on body + light titles (evaluate)
-- [ ] Home particle field visibility (inward gravity, subtle trails, click-reactive)
-- [ ] Home section-on-ring positioning + full optical-alignment pass
-- [ ] Home section hover transitions (brief explainer, fluid)
-- [ ] Remove the disruptive fixed sidebar divider line
-- [ ] Text-reveal animations sitewide (mimic original)
-- [ ] Page transition → circle-mask with slight zoom-in
-- [ ] Fix jumpy open/close on the side dock
-- [ ] "Gravity" (כבידה) terminology pass sitewide
-- [ ] Side-panel redesign with an A/B compare toggle
-- [ ] New screens: concept-driven loader (~4.5s) + relations zoom-out overview
-- [ ] Sound: remove annoying ambient (default off); distinct, satisfying click; licensed drop-in kept
+- [x] 10% kerning on body + light titles
+- [x] Home particle field visibility (inward gravity, fade-clear trails, click-reactive)
+- [x] Home section-on-ring positioning + optical-alignment pass
+- [x] Home section hover transitions (brief explainer, fluid)
+- [x] Remove the disruptive fixed sidebar divider line (scrim fades on dock-collapse)
+- [x] Text-reveal animations sitewide (clip-mask rise)
+- [x] Page transition → circle-mask (iris) with slight zoom-in
+- [x] Fix jumpy open/close on the side dock (pinned handle, :has peek)
+- [x] "Gravity" (כבידה) terminology pass sitewide
+- [x] Side-panel redesign with an A/B compare toggle (Variant B "dossier")
+- [x] New screens: concept-driven loader (~4.5s) + relations zoom-out entrance
+- [x] Sound: ambient off by default; distinct crisp click; licensed drop-in kept
+
+## Open follow-ups (noted, not yet done)
+- Title kerning is now a uniform 10% (was "huge") — confirm this is the wanted value.
+- Relations "zoom-out showing all states" is an entrance animation; if a persistent
+  overview *mode* was meant, that's a small follow-up.
+- "Familiar Patterns" (Hanna Lindgren) is licensed — drop the MP3 at public/audio/ambient.mp3.
 
 ## Next GSD step
 When the polish settles, run `plan-phase` on **Phase 1** (empirical gravity backbone): start
