@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
 import { sound } from '../sound'
+import { usePanelVariant } from './panelAB'
 
 // Collapsible dock for the side panel: a grip handle that slides the panel off the
 // right edge; when collapsed, hovering the handle peeks it open to signal it's clickable.
@@ -69,40 +70,95 @@ function PowerNote({ label, text, value }: { label: string; text: string; value?
   )
 }
 
-export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDetail | null; onClose?: () => void; onRelSelect?: (id: string) => void }) {
-  if (detail) {
-    return (
-      <aside className="panel panel--detail" dir="rtl">
-        <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
-        <h1 className="panel__title">{detail.he}</h1>
-        <div className="panel__meta">
-          <MetaRow label="כבידה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
-          <MetaRow label="מעמד" value={detail.tier} />
-          {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
-          <MetaRow label="שיוך" value={detail.axisLabel} />
-          {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
+interface DetailProps { detail: EntityDetail; onClose?: () => void; onRelSelect?: (id: string) => void }
+
+// Variant A — the original: meta rows + gravity profile with inline horizontal bars.
+function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
+  return (
+    <aside className="panel panel--detail" dir="rtl">
+      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+      <h1 className="panel__title">{detail.he}</h1>
+      <div className="panel__meta">
+        <MetaRow label="כבידה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
+        <MetaRow label="מעמד" value={detail.tier} />
+        {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
+        <MetaRow label="שיוך" value={detail.axisLabel} />
+        {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
+      </div>
+      {detail.powerNotes && (
+        <div className="pnotes">
+          <span className="pnotes__h">פרופיל הכבידה</span>
+          <PowerNote label="כללי" text={detail.powerNotes.general} />
+          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
+          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />
+          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} />
         </div>
-        {detail.powerNotes && (
-          <div className="pnotes">
-            <span className="pnotes__h">פרופיל הכבידה</span>
-            <PowerNote label="כללי" text={detail.powerNotes.general} />
-            <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
-            <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />
-            <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} />
+      )}
+      {detail.relations.length > 0 && (
+        <div className="panel__rels">
+          <span className="panel__rels-h">יחסים</span>
+          <div className="panel__rels-list">
+            {detail.relations.map((r) => (
+              <button key={r.id} className="panel__rel" onClick={() => onRelSelect?.(r.id)}>{r.he}</button>
+            ))}
           </div>
-        )}
-        {detail.relations.length > 0 && (
-          <div className="panel__rels">
-            <span className="panel__rels-h">יחסים</span>
-            <div className="panel__rels-list">
-              {detail.relations.map((r) => (
-                <button key={r.id} className="panel__rel" onClick={() => onRelSelect?.(r.id)}>{r.he}</button>
-              ))}
+        </div>
+      )}
+    </aside>
+  )
+}
+
+// Variant B — a "dossier" layout: hero with a big score, vertical component columns,
+// and the gravity profile as a numbered editorial list.
+function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
+  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+  const unit = detail.scoreLabel ? '/ 10' : '/ 100'
+  const comps: [string, number | undefined][] = [['כלכלי', detail.forces?.eco], ['צבאי', detail.forces?.mil], ['גאו', detail.forces?.geo]]
+  const notes = detail.powerNotes
+  return (
+    <aside className="panelb panel--detail" dir="rtl">
+      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+      <span className="panelb__kicker">{detail.tier} · {detail.axisLabel}</span>
+      <div className="panelb__hero">
+        <h1 className="panelb__title">{detail.he}</h1>
+        <div className="panelb__score"><b>{score}</b><span>{unit}</span><em>כבידה</em></div>
+      </div>
+      {detail.forces && (
+        <div className="panelb__cols">
+          {comps.map(([l, v]) => (
+            <div className="panelb__col" key={l}>
+              <span className="panelb__col-track"><i style={{ height: `${(v ?? 0) * 10}%` }} /></span>
+              <span className="panelb__col-v">{v ?? '—'}</span>
+              <span className="panelb__col-l">{l}</span>
             </div>
-          </div>
-        )}
-      </aside>
-    )
+          ))}
+        </div>
+      )}
+      {notes && (
+        <ol className="panelb__notes">
+          <li><span className="panelb__note-k">כללי</span><p>{notes.general}</p></li>
+          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p></li>
+          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p></li>
+          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p></li>
+        </ol>
+      )}
+      {detail.relations.length > 0 && (
+        <div className="panelb__rels">
+          {detail.relations.map((r) => (
+            <button key={r.id} className="panel__rel" onClick={() => onRelSelect?.(r.id)}>{r.he}</button>
+          ))}
+        </div>
+      )}
+    </aside>
+  )
+}
+
+export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDetail | null; onClose?: () => void; onRelSelect?: (id: string) => void }) {
+  const variant = usePanelVariant()
+  if (detail) {
+    return variant === 'b'
+      ? <SidePanelDetailB detail={detail} onClose={onClose} onRelSelect={onRelSelect} />
+      : <SidePanelDetailA detail={detail} onClose={onClose} onRelSelect={onRelSelect} />
   }
   return (
     <aside className="panel" dir="rtl">

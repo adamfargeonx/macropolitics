@@ -5,8 +5,21 @@ import ForcesView from './dynamics/ForcesView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { Legend } from './dynamics/Legend'
+import { panelAB, usePanelVariant } from './dynamics/panelAB'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
+
+// Live A/B toggle for the side-panel design (top-left; data views only).
+function ABToggle() {
+  const v = usePanelVariant()
+  return (
+    <button className="abtoggle" onClick={() => { sound.play('tab'); panelAB.toggle() }} aria-label="החלפת עיצוב הפאנל" title="A/B — עיצוב הפאנל">
+      <span className="abtoggle__lbl">פאנל</span>
+      <span className={`abtoggle__opt${v === 'a' ? ' is-on' : ''}`}>A</span>
+      <span className={`abtoggle__opt${v === 'b' ? ' is-on' : ''}`}>B</span>
+    </button>
+  )
+}
 
 function SoundToggle() {
   const [muted, setMuted] = useState(false)
@@ -42,6 +55,7 @@ export default function App() {
         : <DynamicsView view={view} onView={setView} />}
       <CustomCursor />
       <SoundToggle />
+      {view !== 'home' && <ABToggle />}
       <Legend view={view} />
     </>
   )
