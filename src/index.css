@@ -465,11 +465,18 @@ body {
   border: 1px solid rgba(251, 255, 0, 0.4);
 }
 .tab {
-  padding: 9px 22px; font-size: 16px; font-weight: 700; font-family: var(--display);
+  position: relative; padding: 9px 22px; font-size: 16px; font-weight: 700; font-family: var(--display);
   color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: 0.04em;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.25s var(--ease-out-expo), color 0.25s var(--ease-out-expo);
 }
-.tab:hover { background: rgba(251, 255, 0, 0.12); }
+.tab::after {
+  content: ''; position: absolute; left: 50%; bottom: 4px; width: 0; height: 1px;
+  background: var(--yellow); transform: translateX(-50%);
+  transition: width 0.25s var(--ease-out-expo);
+}
+.tab:hover { background: rgba(251, 255, 0, 0.08); }
+.tab:hover::after { width: calc(100% - 30px); }
+.tab--active::after { width: 0 !important; }
 .tab--active { background: var(--yellow); color: var(--bg); }
 .tab--soon { opacity: 0.4; }
 .tab--soon:hover { background: none; }

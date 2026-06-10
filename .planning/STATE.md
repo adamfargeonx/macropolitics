@@ -1,14 +1,23 @@
 # State: Macropolitics
 
-**Updated:** 2026-06-10
+**Updated:** 2026-06-11 (overnight deep-improvement pass)
 **Current milestone:** Phase 0 complete → Phase 1 (Empirical Gravity Backbone) is next.
 **Mode:** YOLO · Coarse. Visual polish runs as a fast loop outside phases.
+**Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
+`~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
 
 ## Where things stand
 - Foundation built (home, three lenses, design system, sound, chrome, legend, dock).
-- Data is placeholder: `power` / `FORCES` / `relation()` are hand-tuned in `src/data/entities.ts`.
+- **Editorial layer added (overnight 06-11):** gravity notes for ALL 29 bodies; 35 authored
+  relation pairs with why-lines (`src/data/relations.ts`); "המודל" methodology overlay.
+- **Relations view rebuilt:** authored data + sharpened/relaxed layout (zero overlaps),
+  pin-on-click, barycentric guide-lines, reference picker, set-as-reference.
+- **Forces:** ranked gravity index (29 rows, map-linked). **Dynamics:** richer hover readout,
+  faint always-on alliance web (flagged in engine VISUALS).
+- **Platform:** URL hash deep-links, keyboard nav (1/2/3/ESC), quick loader on repeat visits.
+- Data is still interpretive: `power` / `FORCES` / authored relations are reasoned judgment,
+  flagged honestly in the המודל overlay. Empirical wiring remains GSD Phase 1.
 - Docs: `docs/macropolitics-model.md`, `docs/design-system.md`, `docs/improvement-ideas.md`.
-- Terminology shift in progress: a body's "power" is now **gravity (כבידה)** sitewide.
 
 ## Active polish backlog (fast loop — not phases)
 Tracked here so it's explicit without GSD ceremony. Knocked out in batches.
