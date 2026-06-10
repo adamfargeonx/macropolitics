@@ -13,6 +13,7 @@ const TIER_LABEL: Record<string, string> = {
 const AXIS_RIM: Record<string, string> = { west: '132,160,196', east: '198,134,98', neutral: '150,150,160', none: '120,120,128' }
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
+const RANKED = [...NODES].sort((a, b) => b.power - a.power)
 
 function buildForceDetail(id: string | null): EntityDetail | null {
   if (!id) return null
@@ -45,12 +46,14 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     const cx = w / 2, cy = h / 2, halfMin = Math.min(w, h) / 2
     const nodes: { e: typeof NODES[number]; x: number; y: number; d: number }[] = []
     const rings = BANDS.map((k) => ({ k, r: BAND_R[k] * halfMin }))
+    // place each band's bodies by RANK: strongest starts at 12 o'clock, then clockwise.
+    // Bands are phase-staggered so first items don't align into one column.
+    const BAND_PHASE: Record<string, number> = { great: 0, regional: 0.55, intermediate: 0.25, edge: 0.8, nonstate: 0.45 }
     for (const kind of BANDS) {
-      const items = NODES.filter((n) => n.kind === kind)
+      const items = NODES.filter((n) => n.kind === kind).sort((a, b) => b.power - a.power)
       const R = BAND_R[kind] * halfMin
-      const off = kind === 'great' ? 0.4 : kind.length * 0.7
       items.forEach((e, i) => {
-        const ang = (i / items.length) * TAU + Math.PI / 2 + off
+        const ang = -Math.PI / 2 + BAND_PHASE[kind] + (i / items.length) * TAU
         nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: Math.max(8, Math.min(66, powerSize(e.power) * 0.5)) })
       })
     }
@@ -100,13 +103,30 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         {selected ? (
           <SidePanel detail={detail} onClose={() => setSelected(null)} />
         ) : (
-          <aside className="panel" dir="rtl">
+          <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
             <h1 className="panel__title">כבידה</h1>
             <p className="panel__body">
-              כבידתה של מדינה נמדדת לפי כוחה הכלכלי, הצבאי והגאו-אסטרטגי — והיא המבטאת את משקלה הפוליטי.
-              ככל שהגוף קרוב למרכז וגדול יותר, כך כבידתו רבה יותר.
+              כבידה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — היא משקלו הפוליטי של כל גוף.
+              קרוב יותר למרכז, גדול יותר — כבד יותר.
             </p>
-            <p className="panel__note">בחרו מדינה כדי לראות את מרכיבי כבידתה.</p>
+            <div className="gindex">
+              <span className="gindex__h">מדד הכבידה</span>
+              {RANKED.map((e, i) => (
+                <button
+                  key={e.id}
+                  className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
+                  style={{ animationDelay: `${Math.min(0.05 + i * 0.03, 0.9)}s` }}
+                  onMouseEnter={() => setHovered(e.id)}
+                  onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
+                  onClick={() => setSelected(e.id)}
+                >
+                  <span className="gindex__rank">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="gindex__name">{e.he}</span>
+                  <span className="gindex__bar"><i style={{ width: `${e.power}%` }} /></span>
+                  <span className="gindex__score">{forceScore(e.power).toFixed(1)}</span>
+                </button>
+              ))}
+            </div>
           </aside>
         )}
       </PanelDock>
