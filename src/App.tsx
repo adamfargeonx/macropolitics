@@ -5,6 +5,7 @@ import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
+import { GlobalField } from './dynamics/GlobalField'
 import { Legend } from './dynamics/Legend'
 import { AboutOverlay } from './dynamics/AboutView'
 import { UtilityNav } from './dynamics/Chrome'
@@ -88,6 +89,7 @@ export default function App() {
 
   return (
     <>
+      <GlobalField />
       {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={setView} />
         : view === 'forces' ? <ForcesView view={view} onView={setView} />
         : view === 'relations' ? <RelationsView view={view} onView={setView} />

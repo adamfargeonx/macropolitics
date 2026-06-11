@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
 import { Header, SidePanel, PanelDock, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
-import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
 
 const TAU = Math.PI * 2
@@ -27,11 +26,9 @@ function buildForceDetail(id: string | null): EntityDetail | null {
 
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  useStarfield(canvasRef)
 
   useEffect(() => {
     const el = fieldRef.current; if (!el) return
@@ -66,7 +63,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
 
   return (
     <div className="stage forces" dir="rtl" onClick={() => setSelected(null)}>
-      <canvas ref={canvasRef} className="field" />
       <div className="forces-field" ref={fieldRef}>
         {/* tier guide rings + labels */}
         {layout.rings.map((ring) => (

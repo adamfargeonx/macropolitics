@@ -1,6 +1,4 @@
-import { useRef } from 'react'
 import { Header, type View } from './Chrome'
-import { useGravityField, type Impulse } from './useGravityField'
 import { sound } from '../sound'
 
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
@@ -18,18 +16,11 @@ const NAV: { view: View; he: string; sub: string; pos: string }[] = [
  * Clicking the centre toggles between them; the expansion is animated, not a dissolve.
  */
 export default function HomeView({ open, onToggle, onView }: { open: boolean; onToggle: () => void; onView: (v: View) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const impulseRef = useRef<Impulse | null>(null)
-  useGravityField(canvasRef, impulseRef)
-
-  // every click scatters particles; the centre core toggles open/close
-  const scatter = (e: React.PointerEvent) => { impulseRef.current = { x: e.clientX, y: e.clientY, t: performance.now() } }
+  // The global particle field handles the background + click reactivity now.
   const toggle = () => { sound.start(); sound.play(open ? 'back' : 'open'); onToggle() }
 
   return (
-    <div className={`stage home ${open ? 'home--open' : 'home--closed'}`} dir="rtl" onPointerDown={scatter}>
-      <canvas ref={canvasRef} className="field" />
-
+    <div className={`stage home ${open ? 'home--open' : 'home--closed'}`} dir="rtl">
       <div className="home-center" aria-hidden>
         <div className="home-orbit"><div className="home-orbit__spin"><span className="home-orbit__dot" /></div></div>
       </div>

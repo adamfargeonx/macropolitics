@@ -40,7 +40,7 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
 
   useEffect(() => {
     if (!canvasRef.current || !stageRef.current) return
-    const engine = new OrbitalField(canvasRef.current, stageRef.current)
+    const engine = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: true })
     engine.onHover = (id, screen) => { if (id) sound.play('hover'); document.body.classList.toggle('cursor-grab', !!id); setHover({ id, screen }) }
     engine.onSelect = (id) => { if (id) sound.play('select'); setSelected(id) }
     engine.onZoom = (z) => setZoom(z)

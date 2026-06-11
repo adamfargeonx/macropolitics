@@ -110,14 +110,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Global particle field — one fixed canvas behind every view (the gravity background). */
+.globalfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
 /* Stage ───────────────────────────────────────────────────── */
+/* Transparent so the global field shows through; the gradients become a faint ambient tint. */
 .stage {
   position: fixed;
   inset: 0;
+  z-index: 1;
   background:
-    radial-gradient(120% 90% at 31% 44%, rgba(40, 20, 70, 0.35), transparent 60%),
-    radial-gradient(120% 90% at 69% 56%, rgba(60, 55, 10, 0.18), transparent 55%),
-    var(--bg);
+    radial-gradient(120% 90% at 31% 44%, rgba(40, 20, 70, 0.22), transparent 60%),
+    radial-gradient(120% 90% at 69% 56%, rgba(60, 55, 10, 0.12), transparent 55%);
   overflow: hidden;
   cursor: none;
 }

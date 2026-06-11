@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entities'
 import { authoredRelation } from '../data/relations'
 import { Header, PanelDock, RightRail, TabBar, type View } from './Chrome'
-import { useStarfield } from './useStarfield'
 import { useDeCollide } from './useDeCollide'
 import { sound } from '../sound'
 
@@ -54,12 +53,10 @@ const charOf = (r: Rel) =>
 
 export default function RelationsView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [refId, setRefId] = useState('israel')
   const [hovered, setHovered] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
-  useStarfield(canvasRef)
 
   useEffect(() => {
     const el = fieldRef.current; if (!el) return
@@ -121,7 +118,6 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
 
   return (
     <div className="stage relations" dir="rtl">
-      <canvas ref={canvasRef} className="field" />
       <div className="rel-field" ref={fieldRef} onClick={() => setPinned(null)}>
         {geo && (
           <>

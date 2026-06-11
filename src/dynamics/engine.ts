@@ -81,12 +81,14 @@ export class OrbitalField {
   private connected = new Set<string>()
   private start = 0; private raf = 0; private now = 0
   private reduced: boolean
+  private noStarfield: boolean
   onHover?: (id: string | null, screen: { x: number; y: number } | null) => void
   onSelect?: (id: string | null) => void
   onZoom?: (z: number) => void
 
-  constructor(private canvas: HTMLCanvasElement, private container: HTMLElement) {
+  constructor(private canvas: HTMLCanvasElement, private container: HTMLElement, opts: { noStarfield?: boolean } = {}) {
     this.ctx = canvas.getContext('2d')!
+    this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
@@ -140,7 +142,7 @@ export class OrbitalField {
   resetView() { this.zoom = 0.85; this.pan = { x: 0, y: 0 }; this.onZoom?.(this.zoom) }
 
   private seedStars() {
-    const count = this.reduced ? 70 : Math.min(190, Math.round((this.w * this.h) / 8200))
+    const count = this.noStarfield ? 0 : this.reduced ? 70 : Math.min(190, Math.round((this.w * this.h) / 8200))
     this.particles = Array.from({ length: count }, () => {
       const dx = (Math.random() - 0.5) * 0.1, dy = (Math.random() - 0.5) * 0.1
       return { x: Math.random() * this.w, y: Math.random() * this.h, vx: dx, vy: dy, dx, dy, size: 0.6 + Math.random() * 1.3, b: 0.16 + Math.random() * 0.42 }
@@ -185,7 +187,7 @@ export class OrbitalField {
         if (this.selected) this.setSelected(null)
         const R = 180
         for (const p of this.particles) { const dx = p.x - this.down.x, dy = p.y - this.down.y, d = Math.hypot(dx, dy) || 1; if (d < R) { const f = (1 - d / R) * 7; p.vx += (dx / d) * f; p.vy += (dy / d) * f } }
-        this.click = { x: this.down.x, y: this.down.y, t: this.now }
+        if (!this.noStarfield) this.click = { x: this.down.x, y: this.down.y, t: this.now } // global field handles the ripple
       }
     }
     this.down = null; this.dragging = false
