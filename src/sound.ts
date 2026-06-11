@@ -1,7 +1,24 @@
-// Procedural sound — ambient bed + UI interaction sounds via Web Audio (no asset files).
-// Tasteful + quiet. Audio only starts after a user gesture (autoplay policy).
+// Sound engine — supplied audio samples (with a procedural fallback) + a music bed.
+// Audio only starts after a user gesture (autoplay policy). Samples live in /public/audio.
 
 type Voice = 'hover' | 'click' | 'select' | 'tab' | 'transition' | 'back' | 'open'
+
+// Named sample files (supplied assets).
+const SAMPLE_URLS: Record<string, string> = {
+  click: '/audio/click.wav',         // MAIN CLICK
+  transition: '/audio/transition.mp3', // SCREENSWITCH
+  ffft: '/audio/ffft.mp3',           // FFFT — soft whoosh
+}
+// Which sample (and level) each UI voice uses. null → procedural only.
+const VOICE_MAP: Record<Voice, { s: string; g: number } | null> = {
+  click: { s: 'click', g: 0.9 },
+  select: { s: 'click', g: 0.6 },
+  transition: { s: 'transition', g: 0.85 },
+  hover: { s: 'ffft', g: 0.3 },
+  tab: { s: 'ffft', g: 0.7 },
+  open: { s: 'ffft', g: 0.7 },
+  back: { s: 'ffft', g: 0.55 },
+}
 
 class SoundEngine {
   private ctx: AudioContext | null = null
@@ -11,6 +28,8 @@ class SoundEngine {
   private started = false
   private _muted = false
   private lastHover = 0
+  private buffers: Record<string, AudioBuffer> = {}
+  private samplesLoading = false
 
   get muted() { return this._muted }
 
@@ -34,7 +53,28 @@ class SoundEngine {
     if (ctx.state === 'suspended') ctx.resume()
     if (this.started) return
     this.started = true
+    void this.loadSamples()
     void this.loadAmbientFile()
+  }
+
+  // Preload the supplied UI samples into buffers (decoded once).
+  private async loadSamples() {
+    const ctx = this.ctx; if (!ctx || this.samplesLoading) return
+    this.samplesLoading = true
+    await Promise.all(Object.entries(SAMPLE_URLS).map(async ([name, url]) => {
+      try {
+        const res = await fetch(url, { cache: 'force-cache' }); if (!res.ok) return
+        this.buffers[name] = await ctx.decodeAudioData(await res.arrayBuffer())
+      } catch { /* missing/decoded-fail → procedural fallback covers this voice */ }
+    }))
+  }
+
+  private playSample(name: string, gain: number) {
+    const ctx = this.ctx, buf = this.buffers[name]; if (!ctx || !this.uiBus || !buf) return false
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const g = ctx.createGain(); g.gain.value = gain
+    src.connect(g); g.connect(this.uiBus); src.start()
+    return true
   }
 
   // Optional drop-in: place a LICENSED track at public/audio/ambient.mp3 and it becomes
@@ -50,7 +90,7 @@ class SoundEngine {
       const g = ctx.createGain(); g.gain.value = 0
       src.connect(g); g.connect(this.master); src.start()
       const t = ctx.currentTime
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.7, t + 6)   // dramatic build
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.6, t + 6)   // dramatic build, sits under UI
       this.ambBus.gain.linearRampToValueAtTime(0.06, t + 5)                      // duck the procedural bed
       this.fileLoaded = true
     } catch { /* no file / decode error → keep the procedural bed */ }
@@ -156,8 +196,12 @@ class SoundEngine {
 
   play(v: Voice) {
     if (!this.ctx || this._muted) return
+    if (v === 'hover') { const now = performance.now(); if (now - this.lastHover < 60) return; this.lastHover = now }
+    // supplied sample first; procedural fallback if it hasn't loaded
+    const m = VOICE_MAP[v]
+    if (m && this.playSample(m.s, m.g)) return
     switch (v) {
-      case 'hover': { const now = performance.now(); if (now - this.lastHover < 45) return; this.lastHover = now; this.blip(1180, 0.06, 'sine', 0.025); break }
+      case 'hover': this.blip(1180, 0.06, 'sine', 0.025); break
       case 'click': this.clickHit(); break
       case 'select': this.blip(440, 0.12, 'sine', 0.05); this.blip(660, 0.16, 'sine', 0.035); break
       case 'open': this.blip(330, 0.18, 'sine', 0.045, 520); break

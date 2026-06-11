@@ -1,15 +1,17 @@
-Ambient music drop-in
-=====================
+Audio assets (supplied)
+=======================
 
-To use a LICENSED ambient track as the background bed, place an MP3 here named:
+UI samples + music bed, loaded by src/sound.ts on first user gesture.
 
-    ambient.mp3   →   public/audio/ambient.mp3
+  click.wav       MAIN CLICK   → 'click' (+ 'select' at lower gain)
+  transition.mp3  SCREENSWITCH → 'transition' (view switches)
+  ffft.mp3        FFFT         → 'hover' (soft), 'tab', 'open', 'back'
+  ambient.mp3     Familiar Patterns → the global music bed (loops, swells in over ~6s)
 
-On the first user interaction the engine fetches /audio/ambient.mp3; if present it
-swells in over ~6s (dramatic build) and the procedural bed ducks under it. If the
-file is absent, the procedural ambient bed plays instead. Nothing else to wire up.
+To swap any sound, replace the file here (keep the name). To remap which voice uses
+which sample, edit VOICE_MAP in src/sound.ts. If a file is missing, that voice falls
+back to the procedural synth.
 
-NOTE ON "Familiar Patterns" (Hanna Lindgren): this is a commercially licensed track
-(Epidemic Sound). It is NOT bundled here — downloading and shipping it without a
-license would be copyright infringement. If you hold a license (e.g. an Epidemic
-Sound subscription), export the MP3 and drop it in as ambient.mp3 above.
+Note: ambient.mp3 ("Familiar Patterns") and the other clips are licensed assets supplied
+by the project owner. If this repo is ever made public, review redistribution rights or
+keep /public/audio/ out of the published bundle.
