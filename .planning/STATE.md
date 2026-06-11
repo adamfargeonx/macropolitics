@@ -6,6 +6,15 @@
 **Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
 `~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
 
+## Session 2026-06-11 (T1–T7 batch)
+Home nav on the ring circumference; +30% wordmark kerning; Light logo (0.3em).
+**Global click-reactive particle field** (one fixed canvas behind all views; per-view
+starfields removed; dynamics engine `noStarfield`). Sidebar redesigned + **root-caused the
+"hard to open" bug** (RightRail z6 was eating handle clicks — RightRail removed). Model+legend
+moved to a top-left utility cluster (prominent המודל pill + SVG info icon). **Powers overhaul:**
+כבידה→כוח משיכה; fly-from-centre entrance; breathing states; pan+zoom; B-panel redesign;
+numerals→Tel-Aviv. **Power-model critique → `docs/power-model.md`** (the GSD Phase 1 blueprint).
+
 ## Where things stand
 - Foundation built (home, three lenses, design system, sound, chrome, legend, dock).
 - **Editorial layer added (overnight 06-11):** gravity notes for ALL 29 bodies; 35 authored
