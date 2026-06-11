@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entities'
 import { authoredRelation } from '../data/relations'
-import { Header, PanelDock, RightRail, TabBar, type View } from './Chrome'
+import { Header, PanelDock, TabBar, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { sound } from '../sound'
 
@@ -214,7 +214,6 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
         </aside>
       )}
       </PanelDock>
-      <RightRail />
       <TabBar view={view} onView={onView} />
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
-import { Header, SidePanel, PanelDock, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
+import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 
 const TAU = Math.PI * 2
@@ -126,7 +126,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           </aside>
         )}
       </PanelDock>
-      <RightRail />
       <TabBar view={view} onView={onView} />
     </div>
   )

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
 import { HoverReadout } from './HoverReadout'
-import { Header, SidePanel, PanelDock, RightRail, TabBar, type EntityDetail, type View } from './Chrome'
+import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
 import { sound } from '../sound'
 
@@ -68,7 +68,6 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
       <PanelDock>
         <SidePanel detail={detail} onClose={() => engineRef.current?.clearSelection()} onRelSelect={(id) => engineRef.current?.select(id)} />
       </PanelDock>
-      <RightRail />
       <TabBar view={view} onView={onView} />
       <div className="zoomctl" dir="ltr">
         <button onClick={() => engineRef.current?.zoomBy(1.25)} aria-label="התקרבות">+</button>

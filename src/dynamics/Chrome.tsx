@@ -5,14 +5,13 @@ import type { PowerNotes } from '../data/entities'
 import { sound } from '../sound'
 import { usePanelVariant } from './panelAB'
 
-// Collapsible dock for the side panel: a grip handle that slides the panel off the
-// right edge; when collapsed, hovering the handle peeks it open to signal it's clickable.
+// Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
+// at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
+// while collapsed peeks the panel as a preview.
 export function PanelDock({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true)
-  // Handle is pinned (never moves) so hovering it can't jitter; only the panel slides.
-  // The panel renders BEFORE the handle so the handle paints on top while peeking.
   return (
-    <div className={`pdock${open ? '' : ' pdock--closed'}`}>
+    <div className={`pdock${open ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">{children}</div>
       <button
         className="pdock__handle"
@@ -20,7 +19,10 @@ export function PanelDock({ children }: { children: ReactNode }) {
         aria-label={open ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
         aria-expanded={open}
       >
-        <span className="pdock__grip" />
+        <svg className="pdock__chev" viewBox="0 0 24 24" aria-hidden="true">
+          <polyline points="9 5 16 12 9 19" />
+        </svg>
+        <span className="pdock__handle-lbl">מידע</span>
       </button>
     </div>
   )
@@ -189,15 +191,6 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
       <h2 className="panel__eq">יחסי הכוחות = הכוחות + היחסים</h2>
       <p className="panel__note">בחרו גוף במפה כדי לראות את נתוניו.</p>
     </aside>
-  )
-}
-
-export function RightRail() {
-  return (
-    <nav className="rail" dir="rtl" aria-label="מעברים">
-      <span className="rail__item">הכוחות</span>
-      <span className="rail__item">היחסים</span>
-    </nav>
   )
 }
 

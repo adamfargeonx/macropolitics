@@ -457,28 +457,24 @@ body:has(.home--closed) .unav { opacity: 0; pointer-events: none; }
 /* hover the pinned handle → the panel peeks in (handle never moves → stable) */
 .pdock--closed:has(.pdock__handle:hover) .pdock__panel,
 .pdock--closed:has(.pdock__handle:focus-visible) .pdock__panel { transform: translateX(calc(100% - 54px)); }
+/* the drawer tab — clearly a control: chevron + vertical "מידע" label, at the right edge */
 .pdock__handle {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-  width: 30px; height: 104px; background: none; border: none; cursor: none;
-  display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  width: 34px; padding: 16px 0; gap: 10px; cursor: none; pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(10, 6, 22, 0.82); color: var(--yellow);
+  border: 1px solid var(--line-yellow); border-right: none; border-radius: 9px 0 0 9px;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
-.pdock__grip {
-  width: 4px; height: 34px; border-radius: 2px; background: var(--yellow-30);
-  transition: height 0.28s var(--ease-out-expo), background 0.2s ease;
-}
-.pdock__handle:hover .pdock__grip { height: 60px; background: var(--yellow); }
+.pdock__handle:hover { background: rgba(251, 255, 0, 0.14); box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3); }
+.pdock__handle:active { transform: translateY(-50%) scale(0.96); }
+.pdock__chev { width: 16px; height: 16px; transition: transform var(--dur-base) var(--ease-out-expo); }
+.pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
+.pdock__handle-lbl { writing-mode: vertical-rl; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; opacity: 0.78; }
 @media (max-width: 900px) { .pdock__panel { width: 340px; } }
-@media (prefers-reduced-motion: reduce) { .pdock__panel { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .pdock__panel { transition: none; } .pdock__chev { transition: none; } }
 
-.rail {
-  position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 56px; z-index: 6;
-}
-.rail__item {
-  writing-mode: vertical-rl;
-  font-size: 13px; letter-spacing: 0.32em; color: var(--yellow);
-  opacity: 0.8;
-}
 
 .tabs {
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
