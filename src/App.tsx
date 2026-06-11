@@ -7,6 +7,7 @@ import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { Legend } from './dynamics/Legend'
 import { AboutOverlay } from './dynamics/AboutView'
+import { UtilityNav } from './dynamics/Chrome'
 import { panelAB, usePanelVariant } from './dynamics/panelAB'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
@@ -93,6 +94,7 @@ export default function App() {
         : <DynamicsView view={view} onView={setView} />}
       <CustomCursor />
       <SoundToggle />
+      <UtilityNav />
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
       <AboutOverlay />

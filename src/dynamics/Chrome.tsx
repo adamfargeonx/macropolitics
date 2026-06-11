@@ -30,9 +30,26 @@ export function Header({ onHome }: { onHome?: () => void }) {
   return (
     <header className="hdr">
       <button className="hdr__logo" onClick={onHome} aria-label="דף הבית">מאקרופוליטיקה</button>
-      <button className="hdr__model" onClick={() => window.dispatchEvent(new Event('mp-about'))}>המודל</button>
-      <button className="hdr__info" aria-label="מקרא" onClick={() => window.dispatchEvent(new Event('mp-legend'))}>ⓘ</button>
     </header>
+  )
+}
+
+// Utility cluster — top-left. "המודל" (the methodology, made prominent) + a crisp info
+// icon (the legend). Both dispatch the global overlay events. Hidden on the closed home.
+export function UtilityNav() {
+  return (
+    <div className="unav" dir="rtl">
+      <button className="unav__model" onClick={() => window.dispatchEvent(new Event('mp-about'))} title="המודל — המתודולוגיה">
+        <span className="unav__dot" />המודל
+      </button>
+      <button className="unav__info" aria-label="מקרא — השפה החזותית" onClick={() => window.dispatchEvent(new Event('mp-legend'))} title="מקרא — השפה החזותית">
+        <svg className="unav__icon" viewBox="0 0 20 20" aria-hidden="true">
+          <circle className="unav__icon-ring" cx="10" cy="10" r="8.3" />
+          <line x1="10" y1="9" x2="10" y2="14.4" />
+          <circle className="unav__icon-dot" cx="10" cy="5.7" r="1.05" />
+        </svg>
+      </button>
+    </div>
   )
 }
 
