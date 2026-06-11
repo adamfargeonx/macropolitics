@@ -74,6 +74,8 @@ export interface EntityDetail {
   forces?: { eco: number; mil: number; geo: number }
   powerNotes?: PowerNotes // forces view: four short paragraphs (general + components)
   rank?: number; total?: number // forces view: rank in the gravity index
+  backing?: { amount: number; patronHe: string } | null // forces: borrowed weight from a patron
+  sources?: { eco?: string; mil?: string; geo?: string } // forces: provenance per axis
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -85,8 +87,9 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-// One power note: a label, an optional 0–10 bar (the three components), and ≤20-word text.
-function PowerNote({ label, text, value }: { label: string; text: string; value?: number }) {
+// One power note: a label, an optional 0–10 bar (the three components), ≤20-word text,
+// and an optional source line (the empirical provenance for that axis).
+function PowerNote({ label, text, value, source }: { label: string; text: string; value?: number; source?: string }) {
   return (
     <div className="pnote">
       <div className="pnote__head">
@@ -99,6 +102,7 @@ function PowerNote({ label, text, value }: { label: string; text: string; value?
         )}
       </div>
       <p className="pnote__text">{text}</p>
+      {source && <p className="pnote__src">{source}</p>}
     </div>
   )
 }
@@ -122,9 +126,18 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
         <div className="pnotes">
           <span className="pnotes__h">פרופיל כוח המשיכה</span>
           <PowerNote label="כללי" text={detail.powerNotes.general} />
-          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
-          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />
-          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} />
+          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.sources?.eco} />
+          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.sources?.mil} />
+          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.sources?.geo} />
+          {detail.backing && (
+            <div className="pnote pnote--backing">
+              <div className="pnote__head">
+                <span className="pnote__label">גיבוי ⟵ {detail.backing.patronHe}</span>
+                <span className="pnote__val">+{detail.backing.amount}</span>
+              </div>
+              <p className="pnote__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות, לא עצמאי.</p>
+            </div>
+          )}
         </div>
       )}
       {detail.relations.length > 0 && (
@@ -184,9 +197,12 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
       {notes && (
         <ol className="panelb__notes">
           <li><span className="panelb__note-k">כללי</span><p>{notes.general}</p></li>
-          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p></li>
-          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p></li>
-          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p></li>
+          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p>{detail.sources?.eco && <span className="panelb__src">{detail.sources.eco}</span>}</li>
+          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p>{detail.sources?.mil && <span className="panelb__src">{detail.sources.mil}</span>}</li>
+          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.sources?.geo && <span className="panelb__src">{detail.sources.geo}</span>}</li>
+          {detail.backing && (
+            <li className="panelb__note--backing"><span className="panelb__note-k">גיבוי ⟵ {detail.backing.patronHe}</span><p>משקל מושאל · ‎+{detail.backing.amount} מכוח המשיכה תלוי בנותן החסות.</p></li>
+          )}
         </ol>
       )}
       {detail.relations.length > 0 && (

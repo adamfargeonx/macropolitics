@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
+import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL, backingOf } from '../data/entities'
+import { ECO_SOURCE, AXIS_SOURCE } from '../data/empirical'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { Words } from './Words'
@@ -25,11 +26,14 @@ const ZOOM_NAMES_AT = 1.8 // +80% zoom → names cascade in by rank
 function buildForceDetail(id: string | null): EntityDetail | null {
   if (!id) return null
   const e = byId.get(id); if (!e) return null
+  const b = backingOf(id)
   return {
     he: e.he, power: e.power, tier: e.tier, dispo: e.dispo,
     axisLabel: AXIS_LABEL[AXIS[id] ?? 'none'], parentHe: null, relations: [],
     scoreLabel: `${forceScore(e.power).toFixed(1)} / 10`, forces: FORCES[id], powerNotes: POWER_NOTES[id],
     rank: RANKED.findIndex((n) => n.id === id) + 1, total: RANKED.length,
+    backing: b ? { amount: b.amount, patronHe: b.patronHe } : null,
+    sources: { eco: ECO_SOURCE[id] ?? AXIS_SOURCE.eco, mil: AXIS_SOURCE.mil, geo: AXIS_SOURCE.geo },
   }
 }
 

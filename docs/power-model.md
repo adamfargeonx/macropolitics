@@ -4,6 +4,15 @@ How "כוח משיכה" (gravity) should be computed: credible, sourceable, and 
 without lying. This is the blueprint for GSD Phase 1 (the empirical gravity backbone), and it
 supersedes the hand-tuned `power` / `FORCES` placeholders in `src/data/entities.ts`.
 
+> **Implementation status (2026-06-12) — vertical slice LIVE.** The model is now computed, not
+> asserted. `src/model/gravity.ts` (pure engine) + `src/data/empirical.ts` (effective axes,
+> stability, graph backing) drive `power` for all 29 bodies; `src/data/entities.ts` no longer
+> hand-sets it. The **economic axis is sourced** (GDP-PPP + per-capita, IMF/World Bank 2024) and
+> surfaced in the forces panel; **military + geo-strategic are carried as interim** (flagged in
+> the panel) pending SIPRI/IISS + geographic sourcing. Backing renders relationally ("+16 ⟵ איראן").
+> Calibration + regression: `node --experimental-strip-types scripts/check-model.ts`.
+> **Next:** source mil/geo; then the Scenario Sandbox (live `WEIGHTS` sliders) + Time Axis.
+
 ---
 
 ## What's wrong with the current numbers

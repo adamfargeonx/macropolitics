@@ -1,10 +1,28 @@
 # State: Macropolitics
 
-**Updated:** 2026-06-11 (overnight deep-improvement pass)
-**Current milestone:** Phase 0 complete → Phase 1 (Empirical Gravity Backbone) is next.
+**Updated:** 2026-06-12 (Phase 1 empirical slice, autonomous overnight)
+**Current milestone:** Phase 1 (Empirical Gravity Backbone) — **economic-axis vertical slice DONE**;
+mil/geo sourcing + Scenario Sandbox + Time Axis are the next sub-phases.
 **Mode:** YOLO · Coarse. Visual polish runs as a fast loop outside phases.
+**Branch:** `empirical-backbone` (off `main` @ d78aaa6) — two commits: U1–U12 polish, then Phase 1.
 **Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
 `~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
+
+## Session 2026-06-12 (Phase 1 — empirical gravity backbone, slice)
+**The score is now computed from its parts.** Was: `power` (0–100) and `FORCES.{eco,mil,geo}`
+hand-set independently, so `forceScore = power/10` disagreed with the bars (Israel `power:58` but
+axes `(7,9,7)`→~77). Now:
+- `src/model/gravity.ts` — pure engine: `intrinsic = (Σ w·axis) × stability`, `backing = α·intrinsic(patron)`,
+  `gravity = intrinsic + backing` → 0–100 `power`. `WEIGHTS` in one place (Sandbox-ready).
+- `src/data/empirical.ts` — 29 bodies: effective eco/mil/geo, stability discount (Syria 0.45,
+  Lebanon 0.5, Yemen 0.6, Iraq 0.75), graph backing (proxies' supplied weight), `ECO_SOURCE`/`AXIS_SOURCE`.
+- `src/data/entities.ts` — `NODE_DEFS` (structure) → `NODES` with **computed** `power`; `FORCES`
+  derived from the same axes; `GRAVITY` map + `backingOf()` exported. APIs unchanged → all consumers work.
+- Forces panel surfaces **provenance** (source line per axis; USA → "תמ״ג PPP ~$29 טריליון · IMF 2024")
+  + **backing** relationally ("גיבוי ⟵ איראן +16"). Economic sourced; mil/geo flagged interim.
+- `scripts/check-model.ts` — calibration + 9 regression assertions (run with `node --experimental-strip-types`).
+- Verified: tsc clean; forces gindex renders the computed order (USA 10.0→Lebanon 1.2); Hezbollah
+  panel shows borrowed weight; 4 views error-free. Ranking deltas are deliberate model corrections.
 
 ## Session 2026-06-12 (U1–U12 polish batch)
 Home: brighter rest particles (`useGravityField` floor 0.4); **pitch-black mask nested INSIDE
