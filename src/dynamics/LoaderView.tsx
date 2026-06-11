@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGravityField, type Impulse } from './useGravityField'
 
-const DURATION = 4500
-const FADE_AT = 3900
+const DURATION = 5000
+const FADE_AT = 4350
 const QUICK_DURATION = 1500
 const QUICK_FADE_AT = 950
 

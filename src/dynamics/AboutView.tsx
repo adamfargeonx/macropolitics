@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { sound } from '../sound'
+import { Words } from './Words'
 
 // "המודל" — the methodology overlay. The site's thesis, the equation, how each lens
 // reads, and an honesty note about the data. Opens on the header control ('mp-about').
@@ -28,14 +29,15 @@ export function AboutOverlay() {
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
 
         <header className="about__head">
-          <h2 className="about__title">המודל</h2>
-          <span className="about__sub">תורת היחסות של המזרח התיכון</span>
+          <span className="about__mark" aria-hidden><span className="about__mark-spin"><i /></span></span>
+          <div className="about__head-txt">
+            <h2 className="about__title">המודל</h2>
+            <span className="about__sub">תורת היחסות של המזרח התיכון</span>
+          </div>
         </header>
 
-        <p className="about__lede">
-          מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל,
-          לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות,
-          המפה מציעה מבנה.
+        <p className="about__lede about__lede--words">
+          <Words delay={0.15} step={0.035} text="מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות, המפה מציעה מבנה." />
         </p>
 
         <div className="about__eq" aria-label="המשוואה">
@@ -48,14 +50,17 @@ export function AboutOverlay() {
 
         <div className="about__cols">
           <div className="about__col">
+            <span className="about__col-n">01</span>
             <h3>הכוחות</h3>
             <p>כוח המשיכה של כל גוף — שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי, בסולם 0–10 — קובע את גודלו במפה.</p>
           </div>
           <div className="about__col">
+            <span className="about__col-n">02</span>
             <h3>היחסים</h3>
             <p>כל יחס נמתח בין שלושה קטבים — מתח, חיכוך והרמוניה — ומיקומו במשולש מגדיר את אופיו מול מדינת הייחוס.</p>
           </div>
           <div className="about__col">
+            <span className="about__col-n">03</span>
             <h3>יחסי הכוחות</h3>
             <p>התמונה המלאה: גופים במסלולים סביב מרכזי כובד. המרחק, הטבעת והמסלול מבטאים תלות, חסות וזיקה.</p>
           </div>

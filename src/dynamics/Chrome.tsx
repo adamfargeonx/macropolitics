@@ -1,15 +1,22 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
 // Kept together (all small, presentational) — split out if any grows past ~40 lines.
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
 import { sound } from '../sound'
 import { usePanelVariant } from './panelAB'
+import { Words } from './Words'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
 // while collapsed peeks the panel as a preview.
 export function PanelDock({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(true)
+  // mounts closed, then slides in after the page transition has landed — the panel
+  // arriving a beat late reads as a considered reveal, not a static frame.
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setOpen(true), 850)
+    return () => window.clearTimeout(t)
+  }, [])
   return (
     <div className={`pdock${open ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">{children}</div>
@@ -31,7 +38,11 @@ export function PanelDock({ children }: { children: ReactNode }) {
 export function Header({ onHome }: { onHome?: () => void }) {
   return (
     <header className="hdr">
-      <button className="hdr__logo" onClick={onHome} aria-label="דף הבית">מאקרופוליטיקה</button>
+      {/* a mini of the home orbit, before the wordmark — a portal back to the homepage */}
+      <button className="hdr__logo" onClick={onHome} aria-label="דף הבית" title="חזרה לדף הבית">
+        <span className="hdr__orbit" aria-hidden><span className="hdr__orbit-spin"><i className="hdr__orbit-dot" /></span></span>
+        <span className="hdr__wm">מאקרופוליטיקה</span>
+      </button>
     </header>
   )
 }
@@ -44,12 +55,13 @@ export function UtilityNav() {
       <button className="unav__model" onClick={() => window.dispatchEvent(new Event('mp-about'))} title="המודל — המתודולוגיה">
         <span className="unav__dot" />המודל
       </button>
-      <button className="unav__info" aria-label="מקרא — השפה החזותית" onClick={() => window.dispatchEvent(new Event('mp-legend'))} title="מקרא — השפה החזותית">
-        <svg className="unav__icon" viewBox="0 0 20 20" aria-hidden="true">
-          <circle className="unav__icon-ring" cx="10" cy="10" r="8.3" />
-          <line x1="10" y1="9" x2="10" y2="14.4" />
-          <circle className="unav__icon-dot" cx="10" cy="5.7" r="1.05" />
+      <button className="unav__legend" aria-label="מקרא — השפה החזותית" onClick={() => window.dispatchEvent(new Event('mp-legend'))} title="מקרא — השפה החזותית">
+        <svg className="unav__legend-icon" viewBox="0 0 24 16" aria-hidden="true">
+          <circle cx="4.5" cy="8" r="2.4" />
+          <circle cx="12" cy="8" r="3.4" />
+          <circle cx="19.8" cy="8" r="1.6" />
         </svg>
+        מקרא
       </button>
     </div>
   )
@@ -198,10 +210,8 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
   return (
     <aside className="panel" dir="rtl">
       <h1 className="panel__title">יחסי הכוחות</h1>
-      <p className="panel__body">
-        במערך יחסי הכוחות ניתן לראות את השילוב של הכוחות והיחסים, ולהבין את הדינמיקות דרך
-        הגופים, מעגלי ההשפעה ומרכזי הכובד. גודלם נקבע על פי כוח משיכתם, והמרחקים ביניהם
-        מעידים על אופי היחסים שלהם.
+      <p className="panel__body panel__body--words">
+        <Words delay={0.2} text="במערך יחסי הכוחות ניתן לראות את השילוב של הכוחות והיחסים, ולהבין את הדינמיקות דרך הגופים, מעגלי ההשפעה ומרכזי הכובד. גודלם נקבע על פי כוח משיכתם, והמרחקים ביניהם מעידים על אופי היחסים שלהם." />
       </p>
       <h2 className="panel__eq">יחסי הכוחות = הכוחות + היחסים</h2>
       <p className="panel__note">בחרו גוף במפה כדי לראות את נתוניו.</p>

@@ -6,6 +6,27 @@
 **Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
 `~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
 
+## Session 2026-06-12 (U1–U12 polish batch)
+Home: brighter rest particles (`useGravityField` floor 0.4); **pitch-black mask nested INSIDE
+`.home-orbit`** (inset:0 → tracks ring size; hover→50%); wordmark kerning 0.3em.
+Logo: **mini orbit before the wordmark** (`.hdr__orbit`) + bloom-on-hover (back-to-home cue).
+Transitions: home gets a **zoom-OUT** entrance (`homeZoomOut`); pages keep the zoom-in iris.
+**Per-word body reveal** (`Words.tsx`, applied to default panel bodies + about lede).
+Leading −12% across body copy; +15% kerning on the smallest text.
+**Sidebar opens after an 850 ms delay** (PanelDock mounts closed).
+Forces: **cursor-reactive stars** (lean toward cursor via `style.translate`), proximity
+highlight (nearest within 76px → focus+name), **names/rankings clean toggle**, **names hidden
+by default and cascade in by rank past 180% zoom**. **Fixed the Arial bug** — `<button>` doesn't
+inherit font-family; added `button,input,select,textarea { font-family: inherit }`.
+Legend trigger → **labelled מקרא pill** (size-ramp icon). **About toast** (one-time top-left intro).
+Model modal polished (orbit mark, card lenses, focal equation). **Loader → 5 s, dimmer/slower.**
+All verified via Playwright DOM/geometry sampling; tsc clean; 4 views render error-free.
+
+⚠️ **Gotcha:** headless Chromium (Playwright) **freezes CSS transitions whose value changes on a
+class flip** in the home subtree (orbit width→var, mask opacity 0→1 both stick at the start value;
+removing the transition yields the correct value). It's an env artifact — real browsers animate
+fine — so verify these with `transition:none` probes, not raw computed values.
+
 ## Session 2026-06-11 (T1–T7 batch)
 Home nav on the ring circumference; +30% wordmark kerning; Light logo (0.3em).
 **Global click-reactive particle field** (one fixed canvas behind all views; per-view

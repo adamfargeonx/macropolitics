@@ -8,6 +8,7 @@ import { CustomCursor } from './dynamics/CustomCursor'
 import { GlobalField } from './dynamics/GlobalField'
 import { Legend } from './dynamics/Legend'
 import { AboutOverlay } from './dynamics/AboutView'
+import { AboutToast } from './dynamics/AboutToast'
 import { UtilityNav } from './dynamics/Chrome'
 import { panelAB, usePanelVariant } from './dynamics/panelAB'
 import type { View } from './dynamics/Chrome'
@@ -100,6 +101,7 @@ export default function App() {
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
       <AboutOverlay />
+      <AboutToast />
       {!loaded && <LoaderView quick={revisit} onDone={onLoaderDone} />}
     </>
   )

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
+import { Words } from './Words'
 
 const TAU = Math.PI * 2
 const BANDS = ['great', 'regional', 'intermediate', 'edge', 'nonstate'] as const
@@ -13,6 +14,13 @@ const AXIS_RIM: Record<string, string> = { west: '132,160,196', east: '198,134,9
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
 const RANKED = [...NODES].sort((a, b) => b.power - a.power)
+const RANK_OF = new Map(RANKED.map((n, i) => [n.id, i]))
+
+// cursor reactivity tuning (field units)
+const REACT_R = 210   // how far the cursor's pull reaches
+const MAX_NUDGE = 13  // how far a star drifts toward the cursor (slight)
+const NEAR_R = 76     // within this, a star is "picked up" → highlighted + named
+const ZOOM_NAMES_AT = 1.8 // +80% zoom → names cascade in by rank
 
 function buildForceDetail(id: string | null): EntityDetail | null {
   if (!id) return null
@@ -30,6 +38,10 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [namesOff, setNamesOff] = useState(false)          // manual "clean visuals" toggle
+  const [proximal, setProximal] = useState<string | null>(null) // nearest star to the cursor
+  const proxRef = useRef<string | null>(null); proxRef.current = proximal
+  const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
 
   // camera: pan (drag) + zoom (wheel / buttons), applied to a transform wrapper
   const [cam, setCam] = useState({ z: 1, x: 0, y: 0 })
@@ -53,7 +65,31 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   }, [])
 
   const onPanDown = (e: React.PointerEvent) => { drag.current = { sx: e.clientX, sy: e.clientY, px: camRef.current.x, py: camRef.current.y }; dragMoved.current = false }
-  const onPanMove = (e: React.PointerEvent) => {
+  // every star leans slightly toward the cursor; the nearest one is "picked up" (highlighted + named)
+  const react = (e: React.PointerEvent) => {
+    const el = fieldRef.current; if (!el) return
+    const r = el.getBoundingClientRect(); const c = camRef.current
+    const fx = (e.clientX - r.left - c.x) / c.z, fy = (e.clientY - r.top - c.y) / c.z
+    let nearest: string | null = null, nd = NEAR_R
+    el.querySelectorAll<HTMLElement>('.fnode').forEach((node) => {
+      const id = node.dataset.id; if (!id) return
+      const p = posRef.current.get(id); if (!p) return
+      const dx = fx - p.x, dy = fy - p.y, dist = Math.hypot(dx, dy)
+      if (dist < REACT_R && dist > 0.01) {
+        const prox = 1 - dist / REACT_R
+        const mag = Math.min(MAX_NUDGE, prox * prox * MAX_NUDGE * 1.8)
+        node.style.translate = `${(dx / dist) * mag}px ${(dy / dist) * mag}px`
+      } else if (node.style.translate) node.style.translate = ''
+      if (dist < nd) { nd = dist; nearest = id }
+    })
+    if (proxRef.current !== nearest) setProximal(nearest)
+  }
+  const clearReact = () => {
+    fieldRef.current?.querySelectorAll<HTMLElement>('.fnode').forEach((n) => { if (n.style.translate) n.style.translate = '' })
+    if (proxRef.current) setProximal(null)
+  }
+  const onMove = (e: React.PointerEvent) => {
+    react(e)
     const d = drag.current; if (!d) return
     const dx = e.clientX - d.sx, dy = e.clientY - d.sy
     if (!dragMoved.current && Math.hypot(dx, dy) > 4) dragMoved.current = true
@@ -83,19 +119,31 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     return { nodes, rings, cx, cy }
   }, [size])
 
-  const focus = selected ?? hovered
+  // keep the cursor-reaction lookup table in sync with the laid-out positions
+  useEffect(() => {
+    const m = new Map<string, { x: number; y: number }>()
+    layout.nodes.forEach((n) => m.set(n.e.id, { x: n.x, y: n.y }))
+    posRef.current = m
+  }, [layout])
+
+  const focus = selected ?? hovered ?? proximal
+  const zoomNames = cam.z >= ZOOM_NAMES_AT
   const detail = useMemo(() => buildForceDetail(selected), [selected])
-  useDeCollide(fieldRef, '.fnode', '.fnode__name', focus, [size, hovered, selected])
+  useDeCollide(fieldRef, '.fnode', '.fnode__name', focus, [size, hovered, selected, proximal])
 
   return (
-    <div className="stage forces" dir="rtl" onClick={() => { if (dragMoved.current) { dragMoved.current = false; return } setSelected(null) }}>
+    <div
+      className={`stage forces${namesOff ? ' forces--clean' : ''}${zoomNames && !namesOff ? ' forces--names' : ''}`}
+      dir="rtl"
+      onClick={() => { if (dragMoved.current) { dragMoved.current = false; return } setSelected(null) }}
+    >
       <div
         className={`forces-field${drag.current ? ' forces-field--grab' : ''}`}
         ref={fieldRef}
         onPointerDown={onPanDown}
-        onPointerMove={onPanMove}
+        onPointerMove={onMove}
         onPointerUp={onPanUp}
-        onPointerLeave={onPanUp}
+        onPointerLeave={() => { onPanUp(); clearReact() }}
       >
        <div className="forces-zoom" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})` }}>
         {/* tier guide rings + labels */}
@@ -116,7 +164,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               data-id={e.id}
               data-power={e.power}
               className={`fnode${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
-              style={{ left: x, top: y, '--fx': `${layout.cx - x}px`, '--fy': `${layout.cy - y}px`, animationDelay: `${0.15 + i * 0.035}s` } as React.CSSProperties}
+              style={{ left: x, top: y, '--fx': `${layout.cx - x}px`, '--fy': `${layout.cy - y}px`, '--rk': RANK_OF.get(e.id) ?? 0, animationDelay: `${0.15 + i * 0.035}s` } as React.CSSProperties}
               onMouseEnter={() => setHovered(e.id)}
               onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
               onClick={(ev) => { ev.stopPropagation(); setSelected((s) => (s === e.id ? null : e.id)) }}
@@ -135,6 +183,17 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         <button onClick={() => zoomBy(0.8)} aria-label="התרחקות">−</button>
         <button className="zoomctl__reset" onClick={resetCam} aria-label="איפוס">⟲</button>
       </div>
+      {/* clean-visuals toggle — hide names + rankings on the map */}
+      <button
+        className={`namestoggle${namesOff ? ' namestoggle--off' : ''}`}
+        dir="rtl"
+        onClick={() => setNamesOff((v) => !v)}
+        aria-pressed={!namesOff}
+        title={namesOff ? 'הצגת שמות ודירוגים' : 'הסתרת שמות ודירוגים'}
+      >
+        <span className="namestoggle__icon" aria-hidden>{namesOff ? '◍' : '◉'}</span>
+        {namesOff ? 'שמות' : 'שמות'}
+      </button>
       <Header onHome={() => onView('home')} />
       <PanelDock>
         {selected ? (
@@ -142,9 +201,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         ) : (
           <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
             <h1 className="panel__title">כוח משיכה</h1>
-            <p className="panel__body">
-              כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף.
-              קרוב יותר למרכז, גדול יותר — כבד יותר.
+            <p className="panel__body panel__body--words">
+              <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
             </p>
             <div className="gindex">
               <span className="gindex__h">מדד כוח המשיכה</span>
