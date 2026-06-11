@@ -7,7 +7,7 @@ import { sound } from '../sound'
 const VIEW_HINT: Record<View, string | null> = {
   home: null,
   dynamics: 'המסלול והמרחק מן המרכז מבטאים את אופי היחסים והקרבה. גררו להזזה, גלגלו לשינוי מרחק, לחצו על גוף לפרטיו.',
-  forces: 'המרחק מן המרכז הוא דירוג הכבידה — ככל שגוף קרוב יותר למרכז, כבידתו רבה יותר.',
+  forces: 'המרחק מן המרכז הוא דירוג כוח המשיכה — ככל שגוף קרוב יותר למרכז, כוח משיכתו רב יותר.',
   relations: 'המיקום במשולש מבטא את אופי הקשר — מתח, חיכוך או הרמוניה. לחיצה על גוף קובעת את נקודת הייחוס.',
 }
 
@@ -43,7 +43,7 @@ export function Legend({ view }: { view: View }) {
         <div className="legend__rows">
           <div className="legend__row">
             <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
-            <span className="legend__txt"><b>גודל</b> — כבידה: שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי.</span>
+            <span className="legend__txt"><b>גודל</b> — כוח משיכה: שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי.</span>
           </div>
 
           <div className="legend__row">

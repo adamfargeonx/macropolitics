@@ -5,7 +5,7 @@ import { sound } from '../sound'
 // `sub` is the brief explainer revealed on hover.
 const NAV: { view: View; he: string; sub: string; pos: string }[] = [
   { view: 'dynamics', he: 'יחסי הכוחות', sub: 'התמונה המלאה', pos: 'top' },
-  { view: 'forces', he: 'הכוחות', sub: 'כבידתן של המדינות', pos: 'bl' },
+  { view: 'forces', he: 'הכוחות', sub: 'כוח המשיכה של המדינות', pos: 'bl' },
   { view: 'relations', he: 'היחסים', sub: 'מערכות היחסים ביניהן', pos: 'br' },
 ]
 

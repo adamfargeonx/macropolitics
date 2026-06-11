@@ -38,7 +38,7 @@ export default function LoaderView({ onDone, quick = false }: { onDone: () => vo
         <span className="loader-dot" />
       </div>
       <h1 className="loader-brand"><span>מאקרופוליטיקה</span></h1>
-      <p className="loader-sub"><span>מיפוי כבידתי של המזרח התיכון</span></p>
+      <p className="loader-sub"><span>מיפוי כוחות המשיכה במזרח התיכון</span></p>
       <div className="loader-bar" aria-hidden><i /></div>
     </div>
   )

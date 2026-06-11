@@ -61,6 +61,7 @@ export interface EntityDetail {
   scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
   forces?: { eco: number; mil: number; geo: number }
   powerNotes?: PowerNotes // forces view: four short paragraphs (general + components)
+  rank?: number; total?: number // forces view: rank in the gravity index
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -99,7 +100,7 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <h1 className="panel__title">{detail.he}</h1>
       <div className="panel__meta">
-        <MetaRow label="כבידה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
+        <MetaRow label="כוח משיכה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
         <MetaRow label="מעמד" value={detail.tier} />
         {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
         <MetaRow label="שיוך" value={detail.axisLabel} />
@@ -107,7 +108,7 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
       </div>
       {detail.powerNotes && (
         <div className="pnotes">
-          <span className="pnotes__h">פרופיל הכבידה</span>
+          <span className="pnotes__h">פרופיל כוח המשיכה</span>
           <PowerNote label="כללי" text={detail.powerNotes.general} />
           <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} />
           <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} />
@@ -135,23 +136,37 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const comps: [string, number | undefined][] = [['כלכלי', detail.forces?.eco], ['צבאי', detail.forces?.mil], ['גאו', detail.forces?.geo]]
   const notes = detail.powerNotes
+  const scoreNum = Number(score)
   return (
     <aside className="panelb panel--detail" dir="rtl">
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
-      <span className="panelb__kicker">{detail.tier} · {detail.axisLabel}</span>
-      <div className="panelb__hero">
-        <h1 className="panelb__title">{detail.he}</h1>
-        <div className="panelb__score"><b>{score}</b><span>{unit}</span><em>כבידה</em></div>
+      <div className="panelb__top">
+        {detail.rank && <span className="panelb__rank">{String(detail.rank).padStart(2, '0')}</span>}
+        <div className="panelb__id">
+          <span className="panelb__kicker">{detail.tier} · {detail.axisLabel} · {detail.dispo}</span>
+          <h1 className="panelb__title">{detail.he}</h1>
+        </div>
+      </div>
+      <div className="panelb__scorebox">
+        <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
+        <div className="panelb__score-side">
+          <span className="panelb__score-lbl">כוח משיכה</span>
+          {detail.rank && detail.total && <span className="panelb__score-rank">מדורגת {detail.rank} מתוך {detail.total}</span>}
+        </div>
+        <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
       </div>
       {detail.forces && (
-        <div className="panelb__cols">
-          {comps.map(([l, v]) => (
-            <div className="panelb__col" key={l}>
-              <span className="panelb__col-track"><i style={{ height: `${(v ?? 0) * 10}%` }} /></span>
-              <span className="panelb__col-v">{v ?? '—'}</span>
-              <span className="panelb__col-l">{l}</span>
-            </div>
-          ))}
+        <div className="panelb__comps">
+          <span className="panelb__comps-h">מרכיבי הכוח</span>
+          <div className="panelb__cols">
+            {comps.map(([l, v]) => (
+              <div className="panelb__col" key={l}>
+                <span className="panelb__col-v">{v ?? '—'}</span>
+                <span className="panelb__col-track"><i style={{ height: `${(v ?? 0) * 10}%` }} /></span>
+                <span className="panelb__col-l">{l}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {notes && (
