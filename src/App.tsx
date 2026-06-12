@@ -9,6 +9,7 @@ import { GlobalField } from './dynamics/GlobalField'
 import { Legend } from './dynamics/Legend'
 import { AboutOverlay } from './dynamics/AboutView'
 import { AboutToast } from './dynamics/AboutToast'
+import { EvidenceOverlay } from './dynamics/EvidenceOverlay'
 import { UtilityNav } from './dynamics/Chrome'
 import { panelAB, usePanelVariant } from './dynamics/panelAB'
 import type { View } from './dynamics/Chrome'
@@ -101,6 +102,7 @@ export default function App() {
       {view !== 'home' && <ABToggle />}
       <Legend view={view} />
       <AboutOverlay />
+      <EvidenceOverlay />
       <AboutToast />
       {!loaded && <LoaderView quick={revisit} onDone={onLoaderDone} />}
     </>

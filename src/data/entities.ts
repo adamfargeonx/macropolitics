@@ -7,7 +7,7 @@
 //   axes × stability + graph backing — not hand-set. See docs/power-model.md + src/data/empirical.ts.
 
 import { computeGravities, type GravityResult } from '../model/gravity'
-import { BODY_INPUTS, AXES_DATA } from './empirical'
+import { BODY_INPUTS, DATA } from './empirical'
 
 export type Kind = 'great' | 'regional' | 'intermediate' | 'edge' | 'nonstate'
 
@@ -132,7 +132,7 @@ export const FORCE_AXES = [
   { key: 'geo', he: 'גאו-אסטרטגי' },
 ] as const
 export const FORCES: Record<string, { eco: number; mil: number; geo: number }> = Object.fromEntries(
-  Object.entries(AXES_DATA).map(([id, v]) => [id, { eco: v.axes.eco, mil: v.axes.mil, geo: v.axes.geo }]),
+  Object.entries(DATA).map(([id, v]) => [id, { eco: v.axes.eco, mil: v.axes.mil, geo: v.axes.geo }]),
 )
 
 // Power profile — four short notes per state (general + the three force components).

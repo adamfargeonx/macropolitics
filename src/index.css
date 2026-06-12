@@ -378,6 +378,68 @@ body:has(.home--closed) .unav { opacity: 0; pointer-events: none; }
 @media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .about { animation: none; } }
 
+/* ── Evidence overlay — per-body calculation + full sources (opened from the forces panel) ── */
+.evid {
+  position: relative; width: min(540px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: none;
+  padding: 30px 32px 22px; text-align: right;
+  background: linear-gradient(180deg, rgba(14, 9, 28, 0.98), rgba(8, 4, 18, 0.98));
+  border: 1px solid rgba(251, 255, 0, 0.18); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  animation: legendIn 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.evid::-webkit-scrollbar { display: none; }
+.evid__head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid rgba(251, 255, 0, 0.16); flex-wrap: wrap; }
+.evid__title { font-size: 25px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); }
+.evid__score { font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.06em; color: var(--light); opacity: 0.6; }
+.evid__sec { margin-top: 20px; }
+.evid__h { font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.12em; color: var(--yellow); opacity: 0.6; margin-bottom: 12px; }
+.evid__formula { font-family: var(--body); font-size: 12px; letter-spacing: 0.03em; color: var(--ink-dim); margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-2); }
+/* the calculation — numbers right-aligned in a monospace-ish column */
+.evid__calc { display: flex; flex-direction: column; gap: 9px; }
+.evid__step { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.evid__step-k { font-family: var(--body); font-size: 12.5px; letter-spacing: 0.04em; color: var(--light); opacity: 0.8; white-space: nowrap; }
+.evid__math { font-family: var(--latin); font-size: 13px; letter-spacing: 0.02em; color: var(--light); opacity: 0.7; direction: ltr; text-align: left; }
+.evid__math b { color: var(--white); opacity: 1; font-weight: 700; }
+.evid__step--total { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line-yellow); }
+.evid__step--total .evid__step-k { color: var(--yellow); opacity: 1; font-weight: 700; }
+.evid__step--total .evid__math b { color: var(--yellow); }
+.evid__weights { margin-top: 13px; font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.02em; color: var(--ink-faint); }
+/* the sources — one card per axis */
+.evid__src { padding: 12px 0; border-bottom: 1px solid var(--line-2); }
+.evid__src:last-child { border-bottom: none; }
+.evid__src-head { display: flex; align-items: center; gap: 10px; }
+.evid__src-axis { font-size: 13px; font-weight: 700; color: var(--white); }
+.evid__src-score { font-family: var(--latin); font-size: 12px; font-weight: 700; color: var(--yellow); }
+.evid__badge { margin-inline-start: auto; font-family: var(--body); font-size: 10px; letter-spacing: 0.04em; padding: 2px 8px; border-radius: var(--r-pill); border: 1px solid var(--line); color: var(--ink-dim); }
+.evid__badge--sourced { color: #8fe388; border-color: rgba(143, 227, 136, 0.4); }
+.evid__badge--estimate { color: var(--yellow); border-color: var(--yellow-30); }
+.evid__badge--judgment { color: var(--ink-dim); }
+.evid__badge--no-data { color: #ff9d6e; border-color: rgba(255, 157, 110, 0.5); }
+.evid__figure { margin-top: 7px; font-family: var(--body); font-size: 12.5px; line-height: 1.5; letter-spacing: 0.02em; color: var(--light); opacity: 0.85; }
+.evid__src--flag .evid__figure { color: var(--yellow); opacity: 0.95; }
+.evid__link { display: inline-block; margin-top: 6px; font-family: var(--body); font-size: 11px; letter-spacing: 0.03em; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
+.evid__link:hover { color: var(--yellow); }
+.evid__note { margin-top: 6px; font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.02em; color: var(--ink-faint); }
+.evid__flags { margin-top: 18px; padding: 12px 14px; background: rgba(255, 157, 110, 0.06); border-right: 2px solid rgba(255, 157, 110, 0.6); }
+.evid__flags p { font-family: var(--body); font-size: 11.5px; line-height: 1.55; letter-spacing: 0.02em; color: #ffb98e; }
+.evid__flags p + p { margin-top: 6px; }
+.evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.03em; color: var(--ink-faint); }
+@media (prefers-reduced-motion: reduce) { .evid { animation: none; } }
+
+/* evidence trigger + flags inside the forces panel */
+.evidence { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+.evidence__flag { font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.02em; color: #ffb98e; margin-bottom: 8px; }
+.evidence__btn {
+  width: 100%; text-align: right; cursor: none; background: rgba(251, 255, 0, 0.05);
+  border: 1px solid var(--yellow-30); padding: 9px 12px;
+  font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--yellow);
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.evidence__btn:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
+/* flagged source line markers */
+.pnote__src--flag, .panelb__src--flag { color: #ffb98e !important; }
+.pnote__flag { color: #ffb98e; }
+
 /* Legend overlay (the visual-language key, opened by ⓘ) */
 .legend__scrim {
   position: fixed; inset: 0; z-index: 40; cursor: none;

@@ -2,6 +2,7 @@
 // Kept together (all small, presentational) — split out if any grows past ~40 lines.
 import { useEffect, useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
+import type { AxisProvenance } from '../data/empirical'
 import { sound } from '../sound'
 import { usePanelVariant } from './panelAB'
 import { Words } from './Words'
@@ -68,6 +69,7 @@ export function UtilityNav() {
 }
 
 export interface EntityDetail {
+  id?: string // forces view: lets the evidence overlay look up sources + the calculation
   he: string; power: number; tier: string; dispo: string
   axisLabel: string; parentHe: string | null; relations: { id: string; he: string }[]
   scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
@@ -75,7 +77,9 @@ export interface EntityDetail {
   powerNotes?: PowerNotes // forces view: four short paragraphs (general + components)
   rank?: number; total?: number // forces view: rank in the gravity index
   backing?: { amount: number; patronHe: string } | null // forces: borrowed weight from a patron
-  sources?: { eco?: string; mil?: string; geo?: string } // forces: provenance per axis
+  prov?: { eco: AxisProvenance; mil: AxisProvenance; geo: AxisProvenance } // per-axis provenance
+  flags?: string[] // prominent data-quality caveats (only when genuinely half-baked)
+  components?: { base: number; intrinsic: number; backing: number; gravity: number; stability: number } // for the methodology drill-down
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -88,8 +92,10 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 }
 
 // One power note: a label, an optional 0–10 bar (the three components), ≤20-word text,
-// and an optional source line (the empirical provenance for that axis).
-function PowerNote({ label, text, value, source }: { label: string; text: string; value?: number; source?: string }) {
+// and a concise source line (dataset + year) with a ⚑ marker when the figure is weak/flagged.
+// The full figure + link live in the evidence overlay (opened from the panel).
+function PowerNote({ label, text, value, source }: { label: string; text: string; value?: number; source?: AxisProvenance }) {
+  const weak = source && source.status !== 'sourced'
   return (
     <div className="pnote">
       <div className="pnote__head">
@@ -102,7 +108,30 @@ function PowerNote({ label, text, value, source }: { label: string; text: string
         )}
       </div>
       <p className="pnote__text">{text}</p>
-      {source && <p className="pnote__src">{source}</p>}
+      {source && (
+        <p className={`pnote__src${weak ? ' pnote__src--flag' : ''}`} title={source.note ?? source.figure}>
+          {weak && <span className="pnote__flag" aria-hidden>⚑ </span>}{source.source}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Inline data-quality flags (only when genuinely half-baked) + the trigger that opens the
+// evidence overlay: full per-axis sources and the gravity calculation, for the curious.
+function EvidenceTrigger({ detail }: { detail: EntityDetail }) {
+  if (!detail.id) return null
+  return (
+    <div className="evidence">
+      {detail.flags?.map((f, i) => (
+        <p className="evidence__flag" key={i}><span aria-hidden>⚑ </span>{f}</p>
+      ))}
+      <button
+        className="evidence__btn"
+        onClick={() => window.dispatchEvent(new CustomEvent('mp-evidence', { detail: { id: detail.id } }))}
+      >
+        המקורות והחישוב <span aria-hidden>↗</span>
+      </button>
     </div>
   )
 }
@@ -126,9 +155,9 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
         <div className="pnotes">
           <span className="pnotes__h">פרופיל כוח המשיכה</span>
           <PowerNote label="כללי" text={detail.powerNotes.general} />
-          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.sources?.eco} />
-          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.sources?.mil} />
-          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.sources?.geo} />
+          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.prov?.eco} />
+          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.prov?.mil} />
+          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.prov?.geo} />
           {detail.backing && (
             <div className="pnote pnote--backing">
               <div className="pnote__head">
@@ -138,6 +167,7 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
               <p className="pnote__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות, לא עצמאי.</p>
             </div>
           )}
+          <EvidenceTrigger detail={detail} />
         </div>
       )}
       {detail.relations.length > 0 && (
@@ -197,14 +227,15 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
       {notes && (
         <ol className="panelb__notes">
           <li><span className="panelb__note-k">כללי</span><p>{notes.general}</p></li>
-          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p>{detail.sources?.eco && <span className="panelb__src">{detail.sources.eco}</span>}</li>
-          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p>{detail.sources?.mil && <span className="panelb__src">{detail.sources.mil}</span>}</li>
-          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.sources?.geo && <span className="panelb__src">{detail.sources.geo}</span>}</li>
+          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p>{detail.prov?.eco && <span className={`panelb__src${detail.prov.eco.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.eco.status !== 'sourced' && '⚑ '}{detail.prov.eco.source}</span>}</li>
+          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p>{detail.prov?.mil && <span className={`panelb__src${detail.prov.mil.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.mil.status !== 'sourced' && '⚑ '}{detail.prov.mil.source}</span>}</li>
+          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.prov?.geo && <span className="panelb__src">{detail.prov.geo.source}</span>}</li>
           {detail.backing && (
             <li className="panelb__note--backing"><span className="panelb__note-k">גיבוי ⟵ {detail.backing.patronHe}</span><p>משקל מושאל · ‎+{detail.backing.amount} מכוח המשיכה תלוי בנותן החסות.</p></li>
           )}
         </ol>
       )}
+      <EvidenceTrigger detail={detail} />
       {detail.relations.length > 0 && (
         <div className="panelb__rels">
           {detail.relations.map((r) => (
