@@ -4,6 +4,7 @@ import { DATA } from '../data/empirical'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { Words } from './Words'
+import { sound } from '../sound'
 
 const TAU = Math.PI * 2
 const BANDS = ['great', 'regional', 'intermediate', 'edge', 'nonstate'] as const
@@ -16,6 +17,21 @@ const AXIS_RIM: Record<string, string> = { west: '132,160,196', east: '198,134,9
 const byId = new Map(NODES.map((n) => [n.id, n]))
 const RANKED = [...NODES].sort((a, b) => b.power - a.power)
 const RANK_OF = new Map(RANKED.map((n, i) => [n.id, i]))
+
+// ── forces-screen arrangements: order by an axis (or total), filter by bloc ──
+type Order = 'total' | 'eco' | 'mil' | 'geo'
+type Bloc = 'all' | 'west' | 'east' | 'neutral'
+const ORDERS: Order[] = ['total', 'eco', 'mil', 'geo']
+const ORDER_LABEL: Record<Order, string> = { total: 'כוח משיכה', eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' }
+const ORDER_SHORT: Record<Order, string> = { total: 'סה״כ', eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
+const BLOCS: Bloc[] = ['all', 'west', 'east', 'neutral']
+const BLOC_LABEL: Record<Bloc, string> = { all: 'הכל', west: 'מערב', east: 'מזרח', neutral: 'ניטרלי' }
+// when ordered by an axis, rings become rank-quantiles rather than the curated tier bands
+const QUANTILE_LABEL = ['המובילים', 'חזקים', 'בינוניים', 'חלשים', 'שוליים']
+const RANK_BANDS = [0.26, 0.47, 0.65, 0.81, 0.96]
+// the value a body is ranked / sized by, on a shared 0–100 scale
+const metricVal = (e: typeof NODES[number], ord: Order) => (ord === 'total' ? e.power : (FORCES[e.id]?.[ord] ?? 0) * 10)
+const passesBloc = (id: string, bloc: Bloc) => bloc === 'all' || (AXIS[id] ?? 'none') === bloc
 
 // cursor reactivity tuning (field units)
 const REACT_R = 210   // how far the cursor's pull reaches
@@ -49,6 +65,9 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [selected, setSelected] = useState<string | null>(null)
   const [namesOff, setNamesOff] = useState(false)          // manual "clean visuals" toggle
   const [proximal, setProximal] = useState<string | null>(null) // nearest star to the cursor
+  const [orderBy, setOrderBy] = useState<Order>('total')   // rank/size metric: total or one axis
+  const [filterBloc, setFilterBloc] = useState<Bloc>('all') // show only one bloc
+  const [minScore, setMinScore] = useState(0)               // threshold: hide bodies below this on the active metric
   const proxRef = useRef<string | null>(null); proxRef.current = proximal
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
 
@@ -110,23 +129,41 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
 
   const layout = useMemo(() => {
     const { w, h } = size
-    if (!w || !h) return { nodes: [] as any[], rings: [] as any[], cx: 0, cy: 0 }
+    if (!w || !h) return { nodes: [] as any[], rings: [] as { k: string; r: number; label: string }[], cx: 0, cy: 0 }
     const cx = w / 2, cy = h / 2, halfMin = Math.min(w, h) / 2
     const nodes: { e: typeof NODES[number]; x: number; y: number; d: number }[] = []
-    const rings = BANDS.map((k) => ({ k, r: BAND_R[k] * halfMin }))
-    // place each band's bodies by RANK: strongest starts at 12 o'clock, then clockwise.
-    // Bands are phase-staggered so first items don't align into one column.
-    const BAND_PHASE: Record<string, number> = { great: 0, regional: 0.55, intermediate: 0.25, edge: 0.8, nonstate: 0.45 }
-    for (const kind of BANDS) {
-      const items = NODES.filter((n) => n.kind === kind).sort((a, b) => b.power - a.power)
-      const R = BAND_R[kind] * halfMin
-      items.forEach((e, i) => {
-        const ang = -Math.PI / 2 + BAND_PHASE[kind] + (i / items.length) * TAU
-        nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: Math.max(8, Math.min(66, powerSize(e.power) * 0.5)) })
+    const vis = NODES.filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy) / 10 >= minScore)
+    const sizeOf = (e: typeof NODES[number]) => Math.max(8, Math.min(66, powerSize(metricVal(e, orderBy)) * 0.5))
+    let rings: { k: string; r: number; label: string }[]
+
+    if (orderBy === 'total') {
+      // curated tier bands (the default look): each band's bodies placed by rank, phase-staggered
+      rings = BANDS.map((k) => ({ k, r: BAND_R[k] * halfMin, label: TIER_LABEL[k] }))
+      const BAND_PHASE: Record<string, number> = { great: 0, regional: 0.55, intermediate: 0.25, edge: 0.8, nonstate: 0.45 }
+      for (const kind of BANDS) {
+        const items = vis.filter((n) => n.kind === kind).sort((a, b) => b.power - a.power)
+        const R = BAND_R[kind] * halfMin
+        items.forEach((e, i) => {
+          const ang = -Math.PI / 2 + BAND_PHASE[kind] + (i / Math.max(1, items.length)) * TAU
+          nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: sizeOf(e) })
+        })
+      }
+    } else {
+      // ordered by an axis → rings become rank-quantiles: strongest-on-this-axis toward the centre
+      const sorted = [...vis].sort((a, b) => metricVal(b, orderBy) - metricVal(a, orderBy))
+      const per = Math.max(1, Math.ceil(sorted.length / 5))
+      rings = RANK_BANDS.map((rr, qi) => ({ k: `q${qi}`, r: rr * halfMin, label: QUANTILE_LABEL[qi] }))
+      sorted.forEach((e, idx) => {
+        const qi = Math.min(4, Math.floor(idx / per))
+        const within = idx - qi * per
+        const groupSize = Math.min(per, sorted.length - qi * per)
+        const ang = -Math.PI / 2 + qi * 0.4 + (within / Math.max(1, groupSize)) * TAU
+        const R = RANK_BANDS[qi] * halfMin
+        nodes.push({ e, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, d: sizeOf(e) })
       })
     }
     return { nodes, rings, cx, cy }
-  }, [size])
+  }, [size, orderBy, filterBloc, minScore])
 
   // keep the cursor-reaction lookup table in sync with the laid-out positions
   useEffect(() => {
@@ -134,6 +171,14 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     layout.nodes.forEach((n) => m.set(n.e.id, { x: n.x, y: n.y }))
     posRef.current = m
   }, [layout])
+
+  // the gravity index, re-ranked by the active metric and filtered by bloc + threshold
+  const ranked = useMemo(
+    () => NODES
+      .filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy) / 10 >= minScore)
+      .sort((a, b) => metricVal(b, orderBy) - metricVal(a, orderBy)),
+    [orderBy, filterBloc, minScore],
+  )
 
   const focus = selected ?? hovered ?? proximal
   const zoomNames = cam.z >= ZOOM_NAMES_AT
@@ -158,7 +203,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         {/* tier guide rings + labels */}
         {layout.rings.map((ring) => (
           <div key={ring.k} className="forces-ring" style={{ width: ring.r * 2, height: ring.r * 2, left: layout.cx, top: layout.cy }}>
-            <span className="forces-ring__label">{TIER_LABEL[ring.k]}</span>
+            <span className="forces-ring__label">{ring.label}</span>
           </div>
         ))}
         {/* bodies */}
@@ -180,11 +225,44 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             >
               <span className="fnode__disk" style={{ width: d, height: d, borderColor: `rgba(${rim},0.5)`, animationDelay: `-${(i % 9) * 0.47}s` }} />
               <span className="fnode__name">{e.he}</span>
-              <span className="fnode__score">{forceScore(e.power).toFixed(1)}</span>
+              <span className="fnode__score">{(metricVal(e, orderBy) / 10).toFixed(1)}</span>
             </div>
           )
         })}
        </div>
+      </div>
+      {/* arrangement controls — order the field by an axis, filter by bloc */}
+      <div className="forcesctl" dir="rtl">
+        <div className="forcesctl__group" role="group" aria-label="מיון">
+          <span className="forcesctl__lbl">מיון</span>
+          {ORDERS.map((o) => (
+            <button
+              key={o}
+              className={`forcesctl__opt${orderBy === o ? ' is-on' : ''}`}
+              onClick={() => { sound.play('tab'); setOrderBy(o) }}
+              aria-pressed={orderBy === o}
+            >{ORDER_SHORT[o]}</button>
+          ))}
+        </div>
+        <div className="forcesctl__group" role="group" aria-label="סינון לפי גוש">
+          <span className="forcesctl__lbl">גוש</span>
+          {BLOCS.map((bl) => (
+            <button
+              key={bl}
+              className={`forcesctl__opt${filterBloc === bl ? ' is-on' : ''}`}
+              onClick={() => { sound.play('tab'); setFilterBloc(bl) }}
+              aria-pressed={filterBloc === bl}
+            >{BLOC_LABEL[bl]}</button>
+          ))}
+        </div>
+        <div className="forcesctl__group forcesctl__group--slider">
+          <span className="forcesctl__lbl">סף ≥ {minScore}</span>
+          <input
+            className="forcesctl__slider" type="range" min={0} max={9} step={1} value={minScore} dir="ltr"
+            onChange={(e) => setMinScore(Number(e.target.value))}
+            aria-label={`סף ציון מינימלי ב${ORDER_LABEL[orderBy]}`}
+          />
+        </div>
       </div>
       <div className="zoomctl" dir="ltr">
         <button onClick={() => zoomBy(1.25)} aria-label="התקרבות">+</button>
@@ -214,8 +292,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
             </p>
             <div className="gindex">
-              <span className="gindex__h">מדד כוח המשיכה</span>
-              {RANKED.map((e, i) => (
+              <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}</span>
+              {ranked.map((e, i) => (
                 <button
                   key={e.id}
                   className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
@@ -226,10 +304,11 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
                 >
                   <span className="gindex__rank">{String(i + 1).padStart(2, '0')}</span>
                   <span className="gindex__name">{e.he}</span>
-                  <span className="gindex__bar"><i style={{ width: `${e.power}%` }} /></span>
-                  <span className="gindex__score">{forceScore(e.power).toFixed(1)}</span>
+                  <span className="gindex__bar"><i style={{ width: `${metricVal(e, orderBy)}%` }} /></span>
+                  <span className="gindex__score">{(metricVal(e, orderBy) / 10).toFixed(1)}</span>
                 </button>
               ))}
+              {ranked.length === 0 && <p className="gindex__empty">אין גופים בגוש זה</p>}
             </div>
           </aside>
         )}
