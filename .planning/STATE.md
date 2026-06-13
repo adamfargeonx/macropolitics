@@ -24,6 +24,14 @@ Standing rule from the user: **verify sources before committing; flag the half-b
 - **Forces arrangements** (`ForcesView` control bar) = directive #5: order by סה״כ/כלכלי/צבאי/גאו
   (re-ranks index, re-sizes nodes, re-arranges orrery — strongest-on-axis→centre, rings become
   quantiles, nodes glide via left/top transition); bloc filter (מערב/מזרח/ניטרלי); threshold slider סף≥N.
+- **Scenario Sandbox** (`src/model/weights-store.ts` + `ForcesView` 'תרחיש' panel): the model's
+  WEIGHTS are now a reactive store; dragging the 3 axis-weight sliders recomputes gravity live and
+  re-equilibrates the constellation + index + panel + evidence overlay. Closing it / leaving forces
+  restores canon. Verified: mil-weight 51% → Russia 7.6→8.0, Israel→7.0, Iran into top-6. The payoff
+  of computing power from its parts: "don't trust my numbers — move the weights."
+- **Time Axis — NOT built (deliberate).** Needs sourced *historical* eco/mil per body per year
+  (SIPRI 1949–2025 + IMF history are sourceable; stability/alliance/nonstate timelines are
+  interpretive). Per verify-before-commit, deferred to a dedicated sourcing pass, not fabricated.
 - ⚠️ Playwright gotcha: controlled `<input type=range>` ignores synthetic `.value`+input events
   (React value-tracker). Verify sliders with real keyboard (`page.keyboard.press('ArrowRight')`) or drag.
 
