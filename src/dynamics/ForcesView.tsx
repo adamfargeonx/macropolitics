@@ -21,7 +21,6 @@ const byId = new Map(NODES.map((n) => [n.id, n]))
 const RANKED = [...NODES].sort((a, b) => b.power - a.power)
 const RANK_OF = new Map(RANKED.map((n, i) => [n.id, i]))
 
-// ── forces-screen arrangements: order by an axis (or total), filter by bloc ──
 type Order = 'total' | 'eco' | 'mil' | 'geo'
 type Bloc = 'all' | 'west' | 'east' | 'neutral'
 const ORDERS: Order[] = ['total', 'eco', 'mil', 'geo']
@@ -29,26 +28,24 @@ const ORDER_LABEL: Record<Order, string> = { total: 'כוח משיכה', eco: '�
 const ORDER_SHORT: Record<Order, string> = { total: 'סה״כ', eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
 const BLOCS: Bloc[] = ['all', 'west', 'east', 'neutral']
 const BLOC_LABEL: Record<Bloc, string> = { all: 'הכל', west: 'מערב', east: 'מזרח', neutral: 'ניטרלי' }
-// when ordered by an axis, rings become rank-quantiles rather than the curated tier bands
 const QUANTILE_LABEL = ['המובילים', 'חזקים', 'בינוניים', 'חלשים', 'שוליים']
 const RANK_BANDS = [0.26, 0.47, 0.65, 0.81, 0.96]
-// sandbox slider defaults (unnormalised) — mirror the canonical WEIGHTS .36/.34/.30
 const DEFAULT_RAW = { eco: 36, mil: 34, geo: 30 }
 const SB_AXES: { k: 'eco' | 'mil' | 'geo'; he: string }[] = [{ k: 'eco', he: 'כלכלי' }, { k: 'mil', he: 'צבאי' }, { k: 'geo', he: 'גאו' }]
-// the value a body is ranked / sized by, on a shared 0–100 scale. `total` reads the (possibly
-// scenario-reweighted) gravity map so the Scenario Sandbox re-equilibrates the field live.
+
 const metricVal = (e: typeof NODES[number], ord: Order, grav: Map<string, GravityResult>) =>
   (ord === 'total' ? (grav.get(e.id)?.power ?? 0) : (FORCES[e.id]?.[ord] ?? 0) * 10)
 const passesBloc = (id: string, bloc: Bloc) => bloc === 'all' || (AXIS[id] ?? 'none') === bloc
 
-// cursor reactivity tuning (field units)
-const REACT_R = 210   // how far the cursor's pull reaches
-const MAX_NUDGE = 13  // how far a star drifts toward the cursor (slight)
-const NEAR_R = 76     // within this, a star is "picked up" → highlighted + named
-const ZOOM_NAMES_AT = 1.8 // +80% zoom → names cascade in by rank
+const REACT_R = 210
+const MAX_NUDGE = 13
+const NEAR_R = 76
+const ZOOM_NAMES_AT = 1.8
+// top-N bodies always show their names at rest (before zoom / hover)
+const TOP_NAMES_N = 8
+// index preview before "expand" is clicked
+const INDEX_PREVIEW_N = 8
 
-// `grav` is the live (possibly scenario-reweighted) map, so the panel stays consistent with the
-// constellation: score, backing and rank all reflect the current weights.
 function buildForceDetail(id: string | null, grav: Map<string, GravityResult>): EntityDetail | null {
   if (!id) return null
   const e = byId.get(id); if (!e) return null
@@ -78,30 +75,38 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [namesOff, setNamesOff] = useState(false)          // manual "clean visuals" toggle
-  const [proximal, setProximal] = useState<string | null>(null) // nearest star to the cursor
-  const [orderBy, setOrderBy] = useState<Order>('total')   // rank/size metric: total or one axis
-  const [filterBloc, setFilterBloc] = useState<Bloc>('all') // show only one bloc
-  const [minScore, setMinScore] = useState(0)               // threshold: hide bodies below this on the active metric
+  const [namesOff, setNamesOff] = useState(false)
+  const [proximal, setProximal] = useState<string | null>(null)
+  const [orderBy, setOrderBy] = useState<Order>('total')
+  const [filterBloc, setFilterBloc] = useState<Bloc>('all')
+  const [minScore, setMinScore] = useState(0)
+  const [toolsOpen, setToolsOpen] = useState(false)
+  const [showAllIndex, setShowAllIndex] = useState(false)
 
-  // Scenario Sandbox (weights) + Time Axis (year) — the gravity map recomputes and re-equilibrates
   const weights = useWeights()
   const year = useYear()
   const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
   const scenario = !isDefaultWeights(weights)
-  const [sbOpen, setSbOpen] = useState(false)
-  const [raw, setRaw] = useState(DEFAULT_RAW) // unnormalised slider values (eco/mil/geo)
+  const [raw, setRaw] = useState(DEFAULT_RAW)
   useEffect(() => {
     const sum = raw.eco + raw.mil + raw.geo || 1
     weightsStore.set({ eco: raw.eco / sum, mil: raw.mil / sum, geo: raw.geo / sum })
   }, [raw])
-  useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, []) // restore present + canon on leave
-  const toggleSandbox = () => { sound.play('tab'); setSbOpen((o) => { if (o) setRaw(DEFAULT_RAW); else setOrderBy('total'); return !o }) }
+  useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, [])
   const normW = (() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } })()
+
+  // any non-default secondary filter — drives the breadcrumb
+  const stateActive = filterBloc !== 'all' || minScore > 0 || year !== 2025 || scenario
+  const resetAll = () => {
+    setFilterBloc('all')
+    setMinScore(0)
+    setRaw(DEFAULT_RAW)
+    yearStore.set(2025)
+  }
+
   const proxRef = useRef<string | null>(null); proxRef.current = proximal
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
 
-  // camera: pan (drag) + zoom (wheel / buttons), applied to a transform wrapper
   const [cam, setCam] = useState({ z: 1, x: 0, y: 0 })
   const camRef = useRef(cam); camRef.current = cam
   const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null)
@@ -112,7 +117,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     const el = fieldRef.current; if (!el) return
     const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); setSize({ w: r.width, h: r.height }) })
     ro.observe(el)
-    // wheel zoom-to-cursor (non-passive so we can preventDefault)
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const r = el.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top
@@ -123,7 +127,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   }, [])
 
   const onPanDown = (e: React.PointerEvent) => { drag.current = { sx: e.clientX, sy: e.clientY, px: camRef.current.x, py: camRef.current.y }; dragMoved.current = false }
-  // every star leans slightly toward the cursor; the nearest one is "picked up" (highlighted + named)
   const react = (e: React.PointerEvent) => {
     const el = fieldRef.current; if (!el) return
     const r = el.getBoundingClientRect(); const c = camRef.current
@@ -167,7 +170,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     let rings: { k: string; r: number; label: string }[]
 
     if (orderBy === 'total') {
-      // curated tier bands (the default look): each band's bodies placed by rank, phase-staggered
       rings = BANDS.map((k) => ({ k, r: BAND_R[k] * halfMin, label: TIER_LABEL[k] }))
       const BAND_PHASE: Record<string, number> = { great: 0, regional: 0.55, intermediate: 0.25, edge: 0.8, nonstate: 0.45 }
       for (const kind of BANDS) {
@@ -179,7 +181,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         })
       }
     } else {
-      // ordered by an axis → rings become rank-quantiles: strongest-on-this-axis toward the centre
       const sorted = [...vis].sort((a, b) => metricVal(b, orderBy, grav) - metricVal(a, orderBy, grav))
       const per = Math.max(1, Math.ceil(sorted.length / 5))
       rings = RANK_BANDS.map((rr, qi) => ({ k: `q${qi}`, r: rr * halfMin, label: QUANTILE_LABEL[qi] }))
@@ -195,20 +196,22 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     return { nodes, rings, cx, cy }
   }, [size, orderBy, filterBloc, minScore, grav])
 
-  // keep the cursor-reaction lookup table in sync with the laid-out positions
   useEffect(() => {
     const m = new Map<string, { x: number; y: number }>()
     layout.nodes.forEach((n) => m.set(n.e.id, { x: n.x, y: n.y }))
     posRef.current = m
   }, [layout])
 
-  // the gravity index, re-ranked by the active metric and filtered by bloc + threshold
   const ranked = useMemo(
     () => NODES
       .filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy, grav) / 10 >= minScore)
       .sort((a, b) => metricVal(b, orderBy, grav) - metricVal(a, orderBy, grav)),
     [orderBy, filterBloc, minScore, grav],
   )
+
+  // top-N by the active metric — names always visible on the constellation
+  const topIds = useMemo(() => new Set(ranked.slice(0, TOP_NAMES_N).map((n) => n.id)), [ranked])
+  const indexRows = showAllIndex ? ranked : ranked.slice(0, INDEX_PREVIEW_N)
 
   const focus = selected ?? hovered ?? proximal
   const zoomNames = cam.z >= ZOOM_NAMES_AT
@@ -219,7 +222,11 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     <div
       className={`stage forces${namesOff ? ' forces--clean' : ''}${zoomNames && !namesOff ? ' forces--names' : ''}`}
       dir="rtl"
-      onClick={() => { if (dragMoved.current) { dragMoved.current = false; return } setSelected(null) }}
+      onClick={() => {
+        if (dragMoved.current) { dragMoved.current = false; return }
+        setSelected(null)
+        setToolsOpen(false)
+      }}
     >
       <div
         className={`forces-field${drag.current ? ' forces-field--grab' : ''}`}
@@ -230,24 +237,23 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         onPointerLeave={() => { onPanUp(); clearReact() }}
       >
        <div className="forces-zoom" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})` }}>
-        {/* tier guide rings + labels */}
         {layout.rings.map((ring) => (
           <div key={ring.k} className="forces-ring" style={{ width: ring.r * 2, height: ring.r * 2, left: layout.cx, top: layout.cy }}>
             <span className="forces-ring__label">{ring.label}</span>
           </div>
         ))}
-        {/* bodies */}
         {layout.nodes.map(({ e, x, y, d }, i) => {
           const isFocus = e.id === focus
           const dim = focus && !isFocus
           const nonstate = e.kind === 'nonstate'
           const rim = AXIS_RIM[AXIS[e.id] ?? 'none']
+          const isTop = topIds.has(e.id)
           return (
             <div
               key={e.id}
               data-id={e.id}
               data-power={e.power}
-              className={`fnode${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
+              className={`fnode${isTop ? ' fnode--toplabel' : ''}${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
               style={{ left: x, top: y, '--fx': `${layout.cx - x}px`, '--fy': `${layout.cy - y}px`, '--rk': RANK_OF.get(e.id) ?? 0, animationDelay: `${0.15 + i * 0.035}s` } as React.CSSProperties}
               onMouseEnter={() => setHovered(e.id)}
               onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
@@ -261,7 +267,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         })}
        </div>
       </div>
-      {/* arrangement controls — order the field by an axis, filter by bloc */}
+
+      {/* ── Primary controls: order-by (always visible) + tools disclosure ── */}
       <div className="forcesctl" dir="rtl">
         <div className="forcesctl__group" role="group" aria-label="מיון">
           <span className="forcesctl__lbl">מיון</span>
@@ -269,73 +276,90 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             <button
               key={o}
               className={`forcesctl__opt${orderBy === o ? ' is-on' : ''}`}
-              onClick={() => { sound.play('tab'); setOrderBy(o) }}
+              onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setOrderBy(o) }}
               aria-pressed={orderBy === o}
             >{ORDER_SHORT[o]}</button>
           ))}
         </div>
-        <div className="forcesctl__group" role="group" aria-label="סינון לפי גוש">
-          <span className="forcesctl__lbl">גוש</span>
-          {BLOCS.map((bl) => (
-            <button
-              key={bl}
-              className={`forcesctl__opt${filterBloc === bl ? ' is-on' : ''}`}
-              onClick={() => { sound.play('tab'); setFilterBloc(bl) }}
-              aria-pressed={filterBloc === bl}
-            >{BLOC_LABEL[bl]}</button>
-          ))}
-        </div>
-        <div className="forcesctl__group forcesctl__group--slider">
-          <span className="forcesctl__lbl">סף ≥ {minScore}</span>
-          <input
-            className="forcesctl__slider" type="range" min={0} max={9} step={1} value={minScore} dir="ltr"
-            onChange={(e) => setMinScore(Number(e.target.value))}
-            aria-label={`סף ציון מינימלי ב${ORDER_LABEL[orderBy]}`}
-          />
-        </div>
-        <div className="forcesctl__group" role="group" aria-label="שנה">
-          <span className="forcesctl__lbl">שנה</span>
-          {([2020, 2025] as Year[]).map((y) => (
-            <button key={y} className={`forcesctl__opt${year === y ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); yearStore.set(y) }} aria-pressed={year === y}>{y}</button>
-          ))}
-        </div>
-        <button className={`forcesctl__sb${sbOpen ? ' is-on' : ''}${scenario ? ' has-scenario' : ''}`} onClick={toggleSandbox} aria-pressed={sbOpen} title="תרחיש — שינוי משקלי הצירים">
-          <span aria-hidden>⚖︎</span> תרחיש
+        <button
+          className={`forcesctl__tools${toolsOpen ? ' is-on' : ''}${stateActive ? ' has-state' : ''}`}
+          onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setToolsOpen((o) => !o) }}
+          aria-pressed={toolsOpen}
+          title="סינון, ציר זמן, תרחיש"
+        >
+          <span aria-hidden>⚙</span> כלים
+          {stateActive && !toolsOpen && <span className="forcesctl__tools-badge" aria-hidden />}
         </button>
       </div>
-      {year !== 2025 && (
-        <div className="forces-timenote" dir="rtl">
-          ציר זמן · {year}: כלכלה (IMF) וצבא (SIPRI) ממקור — גאוגרפיה, בריתות ויציבות מוחזקות להווה
+
+      {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
+      {stateActive && !toolsOpen && (
+        <div className="forces-state" dir="rtl">
+          {filterBloc !== 'all' && <span className="forces-state__tag">{BLOC_LABEL[filterBloc]}</span>}
+          {minScore > 0 && <span className="forces-state__tag">סף≥{minScore}</span>}
+          {year !== 2025 && <span className="forces-state__tag">{year}</span>}
+          {scenario && <span className="forces-state__tag">תרחיש</span>}
+          <button className="forces-state__reset" onClick={(ev) => { ev.stopPropagation(); resetAll() }}>× הכל</button>
         </div>
       )}
-      {/* Scenario Sandbox — drag the axis weights; the gravity map re-equilibrates live */}
-      {sbOpen && (
-        <div className="sandbox" dir="rtl">
-          <div className="sandbox__head">
-            <span className="sandbox__title">תרחיש · משקלי הצירים</span>
+
+      {/* ── Tools disclosure panel: bloc, threshold, year, scenario sandbox ── */}
+      {toolsOpen && (
+        <div className="forcestools" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+          <div className="forcestools__row" role="group" aria-label="גוש">
+            <span className="forcestools__lbl">גוש</span>
+            {BLOCS.map((bl) => (
+              <button key={bl} className={`forcesctl__opt${filterBloc === bl ? ' is-on' : ''}`}
+                onClick={() => { sound.play('tab'); setFilterBloc(bl) }} aria-pressed={filterBloc === bl}>
+                {BLOC_LABEL[bl]}
+              </button>
+            ))}
+          </div>
+          <div className="forcestools__row">
+            <span className="forcestools__lbl">סף ≥ {minScore}</span>
+            <input className="forcesctl__slider" type="range" min={0} max={9} step={1} value={minScore} dir="ltr"
+              onChange={(e) => setMinScore(Number(e.target.value))} aria-label="סף ציון מינימלי" />
+          </div>
+          <div className="forcestools__row" role="group" aria-label="שנה">
+            <span className="forcestools__lbl">שנה</span>
+            {([2020, 2025] as Year[]).map((y) => (
+              <button key={y} className={`forcesctl__opt${year === y ? ' is-on' : ''}`}
+                onClick={() => { sound.play('tab'); yearStore.set(y) }} aria-pressed={year === y}>{y}</button>
+            ))}
+          </div>
+          <div className="forcestools__divider" />
+          <div className="forcestools__row forcestools__row--head">
+            <span className="forcestools__lbl forcestools__lbl--title">תרחיש · משקלי הצירים</span>
             {scenario && <button className="sandbox__reset" onClick={() => setRaw(DEFAULT_RAW)}>איפוס</button>}
           </div>
           {SB_AXES.map(({ k, he }) => (
-            <div className="sandbox__row" key={k}>
+            <div className="forcestools__row forcestools__row--slider" key={k}>
               <span className="sandbox__k">{he}</span>
-              <input
-                className="sandbox__slider" type="range" min={5} max={70} step={1} value={raw[k]} dir="ltr"
-                onChange={(e) => setRaw((r) => ({ ...r, [k]: Number(e.target.value) }))}
-                aria-label={`משקל ${he}`}
-              />
+              <input className="sandbox__slider" type="range" min={5} max={70} step={1} value={raw[k]} dir="ltr"
+                onChange={(e) => setRaw((r) => ({ ...r, [k]: Number(e.target.value) }))} aria-label={`משקל ${he}`} />
               <span className="sandbox__v">{Math.round(normW[k] * 100)}%</span>
             </div>
           ))}
-          <p className="sandbox__hint">גררו לשינוי המשקל היחסי — הדירוג והמפה (מיון "כוח משיכה") מתעדכנים מיידית.</p>
+          <p className="sandbox__hint">גררו לשינוי המשקל — הדירוג מתעדכן מיידית.</p>
+          {year !== 2025 && (
+            <p className="sandbox__hint forcestools__timenote">
+              ציר זמן · {year}: כלכלה (IMF) וצבא (SIPRI) ממקור — גאוגרפיה ויציבות מוחזקות להווה
+            </p>
+          )}
+          {stateActive && (
+            <button className="forcestools__reset-all" onClick={() => { resetAll(); setToolsOpen(false) }}>
+              × איפוס כל הסינונים
+            </button>
+          )}
         </div>
       )}
+
       <div className="zoomctl" dir="ltr">
         <button onClick={() => zoomBy(1.25)} aria-label="התקרבות">+</button>
         <span className="zoomctl__val">{Math.round(cam.z * 100)}%</span>
         <button onClick={() => zoomBy(0.8)} aria-label="התרחקות">−</button>
         <button className="zoomctl__reset" onClick={resetCam} aria-label="איפוס">⟲</button>
       </div>
-      {/* clean-visuals toggle — hide names + rankings on the map */}
       <button
         className={`namestoggle${namesOff ? ' namestoggle--off' : ''}`}
         dir="rtl"
@@ -344,8 +368,16 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         title={namesOff ? 'הצגת שמות ודירוגים' : 'הסתרת שמות ודירוגים'}
       >
         <span className="namestoggle__icon" aria-hidden>{namesOff ? '◍' : '◉'}</span>
-        {namesOff ? 'שמות' : 'שמות'}
+        שמות
       </button>
+
+      {/* ── Hint — visible until the user selects something for the first time ── */}
+      {!selected && (
+        <div className="forces-hint" dir="rtl" aria-live="polite">
+          לחצו על גוף לפרטים · גרר לניווט
+        </div>
+      )}
+
       <Header onHome={() => onView('home')} />
       <PanelDock>
         {selected ? (
@@ -358,7 +390,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             </p>
             <div className="gindex">
               <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
-              {ranked.map((e, i) => (
+              {indexRows.map((e, i) => (
                 <button
                   key={e.id}
                   className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
@@ -374,6 +406,11 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
                 </button>
               ))}
               {ranked.length === 0 && <p className="gindex__empty">אין גופים בגוש זה</p>}
+              {ranked.length > INDEX_PREVIEW_N && (
+                <button className="gindex__more" onClick={() => setShowAllIndex((v) => !v)}>
+                  {showAllIndex ? '▲ פחות' : `▼ כל הגופים (${ranked.length})`}
+                </button>
+              )}
             </div>
           </aside>
         )}
