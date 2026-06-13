@@ -312,3 +312,21 @@ export const BODY_INPUTS: BodyInput[] = Object.entries(DATA).map(([id, d]) => ({
 export const FLAGGED: Record<string, string[]> = Object.fromEntries(
   Object.entries(DATA).filter(([, d]) => d.flags?.length).map(([id, d]) => [id, d.flags!]),
 )
+
+// ── Military-spending trend (a sourced temporal datapoint) ───────────────────────────────────
+// Directly-sourced military expenditure (US$ billion, current prices) at two SIPRI snapshots,
+// five years apart. Only bodies with clean figures at BOTH points are included — no interpolation.
+// Source: SIPRI Trends in World Military Expenditure 2020 (fs_2104_milex) + 2025 (2604_milex).
+export interface MilTrend { y2020: number; y2025: number; note?: string }
+export const MIL_TREND: Record<string, MilTrend> = {
+  usa: { y2020: 778, y2025: 954 },
+  china: { y2020: 252, y2025: 336 },
+  russia: { y2020: 61.7, y2025: 190, note: 'הזינוק משקף את כלכלת המלחמה באוקראינה' },
+  india: { y2020: 72.9, y2025: 92.1 },
+  saudi: { y2020: 57.5, y2025: 83.2 },
+  israel: { y2020: 21.7, y2025: 48.3, note: 'הזינוק משקף את מלחמת 2023–2025' },
+  turkey: { y2020: 17.7, y2025: 30.0 },
+  iran: { y2020: 15.8, y2025: 7.4, note: 'הירידה במונחי דולר משקפת קריסת הריאל/אינפלציה — לא ירידה ביכולת; וחלק מההוצאה מחוץ לתקציב' },
+  pakistan: { y2020: 10.4, y2025: 11.9 },
+}
+export const MIL_TREND_SOURCE = 'SIPRI Trends 2020 + 2025 · במחירים שוטפים (US$)'

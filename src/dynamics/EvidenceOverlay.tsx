@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DATA, BODY_INPUTS, type SourceStatus } from '../data/empirical'
+import { DATA, BODY_INPUTS, MIL_TREND, MIL_TREND_SOURCE, type SourceStatus } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { computeGravities } from '../model/gravity'
 import { useWeights } from '../model/weights-store'
@@ -99,6 +99,25 @@ export function EvidenceOverlay() {
                 <p className="evid__figure">{p.figure}</p>
                 <a className="evid__link" href={p.url} target="_blank" rel="noreferrer">{p.source} · {p.year} ↗</a>
                 {p.note && <p className="evid__note">{p.note}</p>}
+                {axis === 'mil' && MIL_TREND[id] && (() => {
+                  const t = MIL_TREND[id]
+                  const pct = Math.round(((t.y2025 - t.y2020) / t.y2020) * 100)
+                  const up = pct >= 0
+                  return (
+                    <div className="evid__trend">
+                      <span className="evid__trend-lbl">מגמה · הוצאה צבאית</span>
+                      <span className="evid__trend-line" dir="ltr">
+                        <span>{`$${t.y2020}B`}</span>
+                        <span className="evid__trend-arrow">→</span>
+                        <span>{`$${t.y2025}B`}</span>
+                        <span className={`evid__trend-pct evid__trend-pct--${up ? 'up' : 'down'}`}>{up ? '+' : ''}{pct}%</span>
+                        <span className="evid__trend-years">’20→’25</span>
+                      </span>
+                      <span className="evid__trend-src">{MIL_TREND_SOURCE}</span>
+                      {t.note && <p className="evid__note">{t.note}</p>}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
