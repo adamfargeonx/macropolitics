@@ -29,12 +29,16 @@ Standing rule from the user: **verify sources before committing; flag the half-b
   re-equilibrates the constellation + index + panel + evidence overlay. Closing it / leaving forces
   restores canon. Verified: mil-weight 51% → Russia 7.6→8.0, Israel→7.0, Iran into top-6. The payoff
   of computing power from its parts: "don't trust my numbers — move the weights."
-- **Time Axis — credible slice shipped, full scrubber deferred.** Sourced military-spend trend
-  (`MIL_TREND` in empirical.ts) from SIPRI 2020 + 2025 factsheets (both scraped, current-USD), 9
-  major bodies, shown in the evidence overlay: Russia +208% (war), Israel +123%, Iran −53% (FLAGGED
-  rial/USD artifact). Bodies without clean figures show no trend (not fabricated). The full
-  constellation-over-time scrubber is DEFERRED: 2020 GDP-PPP wouldn't extract cleanly via firecrawl,
-  and stability/alliance/non-state-over-time is interpretive → a dedicated sourcing pass, not invented.
+- **Time Axis — SHIPPED (2020 ⇄ 2025, sourced).** The eco-history "blocker" was my tooling, not IMF.
+  Pulled GDP-PPP (2010/2015/2020/2025) from the **IMF DataMapper API** and parsed the RAW JSON with
+  Python — firecrawl's LLM extraction had scrambled it (India<Russia), so verify-before-commit caught
+  it. `GDP_PPP` (IMF) + `MIL_TREND` (SIPRI 2020+2025) + `bodyInputsForYear()` in empirical.ts: a past
+  year's eco/mil score = 2025 score shifted by ln(figure_2020/figure_2025) (2025 stays exact). geo/
+  stability/backing/alliances HELD at present + flagged (interpretive, not sourced). `year-store.ts`
+  (reactive, mirrors weights-store) keeps the map + evidence in sync; ForcesView year toggle composes
+  with the Sandbox; EvidenceOverlay shows year-aware calc + BOTH sourced trends (eco + mil). Verified:
+  2020 re-equilibrates (China 9.0→8.7, Russia 7.6→6.9, Israel 6.7→6.3); back-to-2025 restores exact.
+  Extends trivially to 2010/2015 (eco already sourced; needs SIPRI 2010/2015 mil factsheets).
 - ⚠️ Playwright gotcha: controlled `<input type=range>` ignores synthetic `.value`+input events
   (React value-tracker). Verify sliders with real keyboard (`page.keyboard.press('ArrowRight')`) or drag.
 
