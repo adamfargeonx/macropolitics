@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL, backingOf, GRAVITY } from '../data/entities'
-import { DATA } from '../data/empirical'
+import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
+import { DATA, BODY_INPUTS } from '../data/empirical'
+import { computeGravities, type GravityResult } from '../model/gravity'
+import { useWeights, weightsStore, isDefaultWeights } from '../model/weights-store'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { Words } from './Words'
@@ -29,8 +31,13 @@ const BLOC_LABEL: Record<Bloc, string> = { all: 'הכל', west: 'מערב', east
 // when ordered by an axis, rings become rank-quantiles rather than the curated tier bands
 const QUANTILE_LABEL = ['המובילים', 'חזקים', 'בינוניים', 'חלשים', 'שוליים']
 const RANK_BANDS = [0.26, 0.47, 0.65, 0.81, 0.96]
-// the value a body is ranked / sized by, on a shared 0–100 scale
-const metricVal = (e: typeof NODES[number], ord: Order) => (ord === 'total' ? e.power : (FORCES[e.id]?.[ord] ?? 0) * 10)
+// sandbox slider defaults (unnormalised) — mirror the canonical WEIGHTS .36/.34/.30
+const DEFAULT_RAW = { eco: 36, mil: 34, geo: 30 }
+const SB_AXES: { k: 'eco' | 'mil' | 'geo'; he: string }[] = [{ k: 'eco', he: 'כלכלי' }, { k: 'mil', he: 'צבאי' }, { k: 'geo', he: 'גאו' }]
+// the value a body is ranked / sized by, on a shared 0–100 scale. `total` reads the (possibly
+// scenario-reweighted) gravity map so the Scenario Sandbox re-equilibrates the field live.
+const metricVal = (e: typeof NODES[number], ord: Order, grav: Map<string, GravityResult>) =>
+  (ord === 'total' ? (grav.get(e.id)?.power ?? 0) : (FORCES[e.id]?.[ord] ?? 0) * 10)
 const passesBloc = (id: string, bloc: Bloc) => bloc === 'all' || (AXIS[id] ?? 'none') === bloc
 
 // cursor reactivity tuning (field units)
@@ -39,19 +46,26 @@ const MAX_NUDGE = 13  // how far a star drifts toward the cursor (slight)
 const NEAR_R = 76     // within this, a star is "picked up" → highlighted + named
 const ZOOM_NAMES_AT = 1.8 // +80% zoom → names cascade in by rank
 
-function buildForceDetail(id: string | null): EntityDetail | null {
+// `grav` is the live (possibly scenario-reweighted) map, so the panel stays consistent with the
+// constellation: score, backing and rank all reflect the current weights.
+function buildForceDetail(id: string | null, grav: Map<string, GravityResult>): EntityDetail | null {
   if (!id) return null
   const e = byId.get(id); if (!e) return null
-  const b = backingOf(id)
-  const g = GRAVITY.get(id)
+  const g = grav.get(id)
   const d = DATA[id]
+  const score = g ? g.gravity : forceScore(e.power)
+  const backing = g && g.patron && g.backing > 0
+    ? { amount: Math.round(g.backing * 10), patronHe: byId.get(g.patron)?.he ?? g.patron }
+    : null
+  const rank = [...NODES].sort((a, b) => (grav.get(b.id)?.power ?? 0) - (grav.get(a.id)?.power ?? 0))
+    .findIndex((n) => n.id === id) + 1
   return {
     id,
-    he: e.he, power: e.power, tier: e.tier, dispo: e.dispo,
+    he: e.he, power: g ? g.power : e.power, tier: e.tier, dispo: e.dispo,
     axisLabel: AXIS_LABEL[AXIS[id] ?? 'none'], parentHe: null, relations: [],
-    scoreLabel: `${forceScore(e.power).toFixed(1)} / 10`, forces: FORCES[id], powerNotes: POWER_NOTES[id],
-    rank: RANKED.findIndex((n) => n.id === id) + 1, total: RANKED.length,
-    backing: b ? { amount: b.amount, patronHe: b.patronHe } : null,
+    scoreLabel: `${score.toFixed(1)} / 10`, forces: FORCES[id], powerNotes: POWER_NOTES[id],
+    rank, total: NODES.length,
+    backing,
     prov: d?.prov,
     flags: d?.flags,
     components: g ? { base: g.base, intrinsic: g.intrinsic, backing: g.backing, gravity: g.gravity, stability: g.stability } : undefined,
@@ -68,6 +82,20 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [orderBy, setOrderBy] = useState<Order>('total')   // rank/size metric: total or one axis
   const [filterBloc, setFilterBloc] = useState<Bloc>('all') // show only one bloc
   const [minScore, setMinScore] = useState(0)               // threshold: hide bodies below this on the active metric
+
+  // Scenario Sandbox — live axis weights; the gravity map recomputes and the field re-equilibrates
+  const weights = useWeights()
+  const grav = useMemo(() => computeGravities(BODY_INPUTS, weights), [weights])
+  const scenario = !isDefaultWeights(weights)
+  const [sbOpen, setSbOpen] = useState(false)
+  const [raw, setRaw] = useState(DEFAULT_RAW) // unnormalised slider values (eco/mil/geo)
+  useEffect(() => {
+    const sum = raw.eco + raw.mil + raw.geo || 1
+    weightsStore.set({ eco: raw.eco / sum, mil: raw.mil / sum, geo: raw.geo / sum })
+  }, [raw])
+  useEffect(() => () => weightsStore.reset(), []) // restore the canonical model when leaving forces
+  const toggleSandbox = () => { sound.play('tab'); setSbOpen((o) => { if (o) setRaw(DEFAULT_RAW); else setOrderBy('total'); return !o }) }
+  const normW = (() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } })()
   const proxRef = useRef<string | null>(null); proxRef.current = proximal
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
 
@@ -132,8 +160,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     if (!w || !h) return { nodes: [] as any[], rings: [] as { k: string; r: number; label: string }[], cx: 0, cy: 0 }
     const cx = w / 2, cy = h / 2, halfMin = Math.min(w, h) / 2
     const nodes: { e: typeof NODES[number]; x: number; y: number; d: number }[] = []
-    const vis = NODES.filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy) / 10 >= minScore)
-    const sizeOf = (e: typeof NODES[number]) => Math.max(8, Math.min(66, powerSize(metricVal(e, orderBy)) * 0.5))
+    const vis = NODES.filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy, grav) / 10 >= minScore)
+    const sizeOf = (e: typeof NODES[number]) => Math.max(8, Math.min(66, powerSize(metricVal(e, orderBy, grav)) * 0.5))
     let rings: { k: string; r: number; label: string }[]
 
     if (orderBy === 'total') {
@@ -150,7 +178,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       }
     } else {
       // ordered by an axis → rings become rank-quantiles: strongest-on-this-axis toward the centre
-      const sorted = [...vis].sort((a, b) => metricVal(b, orderBy) - metricVal(a, orderBy))
+      const sorted = [...vis].sort((a, b) => metricVal(b, orderBy, grav) - metricVal(a, orderBy, grav))
       const per = Math.max(1, Math.ceil(sorted.length / 5))
       rings = RANK_BANDS.map((rr, qi) => ({ k: `q${qi}`, r: rr * halfMin, label: QUANTILE_LABEL[qi] }))
       sorted.forEach((e, idx) => {
@@ -163,7 +191,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       })
     }
     return { nodes, rings, cx, cy }
-  }, [size, orderBy, filterBloc, minScore])
+  }, [size, orderBy, filterBloc, minScore, grav])
 
   // keep the cursor-reaction lookup table in sync with the laid-out positions
   useEffect(() => {
@@ -175,14 +203,14 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   // the gravity index, re-ranked by the active metric and filtered by bloc + threshold
   const ranked = useMemo(
     () => NODES
-      .filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy) / 10 >= minScore)
-      .sort((a, b) => metricVal(b, orderBy) - metricVal(a, orderBy)),
-    [orderBy, filterBloc, minScore],
+      .filter((n) => passesBloc(n.id, filterBloc) && metricVal(n, orderBy, grav) / 10 >= minScore)
+      .sort((a, b) => metricVal(b, orderBy, grav) - metricVal(a, orderBy, grav)),
+    [orderBy, filterBloc, minScore, grav],
   )
 
   const focus = selected ?? hovered ?? proximal
   const zoomNames = cam.z >= ZOOM_NAMES_AT
-  const detail = useMemo(() => buildForceDetail(selected), [selected])
+  const detail = useMemo(() => buildForceDetail(selected, grav), [selected, grav])
   useDeCollide(fieldRef, '.fnode', '.fnode__name', focus, [size, hovered, selected, proximal])
 
   return (
@@ -225,7 +253,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             >
               <span className="fnode__disk" style={{ width: d, height: d, borderColor: `rgba(${rim},0.5)`, animationDelay: `-${(i % 9) * 0.47}s` }} />
               <span className="fnode__name">{e.he}</span>
-              <span className="fnode__score">{(metricVal(e, orderBy) / 10).toFixed(1)}</span>
+              <span className="fnode__score">{(metricVal(e, orderBy, grav) / 10).toFixed(1)}</span>
             </div>
           )
         })}
@@ -263,7 +291,31 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             aria-label={`סף ציון מינימלי ב${ORDER_LABEL[orderBy]}`}
           />
         </div>
+        <button className={`forcesctl__sb${sbOpen ? ' is-on' : ''}${scenario ? ' has-scenario' : ''}`} onClick={toggleSandbox} aria-pressed={sbOpen} title="תרחיש — שינוי משקלי הצירים">
+          <span aria-hidden>⚖︎</span> תרחיש
+        </button>
       </div>
+      {/* Scenario Sandbox — drag the axis weights; the gravity map re-equilibrates live */}
+      {sbOpen && (
+        <div className="sandbox" dir="rtl">
+          <div className="sandbox__head">
+            <span className="sandbox__title">תרחיש · משקלי הצירים</span>
+            {scenario && <button className="sandbox__reset" onClick={() => setRaw(DEFAULT_RAW)}>איפוס</button>}
+          </div>
+          {SB_AXES.map(({ k, he }) => (
+            <div className="sandbox__row" key={k}>
+              <span className="sandbox__k">{he}</span>
+              <input
+                className="sandbox__slider" type="range" min={5} max={70} step={1} value={raw[k]} dir="ltr"
+                onChange={(e) => setRaw((r) => ({ ...r, [k]: Number(e.target.value) }))}
+                aria-label={`משקל ${he}`}
+              />
+              <span className="sandbox__v">{Math.round(normW[k] * 100)}%</span>
+            </div>
+          ))}
+          <p className="sandbox__hint">גררו לשינוי המשקל היחסי — הדירוג והמפה (מיון "כוח משיכה") מתעדכנים מיידית.</p>
+        </div>
+      )}
       <div className="zoomctl" dir="ltr">
         <button onClick={() => zoomBy(1.25)} aria-label="התקרבות">+</button>
         <span className="zoomctl__val">{Math.round(cam.z * 100)}%</span>
@@ -292,7 +344,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
             </p>
             <div className="gindex">
-              <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}</span>
+              <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
               {ranked.map((e, i) => (
                 <button
                   key={e.id}
@@ -304,8 +356,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
                 >
                   <span className="gindex__rank">{String(i + 1).padStart(2, '0')}</span>
                   <span className="gindex__name">{e.he}</span>
-                  <span className="gindex__bar"><i style={{ width: `${metricVal(e, orderBy)}%` }} /></span>
-                  <span className="gindex__score">{(metricVal(e, orderBy) / 10).toFixed(1)}</span>
+                  <span className="gindex__bar"><i style={{ width: `${metricVal(e, orderBy, grav)}%` }} /></span>
+                  <span className="gindex__score">{(metricVal(e, orderBy, grav) / 10).toFixed(1)}</span>
                 </button>
               ))}
               {ranked.length === 0 && <p className="gindex__empty">אין גופים בגוש זה</p>}

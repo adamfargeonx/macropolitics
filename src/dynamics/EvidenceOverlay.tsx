@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { DATA, type SourceStatus } from '../data/empirical'
-import { GRAVITY, NODES, backingOf } from '../data/entities'
-import { WEIGHTS } from '../model/gravity'
+import { useEffect, useMemo, useState } from 'react'
+import { DATA, BODY_INPUTS, type SourceStatus } from '../data/empirical'
+import { NODES } from '../data/entities'
+import { computeGravities } from '../model/gravity'
+import { useWeights } from '../model/weights-store'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -19,6 +20,8 @@ const STATUS_LABEL: Record<SourceStatus, string> = {
 
 export function EvidenceOverlay() {
   const [id, setId] = useState<string | null>(null)
+  const weights = useWeights() // live (possibly scenario) weights → the calculation stays consistent
+  const grav = useMemo(() => computeGravities(BODY_INPUTS, weights), [weights])
 
   useEffect(() => {
     const onOpen = (e: Event) => { sound.play('open'); setId((e as CustomEvent).detail?.id ?? null) }
@@ -34,11 +37,13 @@ export function EvidenceOverlay() {
   }, [id])
 
   if (!id) return null
-  const d = DATA[id]; const g = GRAVITY.get(id); const node = NODES.find((n) => n.id === id)
+  const d = DATA[id]; const node = NODES.find((n) => n.id === id); const g = grav.get(id)
   if (!d || !g || !node) return null
   const close = () => { sound.play('back'); setId(null) }
-  const b = backingOf(id)
-  const w = WEIGHTS
+  const b = g.patron && g.backing > 0
+    ? { amount: Math.round(g.backing * 10), patronHe: NODES.find((n) => n.id === g.patron)?.he ?? g.patron }
+    : null
+  const w = weights
 
   return (
     <div className="legend__scrim" onClick={close}>
