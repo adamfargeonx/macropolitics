@@ -1,6 +1,8 @@
 # Phase 1 — Empirical Gravity Backbone
 
-**Status:** slice COMPLETE & verified (2026-06-12, autonomous) — mil/geo sourcing is the next sub-phase
+**Status:** all 3 axes SOURCED & verified (2026-06-13) — eco (IMF), mil (SIPRI), geo (geo/EIA),
+with per-axis provenance + flags + an evidence overlay (sources + calculation) + forces arrangements.
+Remaining for the milestone: Scenario Sandbox (live weights) + Time Axis. See STATE.md session notes.
 **Branch:** `empirical-backbone`
 **Spec:** `docs/power-model.md` (the blueprint this phase implements)
 

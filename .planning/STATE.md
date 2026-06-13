@@ -1,12 +1,34 @@
 # State: Macropolitics
 
-**Updated:** 2026-06-12 (Phase 1 empirical slice, autonomous overnight)
-**Current milestone:** Phase 1 (Empirical Gravity Backbone) — **economic-axis vertical slice DONE**;
-mil/geo sourcing + Scenario Sandbox + Time Axis are the next sub-phases.
+**Updated:** 2026-06-13 (Phase 1 — all 3 axes sourced + provenance UI + forces arrangements)
+**Current milestone:** Phase 1 (Empirical Gravity Backbone) — **eco + mil + geo all sourced & live**;
+remaining sub-phases: Scenario Sandbox (live WEIGHTS sliders) + Time Axis (`eco[year]`).
 **Mode:** YOLO · Coarse. Visual polish runs as a fast loop outside phases.
-**Branch:** `empirical-backbone` (off `main` @ d78aaa6) — two commits: U1–U12 polish, then Phase 1.
+**Branch:** `empirical-backbone` (off `main` @ d78aaa6) — 4 commits: U1–U12 polish · Phase 1 compute ·
+verified sourcing+evidence · forces arrangements. **NOT merged to main** (user reviews).
 **Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
 `~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
+
+## Session 2026-06-13 (verified sourcing + provenance UI + forces arrangements)
+Standing rule from the user: **verify sources before committing; flag the half-baked.** Acted on it.
+- **Sourcing (verified vs primaries):** military = SIPRI 2025 (DB upd. 27 Apr 2026); economic = IMF
+  WEO GDP-PPP 2026; geo-strategic = geography + EIA chokepoints (labelled 'judgment', interpretive).
+  Re-verification CAUGHT memory errors: Saudi GDP-PPP 2.1→2.9T, Pakistan 1.6→2.17T, Syria 60→110B,
+  Yemen 60→31B; mil now real SIPRI figures not guesses. Effective scores barely moved (judgment held).
+- **Provenance model** (`src/data/empirical.ts`): per-axis `{figure, source, year, url, status}` +
+  honest `flags`. Flags ONLY where genuinely weak: Iran (off-budget missiles, SIPRI-noted), Egypt
+  (opaque budget), UAE/Syria/Yemen (SIPRI reports no data), Syria/Lebanon (collapsed economy).
+- **Evidence overlay** (`src/dynamics/EvidenceOverlay.tsx`, `mp-evidence` event): per body, shows
+  THE CALCULATION (axes×weights×stability+backing, real numbers) + THE SOURCES (figure, dataset,
+  year, link, status badge). Opened from the forces panel ('המקורות והחישוב'). = directives #3 + #4.
+- **Forces arrangements** (`ForcesView` control bar) = directive #5: order by סה״כ/כלכלי/צבאי/גאו
+  (re-ranks index, re-sizes nodes, re-arranges orrery — strongest-on-axis→centre, rings become
+  quantiles, nodes glide via left/top transition); bloc filter (מערב/מזרח/ניטרלי); threshold slider סף≥N.
+- ⚠️ Playwright gotcha: controlled `<input type=range>` ignores synthetic `.value`+input events
+  (React value-tracker). Verify sliders with real keyboard (`page.keyboard.press('ArrowRight')`) or drag.
+
+## Session 2026-06-12 (Phase 1 — empirical gravity backbone, slice)
+**The score is now computed from its parts.** Was: `power` (0–100) and `FORCES.{eco,mil,geo}`
 
 ## Session 2026-06-12 (Phase 1 — empirical gravity backbone, slice)
 **The score is now computed from its parts.** Was: `power` (0–100) and `FORCES.{eco,mil,geo}`
