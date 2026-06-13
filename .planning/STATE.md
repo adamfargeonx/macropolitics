@@ -29,9 +29,12 @@ Standing rule from the user: **verify sources before committing; flag the half-b
   re-equilibrates the constellation + index + panel + evidence overlay. Closing it / leaving forces
   restores canon. Verified: mil-weight 51% → Russia 7.6→8.0, Israel→7.0, Iran into top-6. The payoff
   of computing power from its parts: "don't trust my numbers — move the weights."
-- **Time Axis — NOT built (deliberate).** Needs sourced *historical* eco/mil per body per year
-  (SIPRI 1949–2025 + IMF history are sourceable; stability/alliance/nonstate timelines are
-  interpretive). Per verify-before-commit, deferred to a dedicated sourcing pass, not fabricated.
+- **Time Axis — credible slice shipped, full scrubber deferred.** Sourced military-spend trend
+  (`MIL_TREND` in empirical.ts) from SIPRI 2020 + 2025 factsheets (both scraped, current-USD), 9
+  major bodies, shown in the evidence overlay: Russia +208% (war), Israel +123%, Iran −53% (FLAGGED
+  rial/USD artifact). Bodies without clean figures show no trend (not fabricated). The full
+  constellation-over-time scrubber is DEFERRED: 2020 GDP-PPP wouldn't extract cleanly via firecrawl,
+  and stability/alliance/non-state-over-time is interpretive → a dedicated sourcing pass, not invented.
 - ⚠️ Playwright gotcha: controlled `<input type=range>` ignores synthetic `.value`+input events
   (React value-tracker). Verify sliders with real keyboard (`page.keyboard.press('ArrowRight')`) or drag.
 
