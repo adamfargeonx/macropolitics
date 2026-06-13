@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DATA, BODY_INPUTS, MIL_TREND, MIL_TREND_SOURCE, type SourceStatus } from '../data/empirical'
+import { DATA, MIL_TREND, MIL_TREND_SOURCE, GDP_PPP, GDP_PPP_SOURCE, bodyInputsForYear, type SourceStatus } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { computeGravities } from '../model/gravity'
 import { useWeights } from '../model/weights-store'
+import { useYear } from '../model/year-store'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -21,7 +22,8 @@ const STATUS_LABEL: Record<SourceStatus, string> = {
 export function EvidenceOverlay() {
   const [id, setId] = useState<string | null>(null)
   const weights = useWeights() // live (possibly scenario) weights → the calculation stays consistent
-  const grav = useMemo(() => computeGravities(BODY_INPUTS, weights), [weights])
+  const year = useYear()
+  const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
 
   useEffect(() => {
     const onOpen = (e: Event) => { sound.play('open'); setId((e as CustomEvent).detail?.id ?? null) }
@@ -51,7 +53,7 @@ export function EvidenceOverlay() {
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>
-          <span className="evid__score">כוח משיכה {g.gravity.toFixed(1)} / 10 · {node.power}/100</span>
+          <span className="evid__score">כוח משיכה {g.gravity.toFixed(1)} / 10 · {g.power}/100{year !== 2025 ? ` · ${year}` : ''}</span>
         </header>
 
         {/* ── THE CALCULATION (drill-down for the curious) ── */}
@@ -61,7 +63,7 @@ export function EvidenceOverlay() {
           <div className="evid__calc">
             <div className="evid__step">
               <span className="evid__step-k">בסיס משוקלל</span>
-              <span className="evid__math">{w.eco.toFixed(2)}×{d.axes.eco} + {w.mil.toFixed(2)}×{d.axes.mil} + {w.geo.toFixed(2)}×{d.axes.geo} = <b>{g.base.toFixed(2)}</b></span>
+              <span className="evid__math">{w.eco.toFixed(2)}×{g.eco} + {w.mil.toFixed(2)}×{g.mil} + {w.geo.toFixed(2)}×{g.geo} = <b>{g.base.toFixed(2)}</b></span>
             </div>
             <div className="evid__step">
               <span className="evid__step-k">× יציבות {g.stability.toFixed(2)}</span>
@@ -99,22 +101,28 @@ export function EvidenceOverlay() {
                 <p className="evid__figure">{p.figure}</p>
                 <a className="evid__link" href={p.url} target="_blank" rel="noreferrer">{p.source} · {p.year} ↗</a>
                 {p.note && <p className="evid__note">{p.note}</p>}
-                {axis === 'mil' && MIL_TREND[id] && (() => {
-                  const t = MIL_TREND[id]
-                  const pct = Math.round(((t.y2025 - t.y2020) / t.y2020) * 100)
+                {(() => {
+                  const trend = axis === 'mil' && MIL_TREND[id]
+                    ? { pair: MIL_TREND[id], fmt: (v: number) => `$${v}B`, src: MIL_TREND_SOURCE, lbl: 'מגמה · הוצאה צבאית' }
+                    : axis === 'eco' && GDP_PPP[id]
+                      ? { pair: GDP_PPP[id], fmt: (v: number) => `$${(v / 1000).toFixed(1)}T`, src: GDP_PPP_SOURCE, lbl: 'מגמה · תמ״ג PPP' }
+                      : null
+                  if (!trend) return null
+                  const { pair, fmt, src, lbl } = trend
+                  const pct = Math.round(((pair.y2025 - pair.y2020) / pair.y2020) * 100)
                   const up = pct >= 0
                   return (
                     <div className="evid__trend">
-                      <span className="evid__trend-lbl">מגמה · הוצאה צבאית</span>
+                      <span className="evid__trend-lbl">{lbl}</span>
                       <span className="evid__trend-line" dir="ltr">
-                        <span>{`$${t.y2020}B`}</span>
+                        <span>{fmt(pair.y2020)}</span>
                         <span className="evid__trend-arrow">→</span>
-                        <span>{`$${t.y2025}B`}</span>
+                        <span>{fmt(pair.y2025)}</span>
                         <span className={`evid__trend-pct evid__trend-pct--${up ? 'up' : 'down'}`}>{up ? '+' : ''}{pct}%</span>
                         <span className="evid__trend-years">’20→’25</span>
                       </span>
-                      <span className="evid__trend-src">{MIL_TREND_SOURCE}</span>
-                      {t.note && <p className="evid__note">{t.note}</p>}
+                      <span className="evid__trend-src">{src}</span>
+                      {'note' in pair && pair.note && <p className="evid__note">{pair.note}</p>}
                     </div>
                   )
                 })()}

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, FORCES, POWER_NOTES, forceScore, powerSize, AXIS, AXIS_LABEL } from '../data/entities'
-import { DATA, BODY_INPUTS } from '../data/empirical'
+import { DATA, BODY_INPUTS, bodyInputsForYear, type Year } from '../data/empirical'
 import { computeGravities, type GravityResult } from '../model/gravity'
 import { useWeights, weightsStore, isDefaultWeights } from '../model/weights-store'
+import { useYear, yearStore } from '../model/year-store'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { Words } from './Words'
@@ -83,9 +84,10 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [filterBloc, setFilterBloc] = useState<Bloc>('all') // show only one bloc
   const [minScore, setMinScore] = useState(0)               // threshold: hide bodies below this on the active metric
 
-  // Scenario Sandbox — live axis weights; the gravity map recomputes and the field re-equilibrates
+  // Scenario Sandbox (weights) + Time Axis (year) — the gravity map recomputes and re-equilibrates
   const weights = useWeights()
-  const grav = useMemo(() => computeGravities(BODY_INPUTS, weights), [weights])
+  const year = useYear()
+  const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
   const scenario = !isDefaultWeights(weights)
   const [sbOpen, setSbOpen] = useState(false)
   const [raw, setRaw] = useState(DEFAULT_RAW) // unnormalised slider values (eco/mil/geo)
@@ -93,7 +95,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     const sum = raw.eco + raw.mil + raw.geo || 1
     weightsStore.set({ eco: raw.eco / sum, mil: raw.mil / sum, geo: raw.geo / sum })
   }, [raw])
-  useEffect(() => () => weightsStore.reset(), []) // restore the canonical model when leaving forces
+  useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, []) // restore present + canon on leave
   const toggleSandbox = () => { sound.play('tab'); setSbOpen((o) => { if (o) setRaw(DEFAULT_RAW); else setOrderBy('total'); return !o }) }
   const normW = (() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } })()
   const proxRef = useRef<string | null>(null); proxRef.current = proximal
@@ -291,10 +293,21 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             aria-label={`סף ציון מינימלי ב${ORDER_LABEL[orderBy]}`}
           />
         </div>
+        <div className="forcesctl__group" role="group" aria-label="שנה">
+          <span className="forcesctl__lbl">שנה</span>
+          {([2020, 2025] as Year[]).map((y) => (
+            <button key={y} className={`forcesctl__opt${year === y ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); yearStore.set(y) }} aria-pressed={year === y}>{y}</button>
+          ))}
+        </div>
         <button className={`forcesctl__sb${sbOpen ? ' is-on' : ''}${scenario ? ' has-scenario' : ''}`} onClick={toggleSandbox} aria-pressed={sbOpen} title="תרחיש — שינוי משקלי הצירים">
           <span aria-hidden>⚖︎</span> תרחיש
         </button>
       </div>
+      {year !== 2025 && (
+        <div className="forces-timenote" dir="rtl">
+          ציר זמן · {year}: כלכלה (IMF) וצבא (SIPRI) ממקור — גאוגרפיה, בריתות ויציבות מוחזקות להווה
+        </div>
+      )}
       {/* Scenario Sandbox — drag the axis weights; the gravity map re-equilibrates live */}
       {sbOpen && (
         <div className="sandbox" dir="rtl">
@@ -344,7 +357,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
             </p>
             <div className="gindex">
-              <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
+              <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
               {ranked.map((e, i) => (
                 <button
                   key={e.id}

@@ -330,3 +330,49 @@ export const MIL_TREND: Record<string, MilTrend> = {
   pakistan: { y2020: 10.4, y2025: 11.9 },
 }
 export const MIL_TREND_SOURCE = 'SIPRI Trends 2020 + 2025 · במחירים שוטפים (US$)'
+
+// ── GDP (PPP), IMF WEO, two snapshots (US$ billion, current international $) ──────────────────
+// Source: IMF DataMapper API (PPPGDP), raw JSON parsed deterministically (not LLM-extracted).
+// Powers the economic trend + the 2020⇄2025 time axis. Bodies without a clean series are omitted.
+export interface EcoPair { y2020: number; y2025: number }
+export const GDP_PPP: Record<string, EcoPair> = {
+  usa: { y2020: 21375, y2025: 30767 },
+  china: { y2020: 25961, y2025: 41242 },
+  india: { y2020: 9541, y2025: 17258 },
+  russia: { y2020: 4651, y2025: 7237 },
+  saudi: { y2020: 1498, y2025: 2729 },
+  iran: { y2020: 1326, y2025: 1846 },
+  egypt: { y2020: 1665, y2025: 2394 },
+  israel: { y2020: 378, y2025: 572 },
+  uae: { y2020: 628, y2025: 948 },
+  turkey: { y2020: 2436, y2025: 3786 },
+  pakistan: { y2020: 1186, y2025: 1687 },
+  iraq: { y2020: 449, y2025: 699 },
+  qatar: { y2020: 230, y2025: 381 },
+  kuwait: { y2020: 182, y2025: 277 },
+  oman: { y2020: 159, y2025: 232 },
+  jordan: { y2020: 114, y2025: 145 },
+  lebanon: { y2020: 73, y2025: 70 },
+  bahrain: { y2020: 79, y2025: 113 },
+  yemen: { y2020: 26, y2025: 30 },
+}
+export const GDP_PPP_SOURCE = 'IMF WEO · GDP (PPP), מיליארד $ בינל׳'
+
+// ── Time axis: per-year effective inputs ─────────────────────────────────────────────────────
+// 2025 is the calibrated present. A past year's eco/mil scores are derived by shifting the 2025
+// score by the log-ratio of the SOURCED underlying figure (GDP-PPP for eco, mil-spend for mil) —
+// so 2025 stays exact (ln 1 = 0) and 2020 moves consistently with the real data. geo, stability,
+// backing and the alliance graph are HELD at present (flagged in the UI) — those are interpretive
+// over time, not sourced. Bodies without a clean figure keep their present score for that axis.
+export type Year = 2020 | 2025
+const K_ECO = 1.2, K_MIL = 1.3
+const clamp10 = (n: number) => Math.min(10, Math.max(0, Math.round(n)))
+export function bodyInputsForYear(year: Year): BodyInput[] {
+  if (year === 2025) return BODY_INPUTS
+  return BODY_INPUTS.map((b) => {
+    const g = GDP_PPP[b.id]; const m = MIL_TREND[b.id]
+    const eco = g ? clamp10(b.axes.eco + K_ECO * Math.log(g.y2020 / g.y2025)) : b.axes.eco
+    const mil = m ? clamp10(b.axes.mil + K_MIL * Math.log(m.y2020 / m.y2025)) : b.axes.mil
+    return { ...b, axes: { eco, mil, geo: b.axes.geo } }
+  })
+}
