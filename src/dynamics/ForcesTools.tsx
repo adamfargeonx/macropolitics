@@ -43,7 +43,7 @@ export function ForcesTools(props: ForcesToolsProps) {
       </div>
       <div className="forcestools__row" role="group" aria-label="שנה">
         <span className="forcestools__lbl">שנה</span>
-        {([2020, 2025] as Year[]).map((y) => (
+        {([2000, 2020, 2025] as Year[]).map((y) => (
           <button key={y} className={`forcesctl__opt${year === y ? ' is-on' : ''}`}
             onClick={() => { sound.play('tab'); setYear(y) }} aria-pressed={year === y}>{y}</button>
         ))}

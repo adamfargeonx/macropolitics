@@ -317,43 +317,50 @@ export const FLAGGED: Record<string, string[]> = Object.fromEntries(
 // Directly-sourced military expenditure (US$ billion, current prices) at two SIPRI snapshots,
 // five years apart. Only bodies with clean figures at BOTH points are included — no interpolation.
 // Source: SIPRI Trends in World Military Expenditure 2020 (fs_2104_milex) + 2025 (2604_milex).
-export interface MilTrend { y2020: number; y2025: number; note?: string }
+// y2000 added for the 2000 snapshot, sourced from the World Bank's redistribution of SIPRI
+// (MS.MIL.XPND.CD, current US$) — the only SIPRI series with a clean public API back to 1960.
+// It tracks the 2020 fact-sheet figures within a few % for the majors. Iran is deliberately left
+// without a y2000: its 2020/2025 figures are *effective* (incl. off-budget missiles/proxies), and
+// the WB budget series ($8.3B in 2000) is not commensurable — so Iran holds its present mil in 2000.
+export interface MilTrend { y2000?: number; y2020: number; y2025: number; note?: string }
 export const MIL_TREND: Record<string, MilTrend> = {
-  usa: { y2020: 778, y2025: 954 },
-  china: { y2020: 252, y2025: 336 },
-  russia: { y2020: 61.7, y2025: 190, note: 'הזינוק משקף את כלכלת המלחמה באוקראינה' },
-  india: { y2020: 72.9, y2025: 92.1 },
-  saudi: { y2020: 57.5, y2025: 83.2 },
-  israel: { y2020: 21.7, y2025: 48.3, note: 'הזינוק משקף את מלחמת 2023–2025' },
-  turkey: { y2020: 17.7, y2025: 30.0 },
+  usa: { y2000: 320, y2020: 778, y2025: 954 },
+  china: { y2000: 22.2, y2020: 252, y2025: 336 },
+  russia: { y2000: 9.2, y2020: 61.7, y2025: 190, note: 'הזינוק משקף את כלכלת המלחמה באוקראינה' },
+  india: { y2000: 14.3, y2020: 72.9, y2025: 92.1 },
+  saudi: { y2000: 20.0, y2020: 57.5, y2025: 83.2 },
+  israel: { y2000: 8.3, y2020: 21.7, y2025: 48.3, note: 'הזינוק משקף את מלחמת 2023–2025' },
+  turkey: { y2000: 10.0, y2020: 17.7, y2025: 30.0 },
   iran: { y2020: 15.8, y2025: 7.4, note: 'הירידה במונחי דולר משקפת קריסת הריאל/אינפלציה — לא ירידה ביכולת; וחלק מההוצאה מחוץ לתקציב' },
-  pakistan: { y2020: 10.4, y2025: 11.9 },
+  pakistan: { y2000: 3.0, y2020: 10.4, y2025: 11.9 },
 }
-export const MIL_TREND_SOURCE = 'SIPRI Trends 2020 + 2025 · במחירים שוטפים (US$)'
+export const MIL_TREND_SOURCE = 'SIPRI · 2020+2025 (גיליונות מגמות), 2000 (דרך הבנק העולמי) · במחירים שוטפים (US$)'
 
 // ── GDP (PPP), IMF WEO, two snapshots (US$ billion, current international $) ──────────────────
 // Source: IMF DataMapper API (PPPGDP), raw JSON parsed deterministically (not LLM-extracted).
 // Powers the economic trend + the 2020⇄2025 time axis. Bodies without a clean series are omitted.
-export interface EcoPair { y2020: number; y2025: number }
+// y2000 added for the 2000 snapshot — same IMF DataMapper API (PPPGDP), raw JSON parsed.
+// Yemen has no IMF 2000 figure, so it holds its present eco in the 2000 snapshot.
+export interface EcoPair { y2000?: number; y2020: number; y2025: number }
 export const GDP_PPP: Record<string, EcoPair> = {
-  usa: { y2020: 21375, y2025: 30767 },
-  china: { y2020: 25961, y2025: 41242 },
-  india: { y2020: 9541, y2025: 17258 },
-  russia: { y2020: 4651, y2025: 7237 },
-  saudi: { y2020: 1498, y2025: 2729 },
-  iran: { y2020: 1326, y2025: 1846 },
-  egypt: { y2020: 1665, y2025: 2394 },
-  israel: { y2020: 378, y2025: 572 },
-  uae: { y2020: 628, y2025: 948 },
-  turkey: { y2020: 2436, y2025: 3786 },
-  pakistan: { y2020: 1186, y2025: 1687 },
-  iraq: { y2020: 449, y2025: 699 },
-  qatar: { y2020: 230, y2025: 381 },
-  kuwait: { y2020: 182, y2025: 277 },
-  oman: { y2020: 159, y2025: 232 },
-  jordan: { y2020: 114, y2025: 145 },
-  lebanon: { y2020: 73, y2025: 70 },
-  bahrain: { y2020: 79, y2025: 113 },
+  usa: { y2000: 10251, y2020: 21375, y2025: 30767 },
+  china: { y2000: 3338, y2020: 25961, y2025: 41242 },
+  india: { y2000: 1969, y2020: 9541, y2025: 17258 },
+  russia: { y2000: 1557, y2020: 4651, y2025: 7237 },
+  saudi: { y2000: 604, y2020: 1498, y2025: 2729 },
+  iran: { y2000: 543, y2020: 1326, y2025: 1846 },
+  egypt: { y2000: 413, y2020: 1665, y2025: 2394 },
+  israel: { y2000: 140, y2020: 378, y2025: 572 },
+  uae: { y2000: 221, y2020: 628, y2025: 948 },
+  turkey: { y2000: 711, y2020: 2436, y2025: 3786 },
+  pakistan: { y2000: 385, y2020: 1186, y2025: 1687 },
+  iraq: { y2000: 160, y2020: 449, y2025: 699 },
+  qatar: { y2000: 38, y2020: 230, y2025: 381 },
+  kuwait: { y2000: 77, y2020: 182, y2025: 277 },
+  oman: { y2000: 61, y2020: 159, y2025: 232 },
+  jordan: { y2000: 33, y2020: 114, y2025: 145 },
+  lebanon: { y2000: 48, y2020: 73, y2025: 70 },
+  bahrain: { y2000: 25, y2020: 79, y2025: 113 },
   yemen: { y2020: 26, y2025: 30 },
 }
 export const GDP_PPP_SOURCE = 'IMF WEO · GDP (PPP), מיליארד $ בינל׳'
@@ -364,15 +371,22 @@ export const GDP_PPP_SOURCE = 'IMF WEO · GDP (PPP), מיליארד $ בינל׳
 // so 2025 stays exact (ln 1 = 0) and 2020 moves consistently with the real data. geo, stability,
 // backing and the alliance graph are HELD at present (flagged in the UI) — those are interpretive
 // over time, not sourced. Bodies without a clean figure keep their present score for that axis.
-export type Year = 2020 | 2025
+export type Year = 2000 | 2020 | 2025
+// Log-sensitivity amplifiers: one unit of log-ratio (≈ an e-fold change in the underlying
+// figure) shifts the 0–10 axis score by this much. Mil is slightly more elastic than eco —
+// defense budgets swing harder year-to-year than GDP. Tuned so 2020 deltas read as plausible.
 const K_ECO = 1.2, K_MIL = 1.3
 const clamp10 = (n: number) => Math.min(10, Math.max(0, Math.round(n)))
+// Pick the figure for a past snapshot year; undefined → no clean series → hold present.
+const ecoAt = (g: EcoPair, y: Exclude<Year, 2025>) => (y === 2000 ? g.y2000 : g.y2020)
+const milAt = (m: MilTrend, y: Exclude<Year, 2025>) => (y === 2000 ? m.y2000 : m.y2020)
 export function bodyInputsForYear(year: Year): BodyInput[] {
   if (year === 2025) return BODY_INPUTS
   return BODY_INPUTS.map((b) => {
     const g = GDP_PPP[b.id]; const m = MIL_TREND[b.id]
-    const eco = g ? clamp10(b.axes.eco + K_ECO * Math.log(g.y2020 / g.y2025)) : b.axes.eco
-    const mil = m ? clamp10(b.axes.mil + K_MIL * Math.log(m.y2020 / m.y2025)) : b.axes.mil
+    const gPast = g && ecoAt(g, year); const mPast = m && milAt(m, year)
+    const eco = gPast ? clamp10(b.axes.eco + K_ECO * Math.log(gPast / g!.y2025)) : b.axes.eco
+    const mil = mPast ? clamp10(b.axes.mil + K_MIL * Math.log(mPast / m!.y2025)) : b.axes.mil
     return { ...b, axes: { eco, mil, geo: b.axes.geo } }
   })
 }
