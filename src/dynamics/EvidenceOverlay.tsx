@@ -49,7 +49,7 @@ export function EvidenceOverlay() {
 
   return (
     <div className="legend__scrim" onClick={close}>
-      <aside className="evid" dir="rtl" role="dialog" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
+      <aside className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>
@@ -77,7 +77,7 @@ export function EvidenceOverlay() {
             )}
             <div className="evid__step evid__step--total">
               <span className="evid__step-k">= כוח משיכה</span>
-              <span className="evid__math"><b>{g.gravity.toFixed(2)}</b> × 10 → {node.power}/100</span>
+              <span className="evid__math"><b>{g.gravity.toFixed(2)}</b> × 10 → {g.power}/100</span>
             </div>
           </div>
           <p className="evid__weights">
@@ -122,7 +122,7 @@ export function EvidenceOverlay() {
                         <span className="evid__trend-years">’20→’25</span>
                       </span>
                       <span className="evid__trend-src">{src}</span>
-                      {'note' in pair && pair.note && <p className="evid__note">{pair.note}</p>}
+                      {'note' in pair && !!(pair as { note?: string }).note && <p className="evid__note">{(pair as { note?: string }).note}</p>}
                     </div>
                   )
                 })()}

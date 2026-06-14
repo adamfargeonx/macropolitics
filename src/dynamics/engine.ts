@@ -80,13 +80,17 @@ export class OrbitalField {
   private hoverSince = 0
   private connected = new Set<string>()
   private start = 0; private raf = 0; private now = 0
+  private canvas: HTMLCanvasElement
+  private container: HTMLElement
   private reduced: boolean
   private noStarfield: boolean
   onHover?: (id: string | null, screen: { x: number; y: number } | null) => void
   onSelect?: (id: string | null) => void
   onZoom?: (z: number) => void
 
-  constructor(private canvas: HTMLCanvasElement, private container: HTMLElement, opts: { noStarfield?: boolean } = {}) {
+  constructor(canvas: HTMLCanvasElement, container: HTMLElement, opts: { noStarfield?: boolean } = {}) {
+    this.canvas = canvas
+    this.container = container
     this.ctx = canvas.getContext('2d')!
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
