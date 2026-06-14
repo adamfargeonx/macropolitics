@@ -29,7 +29,7 @@ export function useGravityField(
       const x = cx + Math.cos(ang) * r, y = cy + Math.sin(ang) * r
       const toC = Math.atan2(cy - y, cx - x)
       const sp = 0.12 + Math.random() * 0.18
-      return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, b: 0.3 + Math.random() * 0.55 }
+      return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, b: 0.5 + Math.random() * 0.5 }
     }
     const resize = () => {
       w = window.innerWidth; h = window.innerHeight; cx = w * 0.5; cy = h * 0.5
@@ -72,8 +72,9 @@ export function useGravityField(
         p.px = p.x; p.py = p.y; p.x += p.vx; p.y += p.vy
         const speed = Math.hypot(p.vx, p.vy)
         const near = 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
-        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.7, (0.18 + speed * 0.5) * p.b) * intro})`
-        ctx.lineWidth = 0.6 + near * 1.3
+        // visible at rest (a calm starfield), brighter when stirred by gravity/clicks
+        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.85, (0.4 + speed * 0.55) * p.b) * intro})`
+        ctx.lineWidth = 0.8 + near * 1.4
         ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
         if (d < 11) Object.assign(p, spawn())
       }

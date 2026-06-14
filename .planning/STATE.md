@@ -1,10 +1,86 @@
 # State: Macropolitics
 
-**Updated:** 2026-06-11 (overnight deep-improvement pass)
-**Current milestone:** Phase 0 complete → Phase 1 (Empirical Gravity Backbone) is next.
+**Updated:** 2026-06-13 (Phase 1 — all 3 axes sourced + provenance UI + forces arrangements)
+**Current milestone:** Phase 1 (Empirical Gravity Backbone) — **eco + mil + geo all sourced & live**;
+remaining sub-phases: Scenario Sandbox (live WEIGHTS sliders) + Time Axis (`eco[year]`).
 **Mode:** YOLO · Coarse. Visual polish runs as a fast loop outside phases.
+**Branch:** `empirical-backbone` (off `main` @ d78aaa6) — 4 commits: U1–U12 polish · Phase 1 compute ·
+verified sourcing+evidence · forces arrangements. **NOT merged to main** (user reviews).
 **Backup:** tag `pre-overnight-2026-06-10` + branch `backup/pre-overnight-2026-06-10` + tarball
 `~/Claude/projects/macropolitics-backup-pre-overnight-2026-06-10.tar.gz` — revert any piece from there.
+
+## Session 2026-06-13 (verified sourcing + provenance UI + forces arrangements)
+Standing rule from the user: **verify sources before committing; flag the half-baked.** Acted on it.
+- **Sourcing (verified vs primaries):** military = SIPRI 2025 (DB upd. 27 Apr 2026); economic = IMF
+  WEO GDP-PPP 2026; geo-strategic = geography + EIA chokepoints (labelled 'judgment', interpretive).
+  Re-verification CAUGHT memory errors: Saudi GDP-PPP 2.1→2.9T, Pakistan 1.6→2.17T, Syria 60→110B,
+  Yemen 60→31B; mil now real SIPRI figures not guesses. Effective scores barely moved (judgment held).
+- **Provenance model** (`src/data/empirical.ts`): per-axis `{figure, source, year, url, status}` +
+  honest `flags`. Flags ONLY where genuinely weak: Iran (off-budget missiles, SIPRI-noted), Egypt
+  (opaque budget), UAE/Syria/Yemen (SIPRI reports no data), Syria/Lebanon (collapsed economy).
+- **Evidence overlay** (`src/dynamics/EvidenceOverlay.tsx`, `mp-evidence` event): per body, shows
+  THE CALCULATION (axes×weights×stability+backing, real numbers) + THE SOURCES (figure, dataset,
+  year, link, status badge). Opened from the forces panel ('המקורות והחישוב'). = directives #3 + #4.
+- **Forces arrangements** (`ForcesView` control bar) = directive #5: order by סה״כ/כלכלי/צבאי/גאו
+  (re-ranks index, re-sizes nodes, re-arranges orrery — strongest-on-axis→centre, rings become
+  quantiles, nodes glide via left/top transition); bloc filter (מערב/מזרח/ניטרלי); threshold slider סף≥N.
+- **Scenario Sandbox** (`src/model/weights-store.ts` + `ForcesView` 'תרחיש' panel): the model's
+  WEIGHTS are now a reactive store; dragging the 3 axis-weight sliders recomputes gravity live and
+  re-equilibrates the constellation + index + panel + evidence overlay. Closing it / leaving forces
+  restores canon. Verified: mil-weight 51% → Russia 7.6→8.0, Israel→7.0, Iran into top-6. The payoff
+  of computing power from its parts: "don't trust my numbers — move the weights."
+- **Time Axis — SHIPPED (2020 ⇄ 2025, sourced).** The eco-history "blocker" was my tooling, not IMF.
+  Pulled GDP-PPP (2010/2015/2020/2025) from the **IMF DataMapper API** and parsed the RAW JSON with
+  Python — firecrawl's LLM extraction had scrambled it (India<Russia), so verify-before-commit caught
+  it. `GDP_PPP` (IMF) + `MIL_TREND` (SIPRI 2020+2025) + `bodyInputsForYear()` in empirical.ts: a past
+  year's eco/mil score = 2025 score shifted by ln(figure_2020/figure_2025) (2025 stays exact). geo/
+  stability/backing/alliances HELD at present + flagged (interpretive, not sourced). `year-store.ts`
+  (reactive, mirrors weights-store) keeps the map + evidence in sync; ForcesView year toggle composes
+  with the Sandbox; EvidenceOverlay shows year-aware calc + BOTH sourced trends (eco + mil). Verified:
+  2020 re-equilibrates (China 9.0→8.7, Russia 7.6→6.9, Israel 6.7→6.3); back-to-2025 restores exact.
+  Extends trivially to 2010/2015 (eco already sourced; needs SIPRI 2010/2015 mil factsheets).
+- ⚠️ Playwright gotcha: controlled `<input type=range>` ignores synthetic `.value`+input events
+  (React value-tracker). Verify sliders with real keyboard (`page.keyboard.press('ArrowRight')`) or drag.
+
+## Session 2026-06-12 (Phase 1 — empirical gravity backbone, slice)
+**The score is now computed from its parts.** Was: `power` (0–100) and `FORCES.{eco,mil,geo}`
+
+## Session 2026-06-12 (Phase 1 — empirical gravity backbone, slice)
+**The score is now computed from its parts.** Was: `power` (0–100) and `FORCES.{eco,mil,geo}`
+hand-set independently, so `forceScore = power/10` disagreed with the bars (Israel `power:58` but
+axes `(7,9,7)`→~77). Now:
+- `src/model/gravity.ts` — pure engine: `intrinsic = (Σ w·axis) × stability`, `backing = α·intrinsic(patron)`,
+  `gravity = intrinsic + backing` → 0–100 `power`. `WEIGHTS` in one place (Sandbox-ready).
+- `src/data/empirical.ts` — 29 bodies: effective eco/mil/geo, stability discount (Syria 0.45,
+  Lebanon 0.5, Yemen 0.6, Iraq 0.75), graph backing (proxies' supplied weight), `ECO_SOURCE`/`AXIS_SOURCE`.
+- `src/data/entities.ts` — `NODE_DEFS` (structure) → `NODES` with **computed** `power`; `FORCES`
+  derived from the same axes; `GRAVITY` map + `backingOf()` exported. APIs unchanged → all consumers work.
+- Forces panel surfaces **provenance** (source line per axis; USA → "תמ״ג PPP ~$29 טריליון · IMF 2024")
+  + **backing** relationally ("גיבוי ⟵ איראן +16"). Economic sourced; mil/geo flagged interim.
+- `scripts/check-model.ts` — calibration + 9 regression assertions (run with `node --experimental-strip-types`).
+- Verified: tsc clean; forces gindex renders the computed order (USA 10.0→Lebanon 1.2); Hezbollah
+  panel shows borrowed weight; 4 views error-free. Ranking deltas are deliberate model corrections.
+
+## Session 2026-06-12 (U1–U12 polish batch)
+Home: brighter rest particles (`useGravityField` floor 0.4); **pitch-black mask nested INSIDE
+`.home-orbit`** (inset:0 → tracks ring size; hover→50%); wordmark kerning 0.3em.
+Logo: **mini orbit before the wordmark** (`.hdr__orbit`) + bloom-on-hover (back-to-home cue).
+Transitions: home gets a **zoom-OUT** entrance (`homeZoomOut`); pages keep the zoom-in iris.
+**Per-word body reveal** (`Words.tsx`, applied to default panel bodies + about lede).
+Leading −12% across body copy; +15% kerning on the smallest text.
+**Sidebar opens after an 850 ms delay** (PanelDock mounts closed).
+Forces: **cursor-reactive stars** (lean toward cursor via `style.translate`), proximity
+highlight (nearest within 76px → focus+name), **names/rankings clean toggle**, **names hidden
+by default and cascade in by rank past 180% zoom**. **Fixed the Arial bug** — `<button>` doesn't
+inherit font-family; added `button,input,select,textarea { font-family: inherit }`.
+Legend trigger → **labelled מקרא pill** (size-ramp icon). **About toast** (one-time top-left intro).
+Model modal polished (orbit mark, card lenses, focal equation). **Loader → 5 s, dimmer/slower.**
+All verified via Playwright DOM/geometry sampling; tsc clean; 4 views render error-free.
+
+⚠️ **Gotcha:** headless Chromium (Playwright) **freezes CSS transitions whose value changes on a
+class flip** in the home subtree (orbit width→var, mask opacity 0→1 both stick at the start value;
+removing the transition yields the correct value). It's an env artifact — real browsers animate
+fine — so verify these with `transition:none` probes, not raw computed values.
 
 ## Session 2026-06-11 (T1–T7 batch)
 Home nav on the ring circumference; +30% wordmark kerning; Light logo (0.3em).

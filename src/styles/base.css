@@ -1,0 +1,142 @@
+/* ── Macropolitics · /dynamics ───────────────────────────────── */
+/* Tel Aviv Brutalist (Hebrew display) + Futurism (Latin) — supplied fonts. */
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistLight.ttf') format('truetype');
+  font-weight: 300; font-display: swap;
+}
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistRegular.ttf') format('truetype');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Tel Aviv Brutalist';
+  src: url('/fonts/TelAviv-BrutalistBold.ttf') format('truetype');
+  font-weight: 700 900; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-ExtraLight.otf') format('opentype');
+  font-weight: 200; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Light.otf') format('opentype');
+  font-weight: 300; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Regular.otf') format('opentype');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Bold.otf') format('opentype');
+  font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: 'Futurism';
+  src: url('/fonts/Futurism-Black.otf') format('opentype');
+  font-weight: 900; font-display: swap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — single source of truth. See docs/design-system.md.
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Color ───────────────────────────────────────────────── */
+  --bg: #06030f;            /* base canvas */
+  --bg-2: #0a0618;          /* raised surface base */
+  --yellow: #fbff00;        /* accent — the only chromatic note */
+  --white: #ffffff;         /* states / emphasis */
+  --light: #f4f2ec;         /* primary ink (warm off-white) */
+  --ink-dim: rgba(244, 242, 236, 0.55);
+  --ink-faint: rgba(244, 242, 236, 0.3);
+  --surface-1: rgba(255, 255, 255, 0.03);   /* faint chip / cell */
+  --surface-2: rgba(10, 6, 22, 0.96);        /* panel / overlay */
+  --line: rgba(255, 255, 255, 0.08);         /* hairline divider */
+  --line-2: rgba(255, 255, 255, 0.06);       /* fainter divider */
+  --line-yellow: rgba(251, 255, 0, 0.16);    /* accent hairline */
+  --yellow-12: rgba(251, 255, 0, 0.12);
+  --yellow-30: rgba(251, 255, 0, 0.3);
+  /* allegiance rims (bloc temperature) — used as rgb() triplets */
+  --rim-west: 132, 160, 196;
+  --rim-east: 198, 134, 98;
+  --rim-neutral: 150, 150, 160;
+  --rim-none: 120, 120, 128;
+
+  /* ── Type ────────────────────────────────────────────────── */
+  --display: 'Tel Aviv Brutalist', 'Heebo', 'Arial Hebrew', system-ui, sans-serif;
+  /* Body — Futurism leads (Latin/numerals), Hebrew falls back per-glyph to Tel Aviv. */
+  --body: 'Futurism', 'Tel Aviv Brutalist', 'Heebo', system-ui, sans-serif;
+  --latin: 'Futurism', var(--display);
+  --fw-light: 300; --fw-regular: 400; --fw-bold: 700; --fw-black: 900;
+  --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
+  --text-lg: 15px; --text-xl: 17px; --text-2xl: 20px; --text-3xl: 30px;
+  --display-hero: clamp(46px, 7.4vw, 112px);
+  --tracking-tight: -0.01em; --tracking-wide: 0.08em; --tracking-wider: 0.18em;
+
+  /* ── Space (4px base) ────────────────────────────────────── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 26px; --sp-7: 32px; --sp-8: 40px; --sp-9: 48px;
+
+  /* ── Radius ──────────────────────────────────────────────── */
+  --r-sm: 4px; --r-pill: 999px;
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --dur-fast: 0.2s; --dur-base: 0.4s; --dur-slow: 0.8s;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* ── Elevation (z-index scale) ───────────────────────────── */
+  --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;
+  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-cursor: 2147483646;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* form controls don't inherit type by default — without this, <button> text falls back to the
+   UA font (Arial). Inherit the family so Hebrew renders in Tel Aviv Brutalist everywhere. */
+button, input, select, textarea { font-family: inherit; }
+
+/* keyboard focus (custom cursor hides the native pointer) */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--yellow); outline-offset: 3px;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--light);
+  font-family: var(--display);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global particle field — one fixed canvas behind every view (the gravity background). */
+.globalfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+/* Stage ───────────────────────────────────────────────────── */
+/* Transparent so the global field shows through; the gradients become a faint ambient tint. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(120% 90% at 31% 44%, rgba(40, 20, 70, 0.22), transparent 60%),
+    radial-gradient(120% 90% at 69% 56%, rgba(60, 55, 10, 0.12), transparent 55%);
+  overflow: hidden;
+  cursor: none;
+}
+.field { position: absolute; inset: 0; display: block; }
+
+/* soft scrim: revolving nodes fade out behind the side panel (depth) — data views only.
+   Fades away when the dock is collapsed (no panel to back). No column-divider line. */
+.stage:not(.home)::before {
+  content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 420px;
+  background: linear-gradient(to left, var(--bg) 22%, rgba(6, 3, 15, 0.66) 50%, transparent);
+  z-index: var(--z-scrim); pointer-events: none; transition: opacity 0.5s ease;
+}
+.stage:has(.pdock--closed)::before { opacity: 0; }
+@media (max-width: 900px) { .stage::before { display: none; } }
+

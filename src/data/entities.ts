@@ -3,7 +3,11 @@
 // Each ring rotates as a unit (shared signed omega = direction + speed).
 // SIZE = political gravity: editable `power` score (0–100) → diameter.
 //   diameter = 8 + (power/100)^1.7 * 124  — steep so USA towers and proxies stay tiny.
-//   power scores spread across clear tiers (superpower → proxy). Wire to empirical later.
+//   `power` is now COMPUTED from the gravity model (src/model/gravity.ts) — weighted effective
+//   axes × stability + graph backing — not hand-set. See docs/power-model.md + src/data/empirical.ts.
+
+import { computeGravities, type GravityResult } from '../model/gravity'
+import { BODY_INPUTS, DATA } from './empirical'
 
 export type Kind = 'great' | 'regional' | 'intermediate' | 'edge' | 'nonstate'
 
@@ -42,50 +46,66 @@ export const AXES = [
   { around: 'iran', he: 'הציר המזרחי', dy: 1 },
 ]
 
-export const NODES: Entity[] = [
+// Structural defs (placement, hierarchy, identity). `power` is NOT here — it's computed below.
+const NODE_DEFS: Omit<Entity, 'power'>[] = [
   // ── MAIN RING (around C) — Western lead + Eastern axis ──
-  { id: 'usa', he: 'ארה״ב', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 180, power: 100, dispo: DISPO.agg, tier: TIER.great },
-  { id: 'russia', he: 'רוסיה', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 345, power: 74, dispo: DISPO.assert, tier: TIER.great },
-  { id: 'iran', he: 'איראן', kind: 'regional', parent: 'C', R: 440, omega: 1.4, ang0: 25, power: 66, dispo: DISPO.agg, tier: TIER.regional },
-  { id: 'china', he: 'סין', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 62, power: 90, dispo: DISPO.caut, tier: TIER.great },
+  { id: 'usa', he: 'ארה״ב', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 180, dispo: DISPO.agg, tier: TIER.great },
+  { id: 'russia', he: 'רוסיה', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 345, dispo: DISPO.assert, tier: TIER.great },
+  { id: 'iran', he: 'איראן', kind: 'regional', parent: 'C', R: 440, omega: 1.4, ang0: 25, dispo: DISPO.agg, tier: TIER.regional },
+  { id: 'china', he: 'סין', kind: 'great', parent: 'C', R: 440, omega: 1.4, ang0: 62, dispo: DISPO.caut, tier: TIER.great },
 
   // ── TWILIGHT / NEUTRAL inner ring (around C) ──
-  { id: 'turkey', he: 'טורקיה', kind: 'regional', parent: 'C', R: 210, omega: -3.2, ang0: 30, power: 52, dispo: DISPO.assert, tier: TIER.regional },
-  { id: 'qatar', he: 'קטאר', kind: 'intermediate', parent: 'C', R: 210, omega: -3.2, ang0: 95, power: 32, dispo: DISPO.caut, tier: TIER.mid },
-  { id: 'oman', he: 'עומאן', kind: 'intermediate', parent: 'C', R: 210, omega: -3.2, ang0: 158, power: 20, dispo: DISPO.caut, tier: TIER.mid },
-  { id: 'syria', he: 'סוריה', kind: 'edge', parent: 'C', R: 210, omega: -3.2, ang0: 222, power: 28, dispo: DISPO.assert, tier: TIER.edge },
-  { id: 'lebanon', he: 'לבנון', kind: 'edge', parent: 'C', R: 210, omega: -3.2, ang0: 290, power: 18, dispo: DISPO.assert, tier: TIER.edge },
+  { id: 'turkey', he: 'טורקיה', kind: 'regional', parent: 'C', R: 210, omega: -3.2, ang0: 30, dispo: DISPO.assert, tier: TIER.regional },
+  { id: 'qatar', he: 'קטאר', kind: 'intermediate', parent: 'C', R: 210, omega: -3.2, ang0: 95, dispo: DISPO.caut, tier: TIER.mid },
+  { id: 'oman', he: 'עומאן', kind: 'intermediate', parent: 'C', R: 210, omega: -3.2, ang0: 158, dispo: DISPO.caut, tier: TIER.mid },
+  { id: 'syria', he: 'סוריה', kind: 'edge', parent: 'C', R: 210, omega: -3.2, ang0: 222, dispo: DISPO.assert, tier: TIER.edge },
+  { id: 'lebanon', he: 'לבנון', kind: 'edge', parent: 'C', R: 210, omega: -3.2, ang0: 290, dispo: DISPO.assert, tier: TIER.edge },
 
   // ── OUTER RING (around C, beyond main) ──
-  { id: 'europe', he: 'אירופה', kind: 'great', parent: 'C', R: 760, omega: 2.0, ang0: 205, power: 78, dispo: DISPO.assert, tier: TIER.great },
-  { id: 'india', he: 'הודו', kind: 'great', parent: 'C', R: 760, omega: 2.0, ang0: 325, power: 56, dispo: DISPO.caut, tier: TIER.great },
-  { id: 'pakistan', he: 'פקיסטן', kind: 'regional', parent: 'C', R: 760, omega: 2.0, ang0: 80, power: 46, dispo: DISPO.caut, tier: TIER.regional },
+  { id: 'europe', he: 'אירופה', kind: 'great', parent: 'C', R: 760, omega: 2.0, ang0: 205, dispo: DISPO.assert, tier: TIER.great },
+  { id: 'india', he: 'הודו', kind: 'great', parent: 'C', R: 760, omega: 2.0, ang0: 325, dispo: DISPO.caut, tier: TIER.great },
+  { id: 'pakistan', he: 'פקיסטן', kind: 'regional', parent: 'C', R: 760, omega: 2.0, ang0: 80, dispo: DISPO.caut, tier: TIER.regional },
 
   // ── No affiliation (free, no ring) ──
-  { id: 'isis', he: 'דאעש', kind: 'nonstate', parent: 'C', R: 620, omega: -3.4, ang0: 300, power: 15, dispo: DISPO.agg, tier: TIER.nonstate },
-  { id: 'qaeda', he: 'אל-קעאידה', kind: 'nonstate', parent: 'C', R: 670, omega: -3.4, ang0: 332, power: 14, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'isis', he: 'דאעש', kind: 'nonstate', parent: 'C', R: 620, omega: -3.4, ang0: 300, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'qaeda', he: 'אל-קעאידה', kind: 'nonstate', parent: 'C', R: 670, omega: -3.4, ang0: 332, dispo: DISPO.agg, tier: TIER.nonstate },
 
   // ── USA's system (3 rings around USA) ──
-  { id: 'israel', he: 'ישראל', kind: 'regional', parent: 'usa', R: 120, omega: 6.5, ang0: 0, power: 58, dispo: DISPO.agg, tier: TIER.regional },
-  { id: 'egypt', he: 'מצרים', kind: 'intermediate', parent: 'usa', R: 180, omega: 4.0, ang0: 200, power: 50, dispo: DISPO.caut, tier: TIER.mid },
-  { id: 'jordan', he: 'ירדן', kind: 'edge', parent: 'usa', R: 180, omega: 4.0, ang0: 320, power: 22, dispo: DISPO.caut, tier: TIER.edge },
-  { id: 'saudi', he: 'סעודיה', kind: 'regional', parent: 'usa', R: 240, omega: 2.8, ang0: 90, power: 60, dispo: DISPO.assert, tier: TIER.regional },
-  { id: 'sdf', he: 'הכוחות הדמוקרטיים', kind: 'nonstate', parent: 'usa', R: 240, omega: 2.8, ang0: 35, power: 13, dispo: DISPO.caut, tier: TIER.nonstate },
+  { id: 'israel', he: 'ישראל', kind: 'regional', parent: 'usa', R: 120, omega: 6.5, ang0: 0, dispo: DISPO.agg, tier: TIER.regional },
+  { id: 'egypt', he: 'מצרים', kind: 'intermediate', parent: 'usa', R: 180, omega: 4.0, ang0: 200, dispo: DISPO.caut, tier: TIER.mid },
+  { id: 'jordan', he: 'ירדן', kind: 'edge', parent: 'usa', R: 180, omega: 4.0, ang0: 320, dispo: DISPO.caut, tier: TIER.edge },
+  { id: 'saudi', he: 'סעודיה', kind: 'regional', parent: 'usa', R: 240, omega: 2.8, ang0: 90, dispo: DISPO.assert, tier: TIER.regional },
+  { id: 'sdf', he: 'הכוחות הדמוקרטיים', kind: 'nonstate', parent: 'usa', R: 240, omega: 2.8, ang0: 35, dispo: DISPO.caut, tier: TIER.nonstate },
 
   // ── Saudi's Gulf system (2 rings around Saudi) ──
-  { id: 'uae', he: 'האמירויות', kind: 'intermediate', parent: 'saudi', R: 60, omega: 7.5, ang0: 120, power: 38, dispo: DISPO.assert, tier: TIER.mid },
-  { id: 'bahrain', he: 'בחריין', kind: 'intermediate', parent: 'saudi', R: 60, omega: 7.5, ang0: 300, power: 16, dispo: DISPO.caut, tier: TIER.mid },
-  { id: 'kuwait', he: 'כווית', kind: 'intermediate', parent: 'saudi', R: 100, omega: 5.5, ang0: 60, power: 20, dispo: DISPO.caut, tier: TIER.mid },
-  { id: 'fatah', he: 'הרשות הפלסטינית', kind: 'nonstate', parent: 'saudi', R: 100, omega: 5.5, ang0: 240, power: 13, dispo: DISPO.caut, tier: TIER.nonstate },
+  { id: 'uae', he: 'האמירויות', kind: 'intermediate', parent: 'saudi', R: 60, omega: 7.5, ang0: 120, dispo: DISPO.assert, tier: TIER.mid },
+  { id: 'bahrain', he: 'בחריין', kind: 'intermediate', parent: 'saudi', R: 60, omega: 7.5, ang0: 300, dispo: DISPO.caut, tier: TIER.mid },
+  { id: 'kuwait', he: 'כווית', kind: 'intermediate', parent: 'saudi', R: 100, omega: 5.5, ang0: 60, dispo: DISPO.caut, tier: TIER.mid },
+  { id: 'fatah', he: 'הרשות הפלסטינית', kind: 'nonstate', parent: 'saudi', R: 100, omega: 5.5, ang0: 240, dispo: DISPO.caut, tier: TIER.nonstate },
 
   // ── Iran's Fire system (3 rings around Iran) ──
-  { id: 'hezbollah', he: 'חיזבאללה', kind: 'nonstate', parent: 'iran', R: 100, omega: 8.0, ang0: 40, power: 26, dispo: DISPO.agg, tier: TIER.nonstate },
-  { id: 'yemen', he: 'תימן (חות׳ים)', kind: 'nonstate', parent: 'iran', R: 100, omega: 8.0, ang0: 220, power: 22, dispo: DISPO.agg, tier: TIER.nonstate },
-  { id: 'iraq', he: 'עיראק', kind: 'intermediate', parent: 'iran', R: 160, omega: -5.5, ang0: 100, power: 36, dispo: DISPO.assert, tier: TIER.mid },
-  { id: 'militias', he: 'מיליציות עיראקיות', kind: 'nonstate', parent: 'iran', R: 160, omega: -5.5, ang0: 280, power: 14, dispo: DISPO.agg, tier: TIER.nonstate },
-  { id: 'hamas', he: 'חמאס', kind: 'nonstate', parent: 'iran', R: 225, omega: -5.0, ang0: 160, power: 16, dispo: DISPO.agg, tier: TIER.nonstate },
-  { id: 'pij', he: 'הג׳יהאד האסלאמי', kind: 'nonstate', parent: 'iran', R: 225, omega: -5.0, ang0: 340, power: 9, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'hezbollah', he: 'חיזבאללה', kind: 'nonstate', parent: 'iran', R: 100, omega: 8.0, ang0: 40, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'yemen', he: 'תימן (חות׳ים)', kind: 'nonstate', parent: 'iran', R: 100, omega: 8.0, ang0: 220, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'iraq', he: 'עיראק', kind: 'intermediate', parent: 'iran', R: 160, omega: -5.5, ang0: 100, dispo: DISPO.assert, tier: TIER.mid },
+  { id: 'militias', he: 'מיליציות עיראקיות', kind: 'nonstate', parent: 'iran', R: 160, omega: -5.5, ang0: 280, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'hamas', he: 'חמאס', kind: 'nonstate', parent: 'iran', R: 225, omega: -5.0, ang0: 160, dispo: DISPO.agg, tier: TIER.nonstate },
+  { id: 'pij', he: 'הג׳יהאד האסלאמי', kind: 'nonstate', parent: 'iran', R: 225, omega: -5.0, ang0: 340, dispo: DISPO.agg, tier: TIER.nonstate },
 ]
+
+// ── Compute gravity once (module init) and attach `power` to every node. ──────────────────
+// This is the fix: `power` is derived from (effective axes × stability + graph backing),
+// so the headline score and its eco/mil/geo parts can no longer disagree.
+export const GRAVITY: Map<string, GravityResult> = computeGravities(BODY_INPUTS)
+export const NODES: Entity[] = NODE_DEFS.map((d) => ({ ...d, power: GRAVITY.get(d.id)?.power ?? 0 }))
+
+// Backing surfaced relationally for the panel ("+N ⟵ patron").
+export interface Backing { amount: number; patronId: string; patronHe: string }
+export function backingOf(id: string): Backing | null {
+  const g = GRAVITY.get(id)
+  if (!g || !g.patron || g.backing <= 0) return null
+  const patron = NODES.find((n) => n.id === g.patron)
+  return { amount: Math.round(g.backing * 10), patronId: g.patron, patronHe: patron?.he ?? g.patron }
+}
 
 // Allegiance (bloc) — drives a whisper-subtle temperature rim, not a fill.
 export type Axis = 'west' | 'east' | 'neutral' | 'none'
@@ -102,24 +122,18 @@ export const AXIS_LABEL: Record<Axis, string> = {
   west: 'הציר המערבי', east: 'הציר המזרחי', neutral: 'גוש ניטרלי', none: 'ללא שיוך',
 }
 
-// FORCES lens — attraction power = economic + military + geo-strategic (0–10 each).
-// Headline score derives from `power` (size stays consistent). Components are placeholder
-// (illustrative) until wired to empirical indices — same plan as `power`.
+// FORCES lens — the three EFFECTIVE axes (0–10) that feed the gravity model. Sourced from
+// src/data/empirical.ts (single source of truth), so the eco/mil/geo bars in the panel are
+// exactly the parts the headline score is computed from. forceScore = power / 10.
 export const forceScore = (power: number) => Math.round(power) / 10 // 0–10, one decimal
 export const FORCE_AXES = [
   { key: 'eco', he: 'כלכלי' },
   { key: 'mil', he: 'צבאי' },
   { key: 'geo', he: 'גאו-אסטרטגי' },
 ] as const
-export const FORCES: Record<string, { eco: number; mil: number; geo: number }> = {
-  usa: { eco: 10, mil: 10, geo: 10 }, china: { eco: 10, mil: 8, geo: 9 }, russia: { eco: 6, mil: 9, geo: 8 },
-  europe: { eco: 9, mil: 6, geo: 7 }, india: { eco: 7, mil: 6, geo: 6 }, iran: { eco: 4, mil: 7, geo: 8 },
-  saudi: { eco: 8, mil: 5, geo: 7 }, israel: { eco: 7, mil: 9, geo: 7 }, turkey: { eco: 6, mil: 7, geo: 7 },
-  egypt: { eco: 4, mil: 6, geo: 7 }, pakistan: { eco: 3, mil: 6, geo: 6 }, uae: { eco: 7, mil: 4, geo: 5 },
-  iraq: { eco: 4, mil: 3, geo: 5 }, qatar: { eco: 6, mil: 2, geo: 5 }, syria: { eco: 2, mil: 3, geo: 4 },
-  jordan: { eco: 2, mil: 3, geo: 4 }, kuwait: { eco: 5, mil: 2, geo: 3 }, oman: { eco: 3, mil: 2, geo: 4 },
-  lebanon: { eco: 2, mil: 2, geo: 3 }, bahrain: { eco: 3, mil: 2, geo: 3 }, yemen: { eco: 1, mil: 3, geo: 3 },
-}
+export const FORCES: Record<string, { eco: number; mil: number; geo: number }> = Object.fromEntries(
+  Object.entries(DATA).map(([id, v]) => [id, { eco: v.axes.eco, mil: v.axes.mil, geo: v.axes.geo }]),
+)
 
 // Power profile — four short notes per state (general + the three force components).
 // Editorial Hebrew, each ≤20 words. Interpretive (broad consensus), wired to empirical later.
