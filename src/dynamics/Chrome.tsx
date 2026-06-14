@@ -1,5 +1,6 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
-// Kept together (all small, presentational) — split out if any grows past ~40 lines.
+// Co-located presentational components. TODO: the two SidePanel variants have grown —
+// extract SidePanelDetailA/B into their own files if either gains more logic.
 import { useEffect, useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
 import type { AxisProvenance } from '../data/empirical'

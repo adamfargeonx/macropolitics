@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { sound } from '../sound'
 import { Words } from './Words'
 
@@ -6,12 +6,14 @@ import { Words } from './Words'
 // reads, and an honesty note about the data. Opens on the header control ('mp-about').
 export function AboutOverlay() {
   const [open, setOpen] = useState(false)
+  const openRef = useRef(open)
+  openRef.current = open
 
   useEffect(() => {
-    const onToggle = () => { sound.play(open ? 'back' : 'open'); setOpen((v) => !v) }
+    const onToggle = () => { sound.play(openRef.current ? 'back' : 'open'); setOpen((v) => !v) }
     window.addEventListener('mp-about', onToggle)
     return () => window.removeEventListener('mp-about', onToggle)
-  }, [open])
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -25,7 +27,7 @@ export function AboutOverlay() {
 
   return (
     <div className="legend__scrim" onClick={close}>
-      <aside className="about" dir="rtl" role="dialog" aria-label="המודל" onClick={(e) => e.stopPropagation()}>
+      <aside className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
 
         <header className="about__head">
@@ -67,9 +69,9 @@ export function AboutOverlay() {
         </div>
 
         <p className="about__honesty">
-          הציונים והיחסים בגרסה זו הם שיפוט פרשני מנומק — לא מדידה. חיבור למדדים
-          אמפיריים (תמ״ג, הוצאה ביטחונית, בריתות) הוא השלב הבא של הפרויקט, וכל
-          מספר יקבל מקור.
+          ציוני הכוח מעוגנים כעת במדדים אמפיריים — תמ״ג (PPP, IMF) והוצאה ביטחונית
+          (SIPRI) — וכל ציר נושא מקור. הציר הגאו-אסטרטגי, היציבות והיחסים נותרים
+          שיפוט פרשני מנומק, ומסומנים ככאלה. המשקלים ניתנים לערעור — הזיזו אותם.
         </p>
 
         <footer className="about__foot">

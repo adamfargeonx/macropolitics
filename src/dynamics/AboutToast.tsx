@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // A brief top-left intro that appears once per session after the loader settles, explains
 // the project in a sentence, then dismisses itself. A soft on-ramp — not a blocking modal.
@@ -9,6 +9,7 @@ const LIFETIME = 9000
 export function AboutToast() {
   const [show, setShow] = useState(false)
   const [out, setOut] = useState(false)
+  const closeTimer = useRef(0)
 
   useEffect(() => {
     let seen = false
@@ -18,14 +19,14 @@ export function AboutToast() {
     const t1 = window.setTimeout(() => setShow(true), SHOW_AT)
     const t2 = window.setTimeout(() => setOut(true), SHOW_AT + LIFETIME)
     const t3 = window.setTimeout(() => { setShow(false); mark() }, SHOW_AT + LIFETIME + 600)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(closeTimer.current) }
   }, [])
 
   if (!show) return null
   const close = () => {
     setOut(true)
     try { sessionStorage.setItem(SEEN_KEY, '1') } catch { /* private mode */ }
-    window.setTimeout(() => setShow(false), 420)
+    closeTimer.current = window.setTimeout(() => setShow(false), 420)
   }
 
   return (
