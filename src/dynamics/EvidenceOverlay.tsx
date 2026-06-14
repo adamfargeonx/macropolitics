@@ -12,6 +12,19 @@ import { sound } from '../sound'
 // underlying figure, dataset, year and link for every axis, with a flag where the data is weak.
 
 const HE_AXIS = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' } as const
+
+// The economic composite's seven sub-criteria (src/model/economic.ts), Hebrew labels for the overlay.
+const ECO_ROWS = [
+  { k: 'mass', he: 'מסה · תמ״ג PPP' },
+  { k: 'percap', he: 'תוצר לנפש' },
+  { k: 'reserves', he: 'יתרות מט״ח' },
+  { k: 'fdi', he: 'השקעות חוץ (FDI)' },
+  { k: 'cab', he: 'מאזן חשבון שוטף' },
+  { k: 'debt', he: 'חוב ציבורי / תוצר' },
+  { k: 'credit', he: 'דירוג אשראי + יציבות' },
+] as const
+const ecoMissing = (k: string, missing: string[]) =>
+  k === 'credit' ? missing.includes('rating') || missing.includes('inflation') : missing.includes(k)
 const STATUS_LABEL: Record<SourceStatus, string> = {
   sourced: 'מקור ראשי',
   estimate: 'אומדן',
@@ -101,6 +114,30 @@ export function EvidenceOverlay() {
                 <p className="evid__figure">{p.figure}</p>
                 <a className="evid__link" href={p.url} target="_blank" rel="noreferrer">{p.source} · {p.year} ↗</a>
                 {p.note && <p className="evid__note">{p.note}</p>}
+                {axis === 'eco' && d.ecoBreakdown && (() => {
+                  const bk = d.ecoBreakdown!
+                  return (
+                    <div className="evid__eco">
+                      <span className="evid__eco-lbl">מדד מורכב · 7 פרמטרים ממקור (IMF · בנק עולמי · S&amp;P)</span>
+                      <div className="evid__eco-grid">
+                        {ECO_ROWS.map(({ k, he }) => {
+                          const v = bk.sub[k as keyof typeof bk.sub]
+                          const miss = ecoMissing(k, bk.missing)
+                          return (
+                            <div className={`evid__eco-row${miss ? ' evid__eco-row--miss' : ''}`} key={k}>
+                              <span className="evid__eco-k">{he}</span>
+                              <span className="evid__eco-bar"><i style={{ width: `${v * 10}%` }} /></span>
+                              <span className="evid__eco-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <span className="evid__eco-foot">
+                        עמוד שדרה (מסה×0.7 + לנפש×0.3) {bk.spine.toFixed(1)} · בריאות פיסקלית {bk.health.toFixed(1)} → <b>כלכלי {bk.eco.toFixed(1)}</b>
+                      </span>
+                    </div>
+                  )
+                })()}
                 {(() => {
                   const trend = axis === 'mil' && MIL_TREND[id]
                     ? { pair: MIL_TREND[id], fmt: (v: number) => `$${v}B`, src: MIL_TREND_SOURCE, lbl: 'מגמה · הוצאה צבאית' }

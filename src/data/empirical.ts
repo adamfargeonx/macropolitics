@@ -14,6 +14,7 @@
 // the rating is arguable. The gravity FORMULA on top of these is fully computed.
 
 import type { BodyInput } from '../model/gravity'
+import { economicScore, type EcoCriteria, type EcoResult } from '../model/economic.ts'
 
 export type SourceStatus =
   | 'sourced' // a primary dataset figure stands behind the score
@@ -38,6 +39,7 @@ export interface BodyData {
   prov: { eco: AxisProvenance; mil: AxisProvenance; geo: AxisProvenance }
   stabilityNote?: string
   flags?: string[] // prominent data-quality caveats — populated ONLY when genuinely half-baked
+  ecoBreakdown?: EcoResult // the 7-criterion economic composite (states with sourced inputs)
 }
 
 const SIPRI = 'https://www.sipri.org/databases/milex'
@@ -52,9 +54,10 @@ const mil = (figure: string, status: SourceStatus = 'sourced', note?: string): A
 const geo = (figure: string, note?: string): AxisProvenance =>
   ({ figure, source: 'גאוגרפיה · EIA', year: 2025, url: EIA, status: 'judgment', note })
 
-// ── The data. eco anchored on GDP-PPP (IMF 2026), mil on military spend (SIPRI 2025),
-//    geo on chokepoint/depth/energy geography. Effective scores temper mass by quality. ──
-export const DATA: Record<string, BodyData> = {
+// ── The data. eco is now a SOURCED 7-criterion composite (see ECO_CRITERIA below + economic.ts);
+//    the hand value here is a fallback for bodies without sourced inputs (non-state actors, Europe).
+//    mil on military spend (SIPRI 2025), geo on chokepoint/depth/energy geography. ──
+const RAW_DATA: Record<string, BodyData> = {
   usa: {
     axes: { eco: 10, mil: 10, geo: 10 }, stability: 1,
     prov: {
@@ -78,6 +81,7 @@ export const DATA: Record<string, BodyData> = {
       mil: mil('הוצאה צבאית $190 מיליארד (אומדן, 7.5% תמ״ג) + הארסנל הגרעיני הגדול בעולם'),
       geo: geo('בסיסים בסוריה (טרטוס/חמיימים), דריסת רגל ים-תיכונית'),
     },
+    flags: ['S&P משכה את דירוג האשראי של רוסיה (2022) — רכיב הדירוג במדד הכלכלי מבוסס אינפלציה בלבד ומסומן; ייתכן שהוא מגלה-בחסר את סיכון חדלות הפירעון'],
   },
   europe: {
     axes: { eco: 9, mil: 6, geo: 7 }, stability: 1,
@@ -301,6 +305,43 @@ export const DATA: Record<string, BodyData> = {
     },
   },
 }
+
+// ── Economic composite inputs (SOURCED, 2025) — feed src/model/economic.ts ───────────────────
+// GDP-PPP + per-capita: IMF WEO · reserves/FDI/current-account: World Bank · debt/inflation: IMF
+// WEO · S&P sovereign ratings: S&P Global Ratings 2025–26. Missing fields (Iran reserves/CA/rating,
+// Yemen most) → neutral + flagged in the breakdown, never imputed. `gdp` mirrors GDP_PPP[id].y2025.
+export const ECO_CRITERIA: Record<string, EcoCriteria> = {
+  usa: { gdp: 30767, pc: 89991, reserves: 910, fdi: 297.1, cab: -4.1, debt: 123.9, sp: 'AA+', infl: 2.7 },
+  china: { gdp: 41242, pc: 29352, reserves: 3456, fdi: 18.6, cab: 2.3, debt: 99.2, sp: 'A+', infl: 0 },
+  india: { gdp: 17258, pc: 11789, reserves: 643, fdi: 27.1, cab: -0.8, debt: 84.1, sp: 'BBB-', infl: 2.1 },
+  russia: { gdp: 7237, pc: 50255, reserves: 608.4, fdi: -9.4, cab: 2.9, debt: 17.2, infl: 8.7 },
+  saudi: { gdp: 2729, pc: 75792, reserves: 463.9, fdi: 21.3, cab: -1.3, debt: 31.7, sp: 'A+', infl: 2 },
+  iran: { gdp: 1846, pc: 21200, fdi: 1.4, debt: 37.3, infl: 50.9 },
+  egypt: { gdp: 2394, pc: 22185, reserves: 44.9, fdi: 46.6, cab: -5.7, debt: 86.8, sp: 'B-', infl: 20.4 },
+  israel: { gdp: 572, pc: 56528, reserves: 214.5, fdi: 14.8, cab: 2.9, debt: 68.5, sp: 'A', infl: 3 },
+  uae: { gdp: 948, pc: 83343, reserves: 237.9, fdi: 45.6, cab: 14.5, debt: 34.3, sp: 'AA', infl: 1.3 },
+  turkey: { gdp: 3786, pc: 44110, reserves: 155.5, fdi: 11.7, cab: -0.8, debt: 23.5, sp: 'BB-', infl: 34.9 },
+  pakistan: { gdp: 1687, pc: 7014, reserves: 18.4, fdi: 2.7, cab: 0.1, debt: 72.8, sp: 'CCC+', infl: 4.5 },
+  iraq: { gdp: 699, pc: 15360, reserves: 100.7, fdi: -7.6, cab: 3.0, debt: 53.9, sp: 'B-', infl: 0.3 },
+  qatar: { gdp: 381, pc: 120114, reserves: 54, fdi: 0.5, cab: 17.3, debt: 41.4, sp: 'AA', infl: 0.6 },
+  kuwait: { gdp: 277, pc: 54150, reserves: 50.7, fdi: 0.6, cab: 29.1, debt: 14.6, sp: 'A+', infl: 2.4 },
+  oman: { gdp: 232, pc: 43802, reserves: 18.3, fdi: 12.5, cab: 2.9, debt: 35.8, sp: 'BBB-', infl: 1 },
+  jordan: { gdp: 145, pc: 12618, reserves: 21.9, fdi: 1.6, cab: -5.9, debt: 82.8, sp: 'BB-', infl: 1.8 },
+  lebanon: { gdp: 70, pc: 13110, reserves: 33.3, fdi: 1.8, cab: -28.1, debt: 139.4, sp: 'SD', infl: 14.6 },
+  bahrain: { gdp: 113, pc: 69907, reserves: 4.9, fdi: 2.7, cab: 4.8, debt: 147.6, sp: 'B+', infl: -0.1 },
+  yemen: { gdp: 30, pc: 1590, reserves: 1.3, infl: 21.4 },
+}
+
+// Canonical body data: where sourced economic criteria exist, replace the hand eco with the
+// computed composite and attach its breakdown (for the evidence overlay). Immutable — new objects.
+export const DATA: Record<string, BodyData> = Object.fromEntries(
+  Object.entries(RAW_DATA).map(([id, d]) => {
+    const c = ECO_CRITERIA[id]
+    if (!c) return [id, d]
+    const b = economicScore(c)
+    return [id, { ...d, axes: { ...d.axes, eco: b.eco }, ecoBreakdown: b }]
+  }),
+)
 
 // Build the model's input list (axes + stability + backing only).
 export const BODY_INPUTS: BodyInput[] = Object.entries(DATA).map(([id, d]) => ({

@@ -51,6 +51,19 @@
 .evid__trend-pct--down { color: #ff9d6e; }
 .evid__trend-years { font-family: var(--body); font-size: 10px; font-weight: 400; color: var(--ink-faint); }
 .evid__trend-src { display: block; margin-top: 6px; font-family: var(--body); font-size: 10px; letter-spacing: 0.02em; color: var(--ink-faint); }
+/* economic composite — seven sourced sub-criteria, surfaced under the eco axis */
+.evid__eco { margin-top: 10px; padding: 10px 11px; background: rgba(251, 255, 0, 0.03); border-right: 2px solid var(--yellow-30); }
+.evid__eco-lbl { display: block; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--ink-dim); margin-bottom: 9px; }
+.evid__eco-grid { display: flex; flex-direction: column; gap: 5px; }
+.evid__eco-row { display: grid; grid-template-columns: 96px 1fr 36px; align-items: center; gap: 9px; }
+.evid__eco-k { font-family: var(--body); font-size: 11px; letter-spacing: 0.01em; color: var(--ink-dim); }
+.evid__eco-bar { height: 4px; background: var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
+.evid__eco-bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.7; border-radius: var(--r-pill); }
+.evid__eco-v { font-family: var(--latin); font-size: 11px; font-weight: 700; color: var(--light); text-align: end; }
+.evid__eco-row--miss .evid__eco-k, .evid__eco-row--miss .evid__eco-v { color: var(--ink-faint); }
+.evid__eco-row--miss .evid__eco-bar i { opacity: 0.3; }
+.evid__eco-foot { display: block; margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--line-2); font-family: var(--body); font-size: 10.5px; line-height: 1.55; letter-spacing: 0.02em; color: var(--ink-faint); }
+.evid__eco-foot b { color: var(--yellow); font-weight: 700; }
 .evid__flags { margin-top: 18px; padding: 12px 14px; background: rgba(255, 157, 110, 0.06); border-right: 2px solid rgba(255, 157, 110, 0.6); }
 .evid__flags p { font-family: var(--body); font-size: 11.5px; line-height: 1.55; letter-spacing: 0.02em; color: #ffb98e; }
 .evid__flags p + p { margin-top: 6px; }
