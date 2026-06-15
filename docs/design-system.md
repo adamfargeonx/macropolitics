@@ -87,7 +87,13 @@ Note: `--display-hero` (the old clamp token) was removed — it was never consum
 ## 4. Space · Radius
 
 4px base scale: `--sp-1 4` · `-2 8` · `-3 12` · `-4 16` · `-5 20` · `-6 26` · `-7 32` ·
-`-8 40` · `-9 48`. Radius: `--r-sm 4` · `--r-pill 999`.
+`-8 40` · `-9 48`.
+
+**Radius — NO ROUNDED CORNERS (hard rule).** All rectangular UI is sharp: `--r-sm` and
+`--r-pill` are both `0`, and no literal rounded-rectangle radius is allowed. The ONLY radius in
+the system is `border-radius: 50%` on genuine circles — the bodies, orbit rings, core/orbit dots,
+particles, and slider thumbs. These are the concept, not "rounded corners." Never reintroduce a
+pill/rounded-rect radius; if a control needs to read as distinct, use border/background, not curvature.
 
 ---
 
