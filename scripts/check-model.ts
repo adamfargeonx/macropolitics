@@ -49,6 +49,23 @@ const checks: [string, boolean][] = [
   ['Iran geo reflects axis collapse (≤ 6)', res.get('iran')!.geo <= 6],
   ['Yemen geo reflects Bab el-Mandeb leverage (≥ 4)', res.get('yemen')!.geo >= 4],
   ['UAE geo elevated to hub-power level (≥ 5)', res.get('uae')!.geo >= 5],
+
+  // ── EXACT-value pins ─────────────────────────────────────────────────────────────────────
+  // The inequalities above pass through a calibration regression that shifts ALL scores in
+  // lockstep. These === pins fail loudly if a tuning change moves a specific computed output,
+  // forcing an intentional re-baseline rather than a silent drift. Update only on purpose.
+  ['exact: USA power === 99', power('usa') === 99],
+  ['exact: Iran eco === 4.5', res.get('iran')!.eco === 4.5],
+  ['exact: Turkey geo === 7.5', res.get('turkey')!.geo === 7.5],
+  ['exact: Israel power === 62', power('israel') === 62],
+
+  // ── invariant + monotonicity ─────────────────────────────────────────────────────────────
+  // Backing is built from the patron's INTRINSIC capability, not its (circular) gravity. A near-
+  // total client like PIJ should therefore carry backing ≥ its own intrinsic (kept above), AND
+  // bodies sharing one patron should rank their backing by that patron's fixed intrinsic × alpha
+  // — monotone in alpha. PIJ (α 0.16) and Hamas (α 0.10) are both Iran clients, so PIJ's backing
+  // must exceed Hamas's: proof the backing channel tracks patron strength, not the client's own.
+  ['monotone: PIJ backing > Hamas backing (same patron Iran, higher alpha)', res.get('pij')!.backing > res.get('hamas')!.backing],
 ]
 console.log('\nchecks:')
 let ok = true

@@ -3,6 +3,7 @@ import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entiti
 import { authoredRelation } from '../data/relations'
 import { Header, PanelDock, TabBar, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
+import { AXIS_RIM } from './forces-model'
 import { sound } from '../sound'
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
@@ -146,17 +147,24 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
               const isFocus = e.id === focusId
               const isPinned = e.id === pinned
               const dim = focusId && !isFocus
-              const rim = AXIS[e.id] === 'west' ? '132,160,196' : AXIS[e.id] === 'east' ? '198,134,98' : '150,150,160'
+              const rim = AXIS_RIM[AXIS[e.id] ?? 'none']
               return (
                 <div
                   key={e.id}
                   data-id={e.id}
                   data-power={e.power}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${e.he} — ${charOf(relation(refId, e.id))} מול ${refNode.he}`}
+                  aria-pressed={e.id === pinned}
                   className={`rnode${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
                   style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.05}s` }}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
+                  onFocus={() => setHovered(e.id)}
+                  onBlur={() => setHovered((h) => (h === e.id ? null : h))}
                   onClick={(ev) => { ev.stopPropagation(); sound.play('click'); setPinned((p) => (p === e.id ? null : e.id)) }}
+                  onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); sound.play('click'); setPinned((p) => (p === e.id ? null : e.id)) } }}
                   title="לחיצה מקבעת את היחס; ׳קבעו כייחוס׳ בלוח מחליפה את מדינת הייחוס"
                 >
                   <span className="rnode__disk" style={{ width: d, height: d, borderColor: `rgba(${rim},0.55)` }} />

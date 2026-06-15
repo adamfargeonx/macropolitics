@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { View } from './Chrome'
 import { sound } from '../sound'
+import { useFocusTrap } from './useFocusTrap'
 
 // The visual-language key. Opens on the ⓘ control (which dispatches 'mp-legend').
 // Self-contained: owns its open state, listens for the global event, closes on ESC / backdrop.
@@ -13,6 +14,7 @@ const VIEW_HINT: Record<View, string | null> = {
 
 export function Legend({ view }: { view: View }) {
   const [open, setOpen] = useState(false)
+  const dialogRef = useFocusTrap<HTMLElement>(open)
 
   useEffect(() => {
     const onToggle = () => { sound.play(open ? 'back' : 'open'); setOpen((v) => !v) }
@@ -33,7 +35,7 @@ export function Legend({ view }: { view: View }) {
 
   return (
     <div className="legend__scrim" onClick={close}>
-      <aside className="legend" dir="rtl" role="dialog" aria-label="מקרא" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="legend" dir="rtl" role="dialog" aria-modal="true" aria-label="מקרא" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="legend__head">
           <h2 className="legend__title">מקרא</h2>

@@ -14,20 +14,26 @@ export function Words({
   delay?: number
   step?: number
 }) {
-  const parts = useMemo(() => text.split(/(\s+)/), [text])
-  let wi = 0
+  // Precompute each part's word-index (whitespace parts get -1) so render stays pure —
+  // no counter mutated mid-map (which Strict Mode's double-render would corrupt).
+  const parts = useMemo(() => {
+    let wi = 0
+    return text.split(/(\s+)/).map((part) => {
+      const isSpace = /^\s+$/.test(part) || part === ''
+      return { part, wordIndex: isSpace ? -1 : wi++ }
+    })
+  }, [text])
   return (
     <span className={`words${className ? ` ${className}` : ''}`} aria-label={text}>
-      {parts.map((part, i) => {
-        if (/^\s+$/.test(part) || part === '') return <span key={i}> </span>
-        const d = delay + wi * step
-        wi += 1
-        return (
-          <span key={i} className="words__w" aria-hidden style={{ animationDelay: `${d}s` }}>
+      {parts.map(({ part, wordIndex }, i) =>
+        wordIndex < 0 ? (
+          <span key={i}> </span>
+        ) : (
+          <span key={i} className="words__w" aria-hidden style={{ animationDelay: `${delay + wordIndex * step}s` }}>
             {part}
           </span>
-        )
-      })}
+        ),
+      )}
     </span>
   )
 }

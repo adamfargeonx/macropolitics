@@ -59,8 +59,11 @@ const clamp01 = (t: number) => clamp(t, 0, 1)
 export class OrbitalField {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
+  private rect: DOMRect // cached container bounds — refreshed on resize, read by pointer handlers (no per-event reflow)
   private nodes: NodeState[]
   private labelOrder: NodeState[]
+  private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
+  private placedBuf: { x: number; y: number; w: number; h: number }[] = [] // reused scratch for label de-collision
   private world = new Map<string, { x: number; y: number }>()
   // camera — default zoomed-in; pan + wheel + buttons adjust the bigger/wider system
   zoom = 0.85
@@ -91,7 +94,10 @@ export class OrbitalField {
   constructor(canvas: HTMLCanvasElement, container: HTMLElement, opts: { noStarfield?: boolean } = {}) {
     this.canvas = canvas
     this.container = container
-    this.ctx = canvas.getContext('2d')!
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('OrbitalField: 2D canvas context unavailable')
+    this.ctx = ctx
+    this.rect = container.getBoundingClientRect()
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU }))
@@ -115,6 +121,7 @@ export class OrbitalField {
 
   resize = () => {
     const rect = this.container.getBoundingClientRect()
+    this.rect = rect
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
     this.w = rect.width; this.h = rect.height
     this.canvas.width = this.w * this.dpr; this.canvas.height = this.h * this.dpr
@@ -164,7 +171,7 @@ export class OrbitalField {
   }
 
   private onMove = (ev: PointerEvent) => {
-    const rect = this.container.getBoundingClientRect()
+    const rect = this.rect
     const mx = ev.clientX - rect.left, my = ev.clientY - rect.top
     if (this.down) {
       const dx = mx - this.mouse.x, dy = my - this.mouse.y
@@ -177,7 +184,7 @@ export class OrbitalField {
   }
   private onLeave = () => { this.mouse.x = -9999; this.mouse.y = -9999; this.setHovered(null) }
   private onDown = (ev: PointerEvent) => {
-    const rect = this.container.getBoundingClientRect()
+    const rect = this.rect
     this.down = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
     this.mouse.x = this.down.x; this.mouse.y = this.down.y; this.dragging = false
   }
@@ -198,7 +205,7 @@ export class OrbitalField {
   }
   private onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
-    const rect = this.container.getBoundingClientRect()
+    const rect = this.rect
     this.setZoom(this.zoom * (1 - ev.deltaY * 0.0014), ev.clientX - rect.left, ev.clientY - rect.top)
   }
 
@@ -221,7 +228,7 @@ export class OrbitalField {
     this.hovered = id; this.hoverSince = this.now
     this.refreshConnected()
     let screen: { x: number; y: number } | null = null
-    if (id) { const ns = this.nodes[idIndex.get(id)!]; screen = { x: ns.sx, y: ns.sy } }
+    if (id) { const idx = idIndex.get(id); if (idx != null) { const ns = this.nodes[idx]; screen = { x: ns.sx, y: ns.sy } } }
     this.onHover?.(id, screen)
   }
   private setSelected(id: string | null) {
@@ -279,7 +286,8 @@ export class OrbitalField {
     }
     const mx = this.mouse.x, my = this.mouse.y
     if (mx > -1000 && !this.dragging) {
-      const near = this.particles.filter((p) => Math.hypot(p.x - mx, p.y - my) < this.mouseR)
+      const near = this.nearBuf; near.length = 0 // reuse scratch — no per-frame array allocation
+      for (const p of this.particles) { if (Math.hypot(p.x - mx, p.y - my) < this.mouseR) near.push(p) }
       for (let i = 0; i < near.length; i++) {
         const a = near[i], dmc = Math.hypot(a.x - mx, a.y - my)
         ctx.strokeStyle = `rgba(${YELLOW},${(1 - dmc / this.mouseR) * 0.3 * intro})`; ctx.lineWidth = 1
@@ -391,7 +399,7 @@ export class OrbitalField {
   }
 
   private updateLabels() {
-    const placed: { x: number; y: number; w: number; h: number }[] = []
+    const placed = this.placedBuf; placed.length = 0 // reuse scratch — no per-frame array allocation
     const showMinor = !VISUALS.zoomGatedLabels || this.zoom >= VISUALS.labelGate
     for (const ns of this.labelOrder) {
       const el = this.labels.get(ns.e.id); if (!el) continue

@@ -1,11 +1,12 @@
 /* ── Relations view (triangle) ─────────────────────────────── */
 .rel-field {
-  position: absolute; top: 20px; bottom: 64px; left: 0; right: 380px; z-index: 2;
+  position: absolute; top: 20px; bottom: 64px; left: 0; right: var(--rail-w); z-index: 2;
   transform-origin: center; animation: relZoomOut 1.3s var(--ease-out-expo) both;
 }
 /* the relations lens enters by zooming OUT — pulling back to reveal all states at once */
 @keyframes relZoomOut { from { transform: scale(1.55); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .rel-field { animation: none; } }
+@media (max-width: 768px) { .rel-field { right: 0; bottom: calc(50vh + 64px); } }
 .rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
@@ -26,7 +27,7 @@
   margin-top: 12px; padding: 10px 12px;
   font-family: var(--body); font-size: 13.5px; line-height: 1.45; letter-spacing: 0.05em;
   color: var(--light); opacity: 0.92;
-  background: rgba(251, 255, 0, 0.05); border-right: 2px solid rgba(251, 255, 0, 0.5);
+  background: rgba(251, 255, 0, 0.05); border-inline-start: 2px solid rgba(251, 255, 0, 0.5);
   animation: textRise 0.6s 0.06s var(--ease-out-expo) both;
 }
 /* set-as-reference action */
@@ -313,7 +314,6 @@
 @media (prefers-reduced-motion: reduce) {
   .cursor { transition: none; }
   .lbl { transition: none; }
-  .home__eyebrow, .home__title, .home__intro, .home__lens,
   .stage, .fnode, .rnode, .fbar__fill, .rel-tri polygon, .labels { animation: none; }
   .rnode { transition: none; }
 }

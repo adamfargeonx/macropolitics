@@ -87,7 +87,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="panel__row">
       <span className="panel__row-k">{label}</span>
-      <span className="panel__row-v">{value}</span>
+      <span className="panel__row-v"><bdi>{value}</bdi></span>
     </div>
   )
 }
@@ -281,6 +281,7 @@ export function TabBar({ view, onView }: { view: View; onView: (v: View) => void
         <button
           key={t.he}
           className={`tab${view === t.view ? ' tab--active' : ''}${t.ready === false ? ' tab--soon' : ''}`}
+          aria-current={view === t.view ? 'page' : undefined}
           onClick={() => t.ready !== false && onView(t.view)}
         >
           {t.he}

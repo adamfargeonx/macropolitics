@@ -4,6 +4,7 @@ import { NODES } from '../data/entities'
 import { computeGravities } from '../model/gravity'
 import { useWeights } from '../model/weights-store'
 import { useYear } from '../model/year-store'
+import { useFocusTrap } from './useFocusTrap'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -56,6 +57,7 @@ export function EvidenceOverlay() {
   const weights = useWeights() // live (possibly scenario) weights → the calculation stays consistent
   const year = useYear()
   const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
+  const dialogRef = useFocusTrap<HTMLElement>(!!id)
 
   useEffect(() => {
     const onOpen = (e: Event) => { sound.play('open'); setId((e as CustomEvent).detail?.id ?? null) }
@@ -81,11 +83,11 @@ export function EvidenceOverlay() {
 
   return (
     <div className="legend__scrim" onClick={close}>
-      <aside className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>
-          <span className="evid__score">כוח משיכה {g.gravity.toFixed(1)} / 10 · {g.power}/100{year !== 2025 ? ` · ${year}` : ''}</span>
+          <span className="evid__score">כוח משיכה <bdi>{g.gravity.toFixed(1)} / 10</bdi> · <bdi>{g.power}/100</bdi>{year !== 2025 ? ` · ${year}` : ''}</span>
         </header>
 
         {/* ── THE CALCULATION (drill-down for the curious) ── */}
@@ -131,13 +133,13 @@ export function EvidenceOverlay() {
                   <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
                 </div>
                 <p className="evid__figure">{p.figure}</p>
-                <a className="evid__link" href={p.url} target="_blank" rel="noreferrer">{p.source} · {p.year} ↗</a>
+                <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
                 {p.note && <p className="evid__note">{p.note}</p>}
                 {axis === 'mil' && d.milBreakdown && (() => {
                   const bk = d.milBreakdown!
                   return (
                     <div className="evid__mil">
-                      <span className="evid__mil-lbl">מדד מורכב · 4 פרמטרים ממקור (SIPRI · IISS · FAS · NCPI)</span>
+                      <span className="evid__mil-lbl">מדד מורכב · 4 פרמטרים ממקור <bdi>(SIPRI · IISS · FAS · NCPI)</bdi></span>
                       <div className="evid__mil-grid">
                         {MIL_ROWS.map(({ k, he }) => {
                           const v = bk.sub[k as keyof typeof bk.sub]
@@ -164,7 +166,7 @@ export function EvidenceOverlay() {
                   const bk = d.ecoBreakdown!
                   return (
                     <div className="evid__eco">
-                      <span className="evid__eco-lbl">מדד מורכב · 7 פרמטרים ממקור (IMF · בנק עולמי · S&amp;P)</span>
+                      <span className="evid__eco-lbl">מדד מורכב · 7 פרמטרים ממקור <bdi>(IMF · בנק עולמי · S&amp;P)</bdi></span>
                       <div className="evid__eco-grid">
                         {ECO_ROWS.map(({ k, he }) => {
                           const v = bk.sub[k as keyof typeof bk.sub]
@@ -188,7 +190,7 @@ export function EvidenceOverlay() {
                   const bk = d.geoBreakdown!
                   return (
                     <div className="evid__geo">
-                      <span className="evid__geo-lbl">מדד מורכב · 4 פרמטרים ממקור (CIA · OPEC · BP · EIA)</span>
+                      <span className="evid__geo-lbl">מדד מורכב · 4 פרמטרים ממקור <bdi>(CIA · OPEC · BP · EIA)</bdi></span>
                       <div className="evid__geo-grid">
                         {GEO_ROWS.map(({ k, he }) => {
                           const v = bk.sub[k as keyof typeof bk.sub]

@@ -14,8 +14,8 @@ export function useGravityField(
 ) {
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return
-    const ctx = cv.getContext('2d')!
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    const ctx = cv.getContext('2d')
+    if (!ctx) return
     let raf = 0, w = 0, h = 0, cx = 0, cy = 0
     type P = { x: number; y: number; px: number; py: number; vx: number; vy: number; b: number }
     let ps: P[] = []
@@ -32,12 +32,16 @@ export function useGravityField(
       return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, b: 0.5 + Math.random() * 0.5 }
     }
     const resize = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1) // re-read: handles a move to a different-DPI monitor
       w = window.innerWidth; h = window.innerHeight; cx = w * 0.5; cy = h * 0.5
       cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ps = Array.from({ length: Math.min(440, Math.round((w * h) / 3000)) }, spawn)
     }
-    resize(); window.addEventListener('resize', resize)
+    // debounce: re-seeding 440 particles on every continuous resize event is wasteful
+    let resizeT = 0
+    const onResize = () => { clearTimeout(resizeT); resizeT = window.setTimeout(resize, 120) }
+    resize(); window.addEventListener('resize', onResize)
 
     // self-listen for clicks anywhere → scatter + ripple
     const onDown = (e: PointerEvent) => {
@@ -88,6 +92,6 @@ export function useGravityField(
       raf = requestAnimationFrame(loop)
     }
     loop()
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); window.removeEventListener('pointerdown', onDown) }
+    return () => { cancelAnimationFrame(raf); clearTimeout(resizeT); window.removeEventListener('resize', onResize); window.removeEventListener('pointerdown', onDown) }
   }, [canvasRef, impulseRef])
 }

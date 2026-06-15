@@ -33,7 +33,26 @@ they never hardcode raw values.**
 | `--surface-1` | `rgba(255,255,255,.03)` | faint chip / cell |
 | `--surface-2` | `rgba(10,6,22,.96)` | panel / overlay |
 | `--line`, `--line-2` | white @ .08 / .06 | hairline dividers |
-| `--line-yellow`, `--yellow-12`, `--yellow-30` | yellow @ .16 / .12 / .3 | accent lines & fills |
+| `--line-yellow`, `--yellow-06`, `--yellow-08`, `--yellow-12`, `--yellow-30` | yellow @ .16 / .06 / .08 / .12 / .3 | accent lines & fills |
+
+**Panel surfaces:** `--panel-surface` = `linear-gradient(180deg, rgba(14,9,28,.97), rgba(8,4,18,.97))`.
+Used by every overlay and toast; replace the gradient inline whenever adding a new panel.
+
+**Rail:** `--rail-w: 380px` — the right-edge field offset for the forces/relations fields.
+Set to `0px` at `max-width: 768px` via media query override.
+
+**Data-status colors** (deliberate palette exception — data-quality semantics only; NOT chromatic accents):
+
+| Token | Value | Use |
+|---|---|---|
+| `--ok` | `#8fe388` | sourced / verified badge |
+| `--warn` | `#ff9d6e` | no-data, flagged, estimated |
+| `--ok-border` | `rgba(143,227,136,.4)` | badge border |
+| `--warn-border` | `rgba(255,157,110,.5)` | badge border / flag stripe |
+| `--warn-bg` | `rgba(255,157,110,.06)` | flag block background |
+
+These exist because data-quality states cannot be communicated with yellow alone. They are
+confined to evidence overlays and flag callouts — never used for decorative UI chrome.
 
 **Allegiance rims** (bloc temperature, used as `rgb()` triplets):
 `--rim-west` 132,160,196 · `--rim-east` 198,134,98 · `--rim-neutral` 150,150,160 ·
@@ -53,7 +72,8 @@ Two families, a clear display/body split:
 The hero wordmark is **Light**; data labels are Bold/Black.
 
 **Scale:** `--text-xs 11` · `--text-sm 12` · `--text-base 13` · `--text-md 14` ·
-`--text-lg 15` · `--text-xl 17` · `--text-2xl 20` · `--text-3xl 30` · `--display-hero clamp(46px,7.4vw,112px)`.
+`--text-lg 15` · `--text-xl 17` · `--text-2xl 20` · `--text-3xl 30` · `--text-4xl 32` · `--display-md 46px`.
+Note: `--display-hero` (the old clamp token) was removed — it was never consumed by any component.
 
 **Tracking:** `--tracking-tight -.01em` · `--tracking-wide .08em` · `--tracking-wider .18em`.
 
@@ -113,7 +133,20 @@ The hero wordmark is **Light**; data labels are Bold/Black.
 
 ---
 
-## 9. Extending
+## 9. Responsive
+
+| Breakpoint | Behaviour |
+|---|---|
+| ≥1281px | Desktop default. Side dock at `right: 0`, field `right: --rail-w (380px)`. |
+| 768–1280px | Intermediate. Scrim hidden (via existing `@media max-width:900px`). |
+| ≤768px | Mobile. `--rail-w` overridden to `0px` (field full-width). Side dock becomes a bottom sheet (max-height 50vh, position bottom). Handle moves to the top edge of the sheet. Scrim removed. |
+
+**REVIEW NOTE (FIX 7):** the bottom-sheet panel layout at ≤768px should be verified visually.
+The handle tab positioning and 50vh max-height may need tuning for specific device sizes.
+
+---
+
+## 10. Extending
 
 Add a token before adding a value. If a new color/size/timing is needed more than once, it
 belongs in `:root`. Keep the accent budget tiny — when in doubt, reach for ink, not yellow.

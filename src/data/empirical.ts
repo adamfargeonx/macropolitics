@@ -49,14 +49,30 @@ export interface BodyData {
 const SIPRI = 'https://www.sipri.org/databases/milex'
 const IMF = 'https://www.imf.org/external/datamapper/PPPGDP@WEO/OEMDC'
 const EIA = 'https://www.eia.gov/international/analysis/special-topics/world_oil_transit_Chokepoints'
+const CIA = 'https://www.cia.gov/the-world-factbook/'
 
 // provenance constructors (DRY) ──────────────────────────────────────────────
 const eco = (figure: string, status: SourceStatus = 'sourced', note?: string): AxisProvenance =>
   ({ figure, source: 'IMF WEO 2026', year: 2026, url: IMF, status, note })
+// mil: a SIPRI 2025 label only sits on a genuinely SIPRI-sourced figure. Where the figure is an
+// 'estimate' (no clean SIPRI line — e.g. Egypt, UAE, Qatar) or 'no-data' (SIPRI explicitly excludes
+// — e.g. Syria, UAE), the source is the real origin, so the label never overstates the provenance.
 const mil = (figure: string, status: SourceStatus = 'sourced', note?: string): AxisProvenance =>
-  ({ figure, source: 'SIPRI 2025', year: 2025, url: SIPRI, status, note })
-const geo = (figure: string, note?: string): AxisProvenance =>
-  ({ figure, source: 'גאוגרפיה · EIA', year: 2025, url: EIA, status: 'judgment', note })
+  ({
+    figure,
+    source: status === 'sourced' ? 'SIPRI 2025' : 'IISS / אומדן ממקורות פתוחים',
+    year: 2025,
+    url: SIPRI,
+    status,
+    note,
+  })
+// geo derives from CIA World Factbook (area) · OPEC ASB + BP (oil/gas) · EIA (chokepoints only).
+// EIA is cited ONLY for bodies adjacent to a transit chokepoint; for the rest the primary
+// source is CIA Factbook + OPEC/BP, so no EIA label sits on a non-chokepoint geo score.
+const geo = (figure: string, note?: string, hasChoke = false): AxisProvenance =>
+  hasChoke
+    ? { figure, source: 'גאוגרפיה · CIA Factbook · OPEC/BP · EIA (מצרי שיט)', year: 2025, url: EIA, status: 'judgment', note }
+    : { figure, source: 'גאוגרפיה · CIA Factbook · OPEC/BP', year: 2025, url: CIA, status: 'judgment', note }
 
 // ── The data. eco is now a SOURCED 7-criterion composite (see ECO_CRITERIA below + economic.ts);
 //    the hand value here is a fallback for bodies without sourced inputs (non-state actors, Europe).
@@ -65,7 +81,7 @@ const RAW_DATA: Record<string, BodyData> = {
   usa: {
     axes: { eco: 10, mil: 10, geo: 10 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $32.4 טריליון · הכלכלה המתוחכמת בעולם'),
+      eco: eco('תמ״ג PPP $30.8 טריליון · הכלכלה המתוחכמת בעולם'),
       mil: mil('הוצאה צבאית $954 מיליארד (33% עולמי) + טריאדה גרעינית'),
       geo: geo('טווח גלובלי, צי חמישי במפרץ, מעגן את הסדר האזורי'),
     },
@@ -73,7 +89,7 @@ const RAW_DATA: Record<string, BodyData> = {
   china: {
     axes: { eco: 10, mil: 8, geo: 9 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $44.3 טריליון · הגדולה בעולם'),
+      eco: eco('תמ״ג PPP $41.2 טריליון · הגדולה בעולם'),
       mil: mil('הוצאה צבאית $336 מיליארד (אומדן) · מתחדשת בכל הזירות'),
       geo: geo('"החגורה והדרך", צי גדל, תיווך אזורי בלי התחייבות'),
     },
@@ -81,7 +97,7 @@ const RAW_DATA: Record<string, BodyData> = {
   russia: {
     axes: { eco: 6, mil: 9, geo: 8 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $7.5 טריליון · כלכלת אנרגיה תחת סנקציות'),
+      eco: eco('תמ״ג PPP $7.2 טריליון · כלכלת אנרגיה תחת סנקציות'),
       mil: mil('הוצאה צבאית $190 מיליארד (אומדן, 7.5% תמ״ג) + הארסנל הגרעיני הגדול בעולם'),
       geo: geo('בסיסים בסוריה (טרטוס/חמיימים) אבדו עם נפילת אסד (דצמ׳ 2024); דריסת רגל ים-תיכונית נחלשה; עוצמה מוקרנת נשארת דרך ים שחור וארסנל גרעיני'),
     },
@@ -101,7 +117,7 @@ const RAW_DATA: Record<string, BodyData> = {
   india: {
     axes: { eco: 7, mil: 6, geo: 5 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $18.9 טריליון (3 בעולם) — אך תוצר לנפש נמוך', 'sourced', 'מסה גדולה ממותנת בתחכום/לנפש'),
+      eco: eco('תמ״ג PPP $17.3 טריליון (3 בעולם) — אך תוצר לנפש נמוך', 'sourced', 'מסה גדולה ממותנת בתחכום/לנפש'),
       mil: mil('הוצאה צבאית $92 מיליארד + גרעין; פערי מוכנות'),
       geo: geo('כוח ימי באוקיינוס ההודי; שחקן היקפי במזה״ת'),
     },
@@ -109,19 +125,20 @@ const RAW_DATA: Record<string, BodyData> = {
   iran: {
     axes: { eco: 4, mil: 6, geo: 5.5 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $1.78 טריליון · מבודדת תחת סנקציות'),
+      eco: eco('תמ״ג PPP $1.85 טריליון · מבודדת תחת סנקציות'),
       mil: mil('תקציב רשמי $7.4 מיליארד — הטילים/כטב״מ והשלוחים ממומנים מחוץ לתקציב; תשתיות גרעין וטילים נפגעו בתקיפות ישראל 2025 ובמכה השנייה (פבר׳ 2026)', 'sourced', 'הציון משקף עוצמה אפקטיבית — מופחתת אחרי 2025–2026 — לא את התקציב הרשמי'),
-      geo: geo('הגדה הצפונית של הורמוז (~20% מנפט העולם) נותרת בשליטת איראן; אך המיצוב הגיאו-אסטרטגי נחתך: "ציר ההתנגדות" התפורר (נפילת אסד, חיזבאללה וחמאס מוכים), תשתיות גרעין/טילים נפגעו', 'ציון ירד 7→5.5; גאוגרפיה פיזית (הורמוז, שטח, עתודות) שמורה — הירידה משקפת שחיקת המינוף האסטרטגי'),
+      geo: geo('הגדה הצפונית של הורמוז (~20% מנפט העולם) נותרת בשליטת איראן; אך המיצוב הגיאו-אסטרטגי נחתך: "ציר ההתנגדות" התפורר (נפילת אסד, חיזבאללה וחמאס מוכים), תשתיות גרעין/טילים נפגעו', 'ציון ירד 7→5.5; גאוגרפיה פיזית (הורמוז, שטח, עתודות) שמורה — הירידה משקפת שחיקת המינוף האסטרטגי', true),
     },
     flags: [
       'התקציב הצבאי הרשמי ($7.4 מיליארד, SIPRI) מצוין כחסר — מימון חוץ-תקציבי דרך נפט',
+      'נתון כוח-האדם (~610 אלף) הוא בנייה מנומקת, לא שורה בודדת ב-IISS: צבא סדיר (IISS Military Balance) + אומדן משמרות המהפכה (IRGC ~190 אלף) — מסומן כמו ההוצאה החוץ-תקציבית',
       'מנוף גיאו-אסטרטגי ירד (7→5.5): ציר ההתנגדות התפורר 2024–2025 — הורמוז נותר, אך שלוחות (חיזבאללה, חמאס) נחלשו קשות, בסיסי גרעין/טילים נפגעו בתקיפות 2025–2026',
     ],
   },
   saudi: {
     axes: { eco: 7, mil: 5, geo: 7 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $2.9 טריליון · נפט + קרן ריבונית, תוצר לנפש גבוה'),
+      eco: eco('תמ״ג PPP $2.7 טריליון · נפט + קרן ריבונית, תוצר לנפש גבוה'),
       mil: mil('הוצאה צבאית $83.2 מיליארד (המובילה במזה״ת) — אך תלוית נשק מערבי'),
       geo: geo('עתודות הנפט, מקומות הקודש, חופי הים האדום והמפרץ'),
     },
@@ -129,7 +146,7 @@ const RAW_DATA: Record<string, BodyData> = {
   israel: {
     axes: { eco: 6, mil: 8, geo: 6.8 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $0.61 טריליון — קטן אך תוצר לנפש והיי-טק גבוהים', 'sourced', 'מסה קטנה מתוגברת בתחכום/לנפש'),
+      eco: eco('תמ״ג PPP $0.57 טריליון — קטן אך תוצר לנפש והיי-טק גבוהים', 'sourced', 'מסה קטנה מתוגברת בתחכום/לנפש; דירוג S&P נותר A אך עבר מסלול הורדה במלחמת 2023–2025 (תחזית שלילית, חזרה ל"יציב" נוב׳ 2025) — רכיב הדירוג עשוי לפגר אחר סיכון בזמן אמת'),
       mil: mil('הוצאה צבאית $48.3 מיליארד (7.8% תמ״ג) + ניסיון קרב רב-חזיתי מוכח (עזה, לבנון, מרחב איראני, תימן)', 'sourced', 'מדד המרכיב (6.3) אינו לוכד: Iron Beam שפועל, שיתוף מודיעיני מורחב, נורמליזציה ביטחונית עם מדינות אברהם — יכולות אפקטיביות גבוהות מהציון המחושב'),
       geo: geo('צומת אזורי מרכזי; נורמליזציה גוברת עם מדינות המפרץ (הסכמי אברהם); ניסיון מבצעי רב-חזיתי מוכח 2024–2026; שטח קטן אך מיקום מוקדי'),
     },
@@ -137,24 +154,24 @@ const RAW_DATA: Record<string, BodyData> = {
   turkey: {
     axes: { eco: 6, mil: 6, geo: 6 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $4.0 טריליון · תעשייתי אך תנודתי (אינפלציה)'),
+      eco: eco('תמ״ג PPP $3.8 טריליון · תעשייתי אך תנודתי (אינפלציה)'),
       mil: mil('הוצאה צבאית $30 מיליארד + הצבא השני בנאט״ו, תעשיית כטב״מ'),
-      geo: geo('שליטה במצרי הבוספורוס (אמנת מונטרה); השפעה גוברת בסוריה שלאחר אסד (דצמ׳ 2024); גשר אסיה-אירופה-ים-תיכון-ים שחור — מדד מרכיב: ~7.5'),
+      geo: geo('שליטה במצרי הבוספורוס (אמנת מונטרה); השפעה גוברת בסוריה שלאחר אסד (דצמ׳ 2024); גשר אסיה-אירופה-ים-תיכון-ים שחור — מדד מרכיב: ~7.5', undefined, true),
     },
   },
   egypt: {
     axes: { eco: 4, mil: 5, geo: 6 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $2.57 טריליון — מסה גדולה אך תוצר לנפש נמוך, חוב כבד', 'sourced', 'כושלת כלכלית: מסה ללא לנפש'),
+      eco: eco('תמ״ג PPP $2.4 טריליון — מסה גדולה אך תוצר לנפש נמוך, חוב כבד', 'sourced', 'כושלת כלכלית: מסה ללא לנפש'),
       mil: mil('תקציב רשמי נמוך ולא שקוף (~$3–5 מיליארד) לצד צבא ענק ממומן אמריקנית', 'estimate', 'מצרים מדווחת חלקית ל-SIPRI; כלכלה צבאית נרחבת מחוץ לתקציב'),
-      geo: geo('שליטה בתעלת סואץ (~12% מהסחר העולמי, EIA)'),
+      geo: geo('שליטה בתעלת סואץ (~12% מהסחר העולמי, EIA)', undefined, true),
     },
     flags: ['ההוצאה הצבאית הרשמית של מצרים נמוכה ולא שקופה; הציון אומדן של עוצמה אפקטיבית'],
   },
   pakistan: {
     axes: { eco: 3, mil: 6, geo: 6 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $2.17 טריליון — מסה גדולה, תוצר לנפש נמוך, תלוי הלוואות', 'sourced'),
+      eco: eco('תמ״ג PPP $1.69 טריליון — מסה גדולה, תוצר לנפש נמוך, תלוי הלוואות', 'sourced'),
       mil: mil('הוצאה צבאית $11.9 מיליארד + כוח גרעיני וצבא גדול'),
       geo: geo('עומק אסטרטגי וגבולות עם הודו, איראן, אפגניסטן וסין; נמל גוואדר (חגורה-ודרך) וחוף הים הערבי; מעצמה גרעינית'),
     },
@@ -162,16 +179,16 @@ const RAW_DATA: Record<string, BodyData> = {
   uae: {
     axes: { eco: 6, mil: 4, geo: 5.5 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $1.0 טריליון · מרכז פיננסי, תוצר לנפש גבוה מאוד'),
+      eco: eco('תמ״ג PPP $0.95 טריליון · מרכז פיננסי, תוצר לנפש גבוה מאוד'),
       mil: mil('SIPRI אינו מדווח על איחוד האמירויות; אומדן ~$20 מיליארד · "ספרטה הקטנה"', 'no-data', 'SIPRI מחריג במפורש את איחוד האמירויות מנתוני 2025'),
-      geo: geo('נמל ג׳בל עלי (הגדול בין אמירות ודובאי), נמל פוג׳יירה (עוקף הורמוז), DP World גלובלי; ציר ביטחוני-כלכלי ישראל-מפרץ (הסכמי אברהם); עתודות נפט/גז גבוהות'),
+      geo: geo('נמל ג׳בל עלי (הגדול בין אמירות ודובאי), נמל פוג׳יירה (עוקף הורמוז), DP World גלובלי; ציר ביטחוני-כלכלי ישראל-מפרץ (הסכמי אברהם); עתודות נפט/גז גבוהות', undefined, true),
     },
     flags: ['SIPRI אינו מפרסם נתוני הוצאה צבאית לאיחוד האמירויות — ציון הצבא אומדן'],
   },
   qatar: {
     axes: { eco: 6, mil: 2, geo: 4 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $0.36 טריליון · התוצר לנפש מהגבוהים בעולם (גז נוזלי)'),
+      eco: eco('תמ״ג PPP $0.38 טריליון · התוצר לנפש מהגבוהים בעולם (גז נוזלי)'),
       mil: mil('צבא זעיר (~$4–6 מיליארד) — אך מארח את בסיס אל-עודייד האמריקני', 'estimate'),
       geo: geo('יצוא גז מוביל, דיפלומטיית תיווך, אל-ג׳זירה'),
     },
@@ -180,7 +197,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 4, mil: 3, geo: 5 }, stability: 0.75,
     patron: 'iran', alpha: 0.15,
     prov: {
-      eco: eco('תמ״ג PPP $0.67 טריליון · כלכלת נפט כמעט בלעדית'),
+      eco: eco('תמ״ג PPP $0.70 טריליון · כלכלת נפט כמעט בלעדית'),
       mil: mil('הוצאה צבאית ~$6 מיליארד · צבא משוקם לצד מיליציות', 'estimate'),
       geo: geo('גשר יבשתי בין איראן לסוריה/לבנון — חוליה ב"ציר"'),
     },
@@ -197,9 +214,9 @@ const RAW_DATA: Record<string, BodyData> = {
   oman: {
     axes: { eco: 3, mil: 2, geo: 3 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $0.25 טריליון · נפט/גז בינוני'),
+      eco: eco('תמ״ג PPP $0.23 טריליון · נפט/גז בינוני'),
       mil: mil('צבא צנוע (~$6 מיליארד, נטל גבוה) · אי-הזדהות', 'estimate'),
-      geo: geo('שולטת בצד הדרומי של מצרי הורמוז'),
+      geo: geo('שולטת בצד הדרומי של מצרי הורמוז', undefined, true),
     },
   },
   jordan: {
@@ -213,7 +230,7 @@ const RAW_DATA: Record<string, BodyData> = {
   bahrain: {
     axes: { eco: 3, mil: 1, geo: 3 }, stability: 1,
     prov: {
-      eco: eco('תמ״ג PPP $0.12 טריליון · מרכז פיננסי קטן, תלוי סעודיה'),
+      eco: eco('תמ״ג PPP $0.11 טריליון · מרכז פיננסי קטן, תלוי סעודיה'),
       mil: mil('צבא זעיר (~$1.5 מיליארד) · מארח את הצי החמישי האמריקני', 'estimate'),
       geo: geo('קו חזית סוני מול השפעה איראנית; בסיס הצי החמישי'),
     },
@@ -254,7 +271,7 @@ const RAW_DATA: Record<string, BodyData> = {
     prov: {
       eco: eco('המדינה הענייה באזור; משבר הומניטרי', 'no-data', 'SIPRI מחריג את תימן; מדינה קרועת מלחמה'),
       mil: mil('החות׳ים: טילים וכטב״מ (חלקם איראניים) — נתוני מדינה אין', 'estimate'),
-      geo: geo('שליטה בפועל במצרי באב אל-מנדב: שיבוש מוכח 2023–2025 — מאות ספינות הוסטו, עלויות ביטוח ועיכובים גלובליים; מינוף קיים גם תחת לחץ צבאי', 'ציון עלה 3→4.5; alpha הופחת 0.12→0.08 — פטרון (איראן) נחלש, חות׳ים מפעילים מינוף גיאו-אסטרטגי עצמאי'),
+      geo: geo('שליטה בפועל במצרי באב אל-מנדב: שיבוש מוכח 2023–2025 — מאות ספינות הוסטו, עלויות ביטוח ועיכובים גלובליים; מינוף קיים גם תחת לחץ צבאי', 'ציון עלה 3→4.5; alpha הופחת 0.12→0.08 — פטרון (איראן) נחלש, חות׳ים מפעילים מינוף גיאו-אסטרטגי עצמאי', true),
     },
     flags: ['אין נתוני SIPRI לתימן; הציונים מתייחסים לחות׳ים כשחקן, באומדן'],
   },
@@ -344,16 +361,17 @@ export const ECO_CRITERIA: Record<string, EcoCriteria> = {
 
 // ── Military composite inputs (SOURCED, 2025) — feed src/model/military.ts ──────────────────
 // Spend: SIPRI 2025 · Manpower: IISS Military Balance 2024 (thousands active) ·
-// Nuclear warheads: FAS 2025 (total stockpile, all delivery systems) ·
+// Nuclear warheads: FAS 2025 (military stockpile — active + inactive in military custody,
+//   earmarked for delivery; EXCLUDES retired warheads awaiting dismantlement) ·
 // Cyber: Belfer Center National Cyber Power Index 2022 (0–100, major powers only).
 // Non-state actors, Europe (aggregate), UAE (no SIPRI), Syria, Lebanon, Yemen (no clean
 // SIPRI or IISS figures) are excluded — they keep their hand mil scores.
 // warheads: 0 = known non-nuclear; omit = not in index or unknown.
 export const MIL_CRITERIA: Record<string, MilCriteria> = {
-  usa:     { spend: 954,  manpower: 1328, warheads: 5500, cyber: 100 },
-  china:   { spend: 336,  manpower: 2035, warheads: 500,  cyber: 91  },
-  russia:  { spend: 190,  manpower: 1150, warheads: 6200, cyber: 74  },
-  india:   { spend: 92.1, manpower: 1455, warheads: 180,  cyber: 44  },
+  usa:     { spend: 954,  manpower: 1328, warheads: 3700, cyber: 100 },
+  china:   { spend: 336,  manpower: 2035, warheads: 620,  cyber: 91  },
+  russia:  { spend: 190,  manpower: 1150, warheads: 4400, cyber: 74  },
+  india:   { spend: 92.1, manpower: 1455, warheads: 190,  cyber: 44  },
   saudi:   { spend: 83.2, manpower: 257,  warheads: 0                },
   israel:  { spend: 48.3, manpower: 169,  warheads: 90,   cyber: 59  },
   turkey:  { spend: 30.0, manpower: 355,  warheads: 0,    cyber: 34  },

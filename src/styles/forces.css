@@ -25,6 +25,35 @@
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
 .pdock__handle-lbl { writing-mode: vertical-rl; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; opacity: 0.78; }
 @media (max-width: 900px) { .pdock__panel { width: 340px; } }
+/* ── 768px: side dock becomes a bottom sheet ──────────────────── */
+/* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
+@media (max-width: 768px) {
+  .pdock__panel {
+    /* override: pin to bottom, full-width, constrained height */
+    top: auto; right: 0; bottom: 0; left: 0; width: 100%;
+    max-height: 50vh; overflow-y: auto;
+    transform: translateY(0);
+  }
+  .pdock--closed .pdock__panel { transform: translateY(100%); }
+  /* peek on handle hover */
+  .pdock--closed:has(.pdock__handle:hover) .pdock__panel,
+  .pdock--closed:has(.pdock__handle:focus-visible) .pdock__panel {
+    transform: translateY(calc(100% - 54px));
+  }
+  /* handle rotates to sit at the top edge of the bottom sheet */
+  .pdock__handle {
+    position: absolute; top: -34px; right: 50%; left: auto;
+    transform: translateX(50%);
+    width: 54px; height: 34px; padding: 0;
+    flex-direction: row;
+    border-radius: 9px 9px 0 0;
+    border-right: 1px solid var(--line-yellow); border-bottom: none;
+  }
+  .pdock__handle:active { transform: translateX(50%) scale(0.96); }
+  .pdock__handle-lbl { writing-mode: horizontal-tb; }
+  /* fields: full-width (--rail-w is already 0 from :root override) */
+  .forces-field { right: 0; bottom: calc(50vh + 70px); }
+}
 @media (prefers-reduced-motion: reduce) { .pdock__panel { transition: none; } .pdock__chev { transition: none; } }
 
 
@@ -43,7 +72,7 @@
   background: var(--yellow); transform: translateX(-50%);
   transition: width 0.25s var(--ease-out-expo);
 }
-.tab:hover { background: rgba(251, 255, 0, 0.08); }
+.tab:hover { background: var(--yellow-08); }
 .tab:hover::after { width: calc(100% - 30px); }
 .tab--active::after { width: 0 !important; }
 .tab--active { background: var(--yellow); color: var(--bg); }
@@ -51,7 +80,7 @@
 .tab--soon:hover { background: none; }
 
 /* ── Forces view ───────────────────────────────────────────── */
-.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: 380px; z-index: 2; }
+.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
 .forces-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
 .forces-ring {
   position: absolute; transform: translate(-50%, -50%);
@@ -100,7 +129,7 @@
   cursor: none; text-align: right; animation: textRise 0.5s var(--ease-out-expo) both;
   transition: background var(--dur-fast) ease;
 }
-.gindex__row:hover, .gindex__row--lit { background: rgba(251, 255, 0, 0.06); }
+.gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); }
 .gindex__rank { font-family: var(--display); font-weight: 700; font-size: 11px; color: var(--yellow); opacity: 0.3; }
 .gindex__name { font-size: 12.5px; font-weight: 700; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gindex__row--ns .gindex__name { font-weight: 400; opacity: 0.72; }

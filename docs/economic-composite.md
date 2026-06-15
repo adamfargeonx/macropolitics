@@ -94,7 +94,7 @@ get a lift; elite small forces like Israel are not penalised twice).
 |---|---|---|---|
 | Military expenditure | SIPRI 2025 (updated Apr 2026) | logNorm $1B–$1T | ✓ sourced |
 | Active personnel | IISS Military Balance 2024 (thousands) | logNorm 10k–2.5M | ✓ sourced |
-| Nuclear stockpile | FAS 2025 (total warheads, all systems) | logNorm 10–7,000 | ✓ sourced |
+| Nuclear stockpile | FAS 2025 (military stockpile — excl. retired awaiting dismantlement) | logNorm 10–7,000 | ✓ sourced |
 | Cyber power | Belfer NCPI 2022 (0–100, major powers) | fraction of max +0.5 | ◐ proxy |
 | Equipment/tech · logistics · combat experience · defense industry · alliances · intel · training | — | not modelled | ✗ judgment (flagged) |
 
@@ -112,7 +112,7 @@ SIPRI/IISS figures) and retain hand mil scores.
   operational record suggests effective capability above the sourced composite score.
 - **Pakistan mil 4.9** — nuclear uplift ($11.9B spend alone would score ~4.5; 170 warheads add
   +0.4). Correctly above Egypt (3.0) which lacks nuclear capability.
-- **Russia mil 9.3** — $190B spend + 6,200 warheads + Belfer cyber 74. Reflects sourced inputs;
+- **Russia mil 9.3** — $190B spend + 4,400 warheads (FAS military stockpile) + Belfer cyber 74. Reflects sourced inputs;
   Ukraine attrition losses (equipment, trained personnel) are a judgment-layer concern flagged in
   provenance but not captured by the spend figure.
 - **Egypt mil 3.0** — SIPRI does not publish Egypt data; $4.0B is an IISS estimate. US-funded

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import LoaderView from './dynamics/LoaderView'
 import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
@@ -33,6 +33,7 @@ function SoundToggle() {
     <button
       className="soundtoggle"
       aria-label={muted ? 'הפעלת קול' : 'השתקה'}
+      aria-pressed={muted}
       onClick={() => { sound.start(); setMuted(sound.toggle()) }}
     >
       <span className={`soundtoggle__bars${muted ? ' soundtoggle__bars--off' : ''}`}>
@@ -55,11 +56,17 @@ export default function App() {
   const [view, setView] = useState<View>(initial)
   const prev = useRef<View>(view)
 
+  // Single navigation entry point — keeps homeOpen staged here (in an event path) instead of
+  // syncing it inside an effect, which React 19 flags (set-state-in-effect → extra render pass).
+  const go = useCallback((v: View) => {
+    setView(v)
+    if (v !== 'home') setHomeOpen(true) // so returning home lands on the open circle
+  }, [])
+
   useEffect(() => {
     if (prev.current !== view) {
       sound.play(view === 'home' ? 'back' : 'transition')
       prev.current = view
-      if (view !== 'home') setHomeOpen(true) // returning home lands on the open circle
     }
     // URL ↔ view (replaceState: no history spam while exploring)
     const want = VIEW_HASH[view]
@@ -68,34 +75,34 @@ export default function App() {
 
   // back/forward + hand-edited hashes
   useEffect(() => {
-    const onHash = () => { const v = hashToView(window.location.hash); if (v) setView(v) }
+    const onHash = () => { const v = hashToView(window.location.hash); if (v) go(v) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  }, [go])
 
   // keyboard: 1/2/3 → lenses, Escape → home (overlays consume their own Escape first)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      const overlayOpen = !!document.querySelector('.legend, .about')
-      if (e.key === '1') setView('forces')
-      else if (e.key === '2') setView('relations')
-      else if (e.key === '3') setView('dynamics')
-      else if (e.key === 'Escape' && !overlayOpen) setView('home')
+      const overlayOpen = !!document.querySelector('.legend, .about, .evid')
+      if (e.key === '1') go('forces')
+      else if (e.key === '2') go('relations')
+      else if (e.key === '3') go('dynamics')
+      else if (e.key === 'Escape' && !overlayOpen) go('home')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [go])
 
   const onLoaderDone = () => { setLoaded(true); try { sessionStorage.setItem('mp-visited', '1') } catch { /* private mode */ } }
 
   return (
     <>
       <GlobalField />
-      {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={setView} />
-        : view === 'forces' ? <ForcesView view={view} onView={setView} />
-        : view === 'relations' ? <RelationsView view={view} onView={setView} />
-        : <DynamicsView view={view} onView={setView} />}
+      {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={go} />
+        : view === 'forces' ? <ForcesView view={view} onView={go} />
+        : view === 'relations' ? <RelationsView view={view} onView={go} />
+        : <DynamicsView view={view} onView={go} />}
       <CustomCursor />
       <SoundToggle />
       <UtilityNav />

@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { sound } from '../sound'
 import { Words } from './Words'
+import { useFocusTrap } from './useFocusTrap'
 
 // "המודל" — the methodology overlay. The site's thesis, the equation, how each lens
 // reads, and an honesty note about the data. Opens on the header control ('mp-about').
 export function AboutOverlay() {
   const [open, setOpen] = useState(false)
   const openRef = useRef(open)
-  openRef.current = open
+  // Ref mirrors state for the stable 'mp-about' listener — synced in an effect, never in render.
+  useLayoutEffect(() => { openRef.current = open }, [open])
+  const dialogRef = useFocusTrap<HTMLElement>(open)
 
   useEffect(() => {
     const onToggle = () => { sound.play(openRef.current ? 'back' : 'open'); setOpen((v) => !v) }
@@ -27,7 +30,7 @@ export function AboutOverlay() {
 
   return (
     <div className="legend__scrim" onClick={close}>
-      <aside className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
 
         <header className="about__head">

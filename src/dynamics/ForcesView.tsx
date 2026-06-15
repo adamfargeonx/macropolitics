@@ -20,7 +20,7 @@ import {
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
-  const { size, cam, proximal, dragRef, dragMoved, fieldHandlers, zoomBy, resetCam } = useForcesCamera(fieldRef, posRef)
+  const { size, cam, proximal, isDragging, consumeDragMoved, fieldHandlers, zoomBy, resetCam } = useForcesCamera(fieldRef, posRef)
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [namesOff, setNamesOff] = useState(false)
@@ -40,7 +40,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     weightsStore.set({ eco: raw.eco / sum, mil: raw.mil / sum, geo: raw.geo / sum })
   }, [raw])
   useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, [])
-  const normW: Raw = (() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } })()
+  const normW: Raw = useMemo(() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } }, [raw])
 
   // any non-default secondary filter — drives the breadcrumb
   const stateActive = filterBloc !== 'all' || minScore > 0 || year !== 2025 || scenario
@@ -83,13 +83,13 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       className={`stage forces${namesOff ? ' forces--clean' : ''}${zoomNames && !namesOff ? ' forces--names' : ''}`}
       dir="rtl"
       onClick={() => {
-        if (dragMoved.current) { dragMoved.current = false; return }
+        if (consumeDragMoved()) return
         setSelected(null)
         setToolsOpen(false)
       }}
     >
       <div
-        className={`forces-field${dragRef.current ? ' forces-field--grab' : ''}`}
+        className={`forces-field${isDragging ? ' forces-field--grab' : ''}`}
         ref={fieldRef}
         {...fieldHandlers}
       >
@@ -110,11 +110,18 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
               key={e.id}
               data-id={e.id}
               data-power={e.power}
+              role="button"
+              tabIndex={0}
+              aria-label={`${e.he} — ${(metricVal(e, orderBy, grav) / 10).toFixed(1)}`}
+              aria-pressed={e.id === selected}
               className={`fnode${isTop ? ' fnode--toplabel' : ''}${nonstate ? ' fnode--ns' : ''}${isFocus ? ' fnode--focus' : ''}${dim ? ' fnode--dim' : ''}`}
               style={{ left: x, top: y, '--fx': `${layout.cx - x}px`, '--fy': `${layout.cy - y}px`, '--rk': RANK_OF.get(e.id) ?? 0, animationDelay: `${0.15 + i * 0.035}s` } as React.CSSProperties}
               onMouseEnter={() => setHovered(e.id)}
               onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
+              onFocus={() => setHovered(e.id)}
+              onBlur={() => setHovered((h) => (h === e.id ? null : h))}
               onClick={(ev) => { ev.stopPropagation(); setSelected((s) => (s === e.id ? null : e.id)) }}
+              onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); sound.play('tab'); setSelected((s) => (s === e.id ? null : e.id)) } }}
             >
               <span className="fnode__disk" style={{ width: d, height: d, borderColor: `rgba(${rim},0.5)`, animationDelay: `-${(i % 9) * 0.47}s` }} />
               <span className="fnode__name">{e.he}</span>
