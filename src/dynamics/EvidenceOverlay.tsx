@@ -13,6 +13,15 @@ import { sound } from '../sound'
 
 const HE_AXIS = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' } as const
 
+// Military composite's four sourced criteria (src/model/military.ts), Hebrew labels for the overlay.
+const MIL_ROWS = [
+  { k: 'spend',    he: 'הוצאה צבאית (SIPRI)' },
+  { k: 'manpower', he: 'כוח אדם פעיל (IISS)' },
+  { k: 'nuclear',  he: 'ארסנל גרעיני (FAS)' },
+  { k: 'cyber',    he: 'עוצמת סייבר (NCPI)' },
+] as const
+const milMissing = (k: string, missing: string[]) => missing.includes(k)
+
 // The economic composite's seven sub-criteria (src/model/economic.ts), Hebrew labels for the overlay.
 const ECO_ROWS = [
   { k: 'mass', he: 'מסה · תמ״ג PPP' },
@@ -114,6 +123,33 @@ export function EvidenceOverlay() {
                 <p className="evid__figure">{p.figure}</p>
                 <a className="evid__link" href={p.url} target="_blank" rel="noreferrer">{p.source} · {p.year} ↗</a>
                 {p.note && <p className="evid__note">{p.note}</p>}
+                {axis === 'mil' && d.milBreakdown && (() => {
+                  const bk = d.milBreakdown!
+                  return (
+                    <div className="evid__mil">
+                      <span className="evid__mil-lbl">מדד מורכב · 4 פרמטרים ממקור (SIPRI · IISS · FAS · NCPI)</span>
+                      <div className="evid__mil-grid">
+                        {MIL_ROWS.map(({ k, he }) => {
+                          const v = bk.sub[k as keyof typeof bk.sub]
+                          const miss = milMissing(k, bk.missing)
+                          return (
+                            <div className={`evid__mil-row${miss ? ' evid__mil-row--miss' : ''}`} key={k}>
+                              <span className="evid__mil-k">{he}</span>
+                              <span className="evid__mil-bar"><i style={{ width: `${v * 10}%` }} /></span>
+                              <span className="evid__mil-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <span className="evid__mil-foot">
+                        הוצאה {bk.spendScore.toFixed(1)} +כוח אדם {bk.manBonus.toFixed(1)} +גרעין {bk.nucBonus.toFixed(1)} +סייבר {bk.cyberBonus.toFixed(1)} → <b>צבאי {bk.mil.toFixed(1)}</b>
+                      </span>
+                      <span className="evid__mil-judgment">
+                        7 קריטריונים נוספים (לוגיסטיקה, ניסיון קרב, תעשיית ביטחון, ציוד, מודיעין, ברית, אימון) — שיפוט; לא ממודלים
+                      </span>
+                    </div>
+                  )
+                })()}
                 {axis === 'eco' && d.ecoBreakdown && (() => {
                   const bk = d.ecoBreakdown!
                   return (

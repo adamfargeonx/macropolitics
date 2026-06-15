@@ -35,6 +35,7 @@ const power = (id: string) => res.get(id)!.power
 const checks: [string, boolean][] = [
   ['USA is the maximum', power('usa') === Math.max(...rows.map((r) => r.power))],
   ['economic composite live (per-capita lifts Qatar above mass-heavy Pakistan)', res.get('qatar')!.eco > res.get('pakistan')!.eco],
+  ['military composite live — nuclear states above equal-spend peers (Pakistan mil > Egypt mil)', res.get('pakistan')!.mil > res.get('egypt')!.mil],
   ['great powers > regionals', power('china') > power('iran') && power('russia') > power('turkey')],
   ['Israel reads as a strong regional power (> 55)', power('israel') > 55],
   ['fragmented Syria is discounted (< functioning Iraq)', power('syria') < power('iraq')],

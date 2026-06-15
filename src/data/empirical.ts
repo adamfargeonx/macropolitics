@@ -15,6 +15,7 @@
 
 import type { BodyInput } from '../model/gravity'
 import { economicScore, type EcoCriteria, type EcoResult } from '../model/economic.ts'
+import { militaryScore, type MilCriteria, type MilResult } from '../model/military.ts'
 
 export type SourceStatus =
   | 'sourced' // a primary dataset figure stands behind the score
@@ -40,6 +41,7 @@ export interface BodyData {
   stabilityNote?: string
   flags?: string[] // prominent data-quality caveats — populated ONLY when genuinely half-baked
   ecoBreakdown?: EcoResult // the 7-criterion economic composite (states with sourced inputs)
+  milBreakdown?: MilResult // the 4-criterion military composite (states with sourced inputs)
 }
 
 const SIPRI = 'https://www.sipri.org/databases/milex'
@@ -297,7 +299,7 @@ const RAW_DATA: Record<string, BodyData> = {
     },
   },
   pij: {
-    axes: { eco: 0, mil: 1, geo: 1 }, stability: 1, patron: 'iran', alpha: 0.12,
+    axes: { eco: 0, mil: 1, geo: 1 }, stability: 1, patron: 'iran', alpha: 0.15,
     prov: {
       eco: eco('תלות מלאה במימון איראני; ללא בסיס כלכלי', 'estimate'),
       mil: mil('רקטות וגרילה בעזה — כלי איראני להסלמה מבוקרת', 'estimate'),
@@ -332,14 +334,48 @@ export const ECO_CRITERIA: Record<string, EcoCriteria> = {
   yemen: { gdp: 30, pc: 1590, reserves: 1.3, infl: 21.4 },
 }
 
-// Canonical body data: where sourced economic criteria exist, replace the hand eco with the
-// computed composite and attach its breakdown (for the evidence overlay). Immutable — new objects.
+// ── Military composite inputs (SOURCED, 2025) — feed src/model/military.ts ──────────────────
+// Spend: SIPRI 2025 · Manpower: IISS Military Balance 2024 (thousands active) ·
+// Nuclear warheads: FAS 2025 (total stockpile, all delivery systems) ·
+// Cyber: Belfer Center National Cyber Power Index 2022 (0–100, major powers only).
+// Non-state actors, Europe (aggregate), UAE (no SIPRI), Syria, Lebanon, Yemen (no clean
+// SIPRI or IISS figures) are excluded — they keep their hand mil scores.
+// warheads: 0 = known non-nuclear; omit = not in index or unknown.
+export const MIL_CRITERIA: Record<string, MilCriteria> = {
+  usa:     { spend: 954,  manpower: 1328, warheads: 5500, cyber: 100 },
+  china:   { spend: 336,  manpower: 2035, warheads: 500,  cyber: 91  },
+  russia:  { spend: 190,  manpower: 1150, warheads: 6200, cyber: 74  },
+  india:   { spend: 92.1, manpower: 1455, warheads: 180,  cyber: 44  },
+  saudi:   { spend: 83.2, manpower: 257,  warheads: 0                },
+  israel:  { spend: 48.3, manpower: 169,  warheads: 90,   cyber: 59  },
+  turkey:  { spend: 30.0, manpower: 355,  warheads: 0,    cyber: 34  },
+  // Iran: SIPRI official spend chronically understates effective capability (off-budget missiles
+  // + IRGC proxies); use the official figure and flag. manpower includes IRGC (~190k).
+  iran:    { spend: 7.4,  manpower: 610,  warheads: 0                },
+  pakistan:{ spend: 11.9, manpower: 654,  warheads: 170              },
+  // Egypt: SIPRI does not publish Egypt's figures; estimate from IISS/open sources.
+  egypt:   { spend: 4.0,  manpower: 438,  warheads: 0                },
+  iraq:    { spend: 6.0,  manpower: 194,  warheads: 0                },
+}
+
+// Canonical body data: where sourced economic or military criteria exist, replace the hand
+// axis score with the computed composite and attach its breakdown. Immutable — new objects.
 export const DATA: Record<string, BodyData> = Object.fromEntries(
   Object.entries(RAW_DATA).map(([id, d]) => {
-    const c = ECO_CRITERIA[id]
-    if (!c) return [id, d]
-    const b = economicScore(c)
-    return [id, { ...d, axes: { ...d.axes, eco: b.eco }, ecoBreakdown: b }]
+    const ec = ECO_CRITERIA[id]
+    const mc = MIL_CRITERIA[id]
+    const ecoResult = ec ? economicScore(ec) : undefined
+    const milResult = mc ? militaryScore(mc) : undefined
+    return [id, {
+      ...d,
+      axes: {
+        eco: ecoResult ? ecoResult.eco : d.axes.eco,
+        mil: milResult ? milResult.mil : d.axes.mil,
+        geo: d.axes.geo,
+      },
+      ecoBreakdown: ecoResult ?? d.ecoBreakdown,
+      milBreakdown: milResult ?? d.milBreakdown,
+    }]
   }),
 )
 
