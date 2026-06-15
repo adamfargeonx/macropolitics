@@ -207,63 +207,60 @@
   .home-title > span { transition: none; transform: none; opacity: 1; filter: none; }
 }
 
-/* ── Loader (overlay; gravitational coalescence → home) ──────── */
+/* ── Loader (overlay; gravitational COLLAPSE → IGNITION → settle → home) ── */
 .loader {
   position: fixed; inset: 0; z-index: 9990; cursor: none; background: var(--bg);
-  display: grid; place-items: center; transition: opacity 0.6s ease;
+  display: grid; place-items: center; transition: opacity 0.55s ease;
 }
 .loader--out { opacity: 0; pointer-events: none; }
 .loader .field { position: absolute; inset: 0; }
-.loader-core { position: relative; width: min(40vmin, 360px); height: min(40vmin, 360px); display: grid; place-items: center; transition: transform 0.7s var(--ease-out-expo); }
-/* on exit, the core contracts to ~the home closed-orbit size (76px) so the handoff reads as one continuous element */
-.loader--out .loader-core { transform: scale(0.21); }
-.loader-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.loader-ring circle { fill: none; stroke-dasharray: 301.6; stroke-dashoffset: 301.6; }
-.loader-ring--outer circle { stroke: rgba(255, 255, 255, 0.34); stroke-width: 0.4; animation: ringDraw 3.8s 0.4s var(--ease-out-expo) forwards; }
-/* inner ring draws the opposite way + slightly later — two arcs closing into a system */
-.loader-ring--inner { transform: rotate(90deg); }
-.loader-ring--inner circle { stroke: rgba(251, 255, 0, 0.4); stroke-width: 0.5; stroke-dasharray: 201; stroke-dashoffset: 201; animation: ringDrawInner 3.4s 0.9s var(--ease-out-expo) forwards; }
-/* the orbiting body — accent dot circling the outer ring, accelerating then settling; fades on exit */
-.loader-orbit { position: absolute; width: min(40vmin, 360px); height: min(40vmin, 360px); animation: orbitSpin 5.5s linear infinite; transition: opacity 0.5s ease; }
-.loader-orbit__dot { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 12px rgba(251, 255, 0, 0.7); opacity: 0; animation: loaderOrbitIn 0.8s 1.4s ease forwards; }
+.loader-core { position: relative; width: min(78vmin, 700px); height: min(78vmin, 700px); display: grid; place-items: center; transition: transform 0.7s var(--ease-out-expo); }
+.loader--out .loader-core { transform: scale(0.9); }
+
+/* COLLAPSE — a wide faint ring contracts to the centre and warms from white to yellow */
+.loader-collapse { position: absolute; width: 100%; height: 100%; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%; animation: loaderCollapse 2.25s var(--ease-in-out-quart) forwards; }
+@keyframes loaderCollapse {
+  0% { transform: scale(1); opacity: 0; border-color: rgba(255, 255, 255, 0.06); }
+  22% { opacity: 1; }
+  100% { transform: scale(0.05); opacity: 0; border-color: rgba(251, 255, 0, 0.95); }
+}
+
+/* IGNITION flash — a bright burst of light at the collapse climax */
+.loader-flash { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--white); opacity: 0; animation: loaderFlash 0.7s 2.2s ease-out forwards; }
+@keyframes loaderFlash {
+  0% { opacity: 0; box-shadow: 0 0 0 0 rgba(251, 255, 0, 0); }
+  30% { opacity: 1; box-shadow: 0 0 50px 22px rgba(251, 255, 0, 0.55); }
+  100% { opacity: 0; box-shadow: 0 0 0 0 rgba(251, 255, 0, 0); }
+}
+
+/* BURST — a ring expands out from the flash, overshoots, then settles to ~the home core size */
+.loader-burst { position: absolute; width: 84px; height: 84px; border: 1px solid rgba(251, 255, 0, 0.6); border-radius: 50%; opacity: 0; animation: loaderBurst 2.1s 2.3s var(--ease-out-expo) forwards; }
+@keyframes loaderBurst {
+  0% { transform: scale(0); opacity: 0; }
+  18% { opacity: 0.95; }
+  55% { transform: scale(3.6); opacity: 0.45; border-color: rgba(255, 255, 255, 0.4); }
+  100% { transform: scale(0.92); opacity: 0.55; border-color: rgba(255, 255, 255, 0.2); }
+}
+
+/* a body spins out at ignition and circles the settled ring */
+.loader-orbit { position: absolute; width: 84px; height: 84px; opacity: 0; animation: orbitSpin 4s linear infinite, loaderOrbitIn 0.7s 2.55s ease forwards; transition: opacity 0.45s ease; }
+.loader-orbit__dot { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 12px rgba(251, 255, 0, 0.7); }
 .loader--out .loader-orbit { opacity: 0; }
 @keyframes loaderOrbitIn { to { opacity: 1; } }
-@keyframes ringDrawInner { to { stroke-dashoffset: 0; } }
-.loader-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--white); animation: coreDotBreath 2.4s var(--ease-in-out-quart) infinite; }
-.loader-brand {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, calc(-50% + min(28vmin, 250px)));
-  overflow: hidden; font-family: var(--display); font-weight: var(--fw-light);
-  font-size: clamp(20px, 3vw, 44px); letter-spacing: 0.1em; color: var(--white); white-space: nowrap;
-  transition: opacity 0.5s ease;
-}
-.loader-brand > span { display: inline-block; transform: translateY(110%); animation: loaderBrandIn 1.1s 2.1s var(--ease-out-expo) forwards; }
-.loader--out .loader-brand { opacity: 0; }
-.loader-sub {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, calc(-50% + min(28vmin, 250px) + clamp(26px, 3vw, 42px)));
-  overflow: hidden; white-space: nowrap;
-  font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.26em; color: var(--yellow); opacity: 0.6;
-  transition: opacity 0.5s ease;
-}
-.loader-sub > span { display: inline-block; transform: translateY(110%); animation: loaderBrandIn 1.1s 3s var(--ease-out-expo) forwards; }
-.loader--out .loader-sub { opacity: 0; }
-.loader-bar { position: absolute; bottom: var(--sp-9); left: 50%; transform: translateX(-50%); width: min(180px, 36vw); height: 1px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
-.loader-bar i { display: block; height: 100%; width: 0; background: rgba(251, 255, 0, 0.55); animation: loaderBar 4.6s var(--ease-in-out-quart) forwards; }
-@keyframes ringDraw { to { stroke-dashoffset: 0; } }
-@keyframes loaderBrandIn { to { transform: translateY(0); } }
-@keyframes loaderBar { to { width: 100%; } }
-/* quick variant (repeat visits) — same beats, compressed */
-.loader--quick .loader-ring circle { animation-duration: 0.75s; animation-delay: 0.05s; }
-.loader--quick .loader-orbit__dot { animation-delay: 0.4s; }
-.loader--quick .loader-brand > span { animation-delay: 0.2s; animation-duration: 0.6s; }
-.loader--quick .loader-sub > span { animation-delay: 0.35s; animation-duration: 0.6s; }
-.loader--quick .loader-bar i { animation-duration: 1.2s; }
+
+/* the core — appears at ignition and breathes (becomes the home click-core on handoff) */
+.loader-dot { width: 13px; height: 13px; border-radius: 50%; background: var(--white); box-shadow: 0 0 10px rgba(255, 255, 255, 0.45); opacity: 0; animation: loaderOrbitIn 0.5s 2.35s ease forwards, coreDotBreath 2.4s 2.85s var(--ease-in-out-quart) infinite; }
+
+/* quick variant (repeat visits) — same beats, compressed (~1.7s) */
+.loader--quick .loader-collapse { animation-duration: 0.75s; }
+.loader--quick .loader-flash { animation-delay: 0.72s; }
+.loader--quick .loader-burst { animation-delay: 0.78s; animation-duration: 0.9s; }
+.loader--quick .loader-orbit { animation-delay: 0s, 0.95s; }
+.loader--quick .loader-dot { animation-delay: 0.8s, 1.2s; }
+
 @media (prefers-reduced-motion: reduce) {
-  .loader-ring circle { animation: none; stroke-dashoffset: 0; }
-  .loader-orbit { animation: none; }
-  .loader-orbit__dot { animation: none; opacity: 1; }
-  .loader-dot, .loader-bar i { animation: none; }
-  .loader-brand > span, .loader-sub > span { animation: none; transform: none; }
+  .loader-collapse, .loader-flash, .loader-burst, .loader-orbit, .loader-orbit__dot { animation: none; opacity: 0; }
+  .loader-dot { animation: none; opacity: 1; }
 }
 
 /* ── Microanimations & transitions ─────────────────────────── */

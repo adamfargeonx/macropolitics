@@ -24,7 +24,9 @@ export function CustomCursor() {
     document.addEventListener('pointerover', onOver)
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('pointerup', onUp)
-    document.addEventListener('pointerleave', onLeave)
+    // documentElement (not document) — fires only when the pointer truly leaves the viewport,
+    // not on transitions between child elements (which would wrongly blank the cursor)
+    document.documentElement.addEventListener('pointerleave', onLeave)
 
     const loop = () => {
       // No positional lag — ring tracks the pointer exactly (scale still eases via CSS).
@@ -49,7 +51,7 @@ export function CustomCursor() {
       document.removeEventListener('pointerover', onOver)
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointerup', onUp)
-      document.removeEventListener('pointerleave', onLeave)
+      document.documentElement.removeEventListener('pointerleave', onLeave)
     }
   }, [])
 

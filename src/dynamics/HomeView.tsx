@@ -23,8 +23,9 @@ export default function HomeView({ open, onToggle, onView }: { open: boolean; on
     <div className={`stage home ${open ? 'home--open' : 'home--closed'}`} dir="rtl">
       <div className="home-center" aria-hidden>
         {/* the mask fills the ring (a child of the orbit → tracks its size exactly): pitch-black
-            core that particles fall into; hover exposes the field behind at 50% */}
-        <div className="home-orbit"><div className="home-mask" /><div className="home-orbit__spin"><span className="home-orbit__dot" /></div></div>
+            core that particles fall into; hover exposes the field behind at 50%. When open it is
+            interactive, so clicking anywhere inside the ring (not just the 96px core) collapses it. */}
+        <div className="home-orbit"><div className="home-mask" onClick={toggle} /><div className="home-orbit__spin"><span className="home-orbit__dot" /></div></div>
       </div>
       <button className="home-core" onClick={toggle} aria-label={open ? 'סגירת המעגל' : 'פתיחת המעגל'}>
         <span className="home-core__dot" />

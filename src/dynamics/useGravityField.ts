@@ -1,43 +1,49 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, type RefObject } from 'react'
+import { isInteractive } from '../sound'
 
 const TAU = Math.PI * 2
 
 export interface Impulse { x: number; y: number; t: number }
-export type FieldMode = 'inward' | 'orbital'
+export type FieldMode = 'inward' | 'scattered'
 
 // The site's universal particle field (window-sized). Two behaviours, same particles:
-//   'inward'  — particles drift toward the centre (the gravity motif; home/relations/dynamics)
-//   'orbital' — particles rotate around the centre, held in a band (forces: distance-from-centre
-//               already encodes power there, so a centre-seeking field would fight the reading)
-// Leaves soft trails; respawns at the rim. Self-listens for clicks → scatter + a yellow ripple.
+//   'inward'    — particles stream toward the centre (the gravity motif; home/relations/dynamics)
+//   'scattered' — particles are spread uniformly and drift gently with no centre pull, wrapping at
+//                 the edges (forces: distance-from-centre already encodes power, so a centre-seeking
+//                 field would fight the reading — a calm dispersed field reads cleaner there)
+// Leaves soft trails. Self-listens for clicks → scatter + a yellow ripple. The field re-seeds when
+// `mode` changes so the new layout is correct immediately (masked by the page transition).
 // `impulseRef` is optional for programmatic pulses (the loader injects a centre pulse).
 export function useGravityField(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   impulseRef?: RefObject<Impulse | null>,
   mode: FieldMode = 'inward',
 ) {
-  // read live in the RAF loop so a view change switches behaviour without re-seeding the field
-  const modeRef = useRef(mode)
-  useEffect(() => { modeRef.current = mode }, [mode])
-
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return
     const ctx = cv.getContext('2d')
     if (!ctx) return
     let raf = 0, w = 0, h = 0, cx = 0, cy = 0
-    type P = { x: number; y: number; px: number; py: number; vx: number; vy: number; b: number }
+    type P = { x: number; y: number; px: number; py: number; vx: number; vy: number; bx: number; by: number; b: number }
     let ps: P[] = []
     let imp: { x: number; y: number; s: number } | null = null
     let lastImpT = 0
     let ripple: { x: number; y: number; t: number } | null = null
 
     const spawn = (): P => {
+      const bx = (Math.random() - 0.5) * 0.5, by = (Math.random() - 0.5) * 0.5 // smooth baseline drift
+      if (mode === 'scattered') {
+        // uniform across the whole screen — a dispersed field, no centre bias
+        const x = Math.random() * w, y = Math.random() * h
+        return { x, y, px: x, py: y, vx: bx, vy: by, bx, by, b: 0.5 + Math.random() * 0.5 }
+      }
+      // inward: spawn at the rim, aimed across the centre (streams in)
       const ang = Math.random() * TAU
       const r = Math.max(w, h) * (0.42 + Math.random() * 0.55)
       const x = cx + Math.cos(ang) * r, y = cy + Math.sin(ang) * r
       const toC = Math.atan2(cy - y, cx - x)
       const sp = 0.12 + Math.random() * 0.18
-      return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, b: 0.5 + Math.random() * 0.5 }
+      return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
     }
     const resize = () => {
       const dpr = Math.min(2, window.devicePixelRatio || 1) // re-read: handles a move to a different-DPI monitor
@@ -51,13 +57,16 @@ export function useGravityField(
     const onResize = () => { clearTimeout(resizeT); resizeT = window.setTimeout(resize, 120) }
     resize(); window.addEventListener('resize', onResize)
 
-    // self-listen for clicks anywhere → scatter + ripple
+    // self-listen for clicks on EMPTY space → scatter + ripple (ignore buttons/nodes/panels,
+    // so selecting a body or using a control doesn't also disturb the background field)
     const onDown = (e: PointerEvent) => {
+      if (isInteractive(e.target)) return
       imp = { x: e.clientX, y: e.clientY, s: 1 }
       ripple = { x: e.clientX, y: e.clientY, t: performance.now() }
     }
     window.addEventListener('pointerdown', onDown)
 
+    const scattered = mode === 'scattered'
     let intro = 0
     const loop = () => {
       intro = Math.min(1, intro + 0.012)
@@ -72,13 +81,9 @@ export function useGravityField(
       for (const p of ps) {
         const dx = cx - p.x, dy = cy - p.y, d2 = dx * dx + dy * dy
         const d = Math.sqrt(d2) || 1
-        if (modeRef.current === 'orbital') {
-          // tangential rotation (perpendicular to the radius) + a soft radial spring to a band —
-          // particles circle the centre instead of falling into it
-          const tx = -dy / d, ty = dx / d
-          const radial = d - Math.min(w, h) * 0.4
-          p.vx += tx * 0.05 + (dx / d) * radial * 0.00045
-          p.vy += ty * 0.05 + (dy / d) * radial * 0.00045
+        if (scattered) {
+          // ease velocity toward the smooth baseline drift — gentle dispersed motion, no centre pull
+          p.vx += (p.bx - p.vx) * 0.02; p.vy += (p.by - p.vy) * 0.02
         } else {
           const a = Math.min(0.08, 22 / (d2 + 3000))
           p.vx += (dx / d) * a * d * 0.1; p.vy += (dy / d) * a * d * 0.1
@@ -89,15 +94,29 @@ export function useGravityField(
           const il = Math.sqrt(id2) || 1
           p.vx += (ix / il) * infl * 2.8; p.vy += (iy / il) * infl * 2.8
         }
-        p.vx *= 0.98; p.vy *= 0.98
+        if (!scattered) { p.vx *= 0.98; p.vy *= 0.98 } // inward needs damping; scattered self-regulates
         p.px = p.x; p.py = p.y; p.x += p.vx; p.y += p.vy
         const speed = Math.hypot(p.vx, p.vy)
-        const near = 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
-        // visible at rest (a calm starfield), brighter when stirred by gravity/clicks (+15% visibility)
-        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.97, (0.4 + speed * 0.55) * p.b * 1.15) * intro})`
-        ctx.lineWidth = 0.8 + near * 1.4
-        ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
-        if (d < 11) Object.assign(p, spawn())
+        const near = scattered ? 0 : 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
+        if (scattered) {
+          // a dispersed field of fine points (slow drift → trails would be near-zero-length and
+          // invisible, so render as dots) — calm and evenly spread, no centre
+          const a = Math.min(0.9, (0.58 + speed * 0.5) * p.b * 1.15) * intro
+          ctx.fillStyle = `rgba(255,255,255,${a})`
+          ctx.beginPath(); ctx.arc(p.x, p.y, 1.3, 0, TAU); ctx.fill()
+        } else {
+          // streaking trails toward the centre (the gravity motif)
+          ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.97, (0.4 + speed * 0.55) * p.b * 1.15) * intro})`
+          ctx.lineWidth = 0.8 + near * 1.4
+          ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
+        }
+        if (scattered) {
+          // wrap at the edges → an evenly-dispersed field that never empties or clumps
+          if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w
+          if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h
+        } else if (d < 11) {
+          Object.assign(p, spawn())
+        }
       }
       // click ripple
       if (ripple) {
@@ -110,5 +129,5 @@ export function useGravityField(
     }
     loop()
     return () => { cancelAnimationFrame(raf); clearTimeout(resizeT); window.removeEventListener('resize', onResize); window.removeEventListener('pointerdown', onDown) }
-  }, [canvasRef, impulseRef])
+  }, [canvasRef, impulseRef, mode])
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, LINKS, AXIS } from '../data/entities'
+import { NODES, AXIS } from '../data/entities'
 import { bodyInputsForYear, type Year } from '../data/empirical'
 import { computeGravities } from '../model/gravity'
 import { useWeights, weightsStore, isDefaultWeights } from '../model/weights-store'
@@ -98,24 +98,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             <span className="forces-ring__label">{ring.label}</span>
           </div>
         ))}
-        {/* gravitational reveal: when a body is in focus, threads light up to its allies */}
-        {focus && size.w > 0 && (() => {
-          const fp = layout.nodes.find((n) => n.e.id === focus)
-          if (!fp) return null
-          const allies = LINKS.filter(([a, b]) => a === focus || b === focus).map(([a, b]) => (a === focus ? b : a))
-          const segs = allies.flatMap((id) => {
-            const n = layout.nodes.find((x) => x.e.id === id)
-            return n ? [{ x: n.x, y: n.y }] : []
-          })
-          if (segs.length === 0) return null
-          return (
-            <svg className="forces-threads" width={size.w} height={size.h} aria-hidden>
-              {segs.map((p, i) => (
-                <line key={i} className="forces-thread" x1={fp.x} y1={fp.y} x2={p.x} y2={p.y} />
-              ))}
-            </svg>
-          )
-        })()}
         {layout.nodes.map(({ e, x, y, d }, i) => {
           const isFocus = e.id === focus
           const dim = focus && !isFocus
@@ -189,7 +171,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} stateActive={stateActive}
             filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
             hovered={hovered} setHovered={setHovered}
-            onHoverId={(id) => setHovered(id)} onSelect={(id) => setSelected(id)}
+            onHoverId={(id) => setHovered(id)} onSelect={(id) => { setSelected(id); setHovered(null) }}
             ranked={ranked} indexRows={indexRows}
             showAllIndex={showAllIndex} setShowAllIndex={setShowAllIndex}
           />

@@ -119,7 +119,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
 
   return (
     <div className="stage relations" dir="rtl">
-      <div className="rel-field" ref={fieldRef} onClick={() => setPinned(null)}>
+      <div className="rel-field" ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>
         {geo && (
           <>
             <svg className="rel-tri" width={size.w} height={size.h}>

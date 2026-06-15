@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { NEAR_R } from './forces-model'
+import { REACT_R, MAX_NUDGE, NEAR_R } from './forces-model'
 
 type Pos = { x: number; y: number }
 type Cam = { z: number; x: number; y: number }
@@ -19,7 +19,6 @@ export function useForcesCamera(
   // Escape-hatch refs read inside pointer handlers — synced from state in effects, never in render.
   const proxRef = useRef<string | null>(null)
   const camRef = useRef(cam)
-  const rectRef = useRef<DOMRect | null>(null) // cached field rect — avoids forced reflow per pointer event
   useLayoutEffect(() => { proxRef.current = proximal }, [proximal])
   useLayoutEffect(() => { camRef.current = cam }, [cam])
   const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null)
@@ -27,12 +26,13 @@ export function useForcesCamera(
 
   useEffect(() => {
     const el = fieldRef.current; if (!el) return
-    const measure = () => { const r = el.getBoundingClientRect(); rectRef.current = r; return r }
-    const ro = new ResizeObserver(() => { const r = measure(); setSize({ w: r.width, h: r.height }) })
+    // clientWidth/Height are layout metrics — immune to the .stage entrance transform (scale),
+    // so the constellation lays out at true size (getBoundingClientRect would be transform-shrunk).
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el)
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      const r = rectRef.current ?? measure(); const mx = e.clientX - r.left, my = e.clientY - r.top
+      const r = el.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top // live rect for offset
       setCam((c) => { const z = clampZ(c.z * (1 - e.deltaY * 0.0015)); const k = z / c.z; return { z, x: mx - (mx - c.x) * k, y: my - (my - c.y) * k } })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
@@ -40,21 +40,30 @@ export function useForcesCamera(
   }, [fieldRef])
 
   const onPanDown = (e: React.PointerEvent) => { drag.current = { sx: e.clientX, sy: e.clientY, px: camRef.current.x, py: camRef.current.y }; dragMoved.current = false; setIsDragging(true) }
-  // proximity only — the nearest body becomes 'proximal' (→ blooms via focus). No physical shove.
+  // cursor-as-mass — the cursor is a small gravitational mass: nearby bodies lean TOWARD it
+  // (a gentle linear pull, not the old quadratic lunge), and the nearest becomes 'proximal'.
   const react = (e: React.PointerEvent) => {
     const el = fieldRef.current; if (!el) return
-    const r = rectRef.current ?? el.getBoundingClientRect(); const c = camRef.current
+    const r = el.getBoundingClientRect(); const c = camRef.current // live rect — immune to the entrance transform
     const fx = (e.clientX - r.left - c.x) / c.z, fy = (e.clientY - r.top - c.y) / c.z
     let nearest: string | null = null, nd = NEAR_R
     el.querySelectorAll<HTMLElement>('.fnode').forEach((node) => {
       const id = node.dataset.id; if (!id) return
       const p = posRef.current.get(id); if (!p) return
-      const dist = Math.hypot(fx - p.x, fy - p.y)
+      const dx = fx - p.x, dy = fy - p.y, dist = Math.hypot(dx, dy)
+      if (dist < REACT_R && dist > 0.01) {
+        const prox = 1 - dist / REACT_R
+        const mag = prox * MAX_NUDGE * 0.7 // gentle linear lean toward the cursor (mass attraction)
+        node.style.translate = `${(dx / dist) * mag}px ${(dy / dist) * mag}px`
+      } else if (node.style.translate) node.style.translate = ''
       if (dist < nd) { nd = dist; nearest = id }
     })
     if (proxRef.current !== nearest) setProximal(nearest)
   }
-  const clearReact = () => { if (proxRef.current) setProximal(null) }
+  const clearReact = () => {
+    fieldRef.current?.querySelectorAll<HTMLElement>('.fnode').forEach((n) => { if (n.style.translate) n.style.translate = '' })
+    if (proxRef.current) setProximal(null)
+  }
   const onMove = (e: React.PointerEvent) => {
     react(e)
     const d = drag.current; if (!d) return

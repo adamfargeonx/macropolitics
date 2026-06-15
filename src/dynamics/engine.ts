@@ -59,7 +59,6 @@ const clamp01 = (t: number) => clamp(t, 0, 1)
 export class OrbitalField {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
-  private rect: DOMRect // cached container bounds — refreshed on resize, read by pointer handlers (no per-event reflow)
   private nodes: NodeState[]
   private labelOrder: NodeState[]
   private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
@@ -82,7 +81,7 @@ export class OrbitalField {
   private selected: string | null = null
   private hoverSince = 0
   private connected = new Set<string>()
-  private start = 0; private raf = 0; private now = 0; private settleT = 0
+  private start = 0; private raf = 0; private now = 0
   private canvas: HTMLCanvasElement
   private container: HTMLElement
   private reduced: boolean
@@ -97,7 +96,6 @@ export class OrbitalField {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('OrbitalField: 2D canvas context unavailable')
     this.ctx = ctx
-    this.rect = container.getBoundingClientRect()
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU }))
@@ -105,7 +103,6 @@ export class OrbitalField {
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
     this.container.addEventListener('pointerleave', this.onLeave)
-    this.container.addEventListener('pointerenter', this.onEnter)
     this.container.addEventListener('pointerdown', this.onDown)
     window.addEventListener('pointerup', this.onUp)
     this.container.addEventListener('wheel', this.onWheel, { passive: false })
@@ -121,10 +118,11 @@ export class OrbitalField {
   private get viewScale() { return this.maxR / 520 } // world px → screen px at zoom 1
 
   resize = () => {
-    const rect = this.container.getBoundingClientRect()
-    this.rect = rect
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
-    this.w = rect.width; this.h = rect.height
+    // clientWidth/Height are LAYOUT metrics — immune to the .stage entrance transform (scale),
+    // unlike getBoundingClientRect(). Reading the rect during stageIn was giving stale, shrunken
+    // dims for the whole session → the "offset / can't hover" bug. This reads true size always.
+    this.w = this.container.clientWidth; this.h = this.container.clientHeight
     this.canvas.width = this.w * this.dpr; this.canvas.height = this.h * this.dpr
     this.canvas.style.width = `${this.w}px`; this.canvas.style.height = `${this.h}px`
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
@@ -161,24 +159,18 @@ export class OrbitalField {
     })
   }
 
-  start_() {
-    this.start = performance.now(); this.raf = requestAnimationFrame(this.frame)
-    // settle re-measure: covers the case where the pointer is already inside at mount (no enter event)
-    this.settleT = window.setTimeout(() => { this.rect = this.container.getBoundingClientRect() }, 760)
-  }
+  start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
   destroy() {
     cancelAnimationFrame(this.raf)
-    clearTimeout(this.settleT)
     this.container.removeEventListener('pointermove', this.onMove)
     this.container.removeEventListener('pointerleave', this.onLeave)
-    this.container.removeEventListener('pointerenter', this.onEnter)
     this.container.removeEventListener('pointerdown', this.onDown)
     window.removeEventListener('pointerup', this.onUp)
     this.container.removeEventListener('wheel', this.onWheel)
   }
 
   private onMove = (ev: PointerEvent) => {
-    const rect = this.rect
+    const rect = this.container.getBoundingClientRect()
     const mx = ev.clientX - rect.left, my = ev.clientY - rect.top
     if (this.down) {
       const dx = mx - this.mouse.x, dy = my - this.mouse.y
@@ -190,12 +182,8 @@ export class OrbitalField {
     if (!this.dragging) this.hitTest()
   }
   private onLeave = () => { this.mouse.x = -9999; this.mouse.y = -9999; this.setHovered(null) }
-  // Re-measure the container box right before a hover session. The rect is cached for perf, but the
-  // constructor captures it mid-`stageIn` (the .stage entrance transform), so it must be refreshed
-  // once the pointer actually enters — otherwise hit-testing is offset by the leftover transform.
-  private onEnter = () => { this.rect = this.container.getBoundingClientRect() }
   private onDown = (ev: PointerEvent) => {
-    const rect = this.rect
+    const rect = this.container.getBoundingClientRect()
     this.down = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
     this.mouse.x = this.down.x; this.mouse.y = this.down.y; this.dragging = false
   }
@@ -216,7 +204,7 @@ export class OrbitalField {
   }
   private onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
-    const rect = this.rect
+    const rect = this.container.getBoundingClientRect()
     this.setZoom(this.zoom * (1 - ev.deltaY * 0.0014), ev.clientX - rect.left, ev.clientY - rect.top)
   }
 

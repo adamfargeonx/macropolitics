@@ -109,15 +109,11 @@
 .forces--names .fnode__score { opacity: 0.7; }
 .forces--clean .fnode__name, .forces--clean .fnode__score, .forces--clean .forces-ring__label { opacity: 0 !important; transition-delay: 0s; }
 .fnode--focus { z-index: 5; }
-/* bloom — proximity/hover makes the body flare (glow + white-hot core), no longer shoves it */
-.fnode--focus .fnode__disk { transform: scale(1.2); box-shadow: 0 0 40px rgba(251, 255, 0, 0.5), 0 0 16px rgba(255, 255, 255, 0.45); }
+/* the nearest body (cursor-as-mass proximal) reads as focused: a measured glow, not a flare */
+.fnode--focus .fnode__disk { transform: scale(1.14); box-shadow: 0 0 26px rgba(251, 255, 0, 0.32); }
 .fnode--dim { opacity: 0.25; }
-
-/* gravitational reveal — threads from the focused body to its allies (the "reveal" half of hover) */
-.forces-threads { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }
-.forces-thread { stroke: var(--yellow); stroke-width: 1; stroke-opacity: 0.5; stroke-dasharray: 5 4; animation: threadIn 0.45s var(--ease-out-expo) both; }
-@keyframes threadIn { from { stroke-opacity: 0; stroke-dashoffset: 14; } to { stroke-opacity: 0.5; stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { .forces-thread { animation: none; } }
+/* bodies ease as they lean toward the cursor (the mass attraction set via inline `translate`) */
+.fnode { transition: opacity 0.25s ease, translate 0.18s ease-out; }
 
 /* force breakdown bars (panel) */
 .panel__forces { margin-top: 20px; display: flex; flex-direction: column; gap: 11px; }
