@@ -76,8 +76,8 @@ export function useGravityField(
         p.px = p.x; p.py = p.y; p.x += p.vx; p.y += p.vy
         const speed = Math.hypot(p.vx, p.vy)
         const near = 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
-        // visible at rest (a calm starfield), brighter when stirred by gravity/clicks
-        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.85, (0.4 + speed * 0.55) * p.b) * intro})`
+        // visible at rest (a calm starfield), brighter when stirred by gravity/clicks (+15% visibility)
+        ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.97, (0.4 + speed * 0.55) * p.b * 1.15) * intro})`
         ctx.lineWidth = 0.8 + near * 1.4
         ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
         if (d < 11) Object.assign(p, spawn())

@@ -111,20 +111,27 @@
 .home--open .home-core__dot { opacity: 0; }
 @keyframes coreDotBreath { 0%, 100% { transform: scale(0.85); opacity: 0.85; } 50% { transform: scale(1.1); opacity: 1; } }
 
-/* ── Masked text reveals (slide up from behind a mask — no dissolve) ── */
-.home-title, .home-tagline, .home-nav__label { overflow: hidden; }
-.home-title > span, .home-tagline > span, .home-nav__label > span { display: inline-block; will-change: transform; }
-.home-title > span, .home-tagline > span, .home-nav__label > span { transform: translateY(110%); transition: transform 0.9s var(--ease-out-expo); }
-.home--open .home-title > span { transform: translateY(0); transition-delay: 0.16s; }
+/* ── Masked text reveals (tagline + nav slide up from behind a mask — no dissolve) ── */
+.home-tagline, .home-nav__label { overflow: hidden; }
+.home-tagline > span, .home-nav__label > span { display: inline-block; will-change: transform; }
+.home-tagline > span, .home-nav__label > span { transform: translateY(110%); transition: transform 0.9s var(--ease-out-expo); }
 .home--open .home-tagline > span { transform: translateY(0); transition-delay: 0.3s; }
 .home--open .home-nav__label > span { transform: translateY(0); transition-delay: calc(0.55s + var(--bd, 0s) * 0.4); }
 
-/* brand wordmark — light weight, 50% smaller, huge kerning */
+/* wordmark reveal — explode-blast: scales up from a tight, blurred core (no mask slide) */
+.home-title > span {
+  display: inline-block; will-change: transform, opacity, filter;
+  transform: scale(0.55); opacity: 0; filter: blur(14px);
+  transition: transform 0.92s var(--ease-out-expo), opacity 0.55s ease, filter 0.7s var(--ease-out-expo);
+}
+.home--open .home-title > span { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
+
+/* brand wordmark — light weight, 50% smaller, huge kerning (+30%) */
 .home-title {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   z-index: var(--z-content); white-space: nowrap; pointer-events: none;
   font-family: var(--display); font-weight: var(--fw-light);
-  font-size: clamp(22px, 3.3vw, 50px); letter-spacing: 0.3em; padding-inline-start: 0.3em; color: var(--white);
+  font-size: clamp(22px, 3.3vw, 50px); letter-spacing: 0.39em; padding-inline-start: 0.39em; color: var(--white);
 }
 /* tagline — top centre, accent */
 .home-tagline {
@@ -165,6 +172,10 @@
 }
 .home-nav__item:hover .home-nav__sub { opacity: 0.85; transform: translate(-50%, 6px); }
 .home-nav__item:hover .home-nav__label { color: var(--yellow); }
+/* the three dimensions float (drift) while breathing — motion on the label, not just opacity */
+.home--open .home-nav__label { animation: navFloat 4.8s var(--ease-in-out-quart) infinite; animation-delay: var(--bd, 0s); }
+.home-nav__item:hover .home-nav__label { animation-play-state: paused; }
+@keyframes navFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 /* anchored ON the ring circumference as a balanced triangle (top · 8 o'clock · 4 o'clock) */
 .home-nav__item--top { transform: translate(-50%, -50%) translateY(calc(var(--ring-d) / -2)); }
 .home-nav__item--bl  { transform: translate(-50%, -50%) translate(calc(var(--ring-d) * -0.433), calc(var(--ring-d) * 0.25)); }
@@ -190,9 +201,10 @@
 @keyframes hintPulse { 0%, 100% { opacity: 0.28; } 50% { opacity: 0.6; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-orbit, .home-orbit__spin, .home-core__dot, .home-nav__item, .home-hint { animation: none; }
+  .home-orbit, .home-orbit__spin, .home-core__dot, .home-nav__item, .home-nav__label, .home-hint { animation: none; }
   .home-orbit { transition: none; }
-  .home-title > span, .home-tagline > span, .home-nav__label > span { transition: none; transform: none; }
+  .home-tagline > span, .home-nav__label > span { transition: none; transform: none; }
+  .home-title > span { transition: none; transform: none; opacity: 1; filter: none; }
 }
 
 /* ── Loader (overlay; gravitational coalescence → home) ──────── */
@@ -202,10 +214,21 @@
 }
 .loader--out { opacity: 0; pointer-events: none; }
 .loader .field { position: absolute; inset: 0; }
-.loader-core { position: relative; width: min(40vmin, 360px); height: min(40vmin, 360px); display: grid; place-items: center; transition: transform 0.6s var(--ease-out-expo); }
-.loader--out .loader-core { transform: scale(0.28); }
+.loader-core { position: relative; width: min(40vmin, 360px); height: min(40vmin, 360px); display: grid; place-items: center; transition: transform 0.7s var(--ease-out-expo); }
+/* on exit, the core contracts to ~the home closed-orbit size (76px) so the handoff reads as one continuous element */
+.loader--out .loader-core { transform: scale(0.21); }
 .loader-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.loader-ring circle { fill: none; stroke: rgba(255, 255, 255, 0.32); stroke-width: 0.4; stroke-dasharray: 301.6; stroke-dashoffset: 301.6; animation: ringDraw 4.2s 0.5s var(--ease-in-out-quart) forwards; }
+.loader-ring circle { fill: none; stroke-dasharray: 301.6; stroke-dashoffset: 301.6; }
+.loader-ring--outer circle { stroke: rgba(255, 255, 255, 0.34); stroke-width: 0.4; animation: ringDraw 3.8s 0.4s var(--ease-out-expo) forwards; }
+/* inner ring draws the opposite way + slightly later — two arcs closing into a system */
+.loader-ring--inner { transform: rotate(90deg); }
+.loader-ring--inner circle { stroke: rgba(251, 255, 0, 0.4); stroke-width: 0.5; stroke-dasharray: 201; stroke-dashoffset: 201; animation: ringDrawInner 3.4s 0.9s var(--ease-out-expo) forwards; }
+/* the orbiting body — accent dot circling the outer ring, accelerating then settling; fades on exit */
+.loader-orbit { position: absolute; width: min(40vmin, 360px); height: min(40vmin, 360px); animation: orbitSpin 5.5s linear infinite; transition: opacity 0.5s ease; }
+.loader-orbit__dot { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 12px rgba(251, 255, 0, 0.7); opacity: 0; animation: loaderOrbitIn 0.8s 1.4s ease forwards; }
+.loader--out .loader-orbit { opacity: 0; }
+@keyframes loaderOrbitIn { to { opacity: 1; } }
+@keyframes ringDrawInner { to { stroke-dashoffset: 0; } }
 .loader-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--white); animation: coreDotBreath 2.4s var(--ease-in-out-quart) infinite; }
 .loader-brand {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, calc(-50% + min(28vmin, 250px)));
@@ -230,12 +253,15 @@
 @keyframes loaderBrandIn { to { transform: translateY(0); } }
 @keyframes loaderBar { to { width: 100%; } }
 /* quick variant (repeat visits) — same beats, compressed */
-.loader--quick .loader-ring circle { animation-duration: 0.8s; animation-delay: 0.05s; }
+.loader--quick .loader-ring circle { animation-duration: 0.75s; animation-delay: 0.05s; }
+.loader--quick .loader-orbit__dot { animation-delay: 0.4s; }
 .loader--quick .loader-brand > span { animation-delay: 0.2s; animation-duration: 0.6s; }
 .loader--quick .loader-sub > span { animation-delay: 0.35s; animation-duration: 0.6s; }
 .loader--quick .loader-bar i { animation-duration: 1.2s; }
 @media (prefers-reduced-motion: reduce) {
   .loader-ring circle { animation: none; stroke-dashoffset: 0; }
+  .loader-orbit { animation: none; }
+  .loader-orbit__dot { animation: none; opacity: 1; }
   .loader-dot, .loader-bar i { animation: none; }
   .loader-brand > span, .loader-sub > span { animation: none; transform: none; }
 }

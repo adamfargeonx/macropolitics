@@ -234,7 +234,8 @@
   display: flex; align-items: center; gap: var(--sp-3);
   transition: opacity var(--dur-base) ease;
 }
-body:has(.home--closed) .unav { opacity: 0; pointer-events: none; }
+/* keep the methodology + legend reachable even on the closed-home opener (discoverability) — just understated */
+body:has(.home--closed) .unav { opacity: 0.72; }
 .unav__model {
   display: inline-flex; align-items: center; gap: 7px; cursor: none;
   font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;

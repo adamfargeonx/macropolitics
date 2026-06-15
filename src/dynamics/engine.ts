@@ -82,7 +82,7 @@ export class OrbitalField {
   private selected: string | null = null
   private hoverSince = 0
   private connected = new Set<string>()
-  private start = 0; private raf = 0; private now = 0
+  private start = 0; private raf = 0; private now = 0; private settleT = 0
   private canvas: HTMLCanvasElement
   private container: HTMLElement
   private reduced: boolean
@@ -105,6 +105,7 @@ export class OrbitalField {
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
     this.container.addEventListener('pointerleave', this.onLeave)
+    this.container.addEventListener('pointerenter', this.onEnter)
     this.container.addEventListener('pointerdown', this.onDown)
     window.addEventListener('pointerup', this.onUp)
     this.container.addEventListener('wheel', this.onWheel, { passive: false })
@@ -160,11 +161,17 @@ export class OrbitalField {
     })
   }
 
-  start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
+  start_() {
+    this.start = performance.now(); this.raf = requestAnimationFrame(this.frame)
+    // settle re-measure: covers the case where the pointer is already inside at mount (no enter event)
+    this.settleT = window.setTimeout(() => { this.rect = this.container.getBoundingClientRect() }, 760)
+  }
   destroy() {
     cancelAnimationFrame(this.raf)
+    clearTimeout(this.settleT)
     this.container.removeEventListener('pointermove', this.onMove)
     this.container.removeEventListener('pointerleave', this.onLeave)
+    this.container.removeEventListener('pointerenter', this.onEnter)
     this.container.removeEventListener('pointerdown', this.onDown)
     window.removeEventListener('pointerup', this.onUp)
     this.container.removeEventListener('wheel', this.onWheel)
@@ -183,6 +190,10 @@ export class OrbitalField {
     if (!this.dragging) this.hitTest()
   }
   private onLeave = () => { this.mouse.x = -9999; this.mouse.y = -9999; this.setHovered(null) }
+  // Re-measure the container box right before a hover session. The rect is cached for perf, but the
+  // constructor captures it mid-`stageIn` (the .stage entrance transform), so it must be refreshed
+  // once the pointer actually enters — otherwise hit-testing is offset by the leftover transform.
+  private onEnter = () => { this.rect = this.container.getBoundingClientRect() }
   private onDown = (ev: PointerEvent) => {
     const rect = this.rect
     this.down = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }

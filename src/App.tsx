@@ -4,6 +4,7 @@ import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
 import RelationsView from './dynamics/RelationsView'
+import ForcesWellView from './dynamics/ForcesWellView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { GlobalField } from './dynamics/GlobalField'
 import { Legend } from './dynamics/Legend'
@@ -43,9 +44,9 @@ function SoundToggle() {
   )
 }
 
-const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relations: '#/relations', dynamics: '#/dynamics' }
+const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relations: '#/relations', dynamics: '#/dynamics', well: '#/well' }
 const hashToView = (h: string): View | null =>
-  h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
+  h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '#/well' ? 'well' : h === '' || h === '#/' ? 'home' : null
 
 export default function App() {
   // repeat visits (same session) get a quick loader — the moment, without the wait
@@ -88,6 +89,7 @@ export default function App() {
       if (e.key === '1') go('forces')
       else if (e.key === '2') go('relations')
       else if (e.key === '3') go('dynamics')
+      else if (e.key === '4') go('well')
       else if (e.key === 'Escape' && !overlayOpen) go('home')
     }
     window.addEventListener('keydown', onKey)
@@ -102,6 +104,7 @@ export default function App() {
       {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={go} />
         : view === 'forces' ? <ForcesView view={view} onView={go} />
         : view === 'relations' ? <RelationsView view={view} onView={go} />
+        : view === 'well' ? <ForcesWellView view={view} onView={go} />
         : <DynamicsView view={view} onView={go} />}
       <CustomCursor />
       <SoundToggle />

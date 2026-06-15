@@ -32,9 +32,14 @@ export default function LoaderView({ onDone, quick = false }: { onDone: () => vo
     <div className={`loader${quick ? ' loader--quick' : ''}${out ? ' loader--out' : ''}`} dir="rtl" aria-label="טעינה" aria-busy={!out}>
       <canvas ref={canvasRef} className="field" />
       <div className="loader-core">
-        <svg className="loader-ring" viewBox="0 0 100 100" aria-hidden>
+        <svg className="loader-ring loader-ring--outer" viewBox="0 0 100 100" aria-hidden>
           <circle cx="50" cy="50" r="48" />
         </svg>
+        <svg className="loader-ring loader-ring--inner" viewBox="0 0 100 100" aria-hidden>
+          <circle cx="50" cy="50" r="32" />
+        </svg>
+        {/* a body orbits the ring (accent) — the system forming; fades as it settles into the home core */}
+        <div className="loader-orbit" aria-hidden><span className="loader-orbit__dot" /></div>
         <span className="loader-dot" />
       </div>
       <h1 className="loader-brand"><span>מאקרופוליטיקה</span></h1>

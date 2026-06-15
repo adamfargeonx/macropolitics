@@ -267,11 +267,12 @@ export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDet
   )
 }
 
-export type View = 'home' | 'forces' | 'relations' | 'dynamics'
+export type View = 'home' | 'forces' | 'relations' | 'dynamics' | 'well'
 const TABS: { he: string; view: View; ready?: boolean }[] = [
   { he: 'הכוחות', view: 'forces', ready: true },
   { he: 'היחסים', view: 'relations', ready: true },
   { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
+  { he: 'שדה כוח', view: 'well', ready: true },
 ]
 
 export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {

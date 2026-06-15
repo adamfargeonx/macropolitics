@@ -1,0 +1,120 @@
+/* ── ForcesWellView — Gravity Well / Warped Field ──────────────────────────
+   Stage: .stage.forces-well (inherits .stage from base.css)
+   Canvas: .field (inherits .field from base.css — fills the stage absolutely)
+   All colors via design tokens where possible; canvas-only rgba literals are
+   in ForcesWellView.tsx (canvas can't read CSS custom props at runtime).
+   No rounded corners except true circles (border-radius: 50% on body dots —
+   those live on the canvas, not in CSS).
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Stage entrance — iris wipe + subtle scale, matching other data views ── */
+.forces-well {
+  cursor: none;
+  animation: stageIn 0.7s var(--ease-out-expo) both;
+  transform-origin: center;
+}
+/* stageIn is defined in views.css; we inherit it via the .stage:not(.home) rule.
+   Declaring cursor:none here keeps parity with the canvas engine's hit-testing. */
+
+/* ── Hover/select readout chip ─────────────────────────────────────────────
+   An absolutely-positioned HTML overlay positioned by JS (left/top from state).
+   Sharp corners (no border-radius — project rule).                           */
+.well-chip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 13px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-yellow);
+  border-radius: 0;
+  pointer-events: none;
+  z-index: var(--z-readout);
+  animation: chipIn 0.18s var(--ease-out-expo) both;
+  white-space: nowrap;
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 6px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+.well-chip__name {
+  font-family: var(--display);
+  font-weight: var(--fw-bold);
+  font-size: var(--text-lg);
+  color: var(--light);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+.well-chip__score {
+  font-family: var(--display);
+  font-weight: var(--fw-black);
+  font-size: var(--text-3xl);
+  color: var(--yellow);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.well-chip__axis {
+  font-family: var(--body);
+  font-size: var(--text-xs);
+  color: var(--ink-dim);
+  letter-spacing: var(--tracking-wide);
+}
+/* Pinned indicator — a small yellow dot when body is selected/locked */
+.well-chip__pin {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%; /* true circle — allowed exception */
+  background: var(--yellow);
+  display: block;
+}
+
+/* ── Hint line — fades once a body is selected ──────────────────────────── */
+.well-hint {
+  position: absolute;
+  bottom: 92px; /* above the tab bar */
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--body);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-dim);
+  pointer-events: none;
+  z-index: var(--z-content);
+  animation: hintPulse 2.8s ease-in-out infinite;
+  white-space: nowrap;
+}
+/* hintPulse is defined in views.css; re-declare locally so it's self-contained */
+@keyframes wellHintPulse {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.55; }
+}
+.well-hint { animation: wellHintPulse 2.8s ease-in-out infinite; }
+
+/* ── Screen-reader equivalent list (visually hidden) ───────────────────── */
+.well-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .well-hint { bottom: 80px; font-size: var(--text-xs); }
+  .well-chip { padding: 6px 10px 7px; }
+  .well-chip__score { font-size: var(--text-2xl); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forces-well { animation: none; }
+  .well-chip { animation: none; }
+  .well-hint { animation: none; }
+}
