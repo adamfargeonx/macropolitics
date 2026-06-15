@@ -1,14 +1,19 @@
 import { type Year } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
+import { sound } from '../sound'
 import { Words } from './Words'
 import {
-  metricVal, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N,
+  metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N,
   type Order, type Bloc,
 } from './forces-model'
 
 type ForcesIndexPanelProps = {
   orderBy: Order
+  setOrderBy: (o: Order) => void
+  toolsOpen: boolean
+  setToolsOpen: (fn: (v: boolean) => boolean) => void
+  stateActive: boolean
   filterBloc: Bloc
   year: Year
   scenario: boolean
@@ -23,15 +28,34 @@ type ForcesIndexPanelProps = {
   setShowAllIndex: (fn: (v: boolean) => boolean) => void
 }
 
-// The resting side panel: the thesis line + the ranked gravity index (map-linked rows).
+// The resting side panel — now the unified forces dashboard: thesis line, the sort + tools
+// controls (moved off the canvas), and the ranked gravity index (map-linked rows).
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
-  const { orderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
+  const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
   return (
     <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <h1 className="panel__title">כוח משיכה</h1>
       <p className="panel__body panel__body--words">
         <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
       </p>
+      {/* unified controls — sort the index + open the tools disclosure (filters/year/scenario) */}
+      <div className="gctl" role="group" aria-label="מיון וכלים">
+        <span className="gctl__lbl">מיון</span>
+        {ORDERS.map((o) => (
+          <button
+            key={o}
+            className={`gctl__opt${orderBy === o ? ' is-on' : ''}`}
+            onClick={() => { sound.play('tab'); setOrderBy(o) }}
+            aria-pressed={orderBy === o}
+          >{ORDER_SHORT[o]}</button>
+        ))}
+        <button
+          className={`gctl__tools${toolsOpen ? ' is-on' : ''}${stateActive ? ' has-state' : ''}`}
+          onClick={() => { sound.play('tab'); setToolsOpen((v) => !v) }}
+          aria-pressed={toolsOpen}
+          title="סינון, ציר זמן, תרחיש"
+        ><span aria-hidden>⚙</span> כלים</button>
+      </div>
       <div className="gindex">
         <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
         {indexRows.map((e, i) => (

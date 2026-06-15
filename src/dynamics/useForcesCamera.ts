@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { REACT_R, MAX_NUDGE, NEAR_R } from './forces-model'
+import { NEAR_R } from './forces-model'
 
 type Pos = { x: number; y: number }
 type Cam = { z: number; x: number; y: number }
@@ -40,6 +40,7 @@ export function useForcesCamera(
   }, [fieldRef])
 
   const onPanDown = (e: React.PointerEvent) => { drag.current = { sx: e.clientX, sy: e.clientY, px: camRef.current.x, py: camRef.current.y }; dragMoved.current = false; setIsDragging(true) }
+  // proximity only — the nearest body becomes 'proximal' (→ blooms via focus). No physical shove.
   const react = (e: React.PointerEvent) => {
     const el = fieldRef.current; if (!el) return
     const r = rectRef.current ?? el.getBoundingClientRect(); const c = camRef.current
@@ -48,20 +49,12 @@ export function useForcesCamera(
     el.querySelectorAll<HTMLElement>('.fnode').forEach((node) => {
       const id = node.dataset.id; if (!id) return
       const p = posRef.current.get(id); if (!p) return
-      const dx = fx - p.x, dy = fy - p.y, dist = Math.hypot(dx, dy)
-      if (dist < REACT_R && dist > 0.01) {
-        const prox = 1 - dist / REACT_R
-        const mag = Math.min(MAX_NUDGE, prox * prox * MAX_NUDGE * 1.8)
-        node.style.translate = `${(dx / dist) * mag}px ${(dy / dist) * mag}px`
-      } else if (node.style.translate) node.style.translate = ''
+      const dist = Math.hypot(fx - p.x, fy - p.y)
       if (dist < nd) { nd = dist; nearest = id }
     })
     if (proxRef.current !== nearest) setProximal(nearest)
   }
-  const clearReact = () => {
-    fieldRef.current?.querySelectorAll<HTMLElement>('.fnode').forEach((n) => { if (n.style.translate) n.style.translate = '' })
-    if (proxRef.current) setProximal(null)
-  }
+  const clearReact = () => { if (proxRef.current) setProximal(null) }
   const onMove = (e: React.PointerEvent) => {
     react(e)
     const d = drag.current; if (!d) return

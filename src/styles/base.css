@@ -97,7 +97,8 @@
   --sp-6: 26px; --sp-7: 32px; --sp-8: 40px; --sp-9: 48px;
 
   /* ── Radius ──────────────────────────────────────────────── */
-  --r-sm: 4px; --r-pill: 999px;
+  /* no rounded corners (project rule). Tokens are 0; circular bodies/orbits use literal 50%. */
+  --r-sm: 0; --r-pill: 0;
 
   /* ── Motion ──────────────────────────────────────────────── */
   --dur-fast: 0.2s; --dur-base: 0.4s; --dur-slow: 0.8s;

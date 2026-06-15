@@ -100,7 +100,7 @@ export default function App() {
 
   return (
     <>
-      <GlobalField />
+      <GlobalField view={view} />
       {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={go} />
         : view === 'forces' ? <ForcesView view={view} onView={go} />
         : view === 'relations' ? <RelationsView view={view} onView={go} />

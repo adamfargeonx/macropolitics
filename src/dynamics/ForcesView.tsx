@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, AXIS } from '../data/entities'
+import { NODES, LINKS, AXIS } from '../data/entities'
 import { bodyInputsForYear, type Year } from '../data/empirical'
 import { computeGravities } from '../model/gravity'
 import { useWeights, weightsStore, isDefaultWeights } from '../model/weights-store'
@@ -11,7 +11,7 @@ import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
 import { sound } from '../sound'
 import {
-  AXIS_RIM, ORDERS, ORDER_SHORT, BLOC_LABEL, DEFAULT_RAW, RANK_OF,
+  AXIS_RIM, BLOC_LABEL, DEFAULT_RAW, RANK_OF,
   ZOOM_NAMES_AT, TOP_NAMES_N, INDEX_PREVIEW_N,
   metricVal, passesBloc, buildForceDetail, computeLayout,
   type Order, type Bloc, type Raw,
@@ -20,10 +20,9 @@ import {
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
-  const { size, cam, proximal, isDragging, consumeDragMoved, fieldHandlers, zoomBy, resetCam } = useForcesCamera(fieldRef, posRef)
+  const { size, cam, proximal, isDragging, consumeDragMoved, fieldHandlers } = useForcesCamera(fieldRef, posRef)
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [namesOff, setNamesOff] = useState(false)
   const [orderBy, setOrderBy] = useState<Order>('total')
   const [filterBloc, setFilterBloc] = useState<Bloc>('all')
   const [minScore, setMinScore] = useState(0)
@@ -80,7 +79,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
 
   return (
     <div
-      className={`stage forces${namesOff ? ' forces--clean' : ''}${zoomNames && !namesOff ? ' forces--names' : ''}`}
+      className={`stage forces${zoomNames ? ' forces--names' : ''}`}
       dir="rtl"
       onClick={() => {
         if (consumeDragMoved()) return
@@ -99,6 +98,24 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
             <span className="forces-ring__label">{ring.label}</span>
           </div>
         ))}
+        {/* gravitational reveal: when a body is in focus, threads light up to its allies */}
+        {focus && size.w > 0 && (() => {
+          const fp = layout.nodes.find((n) => n.e.id === focus)
+          if (!fp) return null
+          const allies = LINKS.filter(([a, b]) => a === focus || b === focus).map(([a, b]) => (a === focus ? b : a))
+          const segs = allies.flatMap((id) => {
+            const n = layout.nodes.find((x) => x.e.id === id)
+            return n ? [{ x: n.x, y: n.y }] : []
+          })
+          if (segs.length === 0) return null
+          return (
+            <svg className="forces-threads" width={size.w} height={size.h} aria-hidden>
+              {segs.map((p, i) => (
+                <line key={i} className="forces-thread" x1={fp.x} y1={fp.y} x2={p.x} y2={p.y} />
+              ))}
+            </svg>
+          )
+        })()}
         {layout.nodes.map(({ e, x, y, d }, i) => {
           const isFocus = e.id === focus
           const dim = focus && !isFocus
@@ -132,30 +149,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
        </div>
       </div>
 
-      {/* ── Primary controls: order-by (always visible) + tools disclosure ── */}
-      <div className="forcesctl" dir="rtl">
-        <div className="forcesctl__group" role="group" aria-label="מיון">
-          <span className="forcesctl__lbl">מיון</span>
-          {ORDERS.map((o) => (
-            <button
-              key={o}
-              className={`forcesctl__opt${orderBy === o ? ' is-on' : ''}`}
-              onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setOrderBy(o) }}
-              aria-pressed={orderBy === o}
-            >{ORDER_SHORT[o]}</button>
-          ))}
-        </div>
-        <button
-          className={`forcesctl__tools${toolsOpen ? ' is-on' : ''}${stateActive ? ' has-state' : ''}`}
-          onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setToolsOpen((o) => !o) }}
-          aria-pressed={toolsOpen}
-          title="סינון, ציר זמן, תרחיש"
-        >
-          <span aria-hidden>⚙</span> כלים
-          {stateActive && !toolsOpen && <span className="forcesctl__tools-badge" aria-hidden />}
-        </button>
-      </div>
-
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
       {stateActive && !toolsOpen && (
         <div className="forces-state" dir="rtl">
@@ -179,23 +172,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         />
       )}
 
-      <div className="zoomctl" dir="ltr">
-        <button onClick={() => zoomBy(1.25)} aria-label="התקרבות">+</button>
-        <span className="zoomctl__val">{Math.round(cam.z * 100)}%</span>
-        <button onClick={() => zoomBy(0.8)} aria-label="התרחקות">−</button>
-        <button className="zoomctl__reset" onClick={resetCam} aria-label="איפוס">⟲</button>
-      </div>
-      <button
-        className={`namestoggle${namesOff ? ' namestoggle--off' : ''}`}
-        dir="rtl"
-        onClick={() => setNamesOff((v) => !v)}
-        aria-pressed={!namesOff}
-        title={namesOff ? 'הצגת שמות ודירוגים' : 'הסתרת שמות ודירוגים'}
-      >
-        <span className="namestoggle__icon" aria-hidden>{namesOff ? '◍' : '◉'}</span>
-        שמות
-      </button>
-
       {/* ── Hint — visible until the user selects something for the first time ── */}
       {!selected && (
         <div className="forces-hint" dir="rtl" aria-live="polite">
@@ -209,7 +185,9 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           <SidePanel detail={detail} onClose={() => setSelected(null)} />
         ) : (
           <ForcesIndexPanel
-            orderBy={orderBy} filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
+            orderBy={orderBy} setOrderBy={setOrderBy}
+            toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} stateActive={stateActive}
+            filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
             hovered={hovered} setHovered={setHovered}
             onHoverId={(id) => setHovered(id)} onSelect={(id) => setSelected(id)}
             ranked={ranked} indexRows={indexRows}

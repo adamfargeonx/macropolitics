@@ -1,17 +1,25 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 const TAU = Math.PI * 2
 
 export interface Impulse { x: number; y: number; t: number }
+export type FieldMode = 'inward' | 'orbital'
 
-// The site's universal particle field (window-sized): particles drift INWARD toward the
-// centre of the screen — the project's gravity motif — leaving soft trails, then respawn
-// at the rim. Self-listens for clicks anywhere: scatters nearby particles + a yellow ripple.
+// The site's universal particle field (window-sized). Two behaviours, same particles:
+//   'inward'  — particles drift toward the centre (the gravity motif; home/relations/dynamics)
+//   'orbital' — particles rotate around the centre, held in a band (forces: distance-from-centre
+//               already encodes power there, so a centre-seeking field would fight the reading)
+// Leaves soft trails; respawns at the rim. Self-listens for clicks → scatter + a yellow ripple.
 // `impulseRef` is optional for programmatic pulses (the loader injects a centre pulse).
 export function useGravityField(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   impulseRef?: RefObject<Impulse | null>,
+  mode: FieldMode = 'inward',
 ) {
+  // read live in the RAF loop so a view change switches behaviour without re-seeding the field
+  const modeRef = useRef(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
+
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return
     const ctx = cv.getContext('2d')
@@ -64,8 +72,17 @@ export function useGravityField(
       for (const p of ps) {
         const dx = cx - p.x, dy = cy - p.y, d2 = dx * dx + dy * dy
         const d = Math.sqrt(d2) || 1
-        const a = Math.min(0.08, 22 / (d2 + 3000))
-        p.vx += (dx / d) * a * d * 0.1; p.vy += (dy / d) * a * d * 0.1
+        if (modeRef.current === 'orbital') {
+          // tangential rotation (perpendicular to the radius) + a soft radial spring to a band —
+          // particles circle the centre instead of falling into it
+          const tx = -dy / d, ty = dx / d
+          const radial = d - Math.min(w, h) * 0.4
+          p.vx += tx * 0.05 + (dx / d) * radial * 0.00045
+          p.vy += ty * 0.05 + (dy / d) * radial * 0.00045
+        } else {
+          const a = Math.min(0.08, 22 / (d2 + 3000))
+          p.vx += (dx / d) * a * d * 0.1; p.vy += (dy / d) * a * d * 0.1
+        }
         if (imp && imp.s > 0.02) {
           const ix = p.x - imp.x, iy = p.y - imp.y, id2 = ix * ix + iy * iy
           const infl = Math.exp(-id2 / 26000) * imp.s

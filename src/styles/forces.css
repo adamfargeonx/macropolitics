@@ -15,7 +15,7 @@
   width: 34px; padding: 16px 0; gap: 10px; cursor: none; pointer-events: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: rgba(10, 6, 22, 0.82); color: var(--yellow);
-  border: 1px solid var(--line-yellow); border-right: none; border-radius: 9px 0 0 9px;
+  border: 1px solid var(--line-yellow); border-right: none; border-radius: 0;
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 .pdock__handle:hover { background: rgba(251, 255, 0, 0.14); box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3); }
@@ -46,7 +46,7 @@
     transform: translateX(50%);
     width: 54px; height: 34px; padding: 0;
     flex-direction: row;
-    border-radius: 9px 9px 0 0;
+    border-radius: 0;
     border-right: 1px solid var(--line-yellow); border-bottom: none;
   }
   .pdock__handle:active { transform: translateX(50%) scale(0.96); }
@@ -109,8 +109,15 @@
 .forces--names .fnode__score { opacity: 0.7; }
 .forces--clean .fnode__name, .forces--clean .fnode__score, .forces--clean .forces-ring__label { opacity: 0 !important; transition-delay: 0s; }
 .fnode--focus { z-index: 5; }
-.fnode--focus .fnode__disk { transform: scale(1.12); box-shadow: 0 0 26px rgba(251, 255, 0, 0.3); }
+/* bloom — proximity/hover makes the body flare (glow + white-hot core), no longer shoves it */
+.fnode--focus .fnode__disk { transform: scale(1.2); box-shadow: 0 0 40px rgba(251, 255, 0, 0.5), 0 0 16px rgba(255, 255, 255, 0.45); }
 .fnode--dim { opacity: 0.25; }
+
+/* gravitational reveal — threads from the focused body to its allies (the "reveal" half of hover) */
+.forces-threads { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }
+.forces-thread { stroke: var(--yellow); stroke-width: 1; stroke-opacity: 0.5; stroke-dasharray: 5 4; animation: threadIn 0.45s var(--ease-out-expo) both; }
+@keyframes threadIn { from { stroke-opacity: 0; stroke-dashoffset: 14; } to { stroke-opacity: 0.5; stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .forces-thread { animation: none; } }
 
 /* force breakdown bars (panel) */
 .panel__forces { margin-top: 20px; display: flex; flex-direction: column; gap: 11px; }
@@ -120,8 +127,18 @@
 .fbar__fill { display: block; height: 100%; background: var(--yellow); }
 .fbar__v { font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--white); width: 18px; }
 
+/* unified controls strip (in-panel) — sort the index + open the tools disclosure */
+.gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.gctl__lbl { font-family: var(--body); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-dim); margin-inline-end: 2px; }
+.gctl__opt { cursor: none; background: none; border: 1px solid var(--line); padding: 4px 9px; font-family: var(--body); font-size: 11px; color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__opt:hover:not(.is-on) { color: var(--light); border-color: var(--ink-dim); }
+.gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
+.gctl__tools { margin-inline-start: auto; cursor: none; background: none; border: 1px solid var(--line); padding: 4px 10px; font-family: var(--body); font-size: 11px; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__tools:hover, .gctl__tools.has-state { color: var(--yellow); }
+.gctl__tools.is-on { border-color: var(--yellow-30); color: var(--yellow); background: var(--yellow-06); }
+
 /* gravity index — the ranked ledger (forces default panel) */
-.gindex { margin-top: 18px; display: flex; flex-direction: column; }
+.gindex { margin-top: 16px; display: flex; flex-direction: column; }
 .gindex__h { font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.12em; padding-bottom: 8px; }
 .gindex__row {
   display: grid; grid-template-columns: 22px 1fr 74px 30px; align-items: center; gap: 9px;
