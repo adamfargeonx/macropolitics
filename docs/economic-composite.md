@@ -68,14 +68,117 @@ imputed. The seven sub-scores are surfaced in the evidence overlay.
 
 ---
 
-## Military & Geo — sourceability map (for the next pilots)
+---
 
-**Military (11):** sourceable ✓ expenditure (SIPRI) · manpower (IISS) · nuclear (FAS/SIPRI) —
-proxy ◐ equipment counts · defense industry (SIPRI arms) · cyber (Nat'l Cyber Power Index) ·
-alliances (from the graph) — judgment ✗ logistics · combat experience · intelligence · training.
-→ a hybrid: ~half hard data, half flagged judgment.
+## Military composite — LIVE (`src/model/military.ts`)
 
-**Geo-strategic (6):** objective ✓ size/depth (land area) · bordering countries (count) —
-proxy ◐ resource access (reserves) · route influence (chokepoint adjacency) —
-judgment ✗ strategic location · topography.
-→ mostly interpretive (as the axis is already labelled), with a few objective anchors.
+The single judged `mil` is replaced by a transparent rollup of **four** sourced/proxy criteria.
+Seven of the original 11 rubric criteria remain judgment and are **flagged in the overlay** as NOT
+modelled — never silently smoothed.
+
+```
+mil = clamp(spendScore + manBonus + nucBonus + cyberBonus, 0–10)
+
+spendScore = logNorm(spend, $1B–$1T)              // dominant spine, always present
+manBonus   = max(0, (manRaw − spendScore) × 0.20) // upward-only: large armies > what spend implies
+nucBonus   = logNorm(warheads, 10–7000) × 0.12    // log bonus; max ~+1.2 for 6,000+ warheads
+cyberBonus = (ncpi / 100) × 0.5                   // max +0.5; Belfer NCPI major-powers only
+```
+
+The manpower bonus is **upward-only** (large conscript armies with spend underestimating capability
+get a lift; elite small forces like Israel are not penalised twice).
+
+### Per-criterion sourcing
+
+| Criterion | Source | → score | Status |
+|---|---|---|---|
+| Military expenditure | SIPRI 2025 (updated Apr 2026) | logNorm $1B–$1T | ✓ sourced |
+| Active personnel | IISS Military Balance 2024 (thousands) | logNorm 10k–2.5M | ✓ sourced |
+| Nuclear stockpile | FAS 2025 (total warheads, all systems) | logNorm 10–7,000 | ✓ sourced |
+| Cyber power | Belfer NCPI 2022 (0–100, major powers) | fraction of max +0.5 | ◐ proxy |
+| Equipment/tech · logistics · combat experience · defense industry · alliances · intel · training | — | not modelled | ✗ judgment (flagged) |
+
+States included in MIL_CRITERIA (11): USA, China, Russia, India, Saudi, Israel, Turkey, Iran,
+Pakistan, Egypt, Iraq. Non-state actors, Europe, UAE, Syria, Lebanon, Yemen are excluded (no clean
+SIPRI/IISS figures) and retain hand mil scores.
+
+### Notable sourced shifts vs the old hand-scores
+
+- **Iran mil 6 → 3.8** — SIPRI official spend is $7.4B (IRGC off-budget missile/proxy funding
+  excluded). The composite scores what's publicly counted. ⚠️ Flagged: effective capability further
+  degraded after June 2025 / Feb 2026 strikes on nuclear/missile infrastructure.
+- **Israel mil 8 → 6.3** — the gap reflects unmodelled judgment criteria: combat experience, elite
+  doctrine, intelligence (Iron Dome/Beam, SIGINT). ⚠️ Note: demonstrated 2024-2025 multi-front
+  operational record suggests effective capability above the sourced composite score.
+- **Pakistan mil 4.9** — nuclear uplift ($11.9B spend alone would score ~4.5; 170 warheads add
+  +0.4). Correctly above Egypt (3.0) which lacks nuclear capability.
+- **Russia mil 9.3** — $190B spend + 6,200 warheads + Belfer cyber 74. Reflects sourced inputs;
+  Ukraine attrition losses (equipment, trained personnel) are a judgment-layer concern flagged in
+  provenance but not captured by the spend figure.
+- **Egypt mil 3.0** — SIPRI does not publish Egypt data; $4.0B is an IISS estimate. US-funded
+  equipment quality not modelled. Large manpower (438k) gives small upward lift.
+
+### Tunables
+`MIL_MAN_W` (0.20, manpower weight), `MIL_NUC_RATE` (0.12, nuclear bonus rate),
+`MIL_CYBER_MAX` (0.5, cyber bonus cap).
+
+---
+
+## Geo-strategic composite — LIVE (`src/model/geo.ts`)
+
+The single judged `geo` is replaced (for 9 regional actors) by a transparent rollup of **four**
+sourced/proxy criteria. Two of the original six rubric criteria remain judgment and are **flagged
+in the overlay** as NOT modelled.
+
+The composite is **regional only**: USA, Russia, China, Europe, India are excluded — their
+geo-strategic relevance depends on carrier groups, overseas bases, and diplomatic reach that
+cannot be captured by physical geography data. For states not in `GEO_CRITERIA`, the editorial
+hand score is used as-is.
+
+```
+spine      = 0.40×sizeScore + 0.30×borderScore
+resBonus   = logNorm(oil_Bboe + gas_Bboe, 1–350) × 0.10   // max +1.0
+chokeBonus = primary×0.80 + secondary×0.40
+geo        = clamp(spine + resBonus + chokeBonus, 0–10)
+```
+
+### Per-criterion sourcing & normalisation
+
+| Criterion | Source | → 0–10 | Role |
+|---|---|---|---|
+| Land area km² | CIA World Factbook 2024 | logNorm 1k–2.5M km² | spine ×0.40 |
+| Land borders (count) | sovereign borders | logNorm 1–8 | spine ×0.30 |
+| Oil+gas reserves (Bboe combined) | OPEC ASB 2024 + BP SR 2024 | logNorm 1–350 Bboe × 0.10 | +bonus (max +1.0) |
+| Chokepoint adjacency | EIA chokepoints 2024 | primary=+0.80 / secondary shore=+0.40 | +bonus |
+| Strategic location · topography | — | not modelled | ✗ judgment (flagged) |
+
+States included in GEO_CRITERIA (9): Saudi Arabia, Turkey, Egypt, Iraq, Oman, Syria, Pakistan,
+Jordan, Kuwait. States not in GEO_CRITERIA retain editorial hand scores.
+
+### Notable composite outputs vs old hand-scores
+
+| Actor | Old hand score | Composite | Driver |
+|---|---|---|---|
+| Turkey | 6.0 | **7.5** | 8 borders (Saudi-tier max) + Bosphorus (primary choke) + large area |
+| Saudi Arabia | 7.5 | **7.9** | 8 borders + 324 Bboe reserves |
+| Egypt | — | **6.8** | Suez Canal (primary choke) + 1M km² area |
+| Iraq | — | **6.6** | 145 Bboe oil reserves + 6 borders |
+| Oman | — | **5.3** | Secondary shore on Hormuz + modest area |
+| Syria | — | **5.2** | 5 borders + residual reserves (infrastructure destroyed — flagged) |
+| Pakistan | — | **5.6** | Large area + modest reserves |
+| Iran (editorial) | 7.0 → | **5.5** | Reduced 2025-2026: 2 strikes on nuclear/missile infrastructure, proxy network attrited |
+| UAE (editorial) | 4.0 → | **5.5** | Raised: Jebel Ali hub, Fujairah Persian Gulf bypass, Abraham Accords reach |
+| Yemen (editorial) | 3.0 → | **4.5** | Raised: Bab el-Mandeb disruption proven 2023-2025 |
+
+### Judgment gaps flagged (not silently smoothed)
+
+- **Strategic location** — diplomatic relevance, positioning in great-power competition: interpretive, no objective source
+- **Topography** — terrain as military or access barrier: requires GIS analysis, not capturable from a single numeric field
+
+Both appear explicitly in the overlay as: "2 קריטריונים נוספים — שיפוט; לא ממודלים"
+
+### Tunables (exposed, arguable)
+
+`GEO_AREA_W` (0.40), `GEO_BORDER_W` (0.30), `GEO_RES_RATE` (0.10, resource bonus rate),
+`GEO_CHOKE_PRIMARY` (0.80), `GEO_CHOKE_SECONDARY` (0.40).
+`AREA_HI` / `BORDER_HI` / `RES_HI` are regional anchors — recalibrate if scope expands beyond MENA.

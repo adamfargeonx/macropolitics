@@ -45,6 +45,10 @@ const checks: [string, boolean][] = [
   ['PIJ is a near-total client (backing ≥ its own intrinsic)', res.get('pij')!.backing >= res.get('pij')!.intrinsic],
   ['every body in 0–100', rows.every((r) => r.power >= 0 && r.power <= 100)],
   ['count = 29', rows.length === 29],
+  ['geo composite live — Turkey geo ≥ 7 from physical geography composite', res.get('turkey')!.geo >= 7.0],
+  ['Iran geo reflects axis collapse (≤ 6)', res.get('iran')!.geo <= 6],
+  ['Yemen geo reflects Bab el-Mandeb leverage (≥ 4)', res.get('yemen')!.geo >= 4],
+  ['UAE geo elevated to hub-power level (≥ 5)', res.get('uae')!.geo >= 5],
 ]
 console.log('\nchecks:')
 let ok = true

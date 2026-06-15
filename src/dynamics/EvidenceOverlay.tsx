@@ -22,6 +22,16 @@ const MIL_ROWS = [
 ] as const
 const milMissing = (k: string, missing: string[]) => missing.includes(k)
 
+// Geo-strategic composite's four sourced criteria (src/model/geo.ts), Hebrew labels for the overlay.
+const GEO_ROWS = [
+  { k: 'area',        he: 'שטח (CIA 2024)'                     },
+  { k: 'borders',     he: 'גבולות יבשתיים (ריבוניים)'          },
+  { k: 'resources',   he: 'עתודות נפט+גז (OPEC · BP 2024)'     },
+  { k: 'chokepoints', he: 'צוואר בקבוק ימי (EIA)'              },
+] as const
+const geoMissing = (k: string, missing: string[]) =>
+  k === 'resources' ? missing.includes('oil') || missing.includes('gas') : false
+
 // The economic composite's seven sub-criteria (src/model/economic.ts), Hebrew labels for the overlay.
 const ECO_ROWS = [
   { k: 'mass', he: 'מסה · תמ״ג PPP' },
@@ -170,6 +180,33 @@ export function EvidenceOverlay() {
                       </div>
                       <span className="evid__eco-foot">
                         עמוד שדרה (מסה×0.7 + לנפש×0.3) {bk.spine.toFixed(1)} · בריאות פיסקלית {bk.health.toFixed(1)} → <b>כלכלי {bk.eco.toFixed(1)}</b>
+                      </span>
+                    </div>
+                  )
+                })()}
+                {axis === 'geo' && d.geoBreakdown && (() => {
+                  const bk = d.geoBreakdown!
+                  return (
+                    <div className="evid__geo">
+                      <span className="evid__geo-lbl">מדד מורכב · 4 פרמטרים ממקור (CIA · OPEC · BP · EIA)</span>
+                      <div className="evid__geo-grid">
+                        {GEO_ROWS.map(({ k, he }) => {
+                          const v = bk.sub[k as keyof typeof bk.sub]
+                          const miss = geoMissing(k, bk.missing)
+                          return (
+                            <div className={`evid__geo-row${miss ? ' evid__geo-row--miss' : ''}`} key={k}>
+                              <span className="evid__geo-k">{he}</span>
+                              <span className="evid__geo-bar"><i style={{ width: `${v * 10}%` }} /></span>
+                              <span className="evid__geo-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <span className="evid__geo-foot">
+                        שטח {bk.sizeScore.toFixed(1)}×0.4 + גבולות {bk.borderScore.toFixed(1)}×0.3 + עתודות +{bk.resBonus.toFixed(2)} + מיקום +{bk.chokeBonus.toFixed(2)} → <b>גיאו {bk.geo.toFixed(1)}</b>
+                      </span>
+                      <span className="evid__geo-judgment">
+                        2 קריטריונים נוספים (מיקום אסטרטגי, טופוגרפיה) — שיפוט; לא ממודלים
                       </span>
                     </div>
                   )
