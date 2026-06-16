@@ -123,6 +123,17 @@
   animation: scrimIn 0.2s ease-out;
 }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+/* EXIT: the scrim fades and the dialog drops/contracts before unmounting (matches OVERLAY_EXIT_MS) */
+.legend__scrim.is-closing { animation: scrimOut 0.28s ease forwards; }
+.legend__scrim.is-closing .legend,
+.legend__scrim.is-closing .about,
+.legend__scrim.is-closing .evid { animation: dialogOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes scrimOut { to { opacity: 0; } }
+@keyframes dialogOut { to { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@media (prefers-reduced-motion: reduce) {
+  .legend__scrim.is-closing, .legend__scrim.is-closing .legend,
+  .legend__scrim.is-closing .about, .legend__scrim.is-closing .evid { animation: none; }
+}
 .legend {
   position: relative; width: min(452px, calc(100vw - 48px));
   padding: 28px 30px 22px; text-align: right;

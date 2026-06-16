@@ -107,7 +107,7 @@
 
   /* ── Elevation (z-index scale) ───────────────────────────── */
   --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;
-  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-cursor: 2147483646;
+  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-transition: 900; --z-cursor: 2147483646;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

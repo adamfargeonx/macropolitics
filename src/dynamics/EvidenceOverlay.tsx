@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DATA, MIL_TREND, MIL_TREND_SOURCE, GDP_PPP, GDP_PPP_SOURCE, bodyInputsForYear, type SourceStatus } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { computeGravities } from '../model/gravity'
 import { useWeights } from '../model/weights-store'
 import { useYear } from '../model/year-store'
 import { useFocusTrap } from './useFocusTrap'
+import { OVERLAY_EXIT_MS } from './useOverlay'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -54,35 +55,41 @@ const STATUS_LABEL: Record<SourceStatus, string> = {
 
 export function EvidenceOverlay() {
   const [id, setId] = useState<string | null>(null)
+  const [closing, setClosing] = useState(false) // play an exit animation before unmounting
   const weights = useWeights() // live (possibly scenario) weights → the calculation stays consistent
   const year = useYear()
   const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
-  const dialogRef = useFocusTrap<HTMLElement>(!!id)
+  const dialogRef = useFocusTrap<HTMLElement>(!!id && !closing)
+  const closeT = useRef(0)
+
+  const close = useCallback(() => {
+    sound.play('back'); setClosing(true)
+    closeT.current = window.setTimeout(() => { setId(null); setClosing(false) }, OVERLAY_EXIT_MS)
+  }, [])
 
   useEffect(() => {
-    const onOpen = (e: Event) => { sound.play('open'); setId((e as CustomEvent).detail?.id ?? null) }
+    const onOpen = (e: Event) => { clearTimeout(closeT.current); sound.play('open'); setClosing(false); setId((e as CustomEvent).detail?.id ?? null) }
     window.addEventListener('mp-evidence', onOpen)
-    return () => window.removeEventListener('mp-evidence', onOpen)
+    return () => { window.removeEventListener('mp-evidence', onOpen); clearTimeout(closeT.current) }
   }, [])
 
   useEffect(() => {
     if (!id) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { sound.play('back'); setId(null) } }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [id])
+  }, [id, close])
 
   if (!id) return null
   const d = DATA[id]; const node = NODES.find((n) => n.id === id); const g = grav.get(id)
   if (!d || !g || !node) return null
-  const close = () => { sound.play('back'); setId(null) }
   const b = g.patron && g.backing > 0
     ? { amount: Math.round(g.backing * 10), patronHe: NODES.find((n) => n.id === g.patron)?.he ?? g.patron }
     : null
   const w = weights
 
   return (
-    <div className="legend__scrim" onClick={close}>
+    <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
       <aside ref={dialogRef} className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">

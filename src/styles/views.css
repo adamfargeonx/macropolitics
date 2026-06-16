@@ -296,6 +296,19 @@
   .loader-dot { animation: none; opacity: 1; }
 }
 
+/* ── Page transition (between views): an iris-collapse cover swallows the old view to a point,
+   the view swaps under cover, then the overlay crossfades out as the new view blooms (its stageIn).
+   On-theme: everything collapses to a point (gravity) and the next system blooms from the centre. */
+.page-transition {
+  position: fixed; inset: 0; z-index: var(--z-transition); pointer-events: none; background: var(--bg);
+  clip-path: circle(0% at 50% 50%);
+  animation: pageCover 0.38s var(--ease-in-out-quart) forwards;
+  opacity: 1; transition: opacity 0.32s ease;
+}
+.page-transition--reveal { opacity: 0; }
+@keyframes pageCover { to { clip-path: circle(150% at 50% 50%); } }
+@media (prefers-reduced-motion: reduce) { .page-transition { display: none; } }
+
 /* ── Microanimations & transitions ─────────────────────────── */
 /* page transition: a circle-mask (iris) reveal with a slight zoom-in. Home runs its own. */
 .stage:not(.home) { animation: stageIn 0.7s var(--ease-out-expo) both; transform-origin: center; }

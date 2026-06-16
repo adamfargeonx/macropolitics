@@ -18,15 +18,16 @@ type ForcesToolsProps = {
   normW: Raw
   scenario: boolean
   stateActive: boolean
+  exiting?: boolean
   onResetAll: () => void
   onClose: () => void
 }
 
 // The "⚙ כלים" disclosure: bloc filter, threshold, year toggle, and the scenario weight sandbox.
 export function ForcesTools(props: ForcesToolsProps) {
-  const { filterBloc, setFilterBloc, minScore, setMinScore, year, setYear, raw, setRaw, normW, scenario, stateActive, onResetAll, onClose } = props
+  const { filterBloc, setFilterBloc, minScore, setMinScore, year, setYear, raw, setRaw, normW, scenario, stateActive, exiting, onResetAll, onClose } = props
   return (
-    <div className="forcestools" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+    <div className={`forcestools${exiting ? ' forcestools--out' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <div className="forcestools__row" role="group" aria-label="גוש">
         <span className="forcestools__lbl">גוש</span>
         {BLOCS.map((bl) => (

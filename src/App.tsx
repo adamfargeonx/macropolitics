@@ -55,20 +55,35 @@ export default function App() {
   const initial = hashToView(window.location.hash) ?? 'home'
   const [homeOpen, setHomeOpen] = useState(initial !== 'home') // deep-linked → the circle is already open
   const [view, setView] = useState<View>(initial)
-  const prev = useRef<View>(view)
+  const [pending, setPending] = useState<View | null>(null) // target while a page transition runs
+  const [revealing, setRevealing] = useState(false)         // overlay crossfading out (reveal phase)
+  const viewRef = useRef(view)
+  const pendingRef = useRef<View | null>(null)
+  useEffect(() => { viewRef.current = view }, [view])
+  useEffect(() => { pendingRef.current = pending }, [pending])
+  const reduceMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  // Single navigation entry point — keeps homeOpen staged here (in an event path) instead of
-  // syncing it inside an effect, which React 19 flags (set-state-in-effect → extra render pass).
+  // Single navigation entry point. A page change plays a coordinated transition: an iris-collapse
+  // overlay covers the swap, the view changes while covered, then the overlay crossfades out as the
+  // new view blooms in (its own stageIn). homeOpen is staged here (event path, not an effect).
   const go = useCallback((v: View) => {
-    setView(v)
+    if (v === viewRef.current || pendingRef.current) return // ignore no-ops + mid-transition clicks
     if (v !== 'home') setHomeOpen(true) // so returning home lands on the open circle
-  }, [])
+    sound.play(v === 'home' ? 'back' : 'transition')
+    if (reduceMotion) { setView(v); return }
+    setPending(v)
+  }, [reduceMotion])
+
+  // transition timeline: cover (collapse) → swap under cover → reveal (crossfade out + bloom)
+  useEffect(() => {
+    if (pending == null) return
+    const COVER = 380, REVEAL = 320
+    const swap = window.setTimeout(() => { setView(pending); setRevealing(true) }, COVER)
+    const done = window.setTimeout(() => { setPending(null); setRevealing(false) }, COVER + REVEAL)
+    return () => { clearTimeout(swap); clearTimeout(done) }
+  }, [pending])
 
   useEffect(() => {
-    if (prev.current !== view) {
-      sound.play(view === 'home' ? 'back' : 'transition')
-      prev.current = view
-    }
     // URL ↔ view (replaceState: no history spam while exploring)
     const want = VIEW_HASH[view]
     if (window.location.hash !== want) history.replaceState(null, '', want || window.location.pathname)
@@ -106,6 +121,7 @@ export default function App() {
         : view === 'relations' ? <RelationsView view={view} onView={go} />
         : view === 'well' ? <ForcesWellView view={view} onView={go} />
         : <DynamicsView view={view} onView={go} />}
+      {pending != null && <div className={`page-transition${revealing ? ' page-transition--reveal' : ''}`} aria-hidden />}
       <CustomCursor />
       <SoundToggle />
       <UtilityNav />

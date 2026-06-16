@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
 import type { View } from './Chrome'
-import { sound } from '../sound'
 import { useFocusTrap } from './useFocusTrap'
+import { useOverlay } from './useOverlay'
 
 // The visual-language key. Opens on the ⓘ control (which dispatches 'mp-legend').
 // Self-contained: owns its open state, listens for the global event, closes on ESC / backdrop.
@@ -14,28 +13,14 @@ const VIEW_HINT: Record<View, string | null> = {
 }
 
 export function Legend({ view }: { view: View }) {
-  const [open, setOpen] = useState(false)
-  const dialogRef = useFocusTrap<HTMLElement>(open)
-
-  useEffect(() => {
-    const onToggle = () => { sound.play(open ? 'back' : 'open'); setOpen((v) => !v) }
-    window.addEventListener('mp-legend', onToggle)
-    return () => window.removeEventListener('mp-legend', onToggle)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { sound.play('back'); setOpen(false) } }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  const { open, closing, close } = useOverlay('mp-legend')
+  const dialogRef = useFocusTrap<HTMLElement>(open && !closing)
 
   if (!open) return null
-  const close = () => { sound.play('back'); setOpen(false) }
   const hint = VIEW_HINT[view]
 
   return (
-    <div className="legend__scrim" onClick={close}>
+    <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
       <aside ref={dialogRef} className="legend" dir="rtl" role="dialog" aria-modal="true" aria-label="מקרא" onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="legend__head">

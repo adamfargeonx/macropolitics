@@ -7,6 +7,7 @@ import { useYear, yearStore } from '../model/year-store'
 import { Header, SidePanel, PanelDock, TabBar, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { useForcesCamera } from './useForcesCamera'
+import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
 import { sound } from '../sound'
@@ -76,6 +77,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const zoomNames = cam.z >= ZOOM_NAMES_AT
   const detail = useMemo(() => buildForceDetail(selected, grav), [selected, grav])
   useDeCollide(fieldRef, '.fnode', '.fnode__name', focus, [size, hovered, selected, proximal])
+  const tools = usePresence(toolsOpen) // keep the disclosure mounted through its exit animation
 
   return (
     <div
@@ -143,13 +145,13 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       )}
 
       {/* ── Tools disclosure panel: bloc, threshold, year, scenario sandbox ── */}
-      {toolsOpen && (
+      {tools.mounted && (
         <ForcesTools
           filterBloc={filterBloc} setFilterBloc={setFilterBloc}
           minScore={minScore} setMinScore={setMinScore}
           year={year} setYear={(y: Year) => yearStore.set(y)}
           raw={raw} setRaw={setRaw} normW={normW}
-          scenario={scenario} stateActive={stateActive}
+          scenario={scenario} stateActive={stateActive} exiting={tools.exiting}
           onResetAll={resetAll} onClose={() => setToolsOpen(false)}
         />
       )}
