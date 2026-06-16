@@ -74,6 +74,7 @@ export interface EntityDetail {
   id?: string // forces view: lets the evidence overlay look up sources + the calculation
   he: string; power: number; tier: string; dispo: string
   axisLabel: string; parentHe: string | null; relations: { id: string; he: string }[]
+  satellites?: { id: string; he: string }[] // dynamics: bodies that orbit THIS one (orbital children)
   scoreLabel?: string // forces view: "6.6 / 10" instead of "/100"
   forces?: { eco: number; mil: number; geo: number }
   powerNotes?: PowerNotes // forces view: four short paragraphs (general + components)
@@ -138,6 +139,29 @@ function EvidenceTrigger({ detail }: { detail: EntityDetail }) {
   )
 }
 
+// Orbital context (dynamics only): what this body orbits + which bodies orbit it. Clicking a
+// satellite re-centres the panel on it. Renders nothing where there's no orbital data (forces).
+function OrbitSection({ detail, onRelSelect }: { detail: EntityDetail; onRelSelect?: (id: string) => void }) {
+  const sats = detail.satellites ?? []
+  if (!detail.parentHe && sats.length === 0) return null
+  return (
+    <div className="panel__orbit">
+      <span className="panel__rels-h"><Icon name="orbit" className="panel__orbit-icon" />מסלול</span>
+      {detail.parentHe && <p className="panel__orbit-parent">במסלול סביב <b>{detail.parentHe}</b></p>}
+      {sats.length > 0 && (
+        <>
+          <span className="panel__orbit-sub">בתחום הכבידה שלה</span>
+          <div className="panel__rels-list">
+            {sats.map((s) => (
+              <button key={s.id} className="panel__rel" onClick={() => onRelSelect?.(s.id)}>{s.he}</button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 interface DetailProps { detail: EntityDetail; onClose?: () => void; onRelSelect?: (id: string) => void }
 
 // Variant A — the original: meta rows + gravity profile with inline horizontal bars.
@@ -151,7 +175,6 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
         <MetaRow label="מעמד" value={detail.tier} />
         {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
         <MetaRow label="שיוך" value={detail.axisLabel} />
-        {detail.parentHe && <MetaRow label="במסלול סביב" value={detail.parentHe} />}
       </div>
       {detail.powerNotes && (
         <div className="pnotes">
@@ -172,6 +195,7 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
           <EvidenceTrigger detail={detail} />
         </div>
       )}
+      <OrbitSection detail={detail} onRelSelect={onRelSelect} />
       {detail.relations.length > 0 && (
         <div className="panel__rels">
           <span className="panel__rels-h">יחסים</span>
@@ -242,6 +266,7 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
         </ol>
       )}
       <EvidenceTrigger detail={detail} />
+      <OrbitSection detail={detail} onRelSelect={onRelSelect} />
       {detail.relations.length > 0 && (
         <div className="panelb__rels">
           {detail.relations.map((r) => (

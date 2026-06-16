@@ -4,6 +4,9 @@ import { LabelLayer } from './LabelLayer'
 import { HoverReadout } from './HoverReadout'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
+import { BODY_INPUTS } from '../data/empirical'
+import { computeGravities } from '../model/gravity'
+import { buildForceDetail } from './forces-model'
 import { sound } from '../sound'
 
 interface Hover { id: string | null; screen: { x: number; y: number } | null }
@@ -18,11 +21,16 @@ const SR_ONLY: React.CSSProperties = {
 // Ranked text equivalent for the canvas constellation — the orrery is otherwise opaque to AT.
 const RANKED_NODES = [...NODES].sort((a, b) => b.power - a.power)
 
+// dynamics gravities use the canonical 2025 inputs + default weights (no scenario/year UI here).
+const DYN_GRAV = computeGravities(BODY_INPUTS)
+
+// Full forces-grade detail (axes, sources, evidence, backing) + the orrery's orbital context
+// (what it orbits, what orbits it) — unique to this view.
 function buildDetail(id: string | null): EntityDetail | null {
-  if (!id) return null
+  const base = buildForceDetail(id, DYN_GRAV)
+  if (!id || !base) return null
   const e = byId.get(id)
-  if (!e) return null
-  const parent = e.parent !== 'C' ? byId.get(e.parent) : null
+  const parent = e && e.parent !== 'C' ? byId.get(e.parent) : null
   const seen = new Set<string>()
   const relations: { id: string; he: string }[] = []
   for (const [a, b] of LINKS) {
@@ -31,10 +39,8 @@ function buildDetail(id: string | null): EntityDetail | null {
     const o = byId.get(oid)
     if (o && !seen.has(oid)) { seen.add(oid); relations.push({ id: oid, he: o.he }) }
   }
-  return {
-    he: e.he, power: e.power, tier: e.tier, dispo: e.dispo,
-    axisLabel: AXIS_LABEL[AXIS[id] ?? 'none'], parentHe: parent?.he ?? null, relations,
-  }
+  const satellites = NODES.filter((n) => n.parent === id).map((n) => ({ id: n.id, he: n.he }))
+  return { ...base, relations, parentHe: parent?.he ?? null, satellites }
 }
 
 export default function DynamicsView({ view, onView }: { view: View; onView: (v: View) => void }) {

@@ -6,56 +6,95 @@ import { useWeights } from '../model/weights-store'
 import { useYear } from '../model/year-store'
 import { useFocusTrap } from './useFocusTrap'
 import { OVERLAY_EXIT_MS } from './useOverlay'
+import { Icon, type IconName } from './Icon'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
-// For the curious: it shows (1) THE CALCULATION — how this body's gravity is derived from its
-// axes, weights, stability and backing, with the actual numbers; and (2) THE SOURCES — the
-// underlying figure, dataset, year and link for every axis, with a flag where the data is weak.
+// Two tabs: SOURCES (the figure, dataset, composite breakdown + flag per axis) and CALCULATION
+// (how those axes roll up into gravity). Wide, side-by-side axes, no deep scroll.
 
 const HE_AXIS = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' } as const
+const AXIS_SRC = { eco: 'IMF · בנק עולמי · S&P', mil: 'SIPRI · IISS · FAS · NCPI', geo: 'CIA · OPEC · BP · EIA' } as const
+const AXIS_ICON: Record<'eco' | 'mil' | 'geo', IconName> = { eco: 'eco', mil: 'mil', geo: 'geo' }
+const AXIS_JUDGMENT = { mil: '+7 קריטריונים בשיפוט', geo: '+2 קריטריונים בשיפוט', eco: '' } as const
 
-// Military composite's four sourced criteria (src/model/military.ts), Hebrew labels for the overlay.
 const MIL_ROWS = [
-  { k: 'spend',    he: 'הוצאה צבאית (SIPRI)' },
-  { k: 'manpower', he: 'כוח אדם פעיל (IISS)' },
-  { k: 'nuclear',  he: 'ארסנל גרעיני (FAS)' },
-  { k: 'cyber',    he: 'עוצמת סייבר (NCPI)' },
+  { k: 'spend', he: 'הוצאה צבאית' }, { k: 'manpower', he: 'כוח אדם' },
+  { k: 'nuclear', he: 'ארסנל גרעיני' }, { k: 'cyber', he: 'עוצמת סייבר' },
 ] as const
-const milMissing = (k: string, missing: string[]) => missing.includes(k)
-
-// Geo-strategic composite's four sourced criteria (src/model/geo.ts), Hebrew labels for the overlay.
 const GEO_ROWS = [
-  { k: 'area',        he: 'שטח (CIA 2024)'                     },
-  { k: 'borders',     he: 'גבולות יבשתיים (ריבוניים)'          },
-  { k: 'resources',   he: 'עתודות נפט+גז (OPEC · BP 2024)'     },
-  { k: 'chokepoints', he: 'צוואר בקבוק ימי (EIA)'              },
+  { k: 'area', he: 'שטח' }, { k: 'borders', he: 'גבולות' },
+  { k: 'resources', he: 'נפט+גז' }, { k: 'chokepoints', he: 'צוואר בקבוק' },
 ] as const
-const geoMissing = (k: string, missing: string[]) =>
-  k === 'resources' ? missing.includes('oil') || missing.includes('gas') : false
-
-// The economic composite's seven sub-criteria (src/model/economic.ts), Hebrew labels for the overlay.
 const ECO_ROWS = [
-  { k: 'mass', he: 'מסה · תמ״ג PPP' },
-  { k: 'percap', he: 'תוצר לנפש' },
-  { k: 'reserves', he: 'יתרות מט״ח' },
-  { k: 'fdi', he: 'השקעות חוץ (FDI)' },
-  { k: 'cab', he: 'מאזן חשבון שוטף' },
-  { k: 'debt', he: 'חוב ציבורי / תוצר' },
-  { k: 'credit', he: 'דירוג אשראי + יציבות' },
+  { k: 'mass', he: 'מסה (PPP)' }, { k: 'percap', he: 'לנפש' }, { k: 'reserves', he: 'יתרות' },
+  { k: 'fdi', he: 'FDI' }, { k: 'cab', he: 'חשבון שוטף' }, { k: 'debt', he: 'חוב/תוצר' }, { k: 'credit', he: 'אשראי' },
 ] as const
-const ecoMissing = (k: string, missing: string[]) =>
-  k === 'credit' ? missing.includes('rating') || missing.includes('inflation') : missing.includes(k)
+const AXIS_ROWS = { eco: ECO_ROWS, mil: MIL_ROWS, geo: GEO_ROWS } as const
+
+const milMissing = (k: string, m: string[]) => m.includes(k)
+const geoMissing = (k: string, m: string[]) => (k === 'resources' ? m.includes('oil') || m.includes('gas') : false)
+const ecoMissing = (k: string, m: string[]) => (k === 'credit' ? m.includes('rating') || m.includes('inflation') : m.includes(k))
+const AXIS_MISS = { eco: ecoMissing, mil: milMissing, geo: geoMissing } as const
+
 const STATUS_LABEL: Record<SourceStatus, string> = {
-  sourced: 'מקור ראשי',
-  estimate: 'אומדן',
-  judgment: 'שיפוט',
-  'no-data': 'אין נתונים',
+  sourced: 'מקור ראשי', estimate: 'אומדן', judgment: 'שיפוט', 'no-data': 'אין נתונים',
+}
+
+type Axis = 'eco' | 'mil' | 'geo'
+
+// Unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one component, three axes.
+function Composite({ axis, sub, missing }: { axis: Axis; sub: Record<string, number>; missing: string[] }) {
+  const rows = AXIS_ROWS[axis]
+  const missFn = AXIS_MISS[axis]
+  return (
+    <div className="evid__comp">
+      <span className="evid__comp-lbl">מדד מורכב · <bdi>{AXIS_SRC[axis]}</bdi></span>
+      <div className="evid__comp-grid">
+        {rows.map(({ k, he }) => {
+          const v = sub[k] ?? 0
+          const miss = missFn(k, missing)
+          return (
+            <div className={`evid__comp-row${miss ? ' evid__comp-row--miss' : ''}`} key={k}>
+              <span className="evid__comp-k">{he}</span>
+              <span className="evid__comp-bar"><i style={{ width: `${v * 10}%` }} /></span>
+              <span className="evid__comp-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
+            </div>
+          )
+        })}
+      </div>
+      {AXIS_JUDGMENT[axis] && <span className="evid__comp-judgment">{AXIS_JUDGMENT[axis]}</span>}
+    </div>
+  )
+}
+
+// Sourced 2020→2025 trend (eco GDP-PPP · mil spend) — a real temporal datapoint.
+function Trend({ id, axis }: { id: string; axis: Axis }) {
+  const trend = axis === 'mil' && MIL_TREND[id]
+    ? { pair: MIL_TREND[id], fmt: (v: number) => `$${v}B`, src: MIL_TREND_SOURCE }
+    : axis === 'eco' && GDP_PPP[id]
+      ? { pair: GDP_PPP[id], fmt: (v: number) => `$${(v / 1000).toFixed(1)}T`, src: GDP_PPP_SOURCE }
+      : null
+  if (!trend) return null
+  const { pair, fmt, src } = trend
+  const pct = Math.round(((pair.y2025 - pair.y2020) / pair.y2020) * 100)
+  const up = pct >= 0
+  return (
+    <div className="evid__trend">
+      <span className="evid__trend-line" dir="ltr">
+        <span>{fmt(pair.y2020)}</span><span className="evid__trend-arrow">→</span><span>{fmt(pair.y2025)}</span>
+        <span className={`evid__trend-pct evid__trend-pct--${up ? 'up' : 'down'}`}>{up ? '+' : ''}{pct}%</span>
+        <span className="evid__trend-years">’20→’25</span>
+      </span>
+      <span className="evid__trend-src">{src}</span>
+    </div>
+  )
 }
 
 export function EvidenceOverlay() {
   const [id, setId] = useState<string | null>(null)
   const [closing, setClosing] = useState(false) // play an exit animation before unmounting
+  const [tab, setTab] = useState<'sources' | 'calc'>('sources')
   const weights = useWeights() // live (possibly scenario) weights → the calculation stays consistent
   const year = useYear()
   const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
@@ -68,7 +107,7 @@ export function EvidenceOverlay() {
   }, [])
 
   useEffect(() => {
-    const onOpen = (e: Event) => { clearTimeout(closeT.current); sound.play('open'); setClosing(false); setId((e as CustomEvent).detail?.id ?? null) }
+    const onOpen = (e: Event) => { clearTimeout(closeT.current); sound.play('open'); setClosing(false); setTab('sources'); setId((e as CustomEvent).detail?.id ?? null) }
     window.addEventListener('mp-evidence', onOpen)
     return () => { window.removeEventListener('mp-evidence', onOpen); clearTimeout(closeT.current) }
   }, [])
@@ -87,6 +126,14 @@ export function EvidenceOverlay() {
     ? { amount: Math.round(g.backing * 10), patronHe: NODES.find((n) => n.id === g.patron)?.he ?? g.patron }
     : null
   const w = weights
+  const breakdown: Record<Axis, Record<string, number> | undefined> = {
+    eco: d.ecoBreakdown?.sub as Record<string, number> | undefined,
+    mil: d.milBreakdown?.sub as Record<string, number> | undefined,
+    geo: d.geoBreakdown?.sub as Record<string, number> | undefined,
+  }
+  const missingOf: Record<Axis, string[]> = {
+    eco: d.ecoBreakdown?.missing ?? [], mil: d.milBreakdown?.missing ?? [], geo: d.geoBreakdown?.missing ?? [],
+  }
 
   return (
     <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
@@ -94,161 +141,65 @@ export function EvidenceOverlay() {
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>
-          <span className="evid__score">כוח משיכה <bdi>{g.gravity.toFixed(1)} / 10</bdi> · <bdi>{g.power}/100</bdi>{year !== 2025 ? ` · ${year}` : ''}</span>
+          <span className="evid__score">כוח משיכה <bdi>{g.gravity.toFixed(1)} / 10</bdi>{year !== 2025 ? ` · ${year}` : ''}</span>
         </header>
 
-        {/* ── THE CALCULATION (drill-down for the curious) ── */}
-        <section className="evid__sec">
-          <h3 className="evid__h">החישוב</h3>
-          <p className="evid__formula">כוח משיכה = ( כלכלי·w + צבאי·w + גאו·w ) × יציבות + גיבוי</p>
-          <div className="evid__calc">
-            <div className="evid__step">
-              <span className="evid__step-k">בסיס משוקלל</span>
-              <span className="evid__math">{w.eco.toFixed(2)}×{g.eco} + {w.mil.toFixed(2)}×{g.mil} + {w.geo.toFixed(2)}×{g.geo} = <b>{g.base.toFixed(2)}</b></span>
-            </div>
-            <div className="evid__step">
-              <span className="evid__step-k">× יציבות {g.stability.toFixed(2)}</span>
-              <span className="evid__math">{g.base.toFixed(2)} × {g.stability.toFixed(2)} = <b>{g.intrinsic.toFixed(2)}</b></span>
-            </div>
-            {b && (
-              <div className="evid__step">
-                <span className="evid__step-k">+ גיבוי ⟵ {b.patronHe}</span>
-                <span className="evid__math">+{g.backing.toFixed(2)} <b>(+{b.amount})</b></span>
-              </div>
-            )}
-            <div className="evid__step evid__step--total">
-              <span className="evid__step-k">= כוח משיכה</span>
-              <span className="evid__math"><b>{g.gravity.toFixed(2)}</b> × 10 → {g.power}/100</span>
-            </div>
-          </div>
-          <p className="evid__weights">
-            פרמטרים — משקלים: כלכלי {w.eco} · צבאי {w.mil} · גאו-אסטרטגי {w.geo}
-            {g.stability < 1 && <> · יציבות {g.stability} (הנחתת שלמות; ברוב הגופים = 1)</>}
-          </p>
-        </section>
+        <div className="evid__tabs" role="tablist" aria-label="תצוגה">
+          <button className={`evid__tab${tab === 'sources' ? ' is-on' : ''}`} role="tab" aria-selected={tab === 'sources'}
+            onClick={() => { sound.play('tab'); setTab('sources') }}><Icon name="sources" className="evid__tab-icon" />מקורות</button>
+          <button className={`evid__tab${tab === 'calc' ? ' is-on' : ''}`} role="tab" aria-selected={tab === 'calc'}
+            onClick={() => { sound.play('tab'); setTab('calc') }}><Icon name="calc" className="evid__tab-icon" />החישוב</button>
+        </div>
 
-        {/* ── THE SOURCES (full provenance, beyond the one-line) ── */}
-        <section className="evid__sec">
-          <h3 className="evid__h">המקורות</h3>
-          {(['eco', 'mil', 'geo'] as const).map((axis) => {
-            const p = d.prov[axis]; const weak = p.status !== 'sourced'
-            return (
-              <div className={`evid__src${weak ? ' evid__src--flag' : ''}`} key={axis}>
-                <div className="evid__src-head">
-                  <span className="evid__src-axis">{HE_AXIS[axis]}</span>
-                  <span className="evid__src-score">{d.axes[axis]}/10</span>
-                  <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
-                </div>
-                <p className="evid__figure">{p.figure}</p>
-                <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
-                {p.note && <p className="evid__note">{p.note}</p>}
-                {axis === 'mil' && d.milBreakdown && (() => {
-                  const bk = d.milBreakdown!
-                  return (
-                    <div className="evid__mil">
-                      <span className="evid__mil-lbl">מדד מורכב · 4 פרמטרים ממקור <bdi>(SIPRI · IISS · FAS · NCPI)</bdi></span>
-                      <div className="evid__mil-grid">
-                        {MIL_ROWS.map(({ k, he }) => {
-                          const v = bk.sub[k as keyof typeof bk.sub]
-                          const miss = milMissing(k, bk.missing)
-                          return (
-                            <div className={`evid__mil-row${miss ? ' evid__mil-row--miss' : ''}`} key={k}>
-                              <span className="evid__mil-k">{he}</span>
-                              <span className="evid__mil-bar"><i style={{ width: `${v * 10}%` }} /></span>
-                              <span className="evid__mil-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <span className="evid__mil-foot">
-                        הוצאה {bk.spendScore.toFixed(1)} +כוח אדם {bk.manBonus.toFixed(1)} +גרעין {bk.nucBonus.toFixed(1)} +סייבר {bk.cyberBonus.toFixed(1)} → <b>צבאי {bk.mil.toFixed(1)}</b>
-                      </span>
-                      <span className="evid__mil-judgment">
-                        7 קריטריונים נוספים (לוגיסטיקה, ניסיון קרב, תעשיית ביטחון, ציוד, מודיעין, ברית, אימון) — שיפוט; לא ממודלים
-                      </span>
-                    </div>
-                  )
-                })()}
-                {axis === 'eco' && d.ecoBreakdown && (() => {
-                  const bk = d.ecoBreakdown!
-                  return (
-                    <div className="evid__eco">
-                      <span className="evid__eco-lbl">מדד מורכב · 7 פרמטרים ממקור <bdi>(IMF · בנק עולמי · S&amp;P)</bdi></span>
-                      <div className="evid__eco-grid">
-                        {ECO_ROWS.map(({ k, he }) => {
-                          const v = bk.sub[k as keyof typeof bk.sub]
-                          const miss = ecoMissing(k, bk.missing)
-                          return (
-                            <div className={`evid__eco-row${miss ? ' evid__eco-row--miss' : ''}`} key={k}>
-                              <span className="evid__eco-k">{he}</span>
-                              <span className="evid__eco-bar"><i style={{ width: `${v * 10}%` }} /></span>
-                              <span className="evid__eco-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <span className="evid__eco-foot">
-                        עמוד שדרה (מסה×0.7 + לנפש×0.3) {bk.spine.toFixed(1)} · בריאות פיסקלית {bk.health.toFixed(1)} → <b>כלכלי {bk.eco.toFixed(1)}</b>
-                      </span>
-                    </div>
-                  )
-                })()}
-                {axis === 'geo' && d.geoBreakdown && (() => {
-                  const bk = d.geoBreakdown!
-                  return (
-                    <div className="evid__geo">
-                      <span className="evid__geo-lbl">מדד מורכב · 4 פרמטרים ממקור <bdi>(CIA · OPEC · BP · EIA)</bdi></span>
-                      <div className="evid__geo-grid">
-                        {GEO_ROWS.map(({ k, he }) => {
-                          const v = bk.sub[k as keyof typeof bk.sub]
-                          const miss = geoMissing(k, bk.missing)
-                          return (
-                            <div className={`evid__geo-row${miss ? ' evid__geo-row--miss' : ''}`} key={k}>
-                              <span className="evid__geo-k">{he}</span>
-                              <span className="evid__geo-bar"><i style={{ width: `${v * 10}%` }} /></span>
-                              <span className="evid__geo-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <span className="evid__geo-foot">
-                        שטח {bk.sizeScore.toFixed(1)}×0.4 + גבולות {bk.borderScore.toFixed(1)}×0.3 + עתודות +{bk.resBonus.toFixed(2)} + מיקום +{bk.chokeBonus.toFixed(2)} → <b>גיאו {bk.geo.toFixed(1)}</b>
-                      </span>
-                      <span className="evid__geo-judgment">
-                        2 קריטריונים נוספים (מיקום אסטרטגי, טופוגרפיה) — שיפוט; לא ממודלים
-                      </span>
-                    </div>
-                  )
-                })()}
-                {(() => {
-                  const trend = axis === 'mil' && MIL_TREND[id]
-                    ? { pair: MIL_TREND[id], fmt: (v: number) => `$${v}B`, src: MIL_TREND_SOURCE, lbl: 'מגמה · הוצאה צבאית' }
-                    : axis === 'eco' && GDP_PPP[id]
-                      ? { pair: GDP_PPP[id], fmt: (v: number) => `$${(v / 1000).toFixed(1)}T`, src: GDP_PPP_SOURCE, lbl: 'מגמה · תמ״ג PPP' }
-                      : null
-                  if (!trend) return null
-                  const { pair, fmt, src, lbl } = trend
-                  const pct = Math.round(((pair.y2025 - pair.y2020) / pair.y2020) * 100)
-                  const up = pct >= 0
-                  return (
-                    <div className="evid__trend">
-                      <span className="evid__trend-lbl">{lbl}</span>
-                      <span className="evid__trend-line" dir="ltr">
-                        <span>{fmt(pair.y2020)}</span>
-                        <span className="evid__trend-arrow">→</span>
-                        <span>{fmt(pair.y2025)}</span>
-                        <span className={`evid__trend-pct evid__trend-pct--${up ? 'up' : 'down'}`}>{up ? '+' : ''}{pct}%</span>
-                        <span className="evid__trend-years">’20→’25</span>
-                      </span>
-                      <span className="evid__trend-src">{src}</span>
-                      {'note' in pair && !!(pair as { note?: string }).note && <p className="evid__note">{(pair as { note?: string }).note}</p>}
-                    </div>
-                  )
-                })()}
+        {tab === 'sources' ? (
+          <div className="evid__sources">
+            {(['eco', 'mil', 'geo'] as Axis[]).map((axis) => {
+              const p = d.prov[axis]; const weak = p.status !== 'sourced'
+              return (
+                <section className={`evid__src${weak ? ' evid__src--flag' : ''}`} key={axis}>
+                  <div className="evid__src-head">
+                    <span className="evid__src-axis"><Icon name={AXIS_ICON[axis]} className="evid__src-icon" />{HE_AXIS[axis]}</span>
+                    <span className="evid__src-score">{d.axes[axis]}</span>
+                    <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
+                  </div>
+                  <p className="evid__figure">{p.figure}</p>
+                  {breakdown[axis] && <Composite axis={axis} sub={breakdown[axis]!} missing={missingOf[axis]} />}
+                  <Trend id={id} axis={axis} />
+                  {p.note && <p className="evid__note">{p.note}</p>}
+                  <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                </section>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="evid__calc-tab">
+            <p className="evid__formula">כוח משיכה = ( כלכלי·w + צבאי·w + גאו·w ) × יציבות + גיבוי</p>
+            <div className="evid__calc">
+              <div className="evid__step">
+                <span className="evid__step-k">בסיס משוקלל</span>
+                <span className="evid__math">{w.eco.toFixed(2)}×{g.eco} + {w.mil.toFixed(2)}×{g.mil} + {w.geo.toFixed(2)}×{g.geo} = <b>{g.base.toFixed(2)}</b></span>
               </div>
-            )
-          })}
-        </section>
+              <div className="evid__step">
+                <span className="evid__step-k">× יציבות {g.stability.toFixed(2)}</span>
+                <span className="evid__math">{g.base.toFixed(2)} × {g.stability.toFixed(2)} = <b>{g.intrinsic.toFixed(2)}</b></span>
+              </div>
+              {b && (
+                <div className="evid__step">
+                  <span className="evid__step-k">+ גיבוי ⟵ {b.patronHe}</span>
+                  <span className="evid__math">+{g.backing.toFixed(2)} <b>(+{b.amount})</b></span>
+                </div>
+              )}
+              <div className="evid__step evid__step--total">
+                <span className="evid__step-k">= כוח משיכה</span>
+                <span className="evid__math"><b>{g.gravity.toFixed(2)}</b> × 10 → {g.power}/100</span>
+              </div>
+            </div>
+            <p className="evid__weights">
+              משקלים: כלכלי {w.eco} · צבאי {w.mil} · גאו-אסטרטגי {w.geo}
+              {g.stability < 1 && <> · יציבות {g.stability} (הנחתת שלמות; ברוב הגופים = 1)</>}
+            </p>
+          </div>
+        )}
 
         {d.flags && d.flags.length > 0 && (
           <section className="evid__flags">
