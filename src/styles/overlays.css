@@ -217,10 +217,10 @@
 
 /* ── Side panel — Variant B ("dossier" card; A/B compare) ───── */
 .panelb {
-  position: absolute; top: 88px; right: 44px; width: 336px; z-index: var(--z-panel);
+  position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel);
   text-align: right; max-height: calc(100vh - 150px); overflow-y: auto; scrollbar-width: none;
   background: var(--panel-surface);
-  border: 1px solid var(--line-yellow); padding: 22px 22px 18px;
+  border: 1px solid var(--line-yellow); padding: 24px 26px 20px;
   animation: detailIn 0.24s ease-out;
 }
 .panelb::-webkit-scrollbar { display: none; }
@@ -256,7 +256,8 @@
 .panelb__col-v { font-family: var(--display); font-size: var(--text-xl); font-weight: 700; color: var(--white); }
 .panelb__col-track { width: 100%; height: 56px; background: var(--surface-1); display: flex; align-items: flex-end; overflow: hidden; }
 .panelb__col-track i { display: block; width: 100%; background: linear-gradient(to top, var(--yellow), rgba(251,255,0,0.55)); animation: barRise 0.6s var(--ease-out-expo) both; }
-.panelb__col-l { font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim); }
+.panelb__col-l { font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 4px; }
+.panelb__col-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; }
 @keyframes barRise { from { height: 0 !important; } }
 /* notes */
 .panelb__notes { margin-top: 22px; list-style: none; counter-reset: n; }
@@ -268,7 +269,8 @@
   content: counter(n, decimal-leading-zero); grid-row: span 2;
   font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--yellow); opacity: 0.5;
 }
-.panelb__note-k { font-size: var(--text-base); font-weight: 700; color: var(--white); }
+.panelb__note-k { font-size: var(--text-base); font-weight: 700; color: var(--white); display: inline-flex; align-items: center; gap: 6px; }
+.panelb__note-icon { color: var(--yellow); opacity: 0.8; font-size: 14px; }
 .panelb__notes p { grid-column: 2; font-family: var(--body); font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: var(--light); opacity: 0.82; }
 .panelb__rels { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (prefers-reduced-motion: reduce) { .panelb__gauge i, .panelb__col-track i { animation: none; } }

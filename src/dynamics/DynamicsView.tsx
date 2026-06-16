@@ -47,7 +47,8 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
 
   useEffect(() => {
     if (!canvasRef.current || !stageRef.current) return
-    const orbital = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: true })
+    // floating + cursor-connecting starfield (the engine's own), reverted from the global inward field
+    const orbital = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: false })
     orbital.onHover = (id, screen) => { if (id) sound.play('hover'); document.body.classList.toggle('cursor-grab', !!id); setHover({ id, screen }) }
     orbital.onSelect = (id) => { if (id) sound.play('select'); setSelected(id) }
     orbital.onZoom = (z) => setZoom(z)

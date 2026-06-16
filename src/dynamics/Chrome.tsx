@@ -7,6 +7,7 @@ import type { AxisProvenance } from '../data/empirical'
 import { sound } from '../sound'
 import { usePanelVariant } from './panelAB'
 import { Words } from './Words'
+import { Icon, type IconName } from './Icon'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -95,12 +96,12 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 // One power note: a label, an optional 0–10 bar (the three components), ≤20-word text,
 // and a concise source line (dataset + year) with a ⚑ marker when the figure is weak/flagged.
 // The full figure + link live in the evidence overlay (opened from the panel).
-function PowerNote({ label, text, value, source }: { label: string; text: string; value?: number; source?: AxisProvenance }) {
+function PowerNote({ label, text, value, source, icon }: { label: string; text: string; value?: number; source?: AxisProvenance; icon?: IconName }) {
   const weak = source && source.status !== 'sourced'
   return (
     <div className="pnote">
       <div className="pnote__head">
-        <span className="pnote__label">{label}</span>
+        <span className="pnote__label">{icon && <Icon name={icon} className="pnote__icon" />}{label}</span>
         {value != null && (
           <>
             <span className="pnote__track"><span className="pnote__fill" style={{ width: `${value * 10}%` }} /></span>
@@ -156,9 +157,9 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
         <div className="pnotes">
           <span className="pnotes__h">פרופיל כוח המשיכה</span>
           <PowerNote label="כללי" text={detail.powerNotes.general} />
-          <PowerNote label="כלכלי" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.prov?.eco} />
-          <PowerNote label="צבאי" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.prov?.mil} />
-          <PowerNote label="גאו-אסטרטגי" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.prov?.geo} />
+          <PowerNote label="כלכלי" icon="eco" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.prov?.eco} />
+          <PowerNote label="צבאי" icon="mil" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.prov?.mil} />
+          <PowerNote label="גאו-אסטרטגי" icon="geo" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.prov?.geo} />
           {detail.backing && (
             <div className="pnote pnote--backing">
               <div className="pnote__head">
@@ -190,7 +191,11 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
 function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
-  const comps: [string, number | undefined][] = [['כלכלי', detail.forces?.eco], ['צבאי', detail.forces?.mil], ['גאו', detail.forces?.geo]]
+  const comps: { l: string; v: number | undefined; icon: IconName }[] = [
+    { l: 'כלכלי', v: detail.forces?.eco, icon: 'eco' },
+    { l: 'צבאי', v: detail.forces?.mil, icon: 'mil' },
+    { l: 'גאו', v: detail.forces?.geo, icon: 'geo' },
+  ]
   const notes = detail.powerNotes
   const scoreNum = Number(score)
   return (
@@ -215,11 +220,11 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
         <div className="panelb__comps">
           <span className="panelb__comps-h">מרכיבי הכוח</span>
           <div className="panelb__cols">
-            {comps.map(([l, v]) => (
-              <div className="panelb__col" key={l}>
-                <span className="panelb__col-v">{v ?? '—'}</span>
-                <span className="panelb__col-track"><i style={{ height: `${(v ?? 0) * 10}%` }} /></span>
-                <span className="panelb__col-l">{l}</span>
+            {comps.map((c) => (
+              <div className="panelb__col" key={c.l}>
+                <span className="panelb__col-v">{c.v ?? '—'}</span>
+                <span className="panelb__col-track"><i style={{ height: `${(c.v ?? 0) * 10}%` }} /></span>
+                <span className="panelb__col-l"><Icon name={c.icon} className="panelb__col-icon" />{c.l}</span>
               </div>
             ))}
           </div>
@@ -228,11 +233,11 @@ function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
       {notes && (
         <ol className="panelb__notes">
           <li><span className="panelb__note-k">כללי</span><p>{notes.general}</p></li>
-          <li><span className="panelb__note-k">כלכלי</span><p>{notes.eco}</p>{detail.prov?.eco && <span className={`panelb__src${detail.prov.eco.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.eco.status !== 'sourced' && '⚑ '}{detail.prov.eco.source}</span>}</li>
-          <li><span className="panelb__note-k">צבאי</span><p>{notes.mil}</p>{detail.prov?.mil && <span className={`panelb__src${detail.prov.mil.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.mil.status !== 'sourced' && '⚑ '}{detail.prov.mil.source}</span>}</li>
-          <li><span className="panelb__note-k">גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.prov?.geo && <span className="panelb__src">{detail.prov.geo.source}</span>}</li>
+          <li><span className="panelb__note-k"><Icon name="eco" className="panelb__note-icon" />כלכלי</span><p>{notes.eco}</p>{detail.prov?.eco && <span className={`panelb__src${detail.prov.eco.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.eco.status !== 'sourced' && '⚑ '}{detail.prov.eco.source}</span>}</li>
+          <li><span className="panelb__note-k"><Icon name="mil" className="panelb__note-icon" />צבאי</span><p>{notes.mil}</p>{detail.prov?.mil && <span className={`panelb__src${detail.prov.mil.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.mil.status !== 'sourced' && '⚑ '}{detail.prov.mil.source}</span>}</li>
+          <li><span className="panelb__note-k"><Icon name="geo" className="panelb__note-icon" />גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.prov?.geo && <span className="panelb__src">{detail.prov.geo.source}</span>}</li>
           {detail.backing && (
-            <li className="panelb__note--backing"><span className="panelb__note-k">גיבוי ⟵ {detail.backing.patronHe}</span><p>משקל מושאל · ‎+{detail.backing.amount} מכוח המשיכה תלוי בנותן החסות.</p></li>
+            <li className="panelb__note--backing"><span className="panelb__note-k"><Icon name="backing" className="panelb__note-icon" />גיבוי ⟵ {detail.backing.patronHe}</span><p>משקל מושאל · ‎+{detail.backing.amount} מכוח המשיכה תלוי בנותן החסות.</p></li>
           )}
         </ol>
       )}

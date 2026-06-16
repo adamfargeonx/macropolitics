@@ -116,7 +116,9 @@ export default function App() {
 
   return (
     <>
-      <GlobalField view={view} />
+      {/* dynamics runs its own floating+connecting starfield in the engine canvas — suppress the
+          global field there so the two don't overlap */}
+      {view !== 'dynamics' && <GlobalField view={view} />}
       {view === 'home' ? <HomeView open={homeOpen} onToggle={() => setHomeOpen((o) => !o)} onView={go} />
         : view === 'forces' ? <ForcesView view={view} onView={go} />
         : view === 'relations' ? <RelationsView view={view} onView={go} />

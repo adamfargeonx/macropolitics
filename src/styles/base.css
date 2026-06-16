@@ -65,7 +65,7 @@
   /* ── Panel surface gradient — consistent across all overlay/panel backgrounds ── */
   --panel-surface: linear-gradient(180deg, rgba(14, 9, 28, 0.97), rgba(8, 4, 18, 0.97));
   /* ── Rail width — side dock/panel offset (forces field right edge) ── */
-  --rail-w: 380px;
+  --rail-w: 416px;
   /* ── Data-status colors (deliberate palette exception — data-quality semantics only) ── */
   /* See design-system.md §2 for justification. These are NOT chromatic accents. */
   --ok:   #8fe388;                    /* sourced / verified */
@@ -120,6 +120,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--yellow); outline-offset: 3px;
 }
 
+/* iconization — bespoke geometric marks; size to the text they label, inherit colour */
+.icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.13em; flex: none; }
+
 html, body, #root { height: 100%; }
 body {
   background: var(--bg);
@@ -149,7 +152,7 @@ body {
 /* soft scrim: revolving nodes fade out behind the side panel (depth) — data views only.
    Fades away when the dock is collapsed (no panel to back). No column-divider line. */
 .stage:not(.home)::before {
-  content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 420px;
+  content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 460px;
   background: linear-gradient(to left, var(--bg) 22%, rgba(6, 3, 15, 0.66) 50%, transparent);
   z-index: var(--z-scrim); pointer-events: none; transition: opacity 0.5s ease;
 }

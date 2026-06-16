@@ -100,8 +100,9 @@ export function useGravityField(
         const near = scattered ? 0 : 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
         if (scattered) {
           // a dispersed field of fine points (slow drift → trails would be near-zero-length and
-          // invisible, so render as dots) — calm and evenly spread, no centre
-          const a = Math.min(0.9, (0.58 + speed * 0.5) * p.b * 1.15) * intro
+          // invisible, so render as dots) — calm and evenly spread, no centre. Opacity at 50% of
+          // the original: the full-strength field read too noisy behind the forces dashboard.
+          const a = Math.min(0.9, (0.58 + speed * 0.5) * p.b * 1.15) * 0.5 * intro
           ctx.fillStyle = `rgba(255,255,255,${a})`
           ctx.beginPath(); ctx.arc(p.x, p.y, 1.3, 0, TAU); ctx.fill()
         } else {

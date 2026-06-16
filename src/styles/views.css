@@ -160,12 +160,14 @@
 }
 .home--open .home-title > span { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
 
-/* brand wordmark — light weight, 50% smaller, huge kerning (+30%) */
+/* brand wordmark — light weight, wide kerning. The trailing letter-spacing is added after the
+   last glyph (the left end in RTL); padding-inline-start = one full letter-spacing balances it so
+   the glyph block sits optically centred, not pushed off-axis by the trailing gap. */
 .home-title {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   z-index: var(--z-content); white-space: nowrap; pointer-events: none;
   font-family: var(--display); font-weight: var(--fw-light);
-  font-size: clamp(22px, 3.3vw, 50px); letter-spacing: 0.39em; padding-inline-start: 0.39em; color: var(--white);
+  font-size: clamp(22px, 3.3vw, 50px); letter-spacing: 0.468em; padding-inline-start: 0.468em; color: var(--white);
 }
 /* tagline — top centre, accent */
 .home-tagline {
@@ -196,7 +198,7 @@
 .home--closed .home-nav__item { animation: none; }
 .home-nav__label {
   font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-regular);
-  letter-spacing: 0.08em; transition: color var(--dur-fast) ease;
+  letter-spacing: 0.08em; transition: color var(--dur-fast) ease, letter-spacing var(--dur-base) var(--ease-out-expo);
 }
 /* the brief explainer, revealed fluidly on hover */
 .home-nav__sub {
@@ -205,7 +207,8 @@
   opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
 }
 .home-nav__item:hover .home-nav__sub { opacity: 0.85; transform: translate(-50%, 6px); }
-.home-nav__item:hover .home-nav__label { color: var(--yellow); }
+/* hover opens the dimension up — colour shift + 30% wider kerning (0.08em → 0.104em) */
+.home-nav__item:hover .home-nav__label { color: var(--yellow); letter-spacing: 0.104em; }
 /* the three dimensions float (drift) while breathing — motion on the label, not just opacity */
 .home--open .home-nav__label { animation: navFloat 4.8s var(--ease-in-out-quart) infinite; animation-delay: var(--bd, 0s); }
 .home-nav__item:hover .home-nav__label { animation-play-state: paused; }
