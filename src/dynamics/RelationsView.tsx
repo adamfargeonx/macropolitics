@@ -14,6 +14,11 @@ const REF_CHOICES = ['israel', 'usa', 'iran', 'saudi', 'turkey', 'egypt', 'russi
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 
 export interface Rel { harmony: number; tension: number; friction: number; why?: string }
+type Pole = 'tension' | 'friction' | 'harmony'
+const POLE_HE: Record<Pole, string> = { tension: 'מתח', friction: 'חיכוך', harmony: 'הרמוניה' }
+const VERDICT: Record<Pole, string> = { tension: 'יחס מתוח', friction: 'יחס מורכב', harmony: 'יחס הרמוני' }
+const dominantOf = (r: Rel): Pole =>
+  r.tension >= r.friction && r.tension >= r.harmony ? 'tension' : r.harmony >= r.friction ? 'harmony' : 'friction'
 
 // Relationship of target toward reference. Authored pairs first (the editorial layer);
 // otherwise derived from bloc alignment + alliances + the target's disposition.
@@ -48,10 +53,6 @@ function sharpen(r: Rel, k = 1.45): Rel {
   return { tension: t / s, friction: f / s, harmony: h / s, why: r.why }
 }
 
-const charOf = (r: Rel) =>
-  r.tension >= r.friction && r.tension >= r.harmony ? 'יחס מתוח'
-    : r.harmony >= r.friction ? 'יחס הרמוני' : 'יחס מורכב'
-
 export default function RelationsView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -61,7 +62,9 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
 
   useEffect(() => {
     const el = fieldRef.current; if (!el) return
-    const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); setSize({ w: r.width, h: r.height }) })
+    // clientWidth/Height are layout metrics — immune to the .stage entrance transform (scale),
+    // so the triangle lays out at true size (getBoundingClientRect would be transform-shrunk).
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el); return () => ro.disconnect()
   }, [])
 
@@ -113,6 +116,7 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
   const refNode = byId.get(refId)!
   const focusId = pinned ?? hovered
   const focusPoint = geo?.points.find((p) => p.e.id === focusId)
+  const dom = focusPoint ? dominantOf(focusPoint.r) : null
   useDeCollide(fieldRef, '.rnode', '.rnode__name', focusId, [size, refId, hovered, pinned])
 
   const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null) }
@@ -123,20 +127,34 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
         {geo && (
           <>
             <svg className="rel-tri" width={size.w} height={size.h}>
-              <polygon points={`${geo.Vt.x},${geo.Vt.y} ${geo.Vf.x},${geo.Vf.y} ${geo.Vh.x},${geo.Vh.y}`} fill="rgba(251,255,0,0.018)" stroke="rgba(251,255,0,0.22)" strokeWidth="1" />
+              {/* faint vertex glows — make the three poles legible as zones */}
+              <defs>
+                <radialGradient id="relpole" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="rgba(251,255,0,0.10)" />
+                  <stop offset="100%" stopColor="rgba(251,255,0,0)" />
+                </radialGradient>
+              </defs>
+              {[geo.Vt, geo.Vf, geo.Vh].map((v, i) => (
+                <circle key={i} className="rel-zone" cx={v.x} cy={v.y} r={Math.min(size.w, size.h) * 0.26} fill="url(#relpole)" />
+              ))}
+              <polygon className="rel-poly" points={`${geo.Vt.x},${geo.Vt.y} ${geo.Vf.x},${geo.Vf.y} ${geo.Vh.x},${geo.Vh.y}`} fill="rgba(251,255,0,0.018)" stroke="rgba(251,255,0,0.22)" strokeWidth="1" />
+              {/* the relationship link: a flowing tether from the reference (centre) to the focused body */}
+              {focusPoint && (
+                <line className="rel-tether" x1={geo.cx} y1={geo.cy} x2={focusPoint.x} y2={focusPoint.y} />
+              )}
               {/* barycentric guide-lines: focus point → each vertex, weighted by component */}
               {focusPoint && (
                 <g className="rel-guides">
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vt.x} y2={geo.Vt.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.08 + focusPoint.r.tension * 0.55} strokeWidth={0.5 + focusPoint.r.tension * 1.6} />
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vf.x} y2={geo.Vf.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.08 + focusPoint.r.friction * 0.55} strokeWidth={0.5 + focusPoint.r.friction * 1.6} />
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vh.x} y2={geo.Vh.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.08 + focusPoint.r.harmony * 0.55} strokeWidth={0.5 + focusPoint.r.harmony * 1.6} />
+                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vt.x} y2={geo.Vt.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.06 + focusPoint.r.tension * 0.42} strokeWidth={0.5 + focusPoint.r.tension * 1.4} />
+                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vf.x} y2={geo.Vf.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.06 + focusPoint.r.friction * 0.42} strokeWidth={0.5 + focusPoint.r.friction * 1.4} />
+                  <line x1={focusPoint.x} y1={focusPoint.y} x2={geo.Vh.x} y2={geo.Vh.y} stroke="rgba(251,255,0,1)" strokeOpacity={0.06 + focusPoint.r.harmony * 0.42} strokeWidth={0.5 + focusPoint.r.harmony * 1.4} />
                 </g>
               )}
             </svg>
             <span className="rel-vtx rel-vtx--t" style={{ left: geo.Vt.x, top: geo.Vt.y - 26 }}>מתח<i>עוינות פעילה</i></span>
             <span className="rel-vtx rel-vtx--f" style={{ left: geo.Vf.x - 8, top: geo.Vf.y + 16 }}>חיכוך<i>אינטרסים מתנגשים</i></span>
             <span className="rel-vtx rel-vtx--h" style={{ left: geo.Vh.x + 8, top: geo.Vh.y + 16 }}>הרמוניה<i>שיתוף פעולה</i></span>
-            {/* reference marker at centroid */}
+            {/* reference marker at centroid — the lens through which every relation is read */}
             <div className="rel-ref" style={{ left: geo.cx, top: geo.cy }}>
               <span className="rel-ref__dot" />
               <span className="rel-ref__name">{refNode.he}</span>
@@ -155,10 +173,10 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
                   data-power={e.power}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${e.he} — ${charOf(relation(refId, e.id))} מול ${refNode.he}`}
+                  aria-label={`${e.he} — ${VERDICT[dominantOf(relation(refId, e.id))]} מול ${refNode.he}`}
                   aria-pressed={e.id === pinned}
                   className={`rnode${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.05}s` }}
+                  style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.04}s` }}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onFocus={() => setHovered(e.id)}
@@ -178,21 +196,29 @@ export default function RelationsView({ view, onView }: { view: View; onView: (v
 
       <Header onHome={() => onView('home')} />
       <PanelDock>
-      {focusPoint ? (
-        <aside className="panel panel--detail" dir="rtl">
+      {focusPoint && dom ? (
+        <aside className="panel panel--detail rel-detail" dir="rtl" key={focusPoint.e.id}>
           {pinned && <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>}
+          <span className="rel-detail__kicker">היחס מול {refNode.he}</span>
           <h1 className="panel__title">{focusPoint.e.he}</h1>
-          <p className="panel__rel-toward">{charOf(focusPoint.r)} מול {refNode.he}</p>
+          <p className={`rel-detail__verdict rel-detail__verdict--${dom}`}>{VERDICT[dom]}</p>
           {focusPoint.r.why && <p className="panel__why">{focusPoint.r.why}</p>}
-          <div className="panel__meta">
-            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v">{focusPoint.e.dispo}</span></div>
-            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v">{AXIS_LABEL[AXIS[focusPoint.e.id] ?? 'none']}</span></div>
-          </div>
           <div className="panel__forces">
             <span className="panel__rels-h">מאפייני היחס</span>
-            <div className="fbar"><span className="fbar__k">מתח</span><span className="fbar__track"><span className="fbar__fill" style={{ width: `${Math.round(focusPoint.r.tension * 100)}%` }} /></span><span className="fbar__v">{Math.round(focusPoint.r.tension * 100)}</span></div>
-            <div className="fbar"><span className="fbar__k">חיכוך</span><span className="fbar__track"><span className="fbar__fill" style={{ width: `${Math.round(focusPoint.r.friction * 100)}%` }} /></span><span className="fbar__v">{Math.round(focusPoint.r.friction * 100)}</span></div>
-            <div className="fbar"><span className="fbar__k">הרמוניה</span><span className="fbar__track"><span className="fbar__fill" style={{ width: `${Math.round(focusPoint.r.harmony * 100)}%` }} /></span><span className="fbar__v">{Math.round(focusPoint.r.harmony * 100)}</span></div>
+            {(['tension', 'friction', 'harmony'] as Pole[]).map((pole, bi) => {
+              const v = Math.round(focusPoint.r[pole] * 100)
+              return (
+                <div className={`fbar${pole === dom ? ' fbar--on' : ''}`} key={pole} style={{ '--bd': `${bi * 0.08}s` } as React.CSSProperties}>
+                  <span className="fbar__k">{POLE_HE[pole]}</span>
+                  <span className="fbar__track"><span className="fbar__fill" style={{ width: `${v}%` }} /></span>
+                  <span className="fbar__v">{v}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="panel__meta">
+            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v"><bdi>{focusPoint.e.dispo}</bdi></span></div>
+            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v"><bdi>{AXIS_LABEL[AXIS[focusPoint.e.id] ?? 'none']}</bdi></span></div>
           </div>
           <button className="panel__setref" onClick={() => setReference(focusPoint.e.id)}>
             קבעו את {focusPoint.e.he} כמדינת הייחוס ←

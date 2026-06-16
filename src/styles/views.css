@@ -66,6 +66,39 @@
 .rnode--dim { opacity: 0.28; }
 .panel__rel-toward { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--yellow); opacity: 0.85; }
 
+/* vertex zone glows — fade in after the triangle draws, making the three poles read as regions */
+.rel-zone { opacity: 0; animation: relZoneIn 1s 0.5s ease forwards; }
+@keyframes relZoneIn { to { opacity: 1; } }
+/* the relationship tether — a flowing link from the reference (centre) to the focused body */
+.rel-tether {
+  stroke: var(--yellow); stroke-width: 1.4; stroke-opacity: 0.7; stroke-dasharray: 4 5;
+  animation: relTetherIn 0.35s var(--ease-out-expo) both, relTetherFlow 0.9s linear infinite;
+}
+@keyframes relTetherIn { from { stroke-opacity: 0; } to { stroke-opacity: 0.7; } }
+@keyframes relTetherFlow { to { stroke-dashoffset: -18; } }
+@media (prefers-reduced-motion: reduce) { .rel-tether { animation: none; stroke-opacity: 0.6; } .rel-zone { animation: none; opacity: 1; } }
+
+/* ── Relations drill-down — clearer hierarchy: kicker · name · verdict · why · bars ── */
+.rel-detail__kicker {
+  display: block; margin-bottom: 4px; font-family: var(--body); font-size: var(--text-xs);
+  letter-spacing: 0.1em; color: var(--ink-dim); animation: textRise 0.6s var(--ease-out-expo) both;
+}
+.rel-detail__verdict {
+  margin-top: 6px; font-family: var(--display); font-size: var(--text-lg); font-weight: 700; letter-spacing: 0.02em;
+  color: var(--yellow); animation: textRise 0.6s 0.08s var(--ease-out-expo) both;
+}
+/* the dominant pole tints the verdict — warm for tension, cool for harmony, neutral for complex */
+.rel-detail__verdict--tension { color: var(--warn); }
+.rel-detail__verdict--harmony { color: var(--ok); }
+.rel-detail__verdict--friction { color: var(--yellow); }
+/* dominant bar in the breakdown is emphasised; others recede */
+.fbar { transition: opacity var(--dur-fast) ease; }
+.fbar__fill { animation-delay: var(--bd, 0s); }
+.panel__forces:has(.fbar--on) .fbar:not(.fbar--on) { opacity: 0.5; }
+.fbar--on .fbar__k { color: var(--white); font-weight: 700; }
+.fbar--on .fbar__fill { box-shadow: 0 0 10px rgba(251, 255, 0, 0.5); }
+.fbar--on .fbar__v { color: var(--yellow); }
+
 /* ── Home — one circle, two states: breathing (closed) ↔ open ── */
 .home { cursor: none; --ring-d: min(62vmin, 640px); }
 .home .field { z-index: var(--z-field); }
