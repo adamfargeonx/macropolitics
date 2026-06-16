@@ -10,7 +10,10 @@ they never hardcode raw values.**
 
 - **One accent.** The interface is near-monochrome (deep indigo-black + warm off-white);
   **yellow `#fbff00` is the only chromatic note** and is spent sparingly — accents, the
-  active state, the tagline. Glows are avoided; light reads through contrast, not bloom.
+  active state, the tagline. In **layout chrome** light reads through contrast, not bloom —
+  glows are avoided there. The **canvas field views** are the sanctioned exception: the gravity-well
+  glow, the loader ignition flash, and body focus-pulses use bloom deliberately (light *is* the
+  data there). Keep bloom out of panels, buttons, and text.
 - **The circle is the motif.** A thin ring with a single travelling dot recurs from the
   opener through the homepage. Orbits, rings and centres of gravity are the visual grammar.
 - **Editorial restraint.** Generous negative space, quiet type, motion that communicates
@@ -28,8 +31,8 @@ they never hardcode raw values.**
 | `--yellow` | `#fbff00` | accent — active state, tagline, key data |
 | `--white` | `#ffffff` | states / emphasis |
 | `--light` | `#f4f2ec` | primary ink (warm off-white) |
-| `--ink-dim` | `rgba(244,242,236,.55)` | secondary ink |
-| `--ink-faint` | `rgba(244,242,236,.3)` | tertiary ink / hints |
+| `--ink-dim` | `rgba(244,242,236,.72)` | secondary ink (raised from .55 for AA contrast) |
+| `--ink-faint` | `rgba(244,242,236,.60)` | tertiary ink / hints (raised from .3 for AA contrast) |
 | `--surface-1` | `rgba(255,255,255,.03)` | faint chip / cell |
 | `--surface-2` | `rgba(10,6,22,.96)` | panel / overlay |
 | `--line`, `--line-2` | white @ .08 / .06 | hairline dividers |
@@ -53,6 +56,10 @@ Set to `0px` at `max-width: 768px` via media query override.
 
 These exist because data-quality states cannot be communicated with yellow alone. They are
 confined to evidence overlays and flag callouts — never used for decorative UI chrome.
+**Sanctioned extension:** the relations drill-down verdict reuses `--warn` (tension) and `--ok`
+(harmony), with yellow for friction/complex, as *relationship-temperature semantics* — a genuine
+data meaning (warm = hostile, cool = cooperative), not decoration. This is the one place the status
+palette carries relational rather than data-quality meaning.
 
 **Allegiance rims** (bloc temperature, used as `rgb()` triplets):
 `--rim-west` 132,160,196 · `--rim-east` 198,134,98 · `--rim-neutral` 150,150,160 ·
@@ -79,7 +86,7 @@ Note: `--display-hero` (the old clamp token) was removed — it was never consum
 
 **Kerning rule (weight-coupled):**
 - **Bold/black titles → tight** (low kerning): `-0.01em` to `-0.02em` (panel titles, logo, legend title).
-- **Light titles → wide** (high kerning): `0.1em` to `0.4em` (the home wordmark is `0.38em`).
+- **Light titles → wide** (high kerning): `0.1em` to `0.4em` (the home wordmark is `0.39em`).
 - **Body text → slightly open**: `~0.02em` for readability.
 
 ---

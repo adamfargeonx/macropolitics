@@ -70,7 +70,8 @@ export default function App() {
     if (v === viewRef.current || pendingRef.current) return // ignore no-ops + mid-transition clicks
     if (v !== 'home') setHomeOpen(true) // so returning home lands on the open circle
     sound.play(v === 'home' ? 'back' : 'transition')
-    if (reduceMotion) { setView(v); return }
+    if (reduceMotion) { viewRef.current = v; setView(v); return }
+    pendingRef.current = v // block re-entry synchronously — the synced effect lags one commit
     setPending(v)
   }, [reduceMotion])
 
@@ -121,7 +122,7 @@ export default function App() {
         : view === 'relations' ? <RelationsView view={view} onView={go} />
         : view === 'well' ? <ForcesWellView view={view} onView={go} />
         : <DynamicsView view={view} onView={go} />}
-      {pending != null && <div className={`page-transition${revealing ? ' page-transition--reveal' : ''}`} aria-hidden />}
+      {pending != null && <div key={pending} className={`page-transition${revealing ? ' page-transition--reveal' : ''}`} aria-hidden />}
       <CustomCursor />
       <SoundToggle />
       <UtilityNav />

@@ -21,7 +21,7 @@ export function Legend({ view }: { view: View }) {
 
   return (
     <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
-      <aside ref={dialogRef} className="legend" dir="rtl" role="dialog" aria-modal="true" aria-label="מקרא" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="legend" dir="rtl" role="dialog" aria-modal="true" aria-label="מקרא" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="legend__head">
           <h2 className="legend__title">מקרא</h2>

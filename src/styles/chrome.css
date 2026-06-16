@@ -70,31 +70,7 @@
 .zoomctl__reset { font-size: 15px !important; }
 .zoomctl__val { color: var(--yellow); font-size: 12px; opacity: 0.7; min-width: 38px; text-align: center; letter-spacing: 0.05em; }
 
-/* names / rankings clean-visuals toggle (sits above the zoom controls, bottom-left) */
-.namestoggle {
-  position: absolute; bottom: 70px; left: 36px; z-index: 6;
-  display: inline-flex; align-items: center; gap: 7px; cursor: none;
-  padding: 6px 12px; background: rgba(6, 3, 15, 0.6);
-  border: 1px solid rgba(251, 255, 0, 0.35); color: var(--yellow);
-  font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em;
-  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease, opacity var(--dur-fast) ease;
-}
-.namestoggle:hover { background: rgba(251, 255, 0, 0.14); border-color: var(--yellow); }
-.namestoggle__icon { font-size: 13px; line-height: 1; }
-.namestoggle--off { color: var(--ink-dim); border-color: var(--line); opacity: 0.85; }
-.namestoggle--off:hover { color: var(--light); border-color: var(--ink-dim); background: rgba(255, 255, 255, 0.04); }
-
-/* forces arrangement controls — order by axis, filter by bloc + threshold (top-centre) */
-.forcesctl {
-  position: absolute; top: var(--sp-6); left: 50%; transform: translateX(-50%); z-index: 6;
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center;
-}
-.forcesctl__group {
-  display: flex; align-items: center; gap: 2px;
-  background: rgba(6, 3, 15, 0.62); border: 1px solid var(--line-yellow); border-radius: var(--r-pill);
-  padding: 3px 4px;
-}
-.forcesctl__lbl { font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-dim); padding: 0 8px 0 4px; white-space: nowrap; }
+/* forces sort/filter pills + threshold slider — rendered inside .gctl (panel) and the tools disclosure */
 .forcesctl__opt {
   cursor: none; background: none; border: none; padding: 5px 12px; border-radius: var(--r-pill);
   font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-dim);
@@ -102,31 +78,11 @@
 }
 .forcesctl__opt:hover { color: var(--light); }
 .forcesctl__opt.is-on { color: var(--bg); background: var(--yellow); }
-/* threshold slider */
-.forcesctl__group--slider { padding-inline-end: 12px; }
+/* threshold (minScore) slider — used in the tools disclosure */
 .forcesctl__slider { -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 0; background: var(--line-yellow); cursor: none; }
 .forcesctl__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--yellow); cursor: none; box-shadow: 0 0 8px rgba(251, 255, 0, 0.4); }
 .forcesctl__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
 .gindex__empty { margin-top: 14px; font-family: var(--body); font-size: 12px; color: var(--ink-dim); letter-spacing: 0.04em; }
-/* nodes glide to new positions when the arrangement changes (order / filter) */
-.fnode { transition: opacity 0.25s ease, left 0.6s var(--ease-out-expo), top 0.6s var(--ease-out-expo); }
-@media (prefers-reduced-motion: reduce) { .fnode { transition: opacity 0.25s ease; } }
-@media (max-width: 980px) { .forcesctl { top: auto; bottom: 116px; gap: 8px; } }
-
-/* Tools disclosure button — single entry point for all secondary controls */
-.forcesctl__tools {
-  cursor: none; background: rgba(6, 3, 15, 0.62); border: 1px solid var(--line-yellow); border-radius: var(--r-pill);
-  padding: 7px 14px; font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-dim);
-  display: inline-flex; align-items: center; gap: 6px; position: relative;
-  transition: color var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease;
-}
-.forcesctl__tools:hover { color: var(--light); border-color: var(--yellow-30); }
-.forcesctl__tools.is-on { color: var(--bg); background: var(--yellow); border-color: var(--yellow); }
-.forcesctl__tools.has-state:not(.is-on) { color: var(--yellow); border-color: var(--yellow); }
-.forcesctl__tools-badge {
-  width: 5px; height: 5px; border-radius: 50%; background: var(--yellow);
-  position: absolute; top: 5px; left: 6px; pointer-events: none;
-}
 /* Tools disclosure panel — bloc filter + threshold + year + scenario sandbox, all in one */
 .forcestools {
   position: absolute; top: 72px; left: 50%; transform: translateX(-50%); z-index: 7;
@@ -327,7 +283,7 @@ body:has(.home--closed) .unav { opacity: 0.72; }
 .about__col:hover { border-top-color: var(--yellow); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
 .about__col-n { font-family: var(--display); font-size: 11px; font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: 0.1em; }
 .about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin: 4px 0 7px; }
-.about__col p { font-family: var(--body); font-size: 12.5px; line-height: 1.46; letter-spacing: 0.04em; color: var(--light); opacity: 0.78; }
+.about__col p { font-family: var(--body); font-size: 12.5px; line-height: 1.62; letter-spacing: 0.04em; color: var(--light); opacity: 0.78; }
 .about__honesty {
   margin-top: 22px; padding: 12px 14px; font-family: var(--body);
   font-size: 12.5px; line-height: 1.5; letter-spacing: 0.04em; color: var(--yellow); opacity: 0.85;

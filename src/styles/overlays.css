@@ -152,7 +152,7 @@
 .legend__rows { display: flex; flex-direction: column; }
 .legend__row { display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
 .legend__row:last-child { border-bottom: none; }
-.legend__txt { font-family: var(--body); font-size: 13.5px; line-height: 1.4; letter-spacing: 0.1em; color: var(--light); opacity: 0.88; }
+.legend__txt { font-family: var(--body); font-size: 13.5px; line-height: 1.6; letter-spacing: 0.1em; color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
 .legend__swatch {
   flex: 0 0 58px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -173,7 +173,7 @@
 }
 .legend__foot { margin-top: 16px; font-family: var(--body); font-size: 11px; color: var(--light); opacity: 0.60; letter-spacing: 0.04em; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
-  .legend__scrim, .legend { animation: none; }
+  .legend__scrim, .legend, .about, .evid, .panel--detail { animation: none; }
 }
 
 .panel {
@@ -183,7 +183,7 @@
 }
 .panel::-webkit-scrollbar { display: none; }
 .panel__title { font-size: var(--text-3xl); font-weight: 900; color: var(--yellow); letter-spacing: -0.02em; }
-.panel__body { margin-top: 18px; font-family: var(--body); font-size: 15px; line-height: 1.42; letter-spacing: 0.1em; color: var(--yellow); opacity: 0.92; }
+.panel__body { margin-top: 18px; font-family: var(--body); font-size: 15px; line-height: 1.62; letter-spacing: 0.1em; color: var(--yellow); opacity: 0.92; }
 .panel__eq { margin-top: 26px; font-size: 17px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); }
 .panel__note { margin-top: 10px; font-family: var(--body); font-size: 14px; line-height: 1.4; letter-spacing: 0.1em; color: var(--yellow); opacity: 0.7; }
 
@@ -269,7 +269,7 @@
   font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--yellow); opacity: 0.5;
 }
 .panelb__note-k { font-size: var(--text-base); font-weight: 700; color: var(--white); }
-.panelb__notes p { grid-column: 2; font-family: var(--body); font-size: 13px; line-height: 1.4; letter-spacing: 0.04em; color: var(--light); opacity: 0.82; }
+.panelb__notes p { grid-column: 2; font-family: var(--body); font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: var(--light); opacity: 0.82; }
 .panelb__rels { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (prefers-reduced-motion: reduce) { .panelb__gauge i, .panelb__col-track i { animation: none; } }
 

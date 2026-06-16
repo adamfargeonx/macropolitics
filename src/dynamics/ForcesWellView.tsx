@@ -109,12 +109,14 @@ const BODIES: WellBody[] = layoutBodies()
 class GravityWell {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
-  private rect: DOMRect
   private raf = 0
   private start = 0
   private reduced: boolean
   private canvas: HTMLCanvasElement
   private container: HTMLElement
+  // reused grid-vertex scratch (allocated on resize, not per frame — avoids GC churn)
+  private gridVx: Float32Array = new Float32Array((COLS + 1) * (ROWS + 1))
+  private gridVy: Float32Array = new Float32Array((COLS + 1) * (ROWS + 1))
 
   private mouse = { x: -9999, y: -9999 }
   private hoveredIdx: number | null = null
@@ -138,7 +140,6 @@ class GravityWell {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('GravityWell: 2D context unavailable')
     this.ctx = ctx
-    this.rect = container.getBoundingClientRect()
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
 
     const n = BODIES.length
@@ -150,15 +151,14 @@ class GravityWell {
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
     this.container.addEventListener('pointerleave', this.onLeave)
-    this.container.addEventListener('pointerenter', this.onEnter)
     this.container.addEventListener('pointerdown', this.onDown)
   }
 
   resize = () => {
-    const rect = this.container.getBoundingClientRect()
-    this.rect = rect
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
-    this.w = rect.width; this.h = rect.height
+    // clientWidth/Height are transform-immune (the .stage entrance scale would shrink a
+    // getBoundingClientRect read → offset hit-testing for the session). Matches engine.ts.
+    this.w = this.container.clientWidth; this.h = this.container.clientHeight
     this.canvas.width = this.w * this.dpr
     this.canvas.height = this.h * this.dpr
     this.canvas.style.width = `${this.w}px`
@@ -172,16 +172,11 @@ class GravityWell {
     cancelAnimationFrame(this.raf)
     this.container.removeEventListener('pointermove', this.onMove)
     this.container.removeEventListener('pointerleave', this.onLeave)
-    this.container.removeEventListener('pointerenter', this.onEnter)
     this.container.removeEventListener('pointerdown', this.onDown)
   }
 
-  private onEnter = () => {
-    // Refresh rect on pointerenter — the stage may have been animating (known footgun)
-    this.rect = this.container.getBoundingClientRect()
-  }
   private onMove = (ev: PointerEvent) => {
-    const r = this.rect
+    const r = this.container.getBoundingClientRect() // live rect — correct once the entrance settles
     this.mouse.x = ev.clientX - r.left
     this.mouse.y = ev.clientY - r.top
     this.hitTest()
@@ -302,9 +297,9 @@ class GravityWell {
 
   private drawGrid(t: number, intro: number) {
     const ctx = this.ctx
-    // Grid vertex arrays — recomputed each frame (bodies move well depth)
-    const vx = new Float32Array((COLS + 1) * (ROWS + 1))
-    const vy = new Float32Array((COLS + 1) * (ROWS + 1))
+    // Grid vertex positions — reuse instance scratch (recomputed each frame, no per-frame alloc)
+    const vx = this.gridVx
+    const vy = this.gridVy
 
     for (let row = 0; row <= ROWS; row++) {
       for (let col = 0; col <= COLS; col++) {

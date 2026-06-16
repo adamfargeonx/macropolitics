@@ -21,7 +21,7 @@ import {
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
   const fieldRef = useRef<HTMLDivElement>(null)
   const posRef = useRef<Map<string, { x: number; y: number }>>(new Map())
-  const { size, cam, proximal, isDragging, consumeDragMoved, fieldHandlers } = useForcesCamera(fieldRef, posRef)
+  const { size, cam, proximal, consumeDragMoved, fieldHandlers } = useForcesCamera(fieldRef, posRef)
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [orderBy, setOrderBy] = useState<Order>('total')
@@ -90,7 +90,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       }}
     >
       <div
-        className={`forces-field${isDragging ? ' forces-field--grab' : ''}`}
+        className="forces-field"
         ref={fieldRef}
         {...fieldHandlers}
       >
@@ -134,7 +134,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       </div>
 
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
-      {stateActive && !toolsOpen && (
+      {stateActive && !tools.mounted && (
         <div className="forces-state" dir="rtl">
           {filterBloc !== 'all' && <span className="forces-state__tag">{BLOC_LABEL[filterBloc]}</span>}
           {minScore > 0 && <span className="forces-state__tag">סף≥{minScore}</span>}

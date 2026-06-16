@@ -90,7 +90,7 @@ export function EvidenceOverlay() {
 
   return (
     <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
-      <aside ref={dialogRef} className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>

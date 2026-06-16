@@ -12,7 +12,7 @@ export function AboutOverlay() {
 
   return (
     <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
-      <aside ref={dialogRef} className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" onClick={(e) => e.stopPropagation()}>
+      <aside ref={dialogRef} className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
 
         <header className="about__head">
