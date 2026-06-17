@@ -17,6 +17,7 @@ import type { BodyInput } from '../model/gravity'
 import { economicScore, type EcoCriteria, type EcoResult } from '../model/economic.ts'
 import { militaryScore, type MilCriteria, type MilResult } from '../model/military.ts'
 import { geoScore, type GeoCriteria, type GeoResult } from '../model/geo.ts'
+import { FIGURES } from './figures.generated.ts'
 
 export type SourceStatus =
   | 'sourced' // a primary dataset figure stands behind the score
@@ -435,9 +436,31 @@ export const DATA: Record<string, BodyData> = Object.fromEntries(
   }),
 )
 
-// Build the model's input list (axes + stability + backing only).
+// ── Live-figure overlay (self-sustaining refresh — see scripts/refresh-data.mjs) ──────────────
+// The eco/mil composites above are the calibrated ANCHOR. Real World Bank macro data nudges the
+// final score by the log-ratio of the latest figure vs the anchor figure, so the grades/dynamics
+// track reality without anyone touching the file. Safeguards keep it honest + unattendable:
+//   • bounded to ±LIVE_MAX_DELTA score-points (an unattended refresh can't swing a grade wildly),
+//   • clamp-only (no rounding → the authored decimals are preserved),
+//   • a NO-OP while latest === anchors (the seeded state today), and
+//   • geo / stability / backing are NEVER touched (those are interpretive, human-owned).
+// On top of this, the CI gate (check-model.ts) must still pass before any refreshed value ships.
+const LIVE_K: Record<'eco' | 'mil', number> = { eco: 1.2, mil: 1.3 } // same sensitivities as the time axis
+const LIVE_MAX_DELTA = 1.0
+const clampDelta = (d: number) => Math.min(LIVE_MAX_DELTA, Math.max(-LIVE_MAX_DELTA, d))
+const clamp0to10 = (n: number) => Math.min(10, Math.max(0, n))
+function liveAxis(score: number, axis: 'eco' | 'mil', id: string): number {
+  const anchor = FIGURES.anchors[id]?.[axis]
+  const latest = FIGURES.latest[id]?.[axis]
+  if (!anchor || !latest || !(anchor.v > 0) || !(latest.v > 0)) return score
+  return clamp0to10(score + clampDelta(LIVE_K[axis] * Math.log(latest.v / anchor.v)))
+}
+
+// Build the model's input list (axes + stability + backing only). eco/mil ride the live overlay.
 export const BODY_INPUTS: BodyInput[] = Object.entries(DATA).map(([id, d]) => ({
-  id, axes: d.axes, stability: d.stability, patron: d.patron, alpha: d.alpha,
+  id,
+  axes: { eco: liveAxis(d.axes.eco, 'eco', id), mil: liveAxis(d.axes.mil, 'mil', id), geo: d.axes.geo },
+  stability: d.stability, patron: d.patron, alpha: d.alpha,
 }))
 
 // Convenience: every body that carries a prominent data-quality flag (for the sources viewer).

@@ -1,0 +1,60 @@
+name: refresh-data
+
+# Self-sustaining: every 2 months the model's macro figures are pulled fresh from the World Bank,
+# validated, gated against the calibration invariants + a full build, and committed back ONLY if
+# everything is green. Any failure leaves the last-good data untouched — nothing to babysit.
+#   • scripts/refresh-data.mjs   — fail-safe fetch + validate (carry-forward on any rejection)
+#   • scripts/check-model.ts     — calibration invariants (USA max, proxies small, …) — hard gate
+#   • npm run build              — tsc + vite build — hard gate
+# The commit step runs last, so a value that passes the fetch checks but breaks the model can never
+# ship. Manual run available any time via the "Run workflow" button (workflow_dispatch).
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of every 2nd month (Jan, Mar, May, Jul, Sep, Nov)
+    - cron: '0 6 1 */2 *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies (for the build gate)
+        run: npm ci
+
+      - name: Refresh figures from the World Bank (fail-safe; carries last-good on any rejection)
+        run: node scripts/refresh-data.mjs
+
+      - name: Gate — calibration invariants must still hold
+        run: node --experimental-strip-types scripts/check-model.ts
+
+      - name: Gate — typecheck + production build must pass
+        run: npm run build
+
+      - name: Commit refreshed data (only if it changed and all gates passed)
+        run: |
+          if git diff --quiet -- src/data/figures.generated.ts; then
+            echo "No data change this cycle — nothing to commit."
+            exit 0
+          fi
+          git config user.name "macropolitics-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data/figures.generated.ts
+          git commit -m "chore(data): scheduled World Bank refresh [skip ci]"
+          git push
