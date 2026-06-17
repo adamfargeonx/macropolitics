@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, AXIS } from '../data/entities'
 import { bodyInputsForYear, type Year } from '../data/empirical'
 import { computeGravities } from '../model/gravity'
-import { useWeights, weightsStore, isDefaultWeights } from '../model/weights-store'
+import { useWeights, weightsStore } from '../model/weights-store'
 import { useYear, yearStore } from '../model/year-store'
+import { useScenarioWeights } from './useScenario'
 import { Header, SidePanel, PanelDock, TabBar, type View } from './Chrome'
 import { useDeCollide } from './useDeCollide'
 import { useForcesCamera } from './useForcesCamera'
@@ -15,7 +16,7 @@ import {
   AXIS_RIM, BLOC_LABEL, DEFAULT_RAW, RANK_OF,
   ZOOM_NAMES_AT, TOP_NAMES_N, INDEX_PREVIEW_N,
   metricVal, passesBloc, buildForceDetail, computeLayout,
-  type Order, type Bloc, type Raw,
+  type Order, type Bloc,
 } from './forces-model'
 
 export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
@@ -33,14 +34,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const weights = useWeights()
   const year = useYear()
   const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
-  const scenario = !isDefaultWeights(weights)
-  const [raw, setRaw] = useState<Raw>(DEFAULT_RAW)
-  useEffect(() => {
-    const sum = raw.eco + raw.mil + raw.geo || 1
-    weightsStore.set({ eco: raw.eco / sum, mil: raw.mil / sum, geo: raw.geo / sum })
-  }, [raw])
+  const { raw, setRaw, normW, scenario } = useScenarioWeights()
   useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, [])
-  const normW: Raw = useMemo(() => { const s = raw.eco + raw.mil + raw.geo || 1; return { eco: raw.eco / s, mil: raw.mil / s, geo: raw.geo / s } }, [raw])
 
   // any non-default secondary filter — drives the breadcrumb
   const stateActive = filterBloc !== 'all' || minScore > 0 || year !== 2025 || scenario

@@ -13,7 +13,14 @@ supersedes the hand-tuned `power` / `FORCES` placeholders in `src/data/entities.
 > `flags` (Iran off-budget military, Egypt opaque budget, UAE/Syria/Yemen no SIPRI data). An
 > **evidence overlay** surfaces the calculation + the sources per body; the **forces screen** can
 > be re-ordered/filtered by any axis. Calibration: `node --experimental-strip-types scripts/check-model.ts`.
-> **Next:** the Scenario Sandbox (live `WEIGHTS` sliders) + the Time Axis (`eco[year]` keyframes).
+>
+> **Update (2026-06-18) — the model is now live in BOTH lenses.** The Scenario Sandbox (live
+> `WEIGHTS` sliders, `weights-store.ts`) and the Time Axis (2000/2020/2025 keyframes, `year-store.ts`
+> + `bodyInputsForYear`) drive Forces *and* the Dynamics synthesis view. The Dynamics orrery used
+> to read a frozen `power`; it now subscribes to both stores and eases each body's size toward the
+> recomputed gravity (`OrbitalField.setGravities` + per-frame lerp). The gravity-well is folded into
+> Dynamics as a reading toggle (orbital ↔ warped field) and reacts to the same live model.
+> **Next:** widen the Time Axis beyond the three sourced keyframes (the 2010→2030 story).
 
 ---
 

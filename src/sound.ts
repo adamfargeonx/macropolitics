@@ -166,5 +166,5 @@ export const sound = new SoundEngine()
 // Interactive-element detector for global delegation.
 export const isInteractive = (t: EventTarget | null): boolean =>
   !!(t as HTMLElement)?.closest?.(
-    'button, a, .fnode, .rnode, .home__lens, .tab, .zoomctl button, .hdr__logo, .panel__close, .panel__rel, [data-interactive]'
+    'button, a, input, .fnode, .rnode, .home__lens, .tab, .zoomctl button, .hdr__logo, .panel__close, .panel__rel, .forcestools, .dynctl, [data-interactive]'
   )

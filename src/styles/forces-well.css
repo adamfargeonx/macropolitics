@@ -16,6 +16,10 @@
 /* stageIn is defined in views.css; we inherit it via the .stage:not(.home) rule.
    Declaring cursor:none here keeps parity with the canvas engine's hit-testing. */
 
+/* Embedded reading inside the Dynamics stage (orbital ↔ well toggle): fills the stage;
+   the host .stage owns the entrance animation, so the embed just layers its canvas in. */
+.well-embed { position: absolute; inset: 0; z-index: var(--z-field); cursor: none; }
+
 /* ── Hover/select readout chip ─────────────────────────────────────────────
    An absolutely-positioned HTML overlay positioned by JS (left/top from state).
    Sharp corners (no border-radius — project rule).                           */

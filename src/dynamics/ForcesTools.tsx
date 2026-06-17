@@ -1,8 +1,9 @@
 import { type Dispatch, type SetStateAction } from 'react'
 import { type Year } from '../data/empirical'
 import { sound } from '../sound'
+import { YearToggle, ScenarioSliders } from './ScenarioControls'
 import {
-  BLOCS, BLOC_LABEL, SB_AXES, DEFAULT_RAW,
+  BLOCS, BLOC_LABEL,
   type Bloc, type Raw,
 } from './forces-model'
 
@@ -42,27 +43,9 @@ export function ForcesTools(props: ForcesToolsProps) {
         <input className="forcesctl__slider" type="range" min={0} max={9} step={1} value={minScore} dir="ltr"
           onChange={(e) => setMinScore(Number(e.target.value))} aria-label="סף ציון מינימלי" />
       </div>
-      <div className="forcestools__row" role="group" aria-label="שנה">
-        <span className="forcestools__lbl">שנה</span>
-        {([2000, 2020, 2025] as Year[]).map((y) => (
-          <button key={y} className={`forcesctl__opt${year === y ? ' is-on' : ''}`}
-            onClick={() => { sound.play('tab'); setYear(y) }} aria-pressed={year === y}>{y}</button>
-        ))}
-      </div>
+      <YearToggle year={year} setYear={setYear} />
       <div className="forcestools__divider" />
-      <div className="forcestools__row forcestools__row--head">
-        <span className="forcestools__lbl forcestools__lbl--title">תרחיש · משקלי הצירים</span>
-        {scenario && <button className="sandbox__reset" onClick={() => setRaw(DEFAULT_RAW)}>איפוס</button>}
-      </div>
-      {SB_AXES.map(({ k, he }) => (
-        <div className="forcestools__row forcestools__row--slider" key={k}>
-          <span className="sandbox__k">{he}</span>
-          <input className="sandbox__slider" type="range" min={5} max={70} step={1} value={raw[k]} dir="ltr"
-            onChange={(e) => setRaw((r) => ({ ...r, [k]: Number(e.target.value) }))} aria-label={`משקל ${he}`} />
-          <span className="sandbox__v">{Math.round(normW[k] * 100)}%</span>
-        </div>
-      ))}
-      <p className="sandbox__hint">גררו לשינוי המשקל — הדירוג מתעדכן מיידית.</p>
+      <ScenarioSliders raw={raw} setRaw={setRaw} normW={normW} scenario={scenario} />
       {year !== 2025 && (
         <p className="sandbox__hint forcestools__timenote">
           ציר זמן · {year}: כלכלה (IMF) וצבא (SIPRI) ממקור — גאוגרפיה ויציבות מוחזקות להווה

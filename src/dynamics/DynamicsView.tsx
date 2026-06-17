@@ -3,9 +3,13 @@ import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
 import { HoverReadout } from './HoverReadout'
 import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
+import { DynamicsControls } from './DynamicsControls'
+import { WellField } from './WellField'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
-import { BODY_INPUTS } from '../data/empirical'
-import { computeGravities } from '../model/gravity'
+import { bodyInputsForYear } from '../data/empirical'
+import { computeGravities, type GravityResult } from '../model/gravity'
+import { useWeights, weightsStore } from '../model/weights-store'
+import { useYear, yearStore } from '../model/year-store'
 import { buildForceDetail } from './forces-model'
 import { sound } from '../sound'
 
@@ -18,16 +22,12 @@ const SR_ONLY: React.CSSProperties = {
   position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
   overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0,
 }
-// Ranked text equivalent for the canvas constellation — the orrery is otherwise opaque to AT.
-const RANKED_NODES = [...NODES].sort((a, b) => b.power - a.power)
-
-// dynamics gravities use the canonical 2025 inputs + default weights (no scenario/year UI here).
-const DYN_GRAV = computeGravities(BODY_INPUTS)
 
 // Full forces-grade detail (axes, sources, evidence, backing) + the orrery's orbital context
-// (what it orbits, what orbits it) — unique to this view.
-function buildDetail(id: string | null): EntityDetail | null {
-  const base = buildForceDetail(id, DYN_GRAV)
+// (what it orbits, what orbits it) — unique to this view. Reads the LIVE gravity so the panel
+// matches the active scenario/year, not a frozen snapshot.
+function buildDetail(id: string | null, grav: Map<string, GravityResult>): EntityDetail | null {
+  const base = buildForceDetail(id, grav)
   if (!id || !base) return null
   const e = byId.get(id)
   const parent = e && e.parent !== 'C' ? byId.get(e.parent) : null
@@ -50,9 +50,27 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
   const [hover, setHover] = useState<Hover>({ id: null, screen: null })
   const [selected, setSelected] = useState<string | null>(null)
   const [zoom, setZoom] = useState(0.85)
+  // Reading mode: the orbital orrery (size=power, distance=relationship) or the warped gravity
+  // field (depth=power). Same data + same Scenario/Time controls — a different way of reading it.
+  const [reading, setReading] = useState<'orbital' | 'well'>('orbital')
+  const switchReading = (r: 'orbital' | 'well') => {
+    if (r === reading) return
+    sound.play('tab')
+    setSelected(null) // the well carries its own readout; drop any orbital selection
+    setReading(r)
+  }
+
+  // The synthesis view is now live: weights (Scenario Sandbox) and year (Time Axis) recompute the
+  // model, and the engine eases body sizes toward the new scores.
+  const weights = useWeights()
+  const year = useYear()
+  const grav = useMemo(() => computeGravities(bodyInputsForYear(year), weights), [weights, year])
+  useEffect(() => { engine?.setGravities(grav) }, [engine, grav])
+  // each lens is its own exploration — leave the model at reality (2025, canonical weights) on exit
+  useEffect(() => () => { weightsStore.reset(); yearStore.reset() }, [])
 
   useEffect(() => {
-    if (!canvasRef.current || !stageRef.current) return
+    if (reading !== 'orbital' || !canvasRef.current || !stageRef.current) return
     // floating + cursor-connecting starfield (the engine's own), reverted from the global inward field
     const orbital = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: false })
     orbital.onHover = (id, screen) => { if (id) sound.play('hover'); document.body.classList.toggle('cursor-grab', !!id); setHover({ id, screen }) }
@@ -68,37 +86,64 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
       clearTimeout(t)
       window.removeEventListener('resize', onResize)
       orbital.destroy()
+      setEngine(null)
       document.body.classList.remove('cursor-grab')
     }
-  }, [])
+  }, [reading])
 
-  const detail = useMemo(() => buildDetail(selected), [selected])
+  const detail = useMemo(() => buildDetail(selected, grav), [selected, grav])
+  // Ranked text equivalent for the canvas constellation (AT-only) — tracks the live scores.
+  const ranked = useMemo(
+    () => NODES
+      .map((n) => ({ id: n.id, he: n.he, power: grav.get(n.id)?.power ?? n.power, axis: AXIS_LABEL[AXIS[n.id] ?? 'none'] }))
+      .sort((a, b) => b.power - a.power),
+    [grav],
+  )
+
+  const orbital = reading === 'orbital'
 
   return (
     <div className="stage" ref={stageRef} dir="rtl">
-      <canvas ref={canvasRef} className="field" role="img" aria-label="מפת כוחות המזרח התיכון — מערך מסלולי של גופים גאופוליטיים לפי כוח" />
-      {/* screen-reader equivalent for the canvas: the bodies ranked by power */}
+      {orbital ? (
+        <>
+          <canvas ref={canvasRef} className="field" role="img" aria-label="מפת כוחות המזרח התיכון — מערך מסלולי של גופים גאופוליטיים לפי כוח" />
+          {engine && <LabelLayer engine={engine} />}
+          {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
+        </>
+      ) : (
+        <WellField grav={grav} />
+      )}
+
+      {/* screen-reader equivalent for the canvas: the bodies ranked by live power (both readings) */}
       <div style={SR_ONLY}>
         <h2>דירוג הגופים לפי כוח משיכה</h2>
         <ol>
-          {RANKED_NODES.map((n) => (
-            <li key={n.id}>{n.he} — {n.power} מתוך 100, {AXIS_LABEL[AXIS[n.id] ?? 'none']}</li>
+          {ranked.map((n) => (
+            <li key={n.id}>{n.he} — {n.power} מתוך 100, {n.axis}</li>
           ))}
         </ol>
       </div>
-      {engine && <LabelLayer engine={engine} />}
-      {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
+
       <Header onHome={() => onView('home')} />
+      <div className="dyn-topbar" dir="rtl">
+        <div className="reading-toggle" role="group" aria-label="אופן התצוגה">
+          <button className={`reading-toggle__opt${orbital ? ' is-on' : ''}`} onClick={() => switchReading('orbital')} aria-pressed={orbital}>מסלולי</button>
+          <button className={`reading-toggle__opt${!orbital ? ' is-on' : ''}`} onClick={() => switchReading('well')} aria-pressed={!orbital}>שדה כוח</button>
+        </div>
+        <DynamicsControls />
+      </div>
       <PanelDock>
         <SidePanel detail={detail} onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
       </PanelDock>
       <TabBar view={view} onView={onView} />
-      <div className="zoomctl" dir="ltr">
-        <button onClick={() => engine?.zoomBy(1.25)} aria-label="התקרבות">+</button>
-        <span className="zoomctl__val">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => engine?.zoomBy(0.8)} aria-label="התרחקות">−</button>
-        <button className="zoomctl__reset" onClick={() => engine?.resetView()} aria-label="איפוס">⟲</button>
-      </div>
+      {orbital && (
+        <div className="zoomctl" dir="ltr">
+          <button onClick={() => engine?.zoomBy(1.25)} aria-label="התקרבות">+</button>
+          <span className="zoomctl__val">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => engine?.zoomBy(0.8)} aria-label="התרחקות">−</button>
+          <button className="zoomctl__reset" onClick={() => engine?.resetView()} aria-label="איפוס">⟲</button>
+        </div>
+      )}
     </div>
   )
 }

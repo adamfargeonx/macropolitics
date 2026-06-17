@@ -2,6 +2,14 @@
 
 *Four ideas: two major (system / concept), two smaller. One of the smaller ones is already built.*
 
+> **Status (2026-06-18).** Both majors are now **built** and live in the Dynamics synthesis view (and
+> Forces): a shared parametric model (`gravity.ts` + `weights-store.ts` + `year-store.ts` /
+> `bodyInputsForYear`) feeds the engine, which eases body sizes toward the recomputed scores. The
+> **Time Axis** ships its three sourced keyframes (2000/2020/2025); widening toward 2010→2030 is the
+> remaining editorial work. The **Scenario Sandbox** ships as live axis-weight sliders (no propagation
+> rule needed — re-weighting is deterministic and backing cascades through the alliance graph).
+> Separately, the gravity-well is now a reading toggle inside Dynamics, not a fourth peer lens.
+
 ---
 
 ## Major 1 — ציר הזמן · The Time Axis: from snapshot to story

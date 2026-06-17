@@ -4,6 +4,7 @@
 // The particle starfield lives in SCREEN space (interactive background, unaffected by camera).
 
 import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, powerSize, type Entity } from '../data/entities'
+import { isInteractive } from '../sound'
 
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
@@ -32,7 +33,10 @@ const AXIS_COLOR: Record<string, string> = {
   none: '120,120,128', // faint grey
 }
 
-interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number }
+// `power` is the body's CURRENT (animated) gravity; `powerTarget` is where it's headed. Keeping
+// them separate from `sr` (the per-frame screen radius, which also depends on zoom) lets the score
+// ease between scenarios/years while the radius still recomputes against the live camera each frame.
+interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number }
 
 const idIndex = new Map(NODES.map((n, i) => [n.id, i]))
 const neighbors = (() => {
@@ -98,7 +102,7 @@ export class OrbitalField {
     this.ctx = ctx
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU }))
+    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -109,6 +113,16 @@ export class OrbitalField {
   }
 
   registerLabel(id: string, el: HTMLElement | null) { if (el) this.labels.set(id, el); else this.labels.delete(id) }
+
+  // Push live gravity in — the Scenario Sandbox (weights) and the Time Axis (year) drive this.
+  // Only the target moves; resolve() eases each body's `power` toward it, so the constellation
+  // re-equilibrates (bodies grow/shrink, proxies follow their patron's backing) rather than snapping.
+  setGravities(grav: Map<string, { power: number }>) {
+    for (const ns of this.nodes) {
+      const p = grav.get(ns.e.id)?.power
+      if (p != null) ns.powerTarget = p
+    }
+  }
 
   private get gutter() { return this.w > 760 ? Math.min(400, this.w * 0.3) : 0 }
   private get fieldW() { return Math.max(this.w - this.gutter, this.w * 0.6) }
@@ -183,6 +197,9 @@ export class OrbitalField {
   }
   private onLeave = () => { this.mouse.x = -9999; this.mouse.y = -9999; this.setHovered(null) }
   private onDown = (ev: PointerEvent) => {
+    // ignore presses that start on chrome (controls, panels, tabs) — they bubble to the stage
+    // container but must not scatter the field or clear the selection
+    if (isInteractive(ev.target)) return
     const rect = this.container.getBoundingClientRect()
     this.down = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
     this.mouse.x = this.down.x; this.mouse.y = this.down.y; this.dragging = false
@@ -251,7 +268,9 @@ export class OrbitalField {
       W.set(e.id, { x: ns.wx, y: ns.wy })
       const s = this.toScreen(ns.wx, ns.wy)
       ns.sx = s.x; ns.sy = s.y
-      ns.sr = clamp((powerSize(e.power) / 2) * this.viewScale * this.zoom, 2, 88)
+      // ease current power toward its target (snap when reduced-motion); same smoothing idiom as the field
+      ns.power += this.reduced ? (ns.powerTarget - ns.power) : (ns.powerTarget - ns.power) * 0.12
+      ns.sr = clamp((powerSize(ns.power) / 2) * this.viewScale * this.zoom, 2, 88)
     }
   }
 

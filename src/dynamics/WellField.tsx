@@ -1,19 +1,15 @@
-// ForcesWellView — "Gravity Well / Warped Field" alternate visualization.
-// A wireframe grid deforms toward each geopolitical body proportional to its
-// power (mass), creating gravity wells of depth/width = gravitational pull.
-// Same dataset as the orbital view; radically different reading: curvature of
-// the field IS the power. Deep, wide wells = dominant actors. Shallow dimples = weak ones.
+// WellField — "Gravity Well / Warped Field" reading, embedded inside Dynamics as a reading-mode
+// toggle (orbital ↔ warped field). A wireframe grid deforms toward each body proportional to its
+// LIVE power (mass), creating gravity wells of depth/width = gravitational pull. Same dataset and
+// the same Scenario/Time controls as the orbital reading: deep, wide wells = dominant actors.
 //
-// Architecture mirrors engine.ts: a class drives requestAnimationFrame with
-// devicePixelRatio handling via ctx.setTransform, cached rect refreshed on
-// resize and pointerenter, full cleanup on unmount.
-//
-// Usage (after wiring into App.tsx + Chrome.tsx):
-//   <ForcesWellView view={view} onView={onView} />
+// Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio
+// handling via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on
+// unmount, and setGravities() easing each body's mass toward the active scenario/year.
 
 import { useEffect, useRef, useState } from 'react'
 import { NODES, AXIS, AXIS_LABEL } from '../data/entities'
-import { Header, TabBar, type View } from './Chrome'
+import { type GravityResult } from '../model/gravity'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
@@ -130,6 +126,9 @@ class GravityWell {
   private wellDepth: Float32Array
   // Phase offsets for ambient breathing
   private breathPhase: Float32Array
+  // Live gravity (mass) per body — eases toward the active scenario/year so wells deepen/shallow.
+  private mass: Float32Array
+  private massTarget: Float32Array
 
   onHover?: (idx: number | null) => void
   onSelect?: (idx: number | null) => void
@@ -147,6 +146,8 @@ class GravityWell {
     this.bodyScreenY = new Float32Array(n)
     this.wellDepth = new Float32Array(n).fill(1)
     this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU) // golden angle spread
+    this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
+    this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -167,6 +168,15 @@ class GravityWell {
   }
 
   start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
+
+  // Live gravity in — Scenario Sandbox (weights) + Time Axis (year). Only the target moves; the
+  // frame loop eases each body's mass toward it, so the wells re-form rather than snapping.
+  setGravities(grav: Map<string, { power: number }>) {
+    for (let i = 0; i < BODIES.length; i++) {
+      const p = grav.get(BODIES[i].id)?.power
+      if (p != null) this.massTarget[i] = p
+    }
+  }
 
   destroy() {
     cancelAnimationFrame(this.raf)
@@ -201,7 +211,7 @@ class GravityWell {
     let bestD = Infinity
     for (let i = 0; i < BODIES.length; i++) {
       const d = Math.hypot(this.bodyScreenX[i] - this.mouse.x, this.bodyScreenY[i] - this.mouse.y)
-      const pad = Math.max(diskRadius(BODIES[i].power) + 10, 18)
+      const pad = Math.max(diskRadius(this.mass[i]) + 10, 18)
       if (d < pad && d < bestD) { bestD = d; best = i }
     }
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
@@ -235,7 +245,6 @@ class GravityWell {
   private gravDisplacement(vx: number, vy: number, t: number): [number, number] {
     let ddx = 0; let ddy = 0
     for (let i = 0; i < BODIES.length; i++) {
-      const b = BODIES[i]
       const bsx = this.bodyScreenX[i]
       const bsy = this.bodyScreenY[i]
       const dx = vx - bsx
@@ -245,7 +254,7 @@ class GravityWell {
       // breath: subtle time-varying pulse on each body's well (reduced-motion: skip)
       const breath = this.reduced ? 1 : 1 + 0.06 * Math.sin(t * 1.2 + this.breathPhase[i])
       const depth = this.wellDepth[i] * breath
-      const mass = b.power * MASS_SCALE * MAX_DISP * depth
+      const mass = this.mass[i] * MASS_SCALE * MAX_DISP * depth
       const k = mass / (dist2 + SOFTENING)
       ddx -= dx * k   // pull toward body
       ddy -= dy * k
@@ -259,7 +268,9 @@ class GravityWell {
 
   private frame = (now: number) => {
     const t = (now - this.start) / 1000
-    const intro = Math.min(1, t / 2.0) // fade-in over 2s
+    // clamp low end too (matches engine.ts clamp01): a transient negative t on the first frame
+    // would make intro < 0 → negative body radii → an arc/gradient throw that halts the loop.
+    const intro = Math.max(0, Math.min(1, t / 2.0)) // fade-in over 2s
     const ctx = this.ctx
 
     ctx.clearRect(0, 0, this.w, this.h)
@@ -279,6 +290,8 @@ class GravityWell {
       // Lerp speed: fast in, slow out
       const rate = this.wellDepth[i] < target ? 0.12 : 0.06
       this.wellDepth[i] += (target - this.wellDepth[i]) * rate
+      // ease mass toward the live gravity target (snap when reduced-motion)
+      this.mass[i] += this.reduced ? (this.massTarget[i] - this.mass[i]) : (this.massTarget[i] - this.mass[i]) * 0.12
     }
 
     // ── Draw grid ─────────────────────────────────────────────────────────────
@@ -371,7 +384,7 @@ class GravityWell {
     const isFocus = isHov || isSel
 
     const rimCol = AXIS_COLOR[b.axis] ?? AXIS_COLOR.none
-    const r = diskRadius(b.power)
+    const r = diskRadius(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.4 + this.breathPhase[i])
     const rr = r * pulse * (isFocus ? 1.22 : 1) * intro
 
@@ -379,13 +392,15 @@ class GravityWell {
       const ctx = this.ctx
       ctx.globalAlpha = intro
 
-      // Outer glow — radial gradient, bloc-tinted
+      // Outer glow — radial gradient, bloc-tinted (skip when the radius isn't drawable)
       const glowR = rr * (isFocus ? 3.2 : 2.0)
-      const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-      grd.addColorStop(0, `rgba(${rimCol},${isFocus ? 0.3 : 0.12})`)
-      grd.addColorStop(1, `rgba(${rimCol},0)`)
-      ctx.fillStyle = grd
-      ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
+      if (glowR > 0) {
+        const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
+        grd.addColorStop(0, `rgba(${rimCol},${isFocus ? 0.3 : 0.12})`)
+        grd.addColorStop(1, `rgba(${rimCol},0)`)
+        ctx.fillStyle = grd
+        ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
+      }
 
       // Focus pulse rings (expand outward from centre)
       if (isFocus && !this.reduced) {
@@ -423,9 +438,9 @@ class GravityWell {
       const b = BODIES[i]
       const sx = this.bodyScreenX[i]
       const sy = this.bodyScreenY[i]
-      const r = diskRadius(b.power)
+      const r = diskRadius(this.mass[i])
       const isFocus = i === focus
-      const isGreatOrRegional = b.power >= 40 // top tier
+      const isGreatOrRegional = this.mass[i] >= 40 // top tier
 
       // Major bodies always show; minor bodies only on focus
       const alwaysShow = isGreatOrRegional
@@ -464,8 +479,11 @@ class GravityWell {
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 function diskRadius(power: number): number {
-  // Same power→size feel as engine.ts powerSize but smaller for the dense well field
-  return 3 + Math.pow(power / 100, 1.6) * 18
+  // Same power→size feel as engine.ts powerSize but smaller for the dense well field.
+  // Guard the input: a non-finite/negative power (e.g. a transient during the mass tween) would
+  // make Math.pow return NaN → an invalid canvas radius → a throw that halts the whole rAF loop.
+  const p = Number.isFinite(power) ? Math.max(0, power) : 0
+  return 3 + Math.pow(p / 100, 1.6) * 18
 }
 
 function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
@@ -475,11 +493,12 @@ function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
 // ── Readout chip (HTML overlay) ───────────────────────────────────────────────
 interface ChipProps {
   body: WellBody | null
+  power: number
   screenX: number
   screenY: number
   pinned: boolean
 }
-function WellChip({ body, screenX, screenY, pinned }: ChipProps) {
+function WellChip({ body, power, screenX, screenY, pinned }: ChipProps) {
   if (!body) return null
   const ax = AXIS[body.id] ?? 'none'
   return (
@@ -489,17 +508,18 @@ function WellChip({ body, screenX, screenY, pinned }: ChipProps) {
       aria-live="polite"
     >
       <span className="well-chip__name">{body.he}</span>
-      <span className="well-chip__score">{body.power.toFixed(0)}</span>
+      <span className="well-chip__score">{power.toFixed(0)}</span>
       <span className="well-chip__axis">{AXIS_LABEL[ax]}</span>
       {pinned && <span className="well-chip__pin" aria-hidden>•</span>}
     </div>
   )
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-export default function ForcesWellView({ view, onView }: { view: View; onView: (v: View) => void }) {
+// ── Component (embedded reading inside Dynamics) ───────────────────────────────
+export function WellField({ grav }: { grav: Map<string, GravityResult> }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wellRef = useRef<GravityWell | null>(null)
 
   // Track selected state to show/hide hint; body data for the chip comes from
   // focusBody state — never from a ref read during render (React 19 rule).
@@ -514,6 +534,7 @@ export default function ForcesWellView({ view, onView }: { view: View; onView: (
     if (!canvas || !stage) return
 
     const well = new GravityWell(canvas, stage)
+    wellRef.current = well
 
     well.onHover = (idx) => {
       if (idx !== null) {
@@ -559,11 +580,15 @@ export default function ForcesWellView({ view, onView }: { view: View; onView: (
       clearTimeout(resizeTimer)
       window.removeEventListener('resize', onResize)
       well.destroy()
+      wellRef.current = null
     }
   }, [])
 
+  // live gravity in → the engine eases each well's depth toward the active scenario/year
+  useEffect(() => { wellRef.current?.setGravities(grav) }, [grav])
+
   return (
-    <div className="stage forces-well" ref={stageRef} dir="rtl">
+    <div className="well-embed" ref={stageRef} dir="rtl">
       <canvas
         ref={canvasRef}
         className="field"
@@ -571,20 +596,11 @@ export default function ForcesWellView({ view, onView }: { view: View; onView: (
         aria-label="שדה כוח הגרביטציה — הבארות מעמיקות ביחס לכוח המשיכה של כל גוף גאופוליטי"
       />
 
-      {/* Accessible equivalent for the canvas — screen readers can consume the ranked list */}
-      <div className="well-sr-only">
-        <h2>דירוג הגופים לפי עומק באר הגרביטציה</h2>
-        <ol>
-          {[...BODIES].sort((a, b) => b.power - a.power).map((b) => (
-            <li key={b.id}>{b.he} — {b.power.toFixed(0)} / 100, {AXIS_LABEL[AXIS[b.id] ?? 'none']}</li>
-          ))}
-        </ol>
-      </div>
-
-      {/* Hover / select readout chip */}
+      {/* Hover / select readout chip — shows the live score */}
       {focusBody && (
         <WellChip
           body={focusBody}
+          power={grav.get(focusBody.id)?.power ?? focusBody.power}
           screenX={chipPos.x}
           screenY={chipPos.y}
           pinned={chipPinned}
@@ -597,9 +613,6 @@ export default function ForcesWellView({ view, onView }: { view: View; onView: (
           רחפו מעל גוף — עומק הבאר הוא כוח המשיכה
         </div>
       )}
-
-      <Header onHome={() => onView('home')} />
-      <TabBar view={view} onView={onView} />
     </div>
   )
 }
