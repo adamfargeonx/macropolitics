@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent: runs the macropolitics data refresh every 2 months (Jan/Mar/May/Jul/Sep/Nov,
+     1st @ 09:00 local). Canonical copy lives in the repo; the active copy is installed at
+     ~/Library/LaunchAgents/com.macropolitics.refresh.plist. launchd runs a missed job on next
+     wake, so a sleeping/off Mac just delays the refresh rather than skipping it. The wrapper
+     auto-defers to GitHub Actions if the repo ever gets an origin remote. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.macropolitics.refresh</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/Users/adamfargeon/Claude/projects/macropolitics/scripts/refresh-and-gate.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Month</key><integer>1</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>3</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>5</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>7</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>9</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>11</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/Users/adamfargeon/Claude/projects/macropolitics/.refresh.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/adamfargeon/Claude/projects/macropolitics/.refresh.log</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
