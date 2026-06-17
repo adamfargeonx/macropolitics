@@ -14,7 +14,7 @@ export interface FiguresFile {
 }
 
 export const FIGURES: FiguresFile = /* @generated-json-start */ {
-  "generatedAt": "2026-06-17T22:50:49.726Z",
+  "generatedAt": "2026-06-17T22:59:06.040Z",
   "source": "World Bank: NY.GDP.MKTP.PP.CD (GDP PPP, current intl $) · MS.MIL.XPND.CD (military expenditure, current US$)",
   "anchors": {
     "usa": {
