@@ -94,6 +94,19 @@
 }
 .forces-reading__opt:hover { color: var(--light); }
 .forces-reading__opt.is-on { color: var(--bg); background: var(--yellow); }
+/* sheet hover/select readout — sits right above the focused body */
+.sheet-chip {
+  position: absolute; transform: translate(-50%, -100%); z-index: 6; pointer-events: none;
+  display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
+  background: rgba(10, 6, 22, 0.92); border: 1px solid var(--line-yellow); padding: 4px 10px;
+}
+.sheet-chip__name { font-family: var(--display); font-size: var(--text-md); font-weight: 700; color: var(--light); letter-spacing: -0.01em; }
+.sheet-chip__score { font-family: var(--latin); font-size: var(--text-lg); font-weight: 700; color: var(--yellow); direction: ltr; }
+.sheet-hint {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--ink-faint);
+  white-space: nowrap; animation: fadeIn 1.2s 1.5s both;
+}
 .forces-ring {
   position: absolute; transform: translate(-50%, -50%);
   border: 1px solid rgba(251, 255, 0, 0.1); border-radius: 50%; pointer-events: none;

@@ -7,7 +7,7 @@
 // Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio
 // handling via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NODES, AXIS } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 
@@ -15,14 +15,6 @@ import { type GravityResult } from '../model/gravity'
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
 const TAU = Math.PI * 2
-
-// Bloc rim colors — same triplets as engine.ts AXIS_COLOR
-const AXIS_COLOR: Record<string, string> = {
-  west: '132,160,196',
-  east: '198,134,98',
-  neutral: '150,150,160',
-  none: '120,120,128',
-}
 
 // ── Grid configuration ───────────────────────────────────────────────────────
 const COLS = 42
@@ -52,81 +44,32 @@ interface WellBody {
   ny: number
 }
 
-// ── Relational-gravity layout ────────────────────────────────────────────────
-// The coherent logic that makes the warped sheet mean something: a body's POSITION is its place
-// in the gravitational structure, so the metaphor (you sit in the well of whoever pulls you) is
-// literally true rather than decorative.
-//   • Two basins by bloc — the Western system (left) and the Eastern axis (right) — with the
-//     neutrals strung down the RIDGE between them.
-//   • Each great power is a deep well at its bloc's centre; every client/proxy is placed on the
-//     OUTER slope of its patron's well (using the model's own parent hierarchy), so Israel/Saudi
-//     ring the US well and Hezbollah/Hamas/Houthis are caught inside Iran's.
-//   • Depth/width = power (the engine's mass), live from the scenario/year — so weakening Iran
-//     shallows its well and shrinks its captured proxies, while the STRUCTURE stays put.
-// Deterministic (anchored hubs + patron-offset placement) — no physics sim, no jitter.
-const BLOC_X: Record<string, number> = { west: 0.27, east: 0.73, neutral: 0.5, none: 0.5 }
-const FIELD_CX = 0.5
+// ── Pure-power layout ─────────────────────────────────────────────────────────
+// The forcefield says ONE thing: how heavy each state is. Nothing relational — no blocs, no
+// patrons, no alliances (those live on the Relations / Dynamics pages). Bodies are simply ordered
+// by power into a clean grid (strongest top-right → weakest, RTL reading order); each well's
+// depth + width = that body's power, live from the scenario/year. Position (rank) and depth both
+// encode the same single quantity, so the structure is instantly readable: a sorted field of mass.
+const GRID_COLS: number = 6
 
-function relationalLayout(): WellBody[] {
-  const byId = new Map(NODES.map((n) => [n.id, n]))
-  const pos = new Map<string, { nx: number; ny: number }>()
-
-  // 1) top-level bodies (orbit the centre 'C') — the bloc anchors / great wells
-  const tops: Record<string, typeof NODES> = { west: [], east: [], neutral: [], none: [] }
-  for (const n of NODES) if (n.parent === 'C') tops[AXIS[n.id] ?? 'none'].push(n)
-  for (const bloc of ['west', 'east', 'neutral', 'none'] as const) {
-    const arr = [...tops[bloc]].sort((a, b) => b.power - a.power)
-    const bx = BLOC_X[bloc]
-    if (bloc === 'none') {
-      // unaffiliated actors — a fringe along the top edge, outside both basins
-      arr.forEach((n, i) => pos.set(n.id, { nx: 0.5 + (i - (arr.length - 1) / 2) * 0.12, ny: 0.1 }))
-    } else if (bloc === 'neutral') {
-      // the contested ridge: a vertical spine down the centre, strongest in the middle
-      arr.forEach((n, i) => {
-        const t = arr.length === 1 ? 0.5 : i / (arr.length - 1)
-        pos.set(n.id, { nx: bx + (i % 2 ? 0.05 : -0.05), ny: 0.2 + t * 0.6 })
-      })
-    } else {
-      // strongest anchors the basin centre; the rest alternate above/below
-      arr.forEach((n, i) => {
-        const dir = i % 2 === 0 ? -1 : 1
-        const step = Math.ceil(i / 2)
-        pos.set(n.id, { nx: bx + (i === 0 ? 0 : dir * 0.05), ny: 0.5 + dir * step * 0.2 })
-      })
+function powerLayout(): WellBody[] {
+  const sorted = [...NODES].sort((a, b) => b.power - a.power)
+  const rows = Math.ceil(sorted.length / GRID_COLS)
+  const x0 = 0.1, x1 = 0.9, y0 = 0.16, y1 = 0.84
+  return sorted.map((n, i) => {
+    const col = i % GRID_COLS
+    const row = Math.floor(i / GRID_COLS)
+    const tx = GRID_COLS === 1 ? 0.5 : col / (GRID_COLS - 1)
+    const ty = rows === 1 ? 0.5 : row / (rows - 1)
+    return {
+      id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none',
+      nx: x1 - tx * (x1 - x0), // RTL: rank 0 (strongest) sits at the right
+      ny: y0 + ty * (y1 - y0),
     }
-  }
-
-  // 2) dependents — placed on the OUTER slope of their patron's well (parents resolved first)
-  const remaining = NODES.filter((n) => n.parent !== 'C')
-  let guard = 0
-  while (remaining.length && guard++ < 12) {
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      const n = remaining[i]
-      const p = pos.get(n.parent)
-      if (!p) continue
-      const sibs = NODES.filter((s) => s.parent === n.parent)
-      const si = sibs.findIndex((s) => s.id === n.id)
-      const ppow = byId.get(n.parent)?.power ?? 50
-      const radius = 0.07 + (ppow / 100) * 0.07 // bigger patron → wider orbit
-      // fan siblings on the side facing AWAY from centre, so they hang on the outer slope
-      const outward = p.nx < FIELD_CX ? Math.PI : 0
-      const spread = Math.PI * 0.95
-      const ang = sibs.length === 1 ? outward : outward - spread / 2 + (si / (sibs.length - 1)) * spread
-      const nx = Math.min(0.95, Math.max(0.05, p.nx + Math.cos(ang) * radius))
-      const ny = Math.min(0.92, Math.max(0.08, p.ny + Math.sin(ang) * radius * 1.15))
-      pos.set(n.id, { nx, ny })
-      remaining.splice(i, 1)
-    }
-  }
-  for (const n of remaining) pos.set(n.id, { nx: BLOC_X[AXIS[n.id] ?? 'none'], ny: 0.5 })
-
-  return NODES.map((n) => {
-    const p = pos.get(n.id) ?? { nx: 0.5, ny: 0.5 }
-    return { id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', nx: p.nx, ny: p.ny }
   })
 }
 
-const BODIES: WellBody[] = relationalLayout()
+const BODIES: WellBody[] = powerLayout()
 
 // ── GravityWell engine class ─────────────────────────────────────────────────
 class GravityWell {
@@ -403,28 +346,28 @@ class GravityWell {
   }
 
   private drawBody(i: number, t: number, intro: number) {
-    const b = BODIES[i]
     const sx = this.bodyScreenX[i]
     const sy = this.bodyScreenY[i]
     const isHov = i === this.hoveredIdx
     const isSel = i === this.selectedIdx
     const isFocus = isHov || isSel
 
-    const rimCol = AXIS_COLOR[b.axis] ?? AXIS_COLOR.none
+    // Uniform bodies — power is the ONLY signal (size + well depth). No bloc/identity colour.
     const r = diskRadius(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.4 + this.breathPhase[i])
     const rr = r * pulse * (isFocus ? 1.22 : 1) * intro
+    const glowCol = isFocus ? YELLOW : LIGHT
 
     ctx_save_restore(this.ctx, () => {
       const ctx = this.ctx
       ctx.globalAlpha = intro
 
-      // Outer glow — radial gradient, bloc-tinted (skip when the radius isn't drawable)
+      // Outer glow — uniform, warms to yellow on focus (skip when the radius isn't drawable)
       const glowR = rr * (isFocus ? 3.2 : 2.0)
       if (glowR > 0) {
         const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-        grd.addColorStop(0, `rgba(${rimCol},${isFocus ? 0.3 : 0.12})`)
-        grd.addColorStop(1, `rgba(${rimCol},0)`)
+        grd.addColorStop(0, `rgba(${glowCol},${isFocus ? 0.28 : 0.1})`)
+        grd.addColorStop(1, `rgba(${glowCol},0)`)
         ctx.fillStyle = grd
         ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
       }
@@ -444,8 +387,8 @@ class GravityWell {
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
       ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
 
-      // Bloc rim
-      ctx.strokeStyle = `rgba(${rimCol},${isFocus ? 0.95 : 0.5})`
+      // Rim — faint at rest, yellow when focused
+      ctx.strokeStyle = isFocus ? `rgba(${YELLOW},0.95)` : `rgba(${LIGHT},0.32)`
       ctx.lineWidth = 1.5; ctx.stroke()
     })
   }
@@ -538,6 +481,9 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
   const onHoverRef = useRef(onHover)
   const onSelectRef = useRef(onSelect)
   useEffect(() => { onHoverRef.current = onHover; onSelectRef.current = onSelect })
+  // local readout for the focused body (name + live score), shown right at the body on the sheet
+  const [chip, setChip] = useState<{ id: string; he: string; x: number; y: number } | null>(null)
+  const [interacted, setInteracted] = useState(false)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -545,8 +491,20 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
     if (!canvas || !stage) return
     const well = new GravityWell(canvas, stage)
     wellRef.current = well
-    well.onHover = (idx) => onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
-    well.onSelect = (idx) => onSelectRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
+    const placeChip = (idx: number | null) => {
+      if (idx == null) { setChip(null); return }
+      const b = BODIES[idx]; const p = well.getBodyScreenPos(idx)
+      setChip({ id: b.id, he: b.he, x: p.x, y: p.y - diskRadius(b.power) - 16 })
+    }
+    well.onHover = (idx) => {
+      onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
+      if (well.getSelectedIdx() == null) placeChip(idx) // don't clobber a pinned selection on hover-out
+    }
+    well.onSelect = (idx) => {
+      onSelectRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
+      setInteracted(true)
+      placeChip(idx)
+    }
     well.start_()
     let resizeTimer = 0
     const onResize = () => { clearTimeout(resizeTimer); resizeTimer = window.setTimeout(() => well.resize(), 120) }
@@ -564,14 +522,25 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
   // external selection (index row / side panel) → highlight on the sheet
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
 
+  const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0
+
   return (
-    <div className="sheet-embed" ref={stageRef} dir="rtl">
+    <div className="sheet-embed" ref={stageRef} dir="rtl" onClick={(e) => e.stopPropagation()}>
       <canvas
         ref={canvasRef}
         className="field"
         role="img"
-        aria-label="שדה כוח — מערך גרביטציוני: כל גוף יושב בבאר של מי שמושך אותו, ועומק הבאר הוא כוחו"
+        aria-label="שדה כוח — שדה גרביטציוני ממוין לפי כוח: ככל שגוף חזק יותר, הבאר שהוא יוצר עמוקה ורחבה יותר"
       />
+      {chip && (
+        <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
+          <span className="sheet-chip__name">{chip.he}</span>
+          <span className="sheet-chip__score">{chipScore}</span>
+        </div>
+      )}
+      {!interacted && (
+        <div className="sheet-hint" dir="rtl">רחפו על גוף · עומק הבאר = הכוח · ממוין מהחזק לחלש</div>
+      )}
     </div>
   )
 }
