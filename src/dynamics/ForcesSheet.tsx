@@ -17,19 +17,27 @@ const LIGHT = '244,242,236'
 const TAU = Math.PI * 2
 
 // ── Grid configuration ───────────────────────────────────────────────────────
-const COLS = 42
-const ROWS = 30
-// Perspective foreshortening: project y with a 3/4-view tilt so the grid reads
-// as a sheet receding into space rather than a flat top-down diagram.
-const PERSP_Y = 0.62  // y scale factor (< 1 = foreshortened)
-const PERSP_SKEW = 0.04 // subtle horizontal lean proportional to y offset
+// Top-down square sheet (no perspective) — keeps the size-aware packing isotropic so a giant
+// 20× a speck never collides, and lets every disk + grid vertex share one scale.
+const COLS = 40
+const ROWS = 40
+const PLAY = 0.92 // the centred square play-area, as a fraction of the field's shorter side
 
-// Gravity kernel softening (prevents division by zero when bodies sit on grid verts)
-const SOFTENING = 2200
-// Maximum displacement amplitude (screen px) from a single body at zero distance
-const MAX_DISP = 168
-// Power → mass scaling (higher = more dramatic wells for strong bodies)
-const MASS_SCALE = 0.0042
+// ── DRAMATIC scale — size IS the story ────────────────────────────────────────
+// Radius (and well) scale super-linearly with power, so the strong DWARF the weak (~20× radius =
+// ~400× area). Radii are expressed as a fraction of the play-area, so positions + sizes scale
+// together. The long tail collapses to dust on purpose — power is grotesquely concentrated.
+const R_MIN_F = 0.005 // floor radius (fraction of play-area) — a speck, still hoverable
+const R_MAX_F = 0.11  // the heaviest body's radius (fraction of play-area) — big, but leaves space
+const R_EXP = 1.45    // >1 = dramatic; ~20× spread top-to-tail (the ratio carries the drama)
+const radiusFrac = (power: number) =>
+  R_MIN_F + Math.pow(Math.max(0, power) / 100, R_EXP) * (R_MAX_F - R_MIN_F)
+
+// Gravity kernel — the well each mass carves. Mass is remapped through the same dramatic curve so
+// a giant's crater dwarfs a speck's dimple (proportional to the disk drama).
+const SOFTENING = 3000 // wider, smoother giant craters
+const MAX_DISP = 230   // deeper craters for the heavyweights
+const WELL_EXP = 1.45  // matches the radius drama
 
 // ── Body layout ──────────────────────────────────────────────────────────────
 // Place bodies across the field in a loose grid by power tier + bloc,
@@ -50,23 +58,37 @@ interface WellBody {
 // by power into a clean grid (strongest top-right → weakest, RTL reading order); each well's
 // depth + width = that body's power, live from the scenario/year. Position (rank) and depth both
 // encode the same single quantity, so the structure is instantly readable: a sorted field of mass.
-const GRID_COLS: number = 6
+// Size-aware packing: place the heaviest first, then spiral outward (golden-angle sunflower) to
+// the first spot where the body doesn't overlap one already placed. A 20× giant never collides;
+// the result reads as a cluster of planets ringed by ever-smaller bodies and a halo of dust.
+// Deterministic (fixed spiral, no RNG). Positions are normalized to the square play-area [0,1]².
+const GOLDEN = 2.399963229728653
 
 function powerLayout(): WellBody[] {
   const sorted = [...NODES].sort((a, b) => b.power - a.power)
-  const rows = Math.ceil(sorted.length / GRID_COLS)
-  const x0 = 0.1, x1 = 0.9, y0 = 0.16, y1 = 0.84
-  return sorted.map((n, i) => {
-    const col = i % GRID_COLS
-    const row = Math.floor(i / GRID_COLS)
-    const tx = GRID_COLS === 1 ? 0.5 : col / (GRID_COLS - 1)
-    const ty = rows === 1 ? 0.5 : row / (rows - 1)
-    return {
-      id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none',
-      nx: x1 - tx * (x1 - x0), // RTL: rank 0 (strongest) sits at the right
-      ny: y0 + ty * (y1 - y0),
+  const placed: WellBody[] = []
+  const radii: number[] = []
+  const cx = 0.5, cy = 0.5
+  for (const n of sorted) {
+    const r = radiusFrac(n.power)
+    let nx = cx, ny = cy
+    for (let s = 0; s < 5000; s++) {
+      const ang = s * GOLDEN
+      const rad = 0.017 * Math.sqrt(s)
+      const x = cx + Math.cos(ang) * rad
+      const y = cy + Math.sin(ang) * rad
+      if (x - r < 0.01 || x + r > 0.99 || y - r < 0.01 || y + r > 0.99) continue
+      let ok = true
+      for (let j = 0; j < placed.length; j++) {
+        // generous gap → planets float with space between them, so the warped craters read
+        if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + 0.03) { ok = false; break }
+      }
+      if (ok) { nx = x; ny = y; break }
     }
-  })
+    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', nx, ny })
+    radii.push(r)
+  }
+  return placed
 }
 
 const BODIES: WellBody[] = powerLayout()
@@ -181,34 +203,24 @@ class GravityWell {
     let bestD = Infinity
     for (let i = 0; i < BODIES.length; i++) {
       const d = Math.hypot(this.bodyScreenX[i] - this.mouse.x, this.bodyScreenY[i] - this.mouse.y)
-      const pad = Math.max(diskRadius(this.mass[i]) + 10, 18)
+      const pad = Math.max(this.bodyR(this.mass[i]) + 10, 18)
       if (d < pad && d < bestD) { bestD = d; best = i }
     }
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
   }
 
-  // Map normalized body position to screen coords (perspective projection)
+  // The centred square play-area: side = shorter field dim × PLAY. Positions + radii both scale by
+  // this single number, so packing stays isotropic and a giant never distorts into an ellipse.
+  private get playSize() { return Math.min(this.w, this.h) * PLAY }
+  // Body radius in screen px — the dramatic field-fraction curve × the play-area.
+  private bodyR(power: number) { return radiusFrac(power) * this.playSize }
+
+  // Map normalized [0,1]² position to screen — top-down, centred square (no perspective).
   private bodyToScreen(nx: number, ny: number): [number, number] {
-    // Usable field margins
-    const marginX = this.w * 0.07
-    const marginY = this.h * 0.08
-    const fw = this.w - marginX * 2
-    const fh = this.h - marginY * 2
-
-    // Centre of the perspective projection
-    const cy = this.h * 0.5
-
-    // Raw flat position
-    const rx = marginX + nx * fw
-    const ry = marginY + ny * fh
-
-    // Apply 3/4 perspective: y distances from centre compressed by PERSP_Y,
-    // x subtly skewed proportional to y offset for a sheet-in-space feel
-    const dy = ry - cy
-    const sx = rx + dy * PERSP_SKEW
-    const sy = cy + dy * PERSP_Y
-
-    return [sx, sy]
+    const s = this.playSize
+    const ox = (this.w - s) / 2
+    const oy = (this.h - s) / 2
+    return [ox + nx * s, oy + ny * s]
   }
 
   // Sum displacement from all bodies at a grid vertex (gravity kernel)
@@ -224,7 +236,8 @@ class GravityWell {
       // breath: subtle time-varying pulse on each body's well (reduced-motion: skip)
       const breath = this.reduced ? 1 : 1 + 0.06 * Math.sin(t * 1.2 + this.breathPhase[i])
       const depth = this.wellDepth[i] * breath
-      const mass = this.mass[i] * MASS_SCALE * MAX_DISP * depth
+      // dramatic mass: remap power through the same curve as the radius so a giant's crater dwarfs a speck's
+      const mass = Math.pow(Math.max(0, this.mass[i]) / 100, WELL_EXP) * MAX_DISP * depth
       const k = mass / (dist2 + SOFTENING)
       ddx -= dx * k   // pull toward body
       ddy -= dy * k
@@ -353,7 +366,7 @@ class GravityWell {
     const isFocus = isHov || isSel
 
     // Uniform bodies — power is the ONLY signal (size + well depth). No bloc/identity colour.
-    const r = diskRadius(this.mass[i])
+    const r = this.bodyR(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.4 + this.breathPhase[i])
     const rr = r * pulse * (isFocus ? 1.22 : 1) * intro
     const glowCol = isFocus ? YELLOW : LIGHT
@@ -408,7 +421,7 @@ class GravityWell {
       const b = BODIES[i]
       const sx = this.bodyScreenX[i]
       const sy = this.bodyScreenY[i]
-      const r = diskRadius(this.mass[i])
+      const r = this.bodyR(this.mass[i])
       const isFocus = i === focus
       const isGreatOrRegional = this.mass[i] >= 40 // top tier
 
@@ -444,6 +457,7 @@ class GravityWell {
   getBodyScreenPos(idx: number): { x: number; y: number } {
     return { x: this.bodyScreenX[idx] ?? 0, y: this.bodyScreenY[idx] ?? 0 }
   }
+  getBodyR(idx: number): number { return this.bodyR(this.mass[idx] ?? 0) }
   getSelectedIdx(): number | null { return this.selectedIdx }
   // External selection (from the index / side panel) — sets the highlight WITHOUT firing onSelect.
   selectById(id: string | null) {
@@ -453,13 +467,6 @@ class GravityWell {
 }
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
-function diskRadius(power: number): number {
-  // Same power→size feel as engine.ts powerSize but smaller for the dense well field.
-  // Guard the input: a non-finite/negative power (e.g. a transient during the mass tween) would
-  // make Math.pow return NaN → an invalid canvas radius → a throw that halts the whole rAF loop.
-  const p = Number.isFinite(power) ? Math.max(0, power) : 0
-  return 3 + Math.pow(p / 100, 1.6) * 18
-}
 
 function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
   ctx.save(); fn(); ctx.restore()
@@ -494,7 +501,7 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
     const placeChip = (idx: number | null) => {
       if (idx == null) { setChip(null); return }
       const b = BODIES[idx]; const p = well.getBodyScreenPos(idx)
-      setChip({ id: b.id, he: b.he, x: p.x, y: p.y - diskRadius(b.power) - 16 })
+      setChip({ id: b.id, he: b.he, x: p.x, y: p.y - well.getBodyR(idx) - 16 })
     }
     well.onHover = (idx) => {
       onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
