@@ -11,6 +11,7 @@ import { useForcesCamera } from './useForcesCamera'
 import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
+import { ForcesField } from './ForcesField'
 import { sound } from '../sound'
 import {
   AXIS_RIM, BLOC_LABEL, DEFAULT_RAW, RANK_OF,
@@ -49,6 +50,13 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const layout = useMemo(
     () => computeLayout(size, orderBy, filterBloc, minScore, grav),
     [size, orderBy, filterBloc, minScore, grav],
+  )
+
+  // Field bodies = the SAME ring positions, weighted by the active metric, so the contour field
+  // reinforces the ranking rather than inventing a layout. Re-forms when axis/scenario/year change.
+  const fieldBodies = useMemo(
+    () => layout.nodes.map((n) => ({ x: n.x, y: n.y, m: Math.max(0.5, metricVal(n.e, orderBy, grav)) })),
+    [layout, orderBy, grav],
   )
 
   useEffect(() => {
@@ -90,6 +98,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         {...fieldHandlers}
       >
        <div className="forces-zoom" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})` }}>
+        <ForcesField bodies={fieldBodies} size={size} />
         {layout.rings.map((ring) => (
           <div key={ring.k} className="forces-ring" style={{ width: ring.r * 2, height: ring.r * 2, left: layout.cx, top: layout.cy }}>
             <span className="forces-ring__label">{ring.label}</span>

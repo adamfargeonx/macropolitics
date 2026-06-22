@@ -28,6 +28,10 @@ export function useForcesCamera(
     const el = fieldRef.current; if (!el) return
     // clientWidth/Height are layout metrics — immune to the .stage entrance transform (scale),
     // so the constellation lays out at true size (getBoundingClientRect would be transform-shrunk).
+    // Measure once up front: ResizeObserver's initial callback can be delayed (or, in headless
+    // renderers, never fire), which would leave the field blank — the explicit read guarantees
+    // a correct first paint regardless.
+    setSize({ w: el.clientWidth, h: el.clientHeight })
     const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el)
     const onWheel = (e: WheelEvent) => {

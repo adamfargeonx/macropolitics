@@ -80,6 +80,13 @@
 /* ── Forces view ───────────────────────────────────────────── */
 .forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
 .forces-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+/* ambient gravitational-potential contours — behind the rings + nodes, never intercept pointers */
+.forces-fieldlayer {
+  position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
+  opacity: 0; animation: fieldIn 1.1s var(--ease-out-expo) 0.2s forwards;
+}
+@keyframes fieldIn { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .forces-fieldlayer { animation: none; opacity: 1; } }
 .forces-ring {
   position: absolute; transform: translate(-50%, -50%);
   border: 1px solid rgba(251, 255, 0, 0.1); border-radius: 50%; pointer-events: none;
