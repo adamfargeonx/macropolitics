@@ -11,7 +11,7 @@ import { useForcesCamera } from './useForcesCamera'
 import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
-import { ForcesField } from './ForcesField'
+import { ForcesSheet } from './ForcesSheet'
 import { sound } from '../sound'
 import {
   AXIS_RIM, BLOC_LABEL, DEFAULT_RAW, RANK_OF,
@@ -31,6 +31,8 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
   const [minScore, setMinScore] = useState(0)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [showAllIndex, setShowAllIndex] = useState(false)
+  // reading mode: the ring constellation (rank = distance) or the warped gravity sheet (depth = power)
+  const [reading, setReading] = useState<'rings' | 'sheet'>('rings')
 
   const weights = useWeights()
   const year = useYear()
@@ -52,12 +54,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
     [size, orderBy, filterBloc, minScore, grav],
   )
 
-  // Field bodies = the SAME ring positions, weighted by the active metric, so the contour field
-  // reinforces the ranking rather than inventing a layout. Re-forms when axis/scenario/year change.
-  const fieldBodies = useMemo(
-    () => layout.nodes.map((n) => ({ x: n.x, y: n.y, m: Math.max(0.5, metricVal(n.e, orderBy, grav)) })),
-    [layout, orderBy, grav],
-  )
 
   useEffect(() => {
     const m = new Map<string, { x: number; y: number }>()
@@ -92,13 +88,13 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         setToolsOpen(false)
       }}
     >
+      {reading === 'rings' ? (
       <div
         className="forces-field"
         ref={fieldRef}
         {...fieldHandlers}
       >
        <div className="forces-zoom" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})` }}>
-        <ForcesField bodies={fieldBodies} size={size} />
         {layout.rings.map((ring) => (
           <div key={ring.k} className="forces-ring" style={{ width: ring.r * 2, height: ring.r * 2, left: layout.cx, top: layout.cy }}>
             <span className="forces-ring__label">{ring.label}</span>
@@ -135,6 +131,15 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           )
         })}
        </div>
+      </div>
+      ) : (
+        <ForcesSheet grav={grav} selected={selected} onSelect={setSelected} onHover={setHovered} />
+      )}
+
+      {/* ── Reading toggle: ring constellation ↔ warped gravity sheet ── */}
+      <div className="forces-reading" role="group" aria-label="אופן התצוגה">
+        <button className={`forces-reading__opt${reading === 'rings' ? ' is-on' : ''}`} onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setReading('rings') }} aria-pressed={reading === 'rings'}>מערך</button>
+        <button className={`forces-reading__opt${reading === 'sheet' ? ' is-on' : ''}`} onClick={(ev) => { ev.stopPropagation(); sound.play('tab'); setReading('sheet') }} aria-pressed={reading === 'sheet'}>שדה כוח</button>
       </div>
 
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
