@@ -85,12 +85,14 @@
 .evidence { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); }
 .evidence__flag { font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.02em; color: var(--warn); margin-bottom: 8px; }
 .evidence__btn {
-  width: 100%; text-align: right; cursor: none; background: rgba(251, 255, 0, 0.05);
-  border: 1px solid var(--yellow-30); padding: 9px 12px;
-  font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--yellow);
-  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  display: inline-flex; align-items: center; gap: 4px; cursor: none;
+  background: none; border: none; border-bottom: 1px solid rgba(251, 255, 0, 0.2);
+  padding: 0 0 1px;
+  font-family: var(--body); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--yellow); opacity: 0.55;
+  transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
-.evidence__btn:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
+.evidence__btn:hover { opacity: 1; border-bottom-color: var(--yellow); }
 /* flagged source line markers */
 .pnote__src--flag, .panelb__src--flag { color: var(--warn) !important; }
 .pnote__flag { color: var(--warn); }
@@ -202,30 +204,47 @@
 .panel__orbit-parent b { color: var(--yellow); font-weight: 700; }
 .panel__orbit-sub { display: block; margin-top: 11px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); }
 .panel__orbit .panel__rels-list { margin-top: 8px; }
-.panelb .panel__orbit { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+.panelb .panel__orbit { margin-top: 16px; }
 
-/* ── Side panel — Variant B ("dossier" card; A/B compare) ───── */
+/* ── Side panel — entity detail card ─────────────────────────── */
+/* Sizes to its content — no internal scrollbar (so the rank/title/notes are never clipped). */
 .panelb {
   position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel);
-  text-align: right; max-height: calc(100vh - 150px); overflow-y: auto; scrollbar-width: none;
+  text-align: right; overflow: visible;
   background: var(--panel-surface);
-  border: 1px solid var(--line-yellow); padding: 24px 26px 20px;
+  border: 1px solid var(--line-yellow); padding: 28px 28px 28px;
   animation: detailIn 0.24s ease-out;
 }
-.panelb::-webkit-scrollbar { display: none; }
-.panelb .panel__close { top: 14px; left: 16px; }
+.panelb .panel__close { top: 16px; left: 16px; }
 /* hero: rank chip + identity */
 .panelb__top { display: flex; align-items: flex-start; gap: 12px; }
 .panelb__rank {
-  flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-3xl); line-height: 0.9;
-  color: var(--yellow); opacity: 0.85; margin-top: 2px;
+  flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
+  color: var(--yellow); opacity: 0.55; margin-top: 6px; letter-spacing: 0.06em;
 }
 .panelb__id { flex: 1; }
-.panelb__kicker { display: block; font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.094em; color: var(--ink-dim); margin-bottom: 3px; }
 .panelb__title { font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: -0.02em; color: var(--white); line-height: 1.05; }
+/* three descriptor tags under the title — each with a CSS tooltip (cursor:none suppresses title attr) */
+.panelb__descriptors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.panelb__desc {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.07em; color: var(--ink-dim);
+  border: 1px solid var(--line); padding: 4px 10px;
+}
+/* CSS tooltip — shown on hover; anchored above the tag */
+.panelb__desc[data-hint]:hover::after {
+  content: attr(data-hint);
+  position: absolute; bottom: calc(100% + 7px); right: 0; z-index: 200;
+  min-width: 180px; max-width: 240px; padding: 8px 10px;
+  background: rgba(10, 6, 22, 0.97); border: 1px solid rgba(251, 255, 0, 0.28);
+  font-family: var(--body); font-size: 11px; line-height: 1.55; letter-spacing: 0.04em;
+  color: var(--light); white-space: normal; text-align: right; pointer-events: none;
+}
+.panelb__desc-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 /* score gauge */
 .panelb__scorebox {
-  margin-top: 16px; padding: 14px 0 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  margin-top: 20px; padding: 18px 0 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 4px 12px;
 }
 .panelb__score { display: flex; align-items: baseline; gap: 4px; }
@@ -263,18 +282,4 @@
 .panelb__notes p { grid-column: 2; font-family: var(--body); font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: var(--light); opacity: 0.82; }
 .panelb__rels { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (prefers-reduced-motion: reduce) { .panelb__gauge i, .panelb__col-track i { animation: none; } }
-
-/* A/B toggle (top-left; data views) */
-.abtoggle {
-  position: fixed; top: calc(var(--sp-6) + 40px); left: var(--sp-8); z-index: var(--z-chrome);
-  display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: none;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.08em;
-}
-.abtoggle__lbl { color: var(--ink-dim); }
-.abtoggle__opt {
-  width: 19px; height: 19px; display: grid; place-items: center; color: var(--ink-dim);
-  border: 1px solid var(--line); transition: color var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease;
-}
-.abtoggle__opt.is-on { color: var(--bg); background: var(--yellow); border-color: var(--yellow); font-weight: 700; }
-.abtoggle:hover .abtoggle__opt:not(.is-on) { border-color: var(--ink-dim); color: var(--light); }
 

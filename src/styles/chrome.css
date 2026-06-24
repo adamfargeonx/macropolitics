@@ -203,11 +203,16 @@
   transition: border-color var(--dur-fast) ease, transform var(--dur-base) var(--ease-out-expo);
 }
 .hdr__orbit-spin { position: absolute; inset: 0; animation: orbitSpin 7s linear infinite; }
-.hdr__orbit-dot { position: absolute; top: -2.5px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--yellow); }
-/* hover → the orbit blooms (mimics the home ring expanding): a clear "back to home" cue */
+.hdr__orbit-dot {
+  position: absolute; top: -2.5px; left: 50%; transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--yellow);
+  transition: top 0.38s var(--ease-out-expo), transform 0.38s var(--ease-out-expo);
+}
+/* hover → orbit blooms + spin pauses + dot gravitates to centre (collapses to singularity) */
 .hdr__logo:hover { color: var(--yellow); }
 .hdr__logo:hover .hdr__orbit { border-color: var(--yellow-30); transform: scale(1.22); }
-.hdr__logo:hover .hdr__orbit-spin { animation-duration: 1.8s; }
+.hdr__logo:hover .hdr__orbit-spin { animation-play-state: paused; }
+.hdr__logo:hover .hdr__orbit-dot { top: 50%; transform: translate(-50%, -50%); }
 .hdr__logo:hover .hdr__wm { transform: translateX(2px); }
 .hdr__logo:active .hdr__orbit { transform: scale(0.92); }
 @media (prefers-reduced-motion: reduce) { .hdr__orbit-spin { animation: none; } }
@@ -227,10 +232,8 @@ body:has(.home--closed) .unav { opacity: 0.72; }
   transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 .unav__model:hover { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
-.unav__model:hover .unav__dot { background: var(--bg); }
-.unav__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--yellow); animation: unavPulse 2.6s ease-in-out infinite; }
-@keyframes unavPulse { 0%, 100% { opacity: 0.5; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
-/* legend trigger — a labelled pill; the icon is the gravity size-ramp (a key, not a riddle) */
+.unav__icon { font-size: 15px; flex: none; transition: color var(--dur-fast) ease; }
+/* legend trigger — a labelled pill */
 .unav__legend {
   display: inline-flex; align-items: center; gap: 8px; cursor: none;
   font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
@@ -240,9 +243,6 @@ body:has(.home--closed) .unav { opacity: 0.72; }
 }
 .unav__legend:hover { color: var(--yellow); border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.05); }
 .unav__legend:active { transform: scale(0.96); }
-.unav__legend-icon { width: 23px; height: 15px; flex: none; }
-.unav__legend-icon circle { fill: currentColor; opacity: 0.75; transition: fill var(--dur-fast) ease; }
-.unav__legend:hover .unav__legend-icon circle { fill: var(--yellow); }
 @media (prefers-reduced-motion: reduce) { .unav__dot { animation: none; } }
 
 /* about toast — the one-time top-left intro (below the utility cluster) */

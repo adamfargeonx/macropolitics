@@ -1,14 +1,19 @@
-// ForcesSheet — the "warped field" reading of the Forces page (a rings↔sheet toggle). A wireframe
-// grid deforms toward each body proportional to its LIVE power (mass); deep, wide wells = dominant
-// actors. Body PLACEMENT follows the relational-gravity layout below, so the sheet IS the
-// geopolitical structure: clients sit in their patron's well, blocs form two basins, neutrals ride
-// the ridge between. setGravities() eases each well's depth toward the active scenario/year.
+// ForcesSheet — the committed reading of the Forces page: a horizontal FORCE-FIELD. Each state is a
+// luminous body whose RADIUS = its live power (mass). Bodies are packed across the full width of the
+// field (no centred square, no wireframe mesh) so the strong dwarf the weak — size alone carries the
+// story. Hover/select bloom each body with a gentle, premium-eased glow. setGravities() eases each
+// body's mass toward the active scenario/year so the field re-forms rather than snapping.
 //
-// Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio
-// handling via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
+// Scrollytelling layer: wheel/touch accumulates a virtual scrollProgress (0–5.5). Spring physics
+// (mass-spring-damper) follow the target. At progress 1–5, each tier sweeps into focus while others
+// dim via an exponential alpha falloff. An editorial annotation overlay rides the scroll stage.
+//
+// Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio handling
+// via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
 
 import { useEffect, useRef, useState } from 'react'
-import { NODES, AXIS } from '../data/entities'
+import { AnimatePresence, motion } from 'motion/react'
+import { NODES, AXIS, type Kind } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -16,52 +21,33 @@ const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
 const TAU = Math.PI * 2
 
-// ── Grid configuration ───────────────────────────────────────────────────────
-// Top-down square sheet (no perspective) — keeps the size-aware packing isotropic so a giant
-// 20× a speck never collides, and lets every disk + grid vertex share one scale.
-const COLS = 40
-const ROWS = 40
-const PLAY = 0.92 // the centred square play-area, as a fraction of the field's shorter side
+// The field's usable fraction of the shorter side — radii scale by this so packing stays isotropic.
+const PLAY = 0.92
 
 // ── DRAMATIC scale — size IS the story ────────────────────────────────────────
-// Radius (and well) scale super-linearly with power, so the strong DWARF the weak (~20× radius =
-// ~400× area). Radii are expressed as a fraction of the play-area, so positions + sizes scale
-// together. The long tail collapses to dust on purpose — power is grotesquely concentrated.
-const R_MIN_F = 0.005 // floor radius (fraction of play-area) — a speck, still hoverable
-const R_MAX_F = 0.11  // the heaviest body's radius (fraction of play-area) — big, but leaves space
-const R_EXP = 1.45    // >1 = dramatic; ~20× spread top-to-tail (the ratio carries the drama)
+const R_MIN_F = 0.0075
+const R_MAX_F = 0.165
+const R_EXP = 1.45
 const radiusFrac = (power: number) =>
   R_MIN_F + Math.pow(Math.max(0, power) / 100, R_EXP) * (R_MAX_F - R_MIN_F)
 
-// Gravity kernel — the well each mass carves. Mass is remapped through the same dramatic curve so
-// a giant's crater dwarfs a speck's dimple (proportional to the disk drama).
-const SOFTENING = 3000 // wider, smoother giant craters
-const MAX_DISP = 230   // deeper craters for the heavyweights
-const WELL_EXP = 1.45  // matches the radius drama
+// ── Scroll narrative — tier stage mapping ────────────────────────────────────
+// progress 0 = all visible  /  1=great  2=regional  3=intermediate  4=edge  5=nonstate
+const TIER_STAGE: Record<Kind, number> = {
+  great: 1, regional: 2, intermediate: 3, edge: 4, nonstate: 5,
+}
 
 // ── Body layout ──────────────────────────────────────────────────────────────
-// Place bodies across the field in a loose grid by power tier + bloc,
-// pre-computed once so layout is stable across frames.
 interface WellBody {
   id: string
   he: string
   power: number
   axis: string
-  // Normalized field position [0,1] × [0,1]
+  kind: Kind
   nx: number
   ny: number
 }
 
-// ── Pure-power layout ─────────────────────────────────────────────────────────
-// The forcefield says ONE thing: how heavy each state is. Nothing relational — no blocs, no
-// patrons, no alliances (those live on the Relations / Dynamics pages). Bodies are simply ordered
-// by power into a clean grid (strongest top-right → weakest, RTL reading order); each well's
-// depth + width = that body's power, live from the scenario/year. Position (rank) and depth both
-// encode the same single quantity, so the structure is instantly readable: a sorted field of mass.
-// Size-aware packing: place the heaviest first, then spiral outward (golden-angle sunflower) to
-// the first spot where the body doesn't overlap one already placed. A 20× giant never collides;
-// the result reads as a cluster of planets ringed by ever-smaller bodies and a halo of dust.
-// Deterministic (fixed spiral, no RNG). Positions are normalized to the square play-area [0,1]².
 const GOLDEN = 2.399963229728653
 
 function powerLayout(): WellBody[] {
@@ -80,12 +66,11 @@ function powerLayout(): WellBody[] {
       if (x - r < 0.01 || x + r > 0.99 || y - r < 0.01 || y + r > 0.99) continue
       let ok = true
       for (let j = 0; j < placed.length; j++) {
-        // generous gap → planets float with space between them, so the warped craters read
-        if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + 0.03) { ok = false; break }
+        if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + 0.04) { ok = false; break }
       }
       if (ok) { nx = x; ny = y; break }
     }
-    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', nx, ny })
+    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', kind: n.kind, nx, ny })
     radii.push(r)
   }
   return placed
@@ -93,7 +78,11 @@ function powerLayout(): WellBody[] {
 
 const BODIES: WellBody[] = powerLayout()
 
-// ── GravityWell engine class ─────────────────────────────────────────────────
+// Precompute per-tier counts for the annotation
+const TIER_COUNTS: Record<Kind, number> = { great: 0, regional: 0, intermediate: 0, edge: 0, nonstate: 0 }
+for (const b of BODIES) TIER_COUNTS[b.kind]++
+
+// ── ForceField engine class ────────────────────────────────────────────────────
 class GravityWell {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
@@ -102,42 +91,45 @@ class GravityWell {
   private reduced: boolean
   private canvas: HTMLCanvasElement
   private container: HTMLElement
-  // reused grid-vertex scratch (allocated on resize, not per frame — avoids GC churn)
-  private gridVx: Float32Array = new Float32Array((COLS + 1) * (ROWS + 1))
-  private gridVy: Float32Array = new Float32Array((COLS + 1) * (ROWS + 1))
 
   private mouse = { x: -9999, y: -9999 }
   private hoveredIdx: number | null = null
   private selectedIdx: number | null = null
 
-  // Screen positions of bodies (updated each frame)
   private bodyScreenX: Float32Array
   private bodyScreenY: Float32Array
-
-  // Well depth multipliers per body: 1 at rest, blooms on hover/select
-  private wellDepth: Float32Array
-  // Phase offsets for ambient breathing
+  private bloom: Float32Array
   private breathPhase: Float32Array
-  // Live gravity (mass) per body — eases toward the active scenario/year so wells deepen/shallow.
   private mass: Float32Array
   private massTarget: Float32Array
 
+  // ── Scroll narrative spring ───────────────────────────────────────────────
+  // scrollTarget: where wheel/touch wants to go (0–5.5)
+  // scrollProgress: spring-tracked value (same range, smoothed)
+  // scrollVel: current velocity for the spring integrator
+  private scrollTarget = 0
+  private scrollProgress = 0
+  private scrollVel = 0
+  // last discrete stage (0-5) — used to throttle React callback
+  private scrollStage = 0
+
   onHover?: (idx: number | null) => void
   onSelect?: (idx: number | null) => void
+  onScrollChange?: (stage: number, progress: number) => void
 
   constructor(canvas: HTMLCanvasElement, container: HTMLElement) {
     this.canvas = canvas
     this.container = container
     const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('GravityWell: 2D context unavailable')
+    if (!ctx) throw new Error('ForceField: 2D context unavailable')
     this.ctx = ctx
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
 
     const n = BODIES.length
     this.bodyScreenX = new Float32Array(n)
     this.bodyScreenY = new Float32Array(n)
-    this.wellDepth = new Float32Array(n).fill(1)
-    this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU) // golden angle spread
+    this.bloom = new Float32Array(n).fill(1)
+    this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU)
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
 
@@ -149,8 +141,6 @@ class GravityWell {
 
   resize = () => {
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
-    // clientWidth/Height are transform-immune (the .stage entrance scale would shrink a
-    // getBoundingClientRect read → offset hit-testing for the session). Matches engine.ts.
     this.w = this.container.clientWidth; this.h = this.container.clientHeight
     this.canvas.width = this.w * this.dpr
     this.canvas.height = this.h * this.dpr
@@ -161,14 +151,18 @@ class GravityWell {
 
   start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
 
-  // Live gravity in — Scenario Sandbox (weights) + Time Axis (year). Only the target moves; the
-  // frame loop eases each body's mass toward it, so the wells re-form rather than snapping.
   setGravities(grav: Map<string, { power: number }>) {
     for (let i = 0; i < BODIES.length; i++) {
       const p = grav.get(BODIES[i].id)?.power
       if (p != null) this.massTarget[i] = p
     }
   }
+
+  // Set the narrative scroll target (called from wheel/touch handler in the component).
+  // k=0.09 spring / d=0.78 damping → premium weighted feel, slight overshoot near tiers.
+  setScrollTarget(v: number) { this.scrollTarget = Math.max(0, Math.min(5.5, v)) }
+
+  getScrollProgress() { return this.scrollProgress }
 
   destroy() {
     cancelAnimationFrame(this.raf)
@@ -178,7 +172,7 @@ class GravityWell {
   }
 
   private onMove = (ev: PointerEvent) => {
-    const r = this.container.getBoundingClientRect() // live rect — correct once the entrance settles
+    const r = this.container.getBoundingClientRect()
     this.mouse.x = ev.clientX - r.left
     this.mouse.y = ev.clientY - r.top
     this.hitTest()
@@ -209,54 +203,39 @@ class GravityWell {
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
   }
 
-  // The centred square play-area: side = shorter field dim × PLAY. Positions + radii both scale by
-  // this single number, so packing stays isotropic and a giant never distorts into an ellipse.
   private get playSize() { return Math.min(this.w, this.h) * PLAY }
-  // Body radius in screen px — the dramatic field-fraction curve × the play-area.
   private bodyR(power: number) { return radiusFrac(power) * this.playSize }
 
-  // Map normalized [0,1]² position to screen — top-down, centred square (no perspective).
   private bodyToScreen(nx: number, ny: number): [number, number] {
-    const s = this.playSize
-    const ox = (this.w - s) / 2
-    const oy = (this.h - s) / 2
-    return [ox + nx * s, oy + ny * s]
-  }
-
-  // Sum displacement from all bodies at a grid vertex (gravity kernel)
-  private gravDisplacement(vx: number, vy: number, t: number): [number, number] {
-    let ddx = 0; let ddy = 0
-    for (let i = 0; i < BODIES.length; i++) {
-      const bsx = this.bodyScreenX[i]
-      const bsy = this.bodyScreenY[i]
-      const dx = vx - bsx
-      const dy = vy - bsy
-      const dist2 = dx * dx + dy * dy
-      // Gravity kernel: displacement ∝ power / (dist² + softening)
-      // breath: subtle time-varying pulse on each body's well (reduced-motion: skip)
-      const breath = this.reduced ? 1 : 1 + 0.06 * Math.sin(t * 1.2 + this.breathPhase[i])
-      const depth = this.wellDepth[i] * breath
-      // dramatic mass: remap power through the same curve as the radius so a giant's crater dwarfs a speck's
-      const mass = Math.pow(Math.max(0, this.mass[i]) / 100, WELL_EXP) * MAX_DISP * depth
-      const k = mass / (dist2 + SOFTENING)
-      ddx -= dx * k   // pull toward body
-      ddy -= dy * k
-    }
-    // Clamp total displacement so extreme overlaps don't blow up
-    const mag = Math.hypot(ddx, ddy)
-    const maxMag = MAX_DISP * 1.8
-    if (mag > maxMag) { const s = maxMag / mag; ddx *= s; ddy *= s }
-    return [ddx, ddy]
+    const padX = this.w * 0.06
+    const padY = this.h * 0.08
+    return [padX + nx * (this.w - padX * 2), padY + ny * (this.h - padY * 2)]
   }
 
   private frame = (now: number) => {
     const t = (now - this.start) / 1000
-    // clamp low end too (matches engine.ts clamp01): a transient negative t on the first frame
-    // would make intro < 0 → negative body radii → an arc/gradient throw that halts the loop.
-    const intro = Math.max(0, Math.min(1, t / 2.0)) // fade-in over 2s
+    const intro = Math.max(0, Math.min(1, t / 2.0))
     const ctx = this.ctx
 
     ctx.clearRect(0, 0, this.w, this.h)
+
+    // ── Spring step for scroll narrative ──────────────────────────────────────
+    // Mass-spring-damper: k=0.09, d=0.78 → weighted, delightful, slight overshoot.
+    // reduced-motion: snap directly (no spring)
+    if (this.reduced) {
+      this.scrollProgress = this.scrollTarget
+    } else {
+      const k = 0.09, d = 0.78
+      this.scrollVel = this.scrollVel * d + (this.scrollTarget - this.scrollProgress) * k
+      this.scrollProgress += this.scrollVel
+    }
+
+    // Emit stage change (0=all, 1–5=tier) only when discrete stage transitions
+    const newStage = this.scrollProgress < 0.3 ? 0 : Math.min(5, Math.round(this.scrollProgress))
+    if (newStage !== this.scrollStage) {
+      this.scrollStage = newStage
+      this.onScrollChange?.(newStage, this.scrollProgress)
+    }
 
     // ── Update body screen positions ──────────────────────────────────────────
     for (let i = 0; i < BODIES.length; i++) {
@@ -265,20 +244,15 @@ class GravityWell {
       this.bodyScreenY[i] = sy
     }
 
-    // ── Animate well depth multipliers (smooth lerp toward target) ────────────
+    // ── Ease focus bloom + live mass ──────────────────────────────────────────
     for (let i = 0; i < BODIES.length; i++) {
       const isHov = i === this.hoveredIdx
       const isSel = i === this.selectedIdx
-      const target = isSel ? 2.8 : isHov ? 2.0 : 1.0
-      // Lerp speed: fast in, slow out
-      const rate = this.wellDepth[i] < target ? 0.12 : 0.06
-      this.wellDepth[i] += (target - this.wellDepth[i]) * rate
-      // ease mass toward the live gravity target (snap when reduced-motion)
+      const target = isSel ? 2.2 : isHov ? 1.7 : 1.0
+      const rate = this.bloom[i] < target ? 0.1 : 0.07
+      this.bloom[i] += (target - this.bloom[i]) * rate
       this.mass[i] += this.reduced ? (this.massTarget[i] - this.mass[i]) : (this.massTarget[i] - this.mass[i]) * 0.12
     }
-
-    // ── Draw grid ─────────────────────────────────────────────────────────────
-    this.drawGrid(t, intro)
 
     // ── Draw bodies ───────────────────────────────────────────────────────────
     for (let i = 0; i < BODIES.length; i++) {
@@ -291,117 +265,61 @@ class GravityWell {
     this.raf = requestAnimationFrame(this.frame)
   }
 
-  private drawGrid(t: number, intro: number) {
-    const ctx = this.ctx
-    // Grid vertex positions — reuse instance scratch (recomputed each frame, no per-frame alloc)
-    const vx = this.gridVx
-    const vy = this.gridVy
-
-    for (let row = 0; row <= ROWS; row++) {
-      for (let col = 0; col <= COLS; col++) {
-        // Flat grid vertex (screen space)
-        const [fx, fy] = this.bodyToScreen(col / COLS, row / ROWS)
-        const [ddx, ddy] = this.gravDisplacement(fx, fy, t)
-        const idx = row * (COLS + 1) + col
-        vx[idx] = fx + ddx * intro
-        vy[idx] = fy + ddy * intro
-      }
-    }
-
-    // Draw horizontal lines
-    for (let row = 0; row <= ROWS; row++) {
-      ctx.beginPath()
-      for (let col = 0; col <= COLS; col++) {
-        const idx = row * (COLS + 1) + col
-        if (col === 0) ctx.moveTo(vx[idx], vy[idx])
-        else ctx.lineTo(vx[idx], vy[idx])
-      }
-      // Lines near a hovered/selected body glow brighter
-      const nearFocus = this.isFocusRow(row, ROWS)
-      ctx.strokeStyle = nearFocus
-        ? `rgba(${YELLOW},${0.34 * intro})`
-        : `rgba(${YELLOW},${0.12 * intro})`
-      ctx.lineWidth = nearFocus ? 0.85 : 0.6
-      ctx.stroke()
-    }
-
-    // Draw vertical lines
-    for (let col = 0; col <= COLS; col++) {
-      ctx.beginPath()
-      for (let row = 0; row <= ROWS; row++) {
-        const idx = row * (COLS + 1) + col
-        if (row === 0) ctx.moveTo(vx[idx], vy[idx])
-        else ctx.lineTo(vx[idx], vy[idx])
-      }
-      const nearFocus = this.isFocusCol(col, COLS)
-      ctx.strokeStyle = nearFocus
-        ? `rgba(${YELLOW},${0.34 * intro})`
-        : `rgba(${YELLOW},${0.12 * intro})`
-      ctx.lineWidth = nearFocus ? 0.85 : 0.6
-      ctx.stroke()
-    }
-  }
-
-  // Check if a grid row is near a focused body (for subtle highlight)
-  private isFocusRow(row: number, maxRow: number): boolean {
-    const focus = this.selectedIdx ?? this.hoveredIdx
-    if (focus === null) return false
-    const ny = BODIES[focus].ny
-    const bodyRow = ny * maxRow
-    return Math.abs(row - bodyRow) < 3
-  }
-  private isFocusCol(col: number, maxCol: number): boolean {
-    const focus = this.selectedIdx ?? this.hoveredIdx
-    if (focus === null) return false
-    const nx = BODIES[focus].nx
-    const bodyCol = nx * maxCol
-    return Math.abs(col - bodyCol) < 3
+  // Tier alpha for the scroll narrative. Computes how bright this body should be
+  // given the current (spring-smoothed) scrollProgress.
+  // At progress 0: all full.  At progress N: tier N is full, others exponentially dim.
+  private tierAlpha(kind: Kind): number {
+    const sp = this.scrollProgress
+    if (sp < 0.2) return 1.0
+    // sweepT: 0→1 over the first 0.35 units of scroll (smooth engage)
+    const sweepT = Math.min(1, (sp - 0.2) / 0.35)
+    const bodyStage = TIER_STAGE[kind]
+    const dist = Math.abs(sp - bodyStage)
+    // Exponential falloff: in-focus=1.0, 1 tier away≈0.13, 2 tiers away≈0.02 (floored at 0.04)
+    const focused = Math.max(0.04, Math.exp(-dist * 2.0))
+    return 1 - sweepT * (1 - focused)
   }
 
   private drawBody(i: number, t: number, intro: number) {
     const sx = this.bodyScreenX[i]
     const sy = this.bodyScreenY[i]
-    const isHov = i === this.hoveredIdx
-    const isSel = i === this.selectedIdx
-    const isFocus = isHov || isSel
+    const isFocus = i === this.hoveredIdx || i === this.selectedIdx
+    const bloom = this.bloom[i]
 
-    // Uniform bodies — power is the ONLY signal (size + well depth). No bloc/identity colour.
     const r = this.bodyR(this.mass[i])
-    const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.4 + this.breathPhase[i])
-    const rr = r * pulse * (isFocus ? 1.22 : 1) * intro
+    const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
+    const scale = (1 + (bloom - 1) * 0.12) * pulse
+    const rr = r * scale * intro
+
+    // Scroll narrative alpha — focused bodies override dimming
+    const tAlpha = isFocus ? 1.0 : this.tierAlpha(BODIES[i].kind)
     const glowCol = isFocus ? YELLOW : LIGHT
 
     ctx_save_restore(this.ctx, () => {
       const ctx = this.ctx
-      ctx.globalAlpha = intro
+      ctx.globalAlpha = intro * tAlpha
 
-      // Outer glow — uniform, warms to yellow on focus (skip when the radius isn't drawable)
-      const glowR = rr * (isFocus ? 3.2 : 2.0)
+      const glowR = rr * (2.0 + (bloom - 1) * 1.1)
       if (glowR > 0) {
         const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-        grd.addColorStop(0, `rgba(${glowCol},${isFocus ? 0.28 : 0.1})`)
+        grd.addColorStop(0, `rgba(${glowCol},${0.1 + (bloom - 1) * 0.14})`)
         grd.addColorStop(1, `rgba(${glowCol},0)`)
         ctx.fillStyle = grd
         ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
       }
 
-      // Focus pulse rings (expand outward from centre)
-      if (isFocus && !this.reduced) {
-        const age = (this.wellDepth[i] - 1) * 0.5 // 0→1 as depth grows
-        for (let k = 0; k < 2; k++) {
-          const pp = ((t * 0.8 + k * 0.5) % 1) * age
-          ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.45})`
-          ctx.lineWidth = 0.8
-          ctx.beginPath(); ctx.arc(sx, sy, rr + 6 + pp * 48, 0, TAU); ctx.stroke()
-        }
+      if (isFocus && !this.reduced && bloom > 1.04) {
+        const age = (bloom - 1) / 1.2
+        const pp = (t * 0.5) % 1
+        ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.32 * age})`
+        ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.arc(sx, sy, rr + 8 + pp * 40, 0, TAU); ctx.stroke()
       }
 
-      // Inner disc
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
       ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
 
-      // Rim — faint at rest, yellow when focused
-      ctx.strokeStyle = isFocus ? `rgba(${YELLOW},0.95)` : `rgba(${LIGHT},0.32)`
+      ctx.strokeStyle = isFocus ? `rgba(${YELLOW},0.92)` : `rgba(${LIGHT},0.3)`
       ctx.lineWidth = 1.5; ctx.stroke()
     })
   }
@@ -414,7 +332,6 @@ class GravityWell {
     ctx.font = "700 13px 'Tel Aviv Brutalist', sans-serif"
 
     const focus = this.selectedIdx ?? this.hoveredIdx
-    // Placed label bounding boxes for simple de-collision (great/regional bodies)
     const placed: { x: number; y: number; w: number }[] = []
 
     for (let i = 0; i < BODIES.length; i++) {
@@ -423,31 +340,27 @@ class GravityWell {
       const sy = this.bodyScreenY[i]
       const r = this.bodyR(this.mass[i])
       const isFocus = i === focus
-      const isGreatOrRegional = this.mass[i] >= 40 // top tier
+      const isGreatOrRegional = this.mass[i] >= 40
 
-      // Major bodies always show; minor bodies only on focus
-      const alwaysShow = isGreatOrRegional
-      if (!alwaysShow && !isFocus) continue
+      if (isFocus) continue
+      if (!isGreatOrRegional) continue
 
-      const labelY = sy + r * (isFocus ? 1.35 : 1.2) + 5
-      const textW = b.he.length * 8 // rough estimate
+      const tAlpha = this.tierAlpha(b.kind)
+      const labelY = sy + r * 1.2 + 5
+      const textW = b.he.length * 8
 
-      // De-collide: skip if overlaps a placed label (not focus)
       let skip = false
-      if (!isFocus) {
-        for (const p of placed) {
-          if (Math.abs(sx - p.x) < (textW + p.w) / 2 + 4 && Math.abs(labelY - p.y) < 14) {
-            skip = true; break
-          }
+      for (const p of placed) {
+        if (Math.abs(sx - p.x) < (textW + p.w) / 2 + 4 && Math.abs(labelY - p.y) < 14) {
+          skip = true; break
         }
       }
       if (skip) continue
 
       placed.push({ x: sx, y: labelY, w: textW })
 
-      const alpha = isFocus ? 1 : 0.72
-      ctx.globalAlpha = intro * alpha
-      ctx.fillStyle = isFocus ? `rgba(${YELLOW},1)` : `rgba(${LIGHT},0.85)`
+      ctx.globalAlpha = intro * 0.72 * tAlpha
+      ctx.fillStyle = `rgba(${LIGHT},0.85)`
       ctx.fillText(b.he, sx, labelY)
     }
     ctx.restore()
@@ -459,22 +372,37 @@ class GravityWell {
   }
   getBodyR(idx: number): number { return this.bodyR(this.mass[idx] ?? 0) }
   getSelectedIdx(): number | null { return this.selectedIdx }
-  // External selection (from the index / side panel) — sets the highlight WITHOUT firing onSelect.
   selectById(id: string | null) {
     this.selectedIdx = id == null ? null : (BODIES.findIndex((b) => b.id === id) ?? -1)
     if (this.selectedIdx === -1) this.selectedIdx = null
   }
 }
 
-// ── Pure helpers ─────────────────────────────────────────────────────────────
-
 function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
   ctx.save(); fn(); ctx.restore()
 }
 
-// ── Component — the warped-sheet reading of the Forces page ────────────────────
-// Self-contained canvas; hover/select are lifted up to the Forces page so the SAME side panel +
-// index drive both readings. Selection coming back down (an index click) highlights via selectById.
+// ── Scroll annotation data ────────────────────────────────────────────────────
+// Each tier stage (1–5) maps to a Hebrew label, body count, and editorial line.
+const EASING_ENTER: [number, number, number, number] = [0.16, 1, 0.3, 1]   // expo out
+const EASING_EXIT: [number, number, number, number]  = [0.4, 0, 0.6, 1]    // ease-in-out
+
+interface TierAnnot {
+  stage: number
+  label: string
+  editorial: string
+  count: number
+}
+
+const TIER_ANNOTS: TierAnnot[] = [
+  { stage: 1, label: 'כוח-על',          editorial: 'גופים שמחזיקים בכוח המשיכה הגלובלי',         count: TIER_COUNTS.great        },
+  { stage: 2, label: 'כוח אזורי',        editorial: 'גופים שעיצבו את פני הזירה האזורית',           count: TIER_COUNTS.regional     },
+  { stage: 3, label: 'כוח ביניים',       editorial: 'גופים שנעים בין הצירים',                       count: TIER_COUNTS.intermediate },
+  { stage: 4, label: 'כוח קצה',          editorial: 'קטנים בגוף, לא-פרופורציונאליים בהשפעה',        count: TIER_COUNTS.edge         },
+  { stage: 5, label: 'שחקן לא-מדינתי',  editorial: 'כוח המתפשט מעבר לגבולות הלאום',               count: TIER_COUNTS.nonstate     },
+]
+
+// ── Component ────────────────────────────────────────────────────────────────
 export function ForcesSheet({ grav, selected, onSelect, onHover }: {
   grav: Map<string, GravityResult>
   selected: string | null
@@ -484,20 +412,24 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wellRef = useRef<GravityWell | null>(null)
-  // keep the latest callbacks in refs so the engine is created ONCE (not re-created per render)
   const onHoverRef = useRef(onHover)
   const onSelectRef = useRef(onSelect)
   useEffect(() => { onHoverRef.current = onHover; onSelectRef.current = onSelect })
-  // local readout for the focused body (name + live score), shown right at the body on the sheet
+
   const [chip, setChip] = useState<{ id: string; he: string; x: number; y: number } | null>(null)
   const [interacted, setInteracted] = useState(false)
+  // scrollStage: 0=all visible, 1–5=tier focus
+  const [scrollStage, setScrollStage] = useState(0)
+  const scrollPosRef = useRef(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
     const stage = stageRef.current
     if (!canvas || !stage) return
+
     const well = new GravityWell(canvas, stage)
     wellRef.current = well
+
     const placeChip = (idx: number | null) => {
       if (idx == null) { setChip(null); return }
       const b = BODIES[idx]; const p = well.getBodyScreenPos(idx)
@@ -505,31 +437,60 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
     }
     well.onHover = (idx) => {
       onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
-      if (well.getSelectedIdx() == null) placeChip(idx) // don't clobber a pinned selection on hover-out
+      if (well.getSelectedIdx() == null) placeChip(idx)
     }
     well.onSelect = (idx) => {
       onSelectRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
       setInteracted(true)
       placeChip(idx)
     }
+    well.onScrollChange = (stage) => setScrollStage(stage)
     well.start_()
+
+    // ── Wheel scroll: virtual accumulation → spring target ───────────────────
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault()
+      let dy = ev.deltaY
+      if (ev.deltaMode === 1) dy *= 20    // Firefox line mode
+      if (ev.deltaMode === 2) dy *= 480   // page mode
+      scrollPosRef.current = Math.max(0, Math.min(5.5, scrollPosRef.current + dy * 0.0038))
+      well.setScrollTarget(scrollPosRef.current)
+    }
+    stage.addEventListener('wheel', onWheel, { passive: false })
+
+    // ── Touch scroll ─────────────────────────────────────────────────────────
+    let touchY = 0
+    const onTouchStart = (ev: TouchEvent) => { touchY = ev.touches[0].clientY }
+    const onTouchMove = (ev: TouchEvent) => {
+      const dy = touchY - ev.touches[0].clientY
+      touchY = ev.touches[0].clientY
+      scrollPosRef.current = Math.max(0, Math.min(5.5, scrollPosRef.current + dy * 0.011))
+      well.setScrollTarget(scrollPosRef.current)
+      ev.preventDefault()
+    }
+    stage.addEventListener('touchstart', onTouchStart, { passive: true })
+    stage.addEventListener('touchmove', onTouchMove, { passive: false })
+
     let resizeTimer = 0
     const onResize = () => { clearTimeout(resizeTimer); resizeTimer = window.setTimeout(() => well.resize(), 120) }
     window.addEventListener('resize', onResize)
+
     return () => {
       clearTimeout(resizeTimer)
       window.removeEventListener('resize', onResize)
+      stage.removeEventListener('wheel', onWheel)
+      stage.removeEventListener('touchstart', onTouchStart)
+      stage.removeEventListener('touchmove', onTouchMove)
       well.destroy()
       wellRef.current = null
     }
   }, [])
 
-  // live gravity in → each well's depth eases toward the active scenario/year
   useEffect(() => { wellRef.current?.setGravities(grav) }, [grav])
-  // external selection (index row / side panel) → highlight on the sheet
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
 
   const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0
+  const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
 
   return (
     <div className="sheet-embed" ref={stageRef} dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -537,17 +498,75 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
         ref={canvasRef}
         className="field"
         role="img"
-        aria-label="שדה כוח — שדה גרביטציוני ממוין לפי כוח: ככל שגוף חזק יותר, הבאר שהוא יוצר עמוקה ורחבה יותר"
+        aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
+
+      {/* ── Focus chip: name + score above the hovered/selected body ─────── */}
       {chip && (
         <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
           <span className="sheet-chip__name">{chip.he}</span>
           <span className="sheet-chip__score">{chipScore}</span>
         </div>
       )}
-      {!interacted && (
-        <div className="sheet-hint" dir="rtl">רחפו על גוף · עומק הבאר = הכוח · ממוין מהחזק לחלש</div>
+
+      {/* ── Scroll hint (before any scroll) ─────────────────────────────── */}
+      {scrollStage === 0 && (
+        <div className="sheet-scroll-cta" aria-hidden>
+          <span className="sheet-scroll-cta__arrow">↓</span>
+          <span className="sheet-scroll-cta__text">גללו לגלות את היררכיית הכוח</span>
+        </div>
       )}
+
+      {/* ── Hover hint (before first interaction) ────────────────────────── */}
+      {!interacted && scrollStage === 0 && (
+        <div className="sheet-hint" dir="rtl">רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש</div>
+      )}
+
+      {/* ── Tier annotation: the editorial beat of the scroll narrative ─── */}
+      <AnimatePresence mode="wait">
+        {activeAnnot && (
+          <motion.div
+            key={activeAnnot.stage}
+            className="forces-annot"
+            dir="rtl"
+            initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.55, ease: EASING_ENTER } }}
+            exit={{ opacity: 0, x: 18, filter: 'blur(4px)', transition: { duration: 0.28, ease: EASING_EXIT } }}
+            aria-live="polite"
+          >
+            <motion.div
+              className="forces-annot__count"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 0.08, duration: 0.4, ease: EASING_ENTER } }}
+            >
+              {activeAnnot.count}
+            </motion.div>
+            <motion.h2
+              className="forces-annot__label"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 0.0, duration: 0.5, ease: EASING_ENTER } }}
+            >
+              {activeAnnot.label}
+            </motion.h2>
+            <motion.p
+              className="forces-annot__editorial"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 0.18, duration: 0.45, ease: EASING_ENTER } }}
+            >
+              {activeAnnot.editorial}
+            </motion.p>
+            {/* Scroll progress pips */}
+            <div className="forces-annot__pips">
+              {TIER_ANNOTS.map(a => (
+                <span
+                  key={a.stage}
+                  className={`forces-annot__pip${a.stage === activeAnnot.stage ? ' forces-annot__pip--on' : ''}`}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

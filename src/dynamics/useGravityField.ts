@@ -50,7 +50,12 @@ export function useGravityField(
       w = window.innerWidth; h = window.innerHeight; cx = w * 0.5; cy = h * 0.5
       cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ps = Array.from({ length: Math.min(440, Math.round((w * h) / 3000)) }, spawn)
+      // scattered (forces) mode uses far fewer particles — the ring constellation is the signal,
+      // the field is just ambient texture; too many particles compete with the viz
+      const count = mode === 'scattered'
+        ? Math.min(140, Math.round((w * h) / 10000))
+        : Math.min(440, Math.round((w * h) / 3000))
+      ps = Array.from({ length: count }, spawn)
     }
     // debounce: re-seeding 440 particles on every continuous resize event is wasteful
     let resizeT = 0
@@ -102,12 +107,12 @@ export function useGravityField(
           // a dispersed field of fine points (slow drift → trails would be near-zero-length and
           // invisible, so render as dots) — calm and evenly spread, no centre. Opacity at 50% of
           // the original: the full-strength field read too noisy behind the forces dashboard.
-          const a = Math.min(0.9, (0.58 + speed * 0.5) * p.b * 1.15) * 0.5 * intro
+          const a = Math.min(0.9, (0.45 + speed * 0.4) * p.b * 1.0) * 0.28 * intro
           ctx.fillStyle = `rgba(255,255,255,${a})`
-          ctx.beginPath(); ctx.arc(p.x, p.y, 1.3, 0, TAU); ctx.fill()
+          ctx.beginPath(); ctx.arc(p.x, p.y, 1.0, 0, TAU); ctx.fill()
         } else {
           // streaking trails toward the centre (the gravity motif)
-          ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.97, (0.4 + speed * 0.55) * p.b * 1.15) * intro})`
+          ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.85, (0.35 + speed * 0.5) * p.b * 1.0) * intro})`
           ctx.lineWidth = 0.8 + near * 1.4
           ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke()
         }

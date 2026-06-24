@@ -3,7 +3,17 @@
 // miter joins) to honor the no-rounded-corners rule; built on the circle/orbit visual grammar.
 // Use: <Icon name="eco" /> — inherits color + sizes to 1em so it sits inline with a label.
 
-export type IconName = 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing'
+export type IconName =
+  | 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing'
+  | 'model' | 'legend'
+  // generic category icons (used in evidence overlay axis heads, pnote labels)
+  | 'tier' | 'axis' | 'dispo'
+  // per-value tier icons
+  | 'tier-great' | 'tier-regional' | 'tier-mid' | 'tier-edge' | 'tier-nonstate'
+  // per-value axis icons
+  | 'axis-west' | 'axis-east' | 'axis-neutral' | 'axis-none'
+  // per-value dispo icons
+  | 'dispo-agg' | 'dispo-assert' | 'dispo-caut'
 
 // Each entry is the inner SVG of a 0 0 24 24 viewBox. Stroke is set on the <svg>.
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -23,6 +33,44 @@ const PATHS: Record<IconName, React.ReactNode> = {
   relations: (<path d="M12 4 L20.5 19.5 H3.5 Z" />),
   // backing — a borrowed-weight arrow toward the body
   backing: (<><path d="M20 12 H5" /><path d="M11 6 L5 12 L11 18" /></>),
+  // model — three horizontal sliders: the adjustable weight parameters (eco/mil/geo) of the gravity model
+  model: (<><path d="M3 6h4" /><circle cx="9" cy="6" r="2" /><path d="M11 6h10" /><path d="M3 12h9" /><circle cx="14" cy="12" r="2" /><path d="M16 12h5" /><path d="M3 18h13" /><circle cx="18" cy="18" r="2" /><path d="M20 18h1" /></>),
+  // legend — a key (legend is the "key" to reading a map; circle bow + shaft + teeth)
+  legend: (<><circle cx="8" cy="15" r="4" /><path d="M12 15h9" /><path d="M18 12v6" /><path d="M21 12v6" /></>),
+  // generic category icons (used in evidence overlay axis heads, pnote labels)
+  tier: (<><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></>),
+  axis: (<><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></>),
+  dispo: (<><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /><circle cx="12" cy="12" r="10" /></>),
+
+  // ── Per-value tier icons ──────────────────────────────────────────────────────
+  // כוח-על: crown — three-point peak marking the top of the hierarchy
+  'tier-great': (<><path d="M2 5l3 11h14l3-11-6 4.5-4-4.5-4 4.5Z" /><path d="M5 20h14" /></>),
+  // כוח אזורי: hexagon — a bounded regional territory
+  'tier-regional': (<polygon points="12 3 20.5 7.5 20.5 16.5 12 21 3.5 16.5 3.5 7.5" />),
+  // כוח ביניים: diamond — the intermediate layer
+  'tier-mid': (<polygon points="12 3 21 12 12 21 3 12" />),
+  // כוח קצה: small dot + outer ring (peripheral, orbiting the core)
+  'tier-edge': (<><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="8.5" /></>),
+  // שחקן לא-מדינתי: three nodes linked by trunk (decentralised, no single state center)
+  'tier-nonstate': (<><rect x="9" y="2" width="6" height="5" /><rect x="2" y="17" width="6" height="5" /><rect x="16" y="17" width="6" height="5" /><path d="M5 17v-4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4" /><path d="M12 11V7" /></>),
+
+  // ── Per-value axis icons ──────────────────────────────────────────────────────
+  // הציר המערבי: landmark / capitol — columns + pediment (democratic institutions)
+  'axis-west': (<><path d="M3 22h18" /><path d="M5 11h14" /><path d="M6 18v-7" /><path d="M10 18v-7" /><path d="M14 18v-7" /><path d="M18 18v-7" /><polygon points="12 2 20 7 4 7" /></>),
+  // הציר המזרחי: flag — a different political tradition / rival bloc
+  'axis-east': (<><path d="M4 22V4" /><path d="M4 4l14 4-14 4" /></>),
+  // גוש ניטרלי: circle bisected horizontally (balanced, on the fence)
+  'axis-neutral': (<><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /></>),
+  // ללא שיוך: circle with X (explicitly unaligned / unclassified)
+  'axis-none': (<><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>),
+
+  // ── Per-value dispo icons ─────────────────────────────────────────────────────
+  // אגרסיבית: lightning bolt (attack, aggression)
+  'dispo-agg': (<polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />),
+  // אסרטיבית: double chevron right (assertive forward motion)
+  'dispo-assert': (<><path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" /></>),
+  // זהירה: eye (watchful, cautious)
+  'dispo-caut': (<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>),
 }
 
 interface IconProps {

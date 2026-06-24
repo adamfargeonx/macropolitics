@@ -1,11 +1,9 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
-// Co-located presentational components. TODO: the two SidePanel variants have grown —
-// extract SidePanelDetailA/B into their own files if either gains more logic.
+// Co-located presentational components.
 import { useEffect, useState, type ReactNode } from 'react'
 import type { PowerNotes } from '../data/entities'
 import type { AxisProvenance } from '../data/empirical'
 import { sound } from '../sound'
-import { usePanelVariant } from './panelAB'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
 
@@ -56,15 +54,10 @@ export function UtilityNav() {
   return (
     <div className="unav" dir="rtl">
       <button className="unav__model" onClick={() => window.dispatchEvent(new Event('mp-about'))} title="המודל — המתודולוגיה">
-        <span className="unav__dot" />המודל
+        <Icon name="model" className="unav__icon" />המודל
       </button>
       <button className="unav__legend" aria-label="מקרא — השפה החזותית" onClick={() => window.dispatchEvent(new Event('mp-legend'))} title="מקרא — השפה החזותית">
-        <svg className="unav__legend-icon" viewBox="0 0 24 16" aria-hidden="true">
-          <circle cx="4.5" cy="8" r="2.4" />
-          <circle cx="12" cy="8" r="3.4" />
-          <circle cx="19.8" cy="8" r="1.6" />
-        </svg>
-        מקרא
+        <Icon name="legend" className="unav__icon" />מקרא
       </button>
     </div>
   )
@@ -85,24 +78,15 @@ export interface EntityDetail {
   components?: { base: number; intrinsic: number; backing: number; gravity: number; stability: number } // for the methodology drill-down
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="panel__row">
-      <span className="panel__row-k">{label}</span>
-      <span className="panel__row-v"><bdi>{value}</bdi></span>
-    </div>
-  )
-}
-
 // One power note: a label, an optional 0–10 bar (the three components), ≤20-word text,
 // and a concise source line (dataset + year) with a ⚑ marker when the figure is weak/flagged.
 // The full figure + link live in the evidence overlay (opened from the panel).
-function PowerNote({ label, text, value, source, icon }: { label: string; text: string; value?: number; source?: AxisProvenance; icon?: IconName }) {
+function PowerNote({ label, text, value, source, icon, hint }: { label: string; text: string; value?: number; source?: AxisProvenance; icon?: IconName; hint?: string }) {
   const weak = source && source.status !== 'sourced'
   return (
     <div className="pnote">
       <div className="pnote__head">
-        <span className="pnote__label">{icon && <Icon name={icon} className="pnote__icon" />}{label}</span>
+        <span className="pnote__label" title={hint}>{icon && <Icon name={icon} className="pnote__icon" />}{label}</span>
         {value != null && (
           <>
             <span className="pnote__track"><span className="pnote__fill" style={{ width: `${value * 10}%` }} /></span>
@@ -120,15 +104,13 @@ function PowerNote({ label, text, value, source, icon }: { label: string; text: 
   )
 }
 
-// Inline data-quality flags (only when genuinely half-baked) + the trigger that opens the
-// evidence overlay: full per-axis sources and the gravity calculation, for the curious.
+// The trigger that opens the evidence overlay: full per-axis sources, data-quality flags, and the
+// gravity calculation, for the curious. Sources + flags are concealed from the default panel — they
+// live behind this one tap, keeping the resting view clean.
 function EvidenceTrigger({ detail }: { detail: EntityDetail }) {
   if (!detail.id) return null
   return (
     <div className="evidence">
-      {detail.flags?.map((f, i) => (
-        <p className="evidence__flag" key={i}><span aria-hidden>⚑ </span>{f}</p>
-      ))}
       <button
         className="evidence__btn"
         onClick={() => window.dispatchEvent(new CustomEvent('mp-evidence', { detail: { id: detail.id } }))}
@@ -164,32 +146,68 @@ function OrbitSection({ detail, onRelSelect }: { detail: EntityDetail; onRelSele
 
 interface DetailProps { detail: EntityDetail; onClose?: () => void; onRelSelect?: (id: string) => void }
 
-// Variant A — the original: meta rows + gravity profile with inline horizontal bars.
-function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
+// Per-value icon lookups — each specific label gets its own distinct mark.
+// Fallback to the generic category icon if a value is unrecognised.
+const TIER_ICON: Record<string, IconName> = {
+  'כוח-על': 'tier-great', 'כוח אזורי': 'tier-regional', 'כוח ביניים': 'tier-mid',
+  'כוח קצה': 'tier-edge', 'שחקן לא-מדינתי': 'tier-nonstate',
+}
+const AXIS_ICON: Record<string, IconName> = {
+  'הציר המערבי': 'axis-west', 'הציר המזרחי': 'axis-east',
+  'גוש ניטרלי': 'axis-neutral', 'ללא שיוך': 'axis-none',
+}
+const DISPO_ICON: Record<string, IconName> = {
+  'אגרסיבית': 'dispo-agg', 'אסרטיבית': 'dispo-assert', 'זהירה': 'dispo-caut',
+}
+
+// The detail panel — top: rank + title + three descriptors; score gauge; bottom: pnotes (כללי
+// reads as plain intro text; eco/mil/geo as scored component rows). Sources live in the evidence overlay.
+function SidePanelHybrid({ detail, onClose, onRelSelect }: DetailProps) {
+  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+  const unit = detail.scoreLabel ? '/ 10' : '/ 100'
+  const scoreNum = Number(score)
+  const descriptors: { icon: IconName; text: string; hint: string }[] = [
+    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף (כוח-על, אזורי, ביניים או קצה)' },
+    { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel, hint: 'שיוך — הגוש הגאו-פוליטי שאליו נוטה הגוף' },
+    ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo, hint: 'עמדה — האוריינטציה האסטרטגית של הגוף' }] : []),
+  ]
   return (
-    <aside className="panel panel--detail" dir="rtl">
+    <aside className="panelb panel--detail" dir="rtl">
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
-      <h1 className="panel__title">{detail.he}</h1>
-      <div className="panel__meta">
-        <MetaRow label="כוח משיכה" value={detail.scoreLabel ?? `${detail.power} / 100`} />
-        <MetaRow label="מעמד" value={detail.tier} />
-        {!detail.powerNotes && <MetaRow label="אופי" value={detail.dispo} />}
-        <MetaRow label="שיוך" value={detail.axisLabel} />
+      <div className="panelb__top">
+        {detail.rank && <span className="panelb__rank" title="הדירוג בכוח המשיכה — מקומו של הגוף בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
+        <div className="panelb__id">
+          <h1 className="panelb__title">{detail.he}</h1>
+          <div className="panelb__descriptors">
+            {descriptors.map(d => (
+              <span key={d.text} className="panelb__desc" title={d.hint} data-hint={d.hint}>
+                <Icon name={d.icon} className="panelb__desc-icon" />{d.text}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="panelb__scorebox" title="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
+        <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
+        <div className="panelb__score-side">
+          <span className="panelb__score-lbl">כוח משיכה</span>
+          {detail.rank && detail.total && <span className="panelb__score-rank">מדורגת {detail.rank} מתוך {detail.total}</span>}
+        </div>
+        <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
       </div>
       {detail.powerNotes && (
         <div className="pnotes">
-          <span className="pnotes__h">פרופיל כוח המשיכה</span>
-          <PowerNote label="כללי" text={detail.powerNotes.general} />
-          <PowerNote label="כלכלי" icon="eco" text={detail.powerNotes.eco} value={detail.forces?.eco} source={detail.prov?.eco} />
-          <PowerNote label="צבאי" icon="mil" text={detail.powerNotes.mil} value={detail.forces?.mil} source={detail.prov?.mil} />
-          <PowerNote label="גאו-אסטרטגי" icon="geo" text={detail.powerNotes.geo} value={detail.forces?.geo} source={detail.prov?.geo} />
+          <p className="pnotes__intro" title="תיאור כללי — תמצית מעמדו של הגוף במערך הכוחות">{detail.powerNotes.general}</p>
+          <PowerNote label="כלכלי" icon="eco" text={detail.powerNotes.eco} value={detail.forces?.eco} hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" />
+          <PowerNote label="צבאי" icon="mil" text={detail.powerNotes.mil} value={detail.forces?.mil} hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" />
+          <PowerNote label="גאו-אסטרטגי" icon="geo" text={detail.powerNotes.geo} value={detail.forces?.geo} hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" />
           {detail.backing && (
             <div className="pnote pnote--backing">
               <div className="pnote__head">
                 <span className="pnote__label">גיבוי ⟵ {detail.backing.patronHe}</span>
                 <span className="pnote__val">+{detail.backing.amount}</span>
               </div>
-              <p className="pnote__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות, לא עצמאי.</p>
+              <p className="pnote__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
             </div>
           )}
           <EvidenceTrigger detail={detail} />
@@ -210,80 +228,9 @@ function SidePanelDetailA({ detail, onClose, onRelSelect }: DetailProps) {
   )
 }
 
-// Variant B — a "dossier" layout: hero with a big score, vertical component columns,
-// and the gravity profile as a numbered editorial list.
-function SidePanelDetailB({ detail, onClose, onRelSelect }: DetailProps) {
-  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
-  const unit = detail.scoreLabel ? '/ 10' : '/ 100'
-  const comps: { l: string; v: number | undefined; icon: IconName }[] = [
-    { l: 'כלכלי', v: detail.forces?.eco, icon: 'eco' },
-    { l: 'צבאי', v: detail.forces?.mil, icon: 'mil' },
-    { l: 'גאו', v: detail.forces?.geo, icon: 'geo' },
-  ]
-  const notes = detail.powerNotes
-  const scoreNum = Number(score)
-  return (
-    <aside className="panelb panel--detail" dir="rtl">
-      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
-      <div className="panelb__top">
-        {detail.rank && <span className="panelb__rank">{String(detail.rank).padStart(2, '0')}</span>}
-        <div className="panelb__id">
-          <span className="panelb__kicker">{detail.tier} · {detail.axisLabel} · {detail.dispo}</span>
-          <h1 className="panelb__title">{detail.he}</h1>
-        </div>
-      </div>
-      <div className="panelb__scorebox">
-        <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
-        <div className="panelb__score-side">
-          <span className="panelb__score-lbl">כוח משיכה</span>
-          {detail.rank && detail.total && <span className="panelb__score-rank">מדורגת {detail.rank} מתוך {detail.total}</span>}
-        </div>
-        <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
-      </div>
-      {detail.forces && (
-        <div className="panelb__comps">
-          <span className="panelb__comps-h">מרכיבי הכוח</span>
-          <div className="panelb__cols">
-            {comps.map((c) => (
-              <div className="panelb__col" key={c.l}>
-                <span className="panelb__col-v">{c.v ?? '—'}</span>
-                <span className="panelb__col-track"><i style={{ height: `${(c.v ?? 0) * 10}%` }} /></span>
-                <span className="panelb__col-l"><Icon name={c.icon} className="panelb__col-icon" />{c.l}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {notes && (
-        <ol className="panelb__notes">
-          <li><span className="panelb__note-k">כללי</span><p>{notes.general}</p></li>
-          <li><span className="panelb__note-k"><Icon name="eco" className="panelb__note-icon" />כלכלי</span><p>{notes.eco}</p>{detail.prov?.eco && <span className={`panelb__src${detail.prov.eco.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.eco.status !== 'sourced' && '⚑ '}{detail.prov.eco.source}</span>}</li>
-          <li><span className="panelb__note-k"><Icon name="mil" className="panelb__note-icon" />צבאי</span><p>{notes.mil}</p>{detail.prov?.mil && <span className={`panelb__src${detail.prov.mil.status !== 'sourced' ? ' panelb__src--flag' : ''}`}>{detail.prov.mil.status !== 'sourced' && '⚑ '}{detail.prov.mil.source}</span>}</li>
-          <li><span className="panelb__note-k"><Icon name="geo" className="panelb__note-icon" />גאו-אסטרטגי</span><p>{notes.geo}</p>{detail.prov?.geo && <span className="panelb__src">{detail.prov.geo.source}</span>}</li>
-          {detail.backing && (
-            <li className="panelb__note--backing"><span className="panelb__note-k"><Icon name="backing" className="panelb__note-icon" />גיבוי ⟵ {detail.backing.patronHe}</span><p>משקל מושאל · ‎+{detail.backing.amount} מכוח המשיכה תלוי בנותן החסות.</p></li>
-          )}
-        </ol>
-      )}
-      <EvidenceTrigger detail={detail} />
-      <OrbitSection detail={detail} onRelSelect={onRelSelect} />
-      {detail.relations.length > 0 && (
-        <div className="panelb__rels">
-          {detail.relations.map((r) => (
-            <button key={r.id} className="panel__rel" onClick={() => onRelSelect?.(r.id)}>{r.he}</button>
-          ))}
-        </div>
-      )}
-    </aside>
-  )
-}
-
 export function SidePanel({ detail, onClose, onRelSelect }: { detail?: EntityDetail | null; onClose?: () => void; onRelSelect?: (id: string) => void }) {
-  const variant = usePanelVariant()
   if (detail) {
-    return variant === 'b'
-      ? <SidePanelDetailB detail={detail} onClose={onClose} onRelSelect={onRelSelect} />
-      : <SidePanelDetailA detail={detail} onClose={onClose} onRelSelect={onRelSelect} />
+    return <SidePanelHybrid detail={detail} onClose={onClose} onRelSelect={onRelSelect} />
   }
   return (
     <aside className="panel" dir="rtl">

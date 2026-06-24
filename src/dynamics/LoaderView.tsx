@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGravityField, type Impulse } from './useGravityField'
 
-const DURATION = 4600
-const FADE_AT = 4300
-const IGNITE_AT = 2250
-const QUICK_DURATION = 1700
-const QUICK_FADE_AT = 1450
-const QUICK_IGNITE = 700
+const DURATION = 8000
+const FADE_AT = 7700
+const IGNITE_AT = 5500
+const QUICK_DURATION = 2500
+const QUICK_FADE_AT = 2200
+const QUICK_IGNITE = 900
 
 // Loader concept: gravitational COLLAPSE → IGNITION → settle. A wide faint ring contracts inward
 // (matter falling together) while particles stream to the centre; at the climax the core ignites —
@@ -35,6 +35,10 @@ export default function LoaderView({ onDone, quick = false }: { onDone: () => vo
     <div className={`loader${quick ? ' loader--quick' : ''}${out ? ' loader--out' : ''}`} dir="rtl" aria-label="טעינה" aria-busy={!out}>
       <canvas ref={canvasRef} className="field" />
       <div className="loader-core">
+        <div className="loader-thesis" aria-hidden>
+          <span className="loader-thesis__kicker">מה זה?</span>
+          <span className="loader-thesis__eq">יחסי הכוחות = הכוחות + היחסים</span>
+        </div>
         <span className="loader-collapse" aria-hidden />
         <span className="loader-flash" aria-hidden />
         <span className="loader-burst" aria-hidden />
