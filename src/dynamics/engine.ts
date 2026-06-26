@@ -3,7 +3,8 @@
 // World space ≈ original px; a camera (zoom default 1.4, pan) maps world → screen.
 // The particle starfield lives in SCREEN space (interactive background, unaffected by camera).
 
-import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, powerSize, type Entity } from '../data/entities'
+import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, backingOf, powerSize, type Entity } from '../data/entities'
+import { authoredRelation } from '../data/relations'
 import { isInteractive } from '../sound'
 
 const YELLOW = '251,255,0'
@@ -24,7 +25,23 @@ const VISUALS = {
   speedScale: 0.62, // calm the motion (1 = original measured speeds)
   allianceWeb: true, // the alliance web stays faintly visible at rest (informative layer)
   allianceWebAlpha: 0.1,
+  // ── Zoom-tier reveals (additive layers gated on the camera's zoom) ──
+  // ZOOM-OUT → SIMPLIFY: minor bodies fade toward the bloc skeleton; the web strengthens.
+  simplifyStart: 0.8, // at/above this zoom minors are at full strength
+  simplifyEnd: 0.5, // at/below this zoom minors reach their floor
+  minorFadeFloor: 0.16, // residual alpha for faded minor bodies
+  webBoostMax: 0.16, // extra alliance-web alpha added at full zoom-out
+  // ZOOM-IN → REVEAL DETAIL: backing flows + authored hairlines ease in past the gate.
+  detailStart: 1.5, // backing/relation layers begin appearing here
+  detailEnd: 2.4, // …and reach full strength here
+  backingFlowAlpha: 0.34, // peak alpha for patron→proxy flows (yellow)
+  authoredEdgeAlpha: 0.3, // peak alpha for pole-tinted authored hairlines
 }
+const MINOR_KINDS = new Set<string>(['intermediate', 'edge', 'nonstate'])
+// Pole tints for authored hairlines — dominant relation valence by colour (token-aligned).
+const POLE_WARN = '255,157,110' // --warn  → tension dominant
+const POLE_OK = '143,227,136' // --ok    → harmony dominant
+const POLE_YELLOW = YELLOW // friction / mixed → neutral accent
 // Muted bloc temperatures — read as warm/cool, not "team colors"
 const AXIS_COLOR: Record<string, string> = {
   west: '132,160,196', // cool steel
@@ -55,6 +72,45 @@ const ORDER = (() => {
   return order.concat(left)
 })()
 const PRI: Record<string, number> = { great: 0, regional: 1, intermediate: 2, edge: 3, nonstate: 4 }
+
+// Great powers + regional hubs — kept prominent when the view simplifies to the bloc skeleton.
+const HUBS = new Set<string>(['usa', 'iran', 'saudi', 'russia', 'china', 'turkey', 'israel'])
+
+// Patron → proxy backing edges, precomputed once (graph-derived via backingOf → {patronId}).
+// e.g. iran → hezbollah/hamas/pij/militias/yemen, usa → sdf, saudi → fatah.
+const BACKING_FLOWS: { patron: string; proxy: string }[] = (() => {
+  const flows: { patron: string; proxy: string }[] = []
+  for (const n of NODES) {
+    const b = backingOf(n.id)
+    if (b && idIndex.has(b.patronId)) flows.push({ patron: b.patronId, proxy: n.id })
+  }
+  return flows
+})()
+
+// Strongest authored relation per body, tinted by its dominant valence (tension/friction/harmony).
+// Deduped to one undirected edge per pair, precomputed once.
+const AUTHORED_EDGES: { a: string; b: string; pole: string }[] = (() => {
+  const seen = new Set<string>()
+  const edges: { a: string; b: string; pole: string }[] = []
+  for (const n of NODES) {
+    let best: { other: string; t: number; f: number; h: number } | null = null
+    let bestMag = -1
+    for (const m of NODES) {
+      if (m.id === n.id) continue
+      const rel = authoredRelation(n.id, m.id)
+      if (!rel) continue
+      const mag = Math.max(rel.t, rel.f, rel.h)
+      if (mag > bestMag) { bestMag = mag; best = { other: m.id, t: rel.t, f: rel.f, h: rel.h } }
+    }
+    if (!best) continue
+    const key = n.id < best.other ? `${n.id}|${best.other}` : `${best.other}|${n.id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const pole = best.t >= best.f && best.t >= best.h ? POLE_WARN : best.h >= best.f ? POLE_OK : POLE_YELLOW
+    edges.push({ a: n.id, b: best.other, pole })
+  }
+  return edges
+})()
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v)
@@ -131,6 +187,19 @@ export class OrbitalField {
   private get maxR() { return Math.min(this.fieldW, this.h) * 0.5 }
   private get viewScale() { return this.maxR / 520 } // world px → screen px at zoom 1
 
+  // ── Zoom-tier ramps (0…1). simplify rises as we zoom OUT; detail rises as we zoom IN. ──
+  // smoothstep over the gap so layers ease in/out — no hard pop at the threshold.
+  private get simplifyT() {
+    const { simplifyStart: a, simplifyEnd: b } = VISUALS
+    const t = clamp01((a - this.zoom) / (a - b))
+    return t * t * (3 - 2 * t)
+  }
+  private get detailT() {
+    const { detailStart: a, detailEnd: b } = VISUALS
+    const t = clamp01((this.zoom - a) / (b - a))
+    return t * t * (3 - 2 * t)
+  }
+
   resize = () => {
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
     // clientWidth/Height are LAYOUT metrics — immune to the .stage entrance transform (scale),
@@ -171,6 +240,20 @@ export class OrbitalField {
       const dx = (Math.random() - 0.5) * 0.1, dy = (Math.random() - 0.5) * 0.1
       return { x: Math.random() * this.w, y: Math.random() * this.h, vx: dx, vy: dy, dx, dy, size: 0.6 + Math.random() * 1.3, b: 0.16 + Math.random() * 0.42 }
     })
+  }
+
+  frozen = false
+  private frozenAt = 0
+  setFrozen(v: boolean) {
+    if (v && !this.frozen) {
+      this.frozen = true
+      this.frozenAt = performance.now()
+    } else if (!v && this.frozen) {
+      const frozenDuration = performance.now() - this.frozenAt
+      this.start += frozenDuration
+      this.frozenAt = 0
+      this.frozen = false
+    }
   }
 
   start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
@@ -275,6 +358,7 @@ export class OrbitalField {
   }
 
   private frame = (now: number) => {
+    if (this.frozen) { this.raf = requestAnimationFrame(this.frame); return }
     this.now = now
     const t = (now - this.start) / 1000
     const intro = clamp01(t / 2.6)
@@ -286,6 +370,7 @@ export class OrbitalField {
     this.drawOrbits(intro)
     this.drawCenters(intro)
     this.drawLinks(t, intro)
+    this.drawReveal(t, intro)
     for (let k = 0; k < this.nodes.length; k++) { this.nodes[k].appear = clamp01((t - k * 0.025) / 0.9); this.drawNode(this.nodes[k], t) }
     this.updateLabels()
     this.raf = requestAnimationFrame(this.frame)
@@ -360,6 +445,8 @@ export class OrbitalField {
 
   private drawLinks(t: number, intro: number) {
     const ctx = this.ctx
+    // zoom-out → the bloc skeleton: strengthen the faint alliance web
+    const webAlpha = VISUALS.allianceWebAlpha + VISUALS.webBoostMax * this.simplifyT
     for (let li = 0; li < LINKS.length; li++) {
       const [a, b] = LINKS[li]
       const na = this.nodes[idIndex.get(a)!], nb = this.nodes[idIndex.get(b)!]
@@ -370,9 +457,52 @@ export class OrbitalField {
       const dx = nb.sx - na.sx, dy = nb.sy - na.sy
       const cx = (na.sx + nb.sx) / 2 - dy * 0.1, cy = (na.sy + nb.sy) / 2 + dx * 0.1
       ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.85 : VISUALS.allianceWebAlpha) * intro})`; ctx.lineWidth = lit ? 1.4 : 1; ctx.stroke()
+      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.85 : webAlpha) * intro})`; ctx.lineWidth = lit ? 1.4 : 1; ctx.stroke()
       if (lit) { const p = (t * 0.45 + li * 0.13) % 1, q = 1 - p; const lx = q * q * na.sx + 2 * q * p * cx + p * p * nb.sx, ly = q * q * na.sy + 2 * q * p * cy + p * p * nb.sy; ctx.fillStyle = `rgba(${YELLOW},0.95)`; ctx.beginPath(); ctx.arc(lx, ly, 2.4, 0, TAU); ctx.fill() }
     }
+  }
+
+  // ZOOM-IN reveal: the wiring underneath. Thin curved patron→proxy backing flows (yellow) plus
+  // optional pole-tinted authored hairlines, all easing in past the detail gate. Additive only.
+  private drawReveal(t: number, intro: number) {
+    const dt = this.detailT
+    if (dt <= 0) return
+    const ctx = this.ctx
+    const focus = this.focusId
+    ctx.save()
+    // pole-tinted authored hairlines — the strongest authored relation per visible body
+    ctx.lineWidth = 1
+    for (const ed of AUTHORED_EDGES) {
+      if (focus && ed.a !== focus && ed.b !== focus && !this.connected.has(ed.a) && !this.connected.has(ed.b)) continue
+      const na = this.nodes[idIndex.get(ed.a)!], nb = this.nodes[idIndex.get(ed.b)!]
+      if (!na || !nb) continue
+      const dx = nb.sx - na.sx, dy = nb.sy - na.sy
+      const cx = (na.sx + nb.sx) / 2 + dy * 0.06, cy = (na.sy + nb.sy) / 2 - dx * 0.06
+      ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
+      ctx.strokeStyle = `rgba(${ed.pole},${VISUALS.authoredEdgeAlpha * dt * intro})`
+      ctx.stroke()
+    }
+    // backing flows — patron → proxy, subtle yellow, a travelling dot reads direction of support
+    ctx.lineWidth = 1
+    for (let i = 0; i < BACKING_FLOWS.length; i++) {
+      const f = BACKING_FLOWS[i]
+      if (focus && f.patron !== focus && f.proxy !== focus && !this.connected.has(f.patron) && !this.connected.has(f.proxy)) continue
+      const np = this.nodes[idIndex.get(f.patron)!], nx = this.nodes[idIndex.get(f.proxy)!]
+      if (!np || !nx) continue
+      const dx = nx.sx - np.sx, dy = nx.sy - np.sy
+      const cx = (np.sx + nx.sx) / 2 - dy * 0.16, cy = (np.sy + nx.sy) / 2 + dx * 0.16
+      ctx.beginPath(); ctx.moveTo(np.sx, np.sy); ctx.quadraticCurveTo(cx, cy, nx.sx, nx.sy)
+      ctx.strokeStyle = `rgba(${YELLOW},${VISUALS.backingFlowAlpha * dt * intro})`
+      ctx.stroke()
+      if (!this.reduced) {
+        const p = (t * 0.35 + i * 0.17) % 1, q = 1 - p
+        const lx = q * q * np.sx + 2 * q * p * cx + p * p * nx.sx
+        const ly = q * q * np.sy + 2 * q * p * cy + p * p * nx.sy
+        ctx.fillStyle = `rgba(${YELLOW},${0.8 * dt * intro})`
+        ctx.beginPath(); ctx.arc(lx, ly, 1.8, 0, TAU); ctx.fill()
+      }
+    }
+    ctx.restore()
   }
 
   private glow(x: number, y: number, radius: number, alpha: number) {
@@ -392,7 +522,10 @@ export class OrbitalField {
     const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse
     const nonstate = e.kind === 'nonstate'
     const axisCol = AXIS_COLOR[AXIS[e.id] ?? 'none']
-    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2)
+    // zoom-out simplify: fade minor, non-hub bodies toward the floor (keep focus/connected lit)
+    const exempt = isFocus || this.connected.has(e.id) || HUBS.has(e.id) || !MINOR_KINDS.has(e.kind)
+    const simplify = exempt ? 1 : 1 - (1 - VISUALS.minorFadeFloor) * this.simplifyT
+    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2) * simplify
 
     // soft glow / corona — states only (great powers a touch stronger)
     if (inWeb && !nonstate) this.glow(ns.sx, ns.sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
@@ -430,6 +563,8 @@ export class OrbitalField {
       const minor = ns.e.kind === 'intermediate' || ns.e.kind === 'edge' || ns.e.kind === 'nonstate'
       let hide = ns.sx < -40 || ns.sx > this.w + 40 || ns.sy < -40 || ns.sy > this.h + 40
       if (!forced && minor && !showMinor) hide = true
+      // zoom-out skeleton: drop minor, non-hub labels once the simplify ramp engages
+      if (!forced && minor && !HUBS.has(ns.e.id) && this.simplifyT > 0.5) hide = true
       if (!hide && !forced) for (const p of placed) { if (Math.abs(x - p.x) < (w + p.w) / 2 - 4 && Math.abs(y - p.y) < (hh + p.h) / 2 - 1) { hide = true; break } }
       const dim = this.focusId && !this.connected.has(ns.e.id) ? 0.14 : 1
       el.style.opacity = String(hide ? 0 : a * dim)

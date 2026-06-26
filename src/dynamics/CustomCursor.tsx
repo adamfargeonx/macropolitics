@@ -33,7 +33,7 @@ export function CustomCursor() {
       const active = targetActive || document.body.classList.contains('cursor-grab')
       const ring = ringRef.current, dot = dotRef.current
       if (ring) {
-        const s = (active ? 1.8 : 1) * (pressed ? 0.82 : 1)
+        const s = (active ? 1.2 : 1) * (pressed ? 0.82 : 1)
         ring.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%) scale(${s})`
         ring.style.opacity = visible ? '1' : '0'
         ring.classList.toggle('cursor--on', active)

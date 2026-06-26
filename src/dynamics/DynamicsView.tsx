@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
 import { HoverReadout } from './HoverReadout'
-import { Header, SidePanel, PanelDock, TabBar, type EntityDetail, type View } from './Chrome'
+import { SidePanel, PanelDock, type EntityDetail } from './Chrome'
 import { DynamicsControls } from './DynamicsControls'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
 import { bodyInputsForYear } from '../data/empirical'
@@ -15,6 +15,10 @@ import { sound } from '../sound'
 interface Hover { id: string | null; screen: { x: number; y: number } | null }
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
+
+// Zoom-tier caption — mirrors the engine's reveal thresholds (simplifyStart 0.8 / detailStart 1.5).
+const tierCaption = (zoom: number): string =>
+  zoom < 0.8 ? 'שלד הגושים' : zoom > 1.5 ? 'הדינמיקה מתחת לפני השטח' : 'ארכיטקטורה אזורית'
 
 // Visually-hidden but screen-reader-available (clip technique — not display:none, which AT skips).
 const SR_ONLY: React.CSSProperties = {
@@ -42,7 +46,7 @@ function buildDetail(id: string | null, grav: Map<string, GravityResult>): Entit
   return { ...base, relations, parentHe: parent?.he ?? null, satellites }
 }
 
-export default function DynamicsView({ view, onView }: { view: View; onView: (v: View) => void }) {
+export default function DynamicsView() {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [engine, setEngine] = useState<OrbitalField | null>(null)
@@ -68,6 +72,11 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
     orbital.onZoom = (z) => setZoom(z)
     orbital.start_()
     setEngine(orbital)
+    // logo hover → freeze all motion sitewide
+    const onFreeze = () => orbital.setFrozen(true)
+    const onUnfreeze = () => orbital.setFrozen(false)
+    window.addEventListener('mp-freeze', onFreeze)
+    window.addEventListener('mp-unfreeze', onUnfreeze)
     // debounce: window resize fires continuously during a drag; one resize at rest is enough
     let t = 0
     const onResize = () => { clearTimeout(t); t = window.setTimeout(() => orbital.resize(), 120) }
@@ -75,6 +84,8 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
     return () => {
       clearTimeout(t)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('mp-freeze', onFreeze)
+      window.removeEventListener('mp-unfreeze', onUnfreeze)
       orbital.destroy()
       setEngine(null)
       document.body.classList.remove('cursor-grab')
@@ -106,20 +117,19 @@ export default function DynamicsView({ view, onView }: { view: View; onView: (v:
         </ol>
       </div>
 
-      <Header onHome={() => onView('home')} />
       <div className="dyn-topbar" dir="rtl">
         <DynamicsControls />
       </div>
       <PanelDock>
-        <SidePanel detail={detail} onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
+        <SidePanel detail={detail} view="dynamics" onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
       </PanelDock>
-      <TabBar view={view} onView={onView} />
       <div className="zoomctl" dir="ltr">
         <button onClick={() => engine?.zoomBy(1.25)} aria-label="התקרבות">+</button>
         <span className="zoomctl__val">{Math.round(zoom * 100)}%</span>
         <button onClick={() => engine?.zoomBy(0.8)} aria-label="התרחקות">−</button>
         <button className="zoomctl__reset" onClick={() => engine?.resetView()} aria-label="איפוס">⟲</button>
       </div>
+      <div className="dyn-tier" dir="rtl" aria-live="polite">{tierCaption(zoom)}</div>
     </div>
   )
 }

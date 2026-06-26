@@ -15,11 +15,16 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { NODES, AXIS, type Kind } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
+import { type Order } from './forces-model'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
+const BG = '6,3,15'
 const TAU = Math.PI * 2
+
+// Name fits inside a circle of screen-radius r — used to size + gate the in-body label.
+const labelFontPx = (r: number) => Math.max(9, Math.min(18, r * 0.5))
 
 // The field's usable fraction of the shorter side — radii scale by this so packing stays isotropic.
 const PLAY = 0.92
@@ -36,6 +41,7 @@ const radiusFrac = (power: number) =>
 const TIER_STAGE: Record<Kind, number> = {
   great: 1, regional: 2, intermediate: 3, edge: 4, nonstate: 5,
 }
+const TIER_SPREAD = 0.5 // how far out-of-focus tiers disperse outward from centre (scroll narrative)
 
 // ── Body layout ──────────────────────────────────────────────────────────────
 interface WellBody {
@@ -102,6 +108,21 @@ class GravityWell {
   private breathPhase: Float32Array
   private mass: Float32Array
   private massTarget: Float32Array
+  private metricAlpha: Float32Array
+
+  frozen = false
+  private frozenAt = 0
+  setFrozen(v: boolean) {
+    if (v && !this.frozen) {
+      this.frozen = true
+      this.frozenAt = performance.now()
+    } else if (!v && this.frozen) {
+      const frozenDuration = performance.now() - this.frozenAt
+      this.start += frozenDuration
+      this.frozenAt = 0
+      this.frozen = false
+    }
+  }
 
   // ── Scroll narrative spring ───────────────────────────────────────────────
   // scrollTarget: where wheel/touch wants to go (0–5.5)
@@ -132,6 +153,7 @@ class GravityWell {
     this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU)
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
+    this.metricAlpha = new Float32Array(n).fill(1)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -151,10 +173,17 @@ class GravityWell {
 
   start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
 
-  setGravities(grav: Map<string, { power: number }>) {
+  // Size (and gently dim) every body to the SELECTED metric — the whole field re-forms to the lens.
+  // total = live gravity power; eco/mil/geo = that axis score (0–10 → 0–100, comparable to power).
+  setField(order: Order, grav: Map<string, GravityResult>) {
     for (let i = 0; i < BODIES.length; i++) {
-      const p = grav.get(BODIES[i].id)?.power
-      if (p != null) this.massTarget[i] = p
+      const g = grav.get(BODIES[i].id)
+      const metric = order === 'total'
+        ? (g?.power ?? BODIES[i].power)
+        : (g ? (order === 'eco' ? g.eco : order === 'mil' ? g.mil : g.geo) : 0) * 10
+      this.massTarget[i] = metric
+      // size carries the story; alpha is a gentle assist so weak-in-this-lens bodies recede
+      this.metricAlpha[i] = order === 'total' ? 1 : Math.max(0.45, metric / 100)
     }
   }
 
@@ -213,6 +242,7 @@ class GravityWell {
   }
 
   private frame = (now: number) => {
+    if (this.frozen) { this.raf = requestAnimationFrame(this.frame); return }
     const t = (now - this.start) / 1000
     const intro = Math.max(0, Math.min(1, t / 2.0))
     const ctx = this.ctx
@@ -238,8 +268,18 @@ class GravityWell {
     }
 
     // ── Update body screen positions ──────────────────────────────────────────
+    // Scroll narrative: disperse out-of-focus tiers OUTWARD (position, not opacity). The focused
+    // tier holds near the centre; the rest ease toward the periphery as you scroll through stages.
+    const [ccx, ccy] = this.bodyToScreen(0.5, 0.5)
     for (let i = 0; i < BODIES.length; i++) {
-      const [sx, sy] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
+      let [sx, sy] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
+      const isFocus = i === this.hoveredIdx || i === this.selectedIdx
+      const push = isFocus ? 0 : this.tierPush(BODIES[i].kind)
+      if (push > 0) {
+        const spread = 1 + push * TIER_SPREAD
+        sx = ccx + (sx - ccx) * spread
+        sy = ccy + (sy - ccy) * spread
+      }
       this.bodyScreenX[i] = sx
       this.bodyScreenY[i] = sy
     }
@@ -265,19 +305,17 @@ class GravityWell {
     this.raf = requestAnimationFrame(this.frame)
   }
 
-  // Tier alpha for the scroll narrative. Computes how bright this body should be
-  // given the current (spring-smoothed) scrollProgress.
-  // At progress 0: all full.  At progress N: tier N is full, others exponentially dim.
-  private tierAlpha(kind: Kind): number {
+  // Tier PUSH for the scroll narrative — drives a radial dispersion (position), not opacity.
+  // 0 = in focus / scroll idle; →1 = fully dispersed outward. Same falloff shape as before,
+  // inverted: the tier matching scrollProgress stays put, others push toward the periphery.
+  private tierPush(kind: Kind): number {
     const sp = this.scrollProgress
-    if (sp < 0.2) return 1.0
+    if (sp < 0.2) return 0
     // sweepT: 0→1 over the first 0.35 units of scroll (smooth engage)
     const sweepT = Math.min(1, (sp - 0.2) / 0.35)
-    const bodyStage = TIER_STAGE[kind]
-    const dist = Math.abs(sp - bodyStage)
-    // Exponential falloff: in-focus=1.0, 1 tier away≈0.13, 2 tiers away≈0.02 (floored at 0.04)
+    const dist = Math.abs(sp - TIER_STAGE[kind])
     const focused = Math.max(0.04, Math.exp(-dist * 2.0))
-    return 1 - sweepT * (1 - focused)
+    return sweepT * (1 - focused)
   }
 
   private drawBody(i: number, t: number, intro: number) {
@@ -291,8 +329,8 @@ class GravityWell {
     const scale = (1 + (bloom - 1) * 0.12) * pulse
     const rr = r * scale * intro
 
-    // Scroll narrative alpha — focused bodies override dimming
-    const tAlpha = isFocus ? 1.0 : this.tierAlpha(BODIES[i].kind)
+    // Metric (lens) filter alpha only — the scroll narrative now moves bodies, doesn't dim them
+    const tAlpha = isFocus ? 1.0 : this.metricAlpha[i]
     const glowCol = isFocus ? YELLOW : LIGHT
 
     ctx_save_restore(this.ctx, () => {
@@ -328,11 +366,9 @@ class GravityWell {
     const ctx = this.ctx
     ctx.save()
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    ctx.font = "700 13px 'Tel Aviv Brutalist', sans-serif"
+    ctx.textBaseline = 'middle'
 
     const focus = this.selectedIdx ?? this.hoveredIdx
-    const placed: { x: number; y: number; w: number }[] = []
 
     for (let i = 0; i < BODIES.length; i++) {
       const b = BODIES[i]
@@ -345,23 +381,18 @@ class GravityWell {
       if (isFocus) continue
       if (!isGreatOrRegional) continue
 
-      const tAlpha = this.tierAlpha(b.kind)
-      const labelY = sy + r * 1.2 + 5
-      const textW = b.he.length * 8
+      // size the label to the body, then keep it only if it visually fits inside the circle
+      const fontPx = labelFontPx(r)
+      ctx.font = `700 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
+      const textW = ctx.measureText(b.he).width
+      if (textW > r * 1.7) continue
 
-      let skip = false
-      for (const p of placed) {
-        if (Math.abs(sx - p.x) < (textW + p.w) / 2 + 4 && Math.abs(labelY - p.y) < 14) {
-          skip = true; break
-        }
-      }
-      if (skip) continue
+      const tAlpha = this.metricAlpha[i]
 
-      placed.push({ x: sx, y: labelY, w: textW })
-
-      ctx.globalAlpha = intro * 0.72 * tAlpha
-      ctx.fillStyle = `rgba(${LIGHT},0.85)`
-      ctx.fillText(b.he, sx, labelY)
+      // dark text reads on the light-cream body fill
+      ctx.globalAlpha = intro * 0.92 * tAlpha
+      ctx.fillStyle = `rgb(${BG})`
+      ctx.fillText(b.he, sx, sy)
     }
     ctx.restore()
   }
@@ -403,8 +434,9 @@ const TIER_ANNOTS: TierAnnot[] = [
 ]
 
 // ── Component ────────────────────────────────────────────────────────────────
-export function ForcesSheet({ grav, selected, onSelect, onHover }: {
+export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
   grav: Map<string, GravityResult>
+  orderBy: Order
   selected: string | null
   onSelect: (id: string | null) => void
   onHover: (id: string | null) => void
@@ -445,6 +477,10 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
       placeChip(idx)
     }
     well.onScrollChange = (stage) => setScrollStage(stage)
+    const onFreeze = () => well.setFrozen(true)
+    const onUnfreeze = () => well.setFrozen(false)
+    window.addEventListener('mp-freeze', onFreeze)
+    window.addEventListener('mp-unfreeze', onUnfreeze)
     well.start_()
 
     // ── Wheel scroll: virtual accumulation → spring target ───────────────────
@@ -478,6 +514,8 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
     return () => {
       clearTimeout(resizeTimer)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('mp-freeze', onFreeze)
+      window.removeEventListener('mp-unfreeze', onUnfreeze)
       stage.removeEventListener('wheel', onWheel)
       stage.removeEventListener('touchstart', onTouchStart)
       stage.removeEventListener('touchmove', onTouchMove)
@@ -486,7 +524,7 @@ export function ForcesSheet({ grav, selected, onSelect, onHover }: {
     }
   }, [])
 
-  useEffect(() => { wellRef.current?.setGravities(grav) }, [grav])
+  useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
 
   const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0

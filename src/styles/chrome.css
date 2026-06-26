@@ -13,7 +13,7 @@
 .lbl--regional { color: var(--yellow); font-weight: 900; font-size: 15px; }
 .lbl--intermediate { color: var(--yellow); font-weight: 400; font-size: 12px; }
 .lbl--edge     { color: var(--yellow); font-weight: 400; font-size: 12px; opacity: 0.9; }
-.lbl--nonstate { color: var(--yellow); font-weight: 400; font-size: 11px; opacity: 0.75; }
+.lbl--nonstate { color: var(--yellow); font-weight: 400; font-size: 11px; opacity: 0.75; letter-spacing: 0.168em; }
 
 /* Custom cursor (reactive: dot + trailing ring) ───────────── */
 .cursor {
@@ -25,7 +25,7 @@
   will-change: transform, opacity;
   transition: border-color 0.2s ease, background 0.2s ease, opacity 0.25s ease;
 }
-.cursor--on { border-color: var(--yellow); background: var(--yellow-06); }
+.cursor--on { border-width: 1.5px; border-color: var(--yellow); background: var(--yellow-08); }
 .cursor-dot {
   position: fixed; top: 0; left: 0;
   width: 5px; height: 5px;
@@ -70,6 +70,16 @@
 .zoomctl__reset { font-size: 15px !important; }
 .zoomctl__val { color: var(--yellow); font-size: 12px; opacity: 0.7; min-width: 38px; text-align: center; letter-spacing: 0.05em; }
 
+/* zoom-tier caption — names the active reveal layer (skeleton / regional / wiring) */
+.dyn-tier {
+  position: absolute; bottom: 70px; left: 36px; z-index: 6;
+  font-family: var(--body); font-weight: var(--fw-bold);
+  font-size: 10px; letter-spacing: var(--tracking-micro);
+  color: var(--ink-dim); pointer-events: none;
+  transition: color 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) { .dyn-tier { transition: none; } }
+
 /* forces sort/filter pills + threshold slider — rendered inside .gctl (panel) and the tools disclosure */
 .forcesctl__opt {
   cursor: none; background: none; border: none; padding: 5px 12px; border-radius: var(--r-pill);
@@ -110,9 +120,9 @@
 @media (prefers-reduced-motion: reduce) { .forcestools, .forcestools--out { animation: none; } }
 @media (max-width: 980px) { .forcestools { top: auto; bottom: 160px; } }
 /* Sandbox component styles (shared, now rendered inside .forcestools) */
-.sandbox__reset { cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 10px; font-family: var(--body); font-size: 10.5px; color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+.sandbox__reset { cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 10px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
 .sandbox__reset:hover { color: var(--light); border-color: var(--ink-dim); }
-.sandbox__k { font-family: var(--body); font-size: 12px; font-weight: 700; color: var(--light); }
+.sandbox__k { font-family: var(--body); font-size: 12px; font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--light); }
 .sandbox__slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; border-radius: 0; background: var(--line-yellow); cursor: none; }
 .sandbox__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--yellow); cursor: none; box-shadow: 0 0 8px rgba(251, 255, 0, 0.4); }
 .sandbox__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
@@ -165,29 +175,29 @@
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* Hover readout (data revealed on hover) ──────────────────── */
+/* Hover readout (data revealed on hover) — a tooltip: dark text on the yellow field. */
 .readout {
   position: absolute; top: 0; left: 0; z-index: 50;
   pointer-events: none;
   display: flex; flex-direction: column; gap: 1px;
   margin: -62px 0 0 16px; padding: 8px 12px;
-  background: rgba(6, 3, 15, 0.78);
-  border: 1px solid rgba(251, 255, 0, 0.4);
-  backdrop-filter: blur(5px);
+  background: var(--tooltip-bg); color: var(--tooltip-fg);
+  border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
   animation: readoutIn 0.16s ease-out;
 }
 @keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
-.readout__name { color: var(--white); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; display: flex; align-items: baseline; gap: 8px; }
-.readout__g { font-family: var(--body); font-weight: 700; font-size: 12px; color: var(--yellow); }
-.readout__row { font-family: var(--body); color: var(--yellow); font-size: 11px; letter-spacing: 0.094em; opacity: 0.85; }
+.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-bold); font-size: 15px; letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
+.readout__g { font-family: var(--body); font-weight: 700; font-size: 12px; color: var(--tooltip-fg); opacity: 0.75; }
+.readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: 11px; letter-spacing: 0.094em; opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
 
 /* Chrome ──────────────────────────────────────────────────── */
 /* logo lockup — always top-right (RTL: wordmark on the right, ⓘ to its left) */
 .hdr {
-  position: absolute; top: var(--sp-6); right: var(--sp-8); left: auto; z-index: var(--z-chrome);
+  position: fixed; top: var(--sp-6); right: var(--sp-8); left: auto; z-index: var(--z-persistent);
   display: flex; align-items: center; gap: var(--sp-3);
+  transition: opacity var(--dur-base) ease;
 }
 .hdr__logo {
   display: inline-flex; align-items: center; gap: 11px;
@@ -218,12 +228,12 @@
 @media (prefers-reduced-motion: reduce) { .hdr__orbit-spin { animation: none; } }
 /* utility cluster — top-left: prominent "המודל" pill + crisp info (legend) icon */
 .unav {
-  position: fixed; top: var(--sp-6); left: var(--sp-8); z-index: var(--z-chrome);
+  position: fixed; top: var(--sp-6); left: var(--sp-8); z-index: var(--z-persistent);
   display: flex; align-items: center; gap: var(--sp-3);
   transition: opacity var(--dur-base) ease;
 }
-/* keep the methodology + legend reachable even on the closed-home opener (discoverability) — just understated */
-body:has(.home--closed) .unav { opacity: 0.72; }
+/* utility nav is always at full opacity on the home page (rendered inside the stage on home) */
+body:has(.home--closed) .unav { opacity: 0.75; }
 .unav__model {
   display: inline-flex; align-items: center; gap: 7px; cursor: none;
   font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
@@ -271,26 +281,25 @@ body:has(.home--closed) .unav { opacity: 0.72; }
   position: relative; width: min(620px, calc(100vw - 48px));
   max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: none;
   padding: 32px 36px 24px; text-align: right;
-  background: var(--panel-surface);
-  border: 1px solid rgba(251, 255, 0, 0.18);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-  animation: legendIn 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
 .about::-webkit-scrollbar { display: none; }
-.about__head { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid rgba(251, 255, 0, 0.16); }
+/* item 9: head divider line removed — the orbit mark + title carry the header on their own */
+.about__head { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; }
 .about__head-txt { display: flex; flex-direction: column; gap: 3px; }
 /* a mini orbit mark — echoes the wordmark logo, ties the modal to the brand system */
 .about__mark { position: relative; flex: none; width: 30px; height: 30px; border: 1px solid var(--yellow-30); border-radius: 50%; }
 .about__mark-spin { position: absolute; inset: 0; animation: orbitSpin 9s linear infinite; }
 .about__mark-spin i { position: absolute; top: -3px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
-.about__title { font-size: 27px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); line-height: 1; }
+.about__title { font-family: var(--display); font-size: 27px; font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
 .about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: 0.08em; color: var(--light); opacity: 0.55; }
 @media (prefers-reduced-motion: reduce) { .about__mark-spin { animation: none; } }
-.about__lede { margin-top: 18px; font-family: var(--body); font-size: 15px; line-height: 1.55; letter-spacing: 0.05em; color: var(--light); opacity: 0.92; }
-/* the equation — a focal block, not just a line between rules */
+.about__lede { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 15px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
+/* the equation — a focal block. item 9: horizontal container rules dropped in favour of the
+   language's vertical accent + the radial glow that already makes it a focal block. */
 .about__eq {
-  margin: 24px 0; padding: 20px 0; display: flex; align-items: baseline; justify-content: center; gap: 14px;
-  border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2);
+  margin: 24px 0; padding: 18px 20px; display: flex; align-items: baseline; justify-content: center; gap: 14px;
+  border-inline-start: 2px solid var(--yellow-30);
   background: radial-gradient(120% 140% at 50% 0%, rgba(251, 255, 0, 0.05), transparent 70%);
 }
 .about__eq-term { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--white); }

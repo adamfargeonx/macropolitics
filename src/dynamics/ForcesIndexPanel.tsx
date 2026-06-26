@@ -28,15 +28,26 @@ type ForcesIndexPanelProps = {
   setShowAllIndex: (fn: (v: boolean) => boolean) => void
 }
 
+const METRIC_TITLE: Record<Order, string> = {
+  total: 'כוח משיכה', eco: 'כוח כלכלי', mil: 'כוח צבאי', geo: 'כוח גאו-אסטרטגי',
+}
+
+const METRIC_DESC: Record<Order, string> = {
+  total: 'כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר.',
+  eco:   'כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה הגלובליות. כלכלה חזקה מאפשרת לממן כוח צבאי ולהניע השפעה מדינית.',
+  mil:   'כוח צבאי — הוצאות ביטחון, יכולות טכנולוגיות, כוח אש ורוחב הנוכחות הצבאית. עוצמה קינטית שמכריעה ומרתיעה.',
+  geo:   'כוח גאו-אסטרטגי — מיקום, משאבים טבעיים, בריתות ועומק השפעה אזורית. מציאות שאי אפשר לקנות ולא ניתן לשנות.',
+}
+
 // The resting side panel — now the unified forces dashboard: thesis line, the sort + tools
 // controls (moved off the canvas), and the ranked gravity index (map-linked rows).
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
   return (
     <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
-      <h1 className="panel__title">כוח משיכה</h1>
-      <p className="panel__body panel__body--words">
-        <Words delay={0.2} text="כוח המשיכה — שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי — הוא משקלו הפוליטי של כל גוף. קרוב יותר למרכז, גדול יותר — כבד יותר." />
+      <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>
+      <p className="panel__body panel__body--words panel__body--metric">
+        <Words key={orderBy} delay={0.2} text={METRIC_DESC[orderBy]} />
       </p>
       {/* unified controls — sort the index + open the tools disclosure (filters/year/scenario) */}
       <div className="gctl" role="group" aria-label="מיון וכלים">

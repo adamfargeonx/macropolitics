@@ -40,10 +40,24 @@ const AXIS_MISS = { eco: ecoMissing, mil: milMissing, geo: geoMissing } as const
 const STATUS_LABEL: Record<SourceStatus, string> = {
   sourced: 'מקור ראשי', estimate: 'אומדן', judgment: 'שיפוט', 'no-data': 'אין נתונים',
 }
+// Inline status glyphs for the per-parameter evidence bars (item 8): every parameter — sourced or
+// assessed — is a bar row carrying its provenance status, so the evidence layer reads as complete.
+const STATUS_GLYPH: Record<SourceStatus, string> = {
+  sourced: '✓', estimate: '~', judgment: '⊙', 'no-data': '✕',
+}
 
 type Axis = 'eco' | 'mil' | 'geo'
 
-// Unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one component, three axes.
+// Per-parameter provenance status: missing → no-data; the geo axis is inherently interpretive
+// (judgment/assessment); economic & military figures rest on primary datasets (sourced).
+function paramStatus(axis: Axis, miss: boolean): SourceStatus {
+  if (miss) return 'no-data'
+  if (axis === 'geo') return 'judgment'
+  return 'sourced'
+}
+
+// Unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — every parameter is a bar row
+// with an inline status badge (sourced ✓ · estimate ~ · assessment ⊙ · no-data ✕). One component, three axes.
 function Composite({ axis, sub, missing }: { axis: Axis; sub: Record<string, number>; missing: string[] }) {
   const rows = AXIS_ROWS[axis]
   const missFn = AXIS_MISS[axis]
@@ -54,11 +68,13 @@ function Composite({ axis, sub, missing }: { axis: Axis; sub: Record<string, num
         {rows.map(({ k, he }) => {
           const v = sub[k] ?? 0
           const miss = missFn(k, missing)
+          const status = paramStatus(axis, miss)
           return (
             <div className={`evid__comp-row${miss ? ' evid__comp-row--miss' : ''}`} key={k}>
+              <span className={`evid__comp-status evid__comp-status--${status}`} title={STATUS_LABEL[status]} aria-label={STATUS_LABEL[status]}>{STATUS_GLYPH[status]}</span>
               <span className="evid__comp-k">{he}</span>
               <span className="evid__comp-bar"><i style={{ width: `${v * 10}%` }} /></span>
-              <span className="evid__comp-v">{v.toFixed(1)}{miss ? ' ⚑' : ''}</span>
+              <span className="evid__comp-v">{v.toFixed(1)}</span>
             </div>
           )
         })}

@@ -58,12 +58,22 @@
   --line: rgba(255, 255, 255, 0.08);         /* hairline divider */
   --line-2: rgba(255, 255, 255, 0.06);       /* fainter divider */
   --line-yellow: rgba(251, 255, 0, 0.16);    /* accent hairline */
+  --yellow-018: rgba(251, 255, 0, 0.018);
   --yellow-06: rgba(251, 255, 0, 0.06);
   --yellow-08: rgba(251, 255, 0, 0.08);
+  --yellow-10: rgba(251, 255, 0, 0.10);
   --yellow-12: rgba(251, 255, 0, 0.12);
+  --yellow-22: rgba(251, 255, 0, 0.22);
   --yellow-30: rgba(251, 255, 0, 0.3);
+  --yellow-50: rgba(251, 255, 0, 0.5);
   /* ── Panel surface gradient — consistent across all overlay/panel backgrounds ── */
   --panel-surface: linear-gradient(180deg, rgba(14, 9, 28, 0.97), rgba(8, 4, 18, 0.97));
+  /* ── Shared panel shell — one surface/border/shadow for every panel + modal (see overlays.css .panel-shell) ── */
+  --panel-border: 1px solid var(--line-yellow);
+  --panel-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  /* ── Tooltip — dark text on yellow (the one tooltip language; see overlays.css) ── */
+  --tooltip-bg: var(--yellow);
+  --tooltip-fg: var(--bg);
   /* ── Rail width — side dock/panel offset (forces field right edge) ── */
   --rail-w: 416px;
   /* ── Data-status colors (deliberate palette exception — data-quality semantics only) ── */
@@ -73,6 +83,7 @@
   --ok-border:   rgba(143, 227, 136, 0.4);
   --warn-border: rgba(255, 157, 110, 0.5);
   --warn-bg:     rgba(255, 157, 110, 0.06);
+  --ok-bg:       rgba(143, 227, 136, 0.08);
   /* allegiance rims (bloc temperature) — used as rgb() triplets */
   --rim-west: 132, 160, 196;
   --rim-east: 198, 134, 98;
@@ -91,6 +102,13 @@
   --text-4xl: 32px;   /* panelb__title, evid__title-region */
   --display-md: 46px; /* panelb__score hero numeral */
   --tracking-tight: -0.01em; --tracking-wide: 0.08em; --tracking-wider: 0.18em;
+  /* type-system tracking ramp (the 6-style system; see .t-* utilities below) */
+  --tracking-display: -0.02em;   /* Display */
+  --tracking-title: -0.01em;     /* Title */
+  --tracking-body: 0.06em;       /* Body */
+  --tracking-label: 0.12em;      /* Label */
+  --tracking-micro: 0.15em;      /* Micro */
+  --tracking-wordmark: 0.468em;  /* Wordmark */
 
   /* ── Space (4px base) ────────────────────────────────────── */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
@@ -107,7 +125,7 @@
 
   /* ── Elevation (z-index scale) ───────────────────────────── */
   --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;
-  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-transition: 900; --z-cursor: 2147483646;
+  --z-legend: 40; --z-readout: 50; --z-toggle: 60; --z-transition: 900; --z-persistent: 950; --z-cursor: 2147483646;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -122,6 +140,41 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 
 /* iconization — bespoke geometric marks; size to the text they label, inherit colour */
 .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.13em; flex: none; }
+
+/* ════════════════════════════════════════════════════════════════
+   TYPE SYSTEM — six styles. Reusable utilities for new code; existing
+   selectors are normalized onto these in views/overlays/forces/chrome.
+   ════════════════════════════════════════════════════════════════ */
+/* 1 · Wordmark — display, light, oversized, wide kerning (the brand lockup) */
+.t-wordmark {
+  font-family: var(--display); font-weight: var(--fw-light);
+  font-size: clamp(22px, 3.3vw, 50px); letter-spacing: var(--tracking-wordmark);
+}
+/* 2 · Display — panel/overlay titles */
+.t-display {
+  font-family: var(--display); font-weight: var(--fw-black);
+  font-size: 26px; letter-spacing: var(--tracking-display);
+}
+/* 3 · Title — section subtitles, vertex/chip names */
+.t-title {
+  font-family: var(--display); font-weight: var(--fw-bold);
+  font-size: 20px; letter-spacing: var(--tracking-title);
+}
+/* 4 · Body — all narrative copy */
+.t-body {
+  font-family: var(--body); font-weight: var(--fw-regular);
+  font-size: 14px; letter-spacing: var(--tracking-body); line-height: 1.7;
+}
+/* 5 · Label — metric/axis/control labels */
+.t-label {
+  font-family: var(--body); font-weight: var(--fw-bold);
+  font-size: 12px; letter-spacing: var(--tracking-label);
+}
+/* 6 · Micro — badges, footnotes, counts */
+.t-micro {
+  font-family: var(--body); font-weight: var(--fw-bold);
+  font-size: 10px; letter-spacing: var(--tracking-micro);
+}
 
 html, body, #root { height: 100%; }
 body {

@@ -5,7 +5,7 @@ import { computeGravities } from '../model/gravity'
 import { useWeights, weightsStore } from '../model/weights-store'
 import { useYear, yearStore } from '../model/year-store'
 import { useScenarioWeights } from './useScenario'
-import { Header, SidePanel, PanelDock, TabBar, type View } from './Chrome'
+import { SidePanel, PanelDock } from './Chrome'
 import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
@@ -19,7 +19,7 @@ import {
 // The Forces page — a single committed reading: the horizontal force-field. States are luminous
 // bodies sized by live gravity (mass = power), spread across the full width and sorted strong→weak.
 // The canvas (ForcesSheet) owns hover/select; the SAME side panel + ranked index drive both.
-export default function ForcesView({ view, onView }: { view: View; onView: (v: View) => void }) {
+export default function ForcesView() {
   const [hovered, setHovered] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [orderBy, setOrderBy] = useState<Order>('total')
@@ -60,7 +60,7 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
       dir="rtl"
       onClick={() => { setSelected(null); setToolsOpen(false) }}
     >
-      <ForcesSheet grav={grav} selected={selected} onSelect={setSelected} onHover={setHovered} />
+      <ForcesSheet grav={grav} orderBy={orderBy} selected={selected} onSelect={setSelected} onHover={setHovered} />
 
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
       {stateActive && !tools.mounted && (
@@ -85,10 +85,9 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
         />
       )}
 
-      <Header onHome={() => onView('home')} />
       <PanelDock>
         {selected ? (
-          <SidePanel detail={detail} onClose={() => setSelected(null)} />
+          <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
         ) : (
           <ForcesIndexPanel
             orderBy={orderBy} setOrderBy={setOrderBy}
@@ -101,7 +100,6 @@ export default function ForcesView({ view, onView }: { view: View; onView: (v: V
           />
         )}
       </PanelDock>
-      <TabBar view={view} onView={onView} />
     </div>
   )
 }

@@ -85,8 +85,8 @@ export function Icon({ name, className, title }: IconProps) {
     <svg
       className={`icon icon--${name}${className ? ` ${className}` : ''}`}
       viewBox="0 0 24 24"
-      width="1em"
-      height="1em"
+      width="1.6em"
+      height="1.6em"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.6"
