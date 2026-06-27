@@ -385,10 +385,12 @@
   45%  { opacity: 1; }
   to   { transform: scale(1);    opacity: 1; clip-path: circle(150% at 50% 50%); }
 }
-/* returning home: revealed through an expanding circle-mask — the core opening up */
-.nav-rail--mask { animation: railMask 0.5s var(--ease-out-expo) both; }
+/* returning home: revealed through an expanding circle-mask — the core opening up.
+   Start from opacity:0 so the collapsed (invisible) page hands off without a flash. */
+.nav-rail--mask { animation: railMask 0.65s var(--ease-out-expo) both; }
 @keyframes railMask {
-  from { clip-path: circle(1% at 50% 50%); transform: scale(1.12); opacity: 1; }
+  from { clip-path: circle(3% at 50% 50%); transform: scale(1.06); opacity: 0; }
+  25%  { opacity: 1; }
   to   { clip-path: circle(150% at 50% 50%); transform: scale(1); opacity: 1; }
 }
 
