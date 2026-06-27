@@ -1,0 +1,6 @@
+interface:
+  display_name: "Macropolitics"
+  short_description: "Repo-specific patterns and workflows for macropolitics"
+  default_prompt: "Use the macropolitics repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
