@@ -361,17 +361,17 @@ export class OrbitalField {
     if (this.frozen) { this.raf = requestAnimationFrame(this.frame); return }
     this.now = now
     const t = (now - this.start) / 1000
-    const intro = clamp01(t / 2.6)
+    const intro = clamp01(t / 4.0)
     const ctx = this.ctx
     ctx.clearRect(0, 0, this.w, this.h)
 
     this.drawStars(t, intro)
     this.resolve(t)
-    this.drawOrbits(intro)
+    this.drawOrbits(t)
     this.drawCenters(intro)
     this.drawLinks(t, intro)
     this.drawReveal(t, intro)
-    for (let k = 0; k < this.nodes.length; k++) { this.nodes[k].appear = clamp01((t - k * 0.025) / 0.9); this.drawNode(this.nodes[k], t) }
+    for (let k = 0; k < this.nodes.length; k++) { this.nodes[k].appear = clamp01((t - k * 0.06) / 1.5); this.drawNode(this.nodes[k], t) }
     this.updateLabels()
     this.raf = requestAnimationFrame(this.frame)
   }
@@ -401,18 +401,20 @@ export class OrbitalField {
     if (this.click) { const age = (this.now - this.click.t) / 1000; if (age < 0.6) { ctx.strokeStyle = `rgba(${YELLOW},${(1 - age / 0.6) * 0.4})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.click.x, this.click.y, age * 200, 0, TAU); ctx.stroke() } else this.click = null }
   }
 
-  // structural rings (around C or a hub) per the ring spec
-  private drawOrbits(intro: number) {
+  // structural rings (around C or a hub) per the ring spec — each ring staggers in separately
+  private drawOrbits(t: number) {
     const ctx = this.ctx
     const s = this.viewScale * this.zoom
-    for (const ring of RINGS) {
+    for (let ri = 0; ri < RINGS.length; ri++) {
+      const ring = RINGS[ri]
+      const ringIntro = clamp01((t - ri * 0.3) / 3.5)
       const anc = this.world.get(ring.around); if (!anc) continue
       const c = this.toScreen(anc.x, anc.y)
       const lit = this.focusId && (ring.around === this.focusId || this.connected.has(ring.around))
       const dim = this.focusId && !lit
       const base = ring.he ? 0.3 : 0.16
-      ctx.beginPath(); ctx.arc(c.x, c.y, ring.r * s, 0, TAU * easeOutCubic(intro))
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * intro})`
+      ctx.beginPath(); ctx.arc(c.x, c.y, ring.r * s, 0, TAU * easeOutCubic(ringIntro))
+      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * ringIntro})`
       ctx.lineWidth = 1
       if (ring.dash) ctx.setLineDash([2, 7])
       ctx.stroke(); ctx.setLineDash([])

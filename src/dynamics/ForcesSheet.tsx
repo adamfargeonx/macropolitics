@@ -104,6 +104,7 @@ class GravityWell {
 
   private bodyScreenX: Float32Array
   private bodyScreenY: Float32Array
+  private bodyAppear: Float32Array
   private bloom: Float32Array
   private breathPhase: Float32Array
   private mass: Float32Array
@@ -149,6 +150,7 @@ class GravityWell {
     const n = BODIES.length
     this.bodyScreenX = new Float32Array(n)
     this.bodyScreenY = new Float32Array(n)
+    this.bodyAppear = new Float32Array(n).fill(0)
     this.bloom = new Float32Array(n).fill(1)
     this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU)
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
@@ -244,7 +246,10 @@ class GravityWell {
   private frame = (now: number) => {
     if (this.frozen) { this.raf = requestAnimationFrame(this.frame); return }
     const t = (now - this.start) / 1000
-    const intro = Math.max(0, Math.min(1, t / 2.0))
+    const labelIntro = Math.max(0, Math.min(1, t / 2.5))
+    for (let i = 0; i < BODIES.length; i++) {
+      this.bodyAppear[i] = Math.max(0, Math.min(1, (t - i * 0.05) / 1.4))
+    }
     const ctx = this.ctx
 
     ctx.clearRect(0, 0, this.w, this.h)
@@ -296,11 +301,11 @@ class GravityWell {
 
     // ── Draw bodies ───────────────────────────────────────────────────────────
     for (let i = 0; i < BODIES.length; i++) {
-      this.drawBody(i, t, intro)
+      this.drawBody(i, t)
     }
 
     // ── Draw labels ───────────────────────────────────────────────────────────
-    this.drawLabels(intro)
+    this.drawLabels(labelIntro)
 
     this.raf = requestAnimationFrame(this.frame)
   }
@@ -318,7 +323,8 @@ class GravityWell {
     return sweepT * (1 - focused)
   }
 
-  private drawBody(i: number, t: number, intro: number) {
+  private drawBody(i: number, t: number) {
+    const bodyA = this.bodyAppear[i]
     const sx = this.bodyScreenX[i]
     const sy = this.bodyScreenY[i]
     const isFocus = i === this.hoveredIdx || i === this.selectedIdx
@@ -327,7 +333,7 @@ class GravityWell {
     const r = this.bodyR(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
     const scale = (1 + (bloom - 1) * 0.12) * pulse
-    const rr = r * scale * intro
+    const rr = r * scale * bodyA
 
     // Metric (lens) filter alpha only — the scroll narrative now moves bodies, doesn't dim them
     const tAlpha = isFocus ? 1.0 : this.metricAlpha[i]
@@ -335,7 +341,7 @@ class GravityWell {
 
     ctx_save_restore(this.ctx, () => {
       const ctx = this.ctx
-      ctx.globalAlpha = intro * tAlpha
+      ctx.globalAlpha = bodyA * tAlpha
 
       const glowR = rr * (2.0 + (bloom - 1) * 1.1)
       if (glowR > 0) {
