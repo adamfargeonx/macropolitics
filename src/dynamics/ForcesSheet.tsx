@@ -110,6 +110,13 @@ class GravityWell {
   private mass: Float32Array
   private massTarget: Float32Array
   private metricAlpha: Float32Array
+  // hoverProg: per-body 0→1 reveal value, eased in the draw loop (NOT a CSS transition).
+  // Drives the fill fade-out + force-signature bloom on the hovered body only.
+  private hoverProg: Float32Array
+  // Live eco/mil/geo (each 0–10) per body — the at-a-glance force signature around the hovered ring.
+  private eco: Float32Array
+  private mil: Float32Array
+  private geo: Float32Array
 
   frozen = false
   private frozenAt = 0
@@ -156,6 +163,10 @@ class GravityWell {
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.metricAlpha = new Float32Array(n).fill(1)
+    this.hoverProg = new Float32Array(n)
+    this.eco = new Float32Array(n)
+    this.mil = new Float32Array(n)
+    this.geo = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -186,6 +197,10 @@ class GravityWell {
       this.massTarget[i] = metric
       // size carries the story; alpha is a gentle assist so weak-in-this-lens bodies recede
       this.metricAlpha[i] = order === 'total' ? 1 : Math.max(0.45, metric / 100)
+      // Keep the live sub-metrics (each 0–10) for the hover force-signature.
+      this.eco[i] = g?.eco ?? 0
+      this.mil[i] = g?.mil ?? 0
+      this.geo[i] = g?.geo ?? 0
     }
   }
 
@@ -297,6 +312,18 @@ class GravityWell {
       const rate = this.bloom[i] < target ? 0.1 : 0.07
       this.bloom[i] += (target - this.bloom[i]) * rate
       this.mass[i] += this.reduced ? (this.massTarget[i] - this.mass[i]) : (this.massTarget[i] - this.mass[i]) * 0.12
+
+      // ── Hover reveal progress (0→1) ───────────────────────────────────────
+      // Expo-out feel: a per-frame lerp toward the hover state. Asymmetric rates —
+      // a touch quicker in than out — land the ~280–360ms "fast then settle" curve.
+      // reduced-motion: snap to the end state (no tween).
+      const hoverTarget = isHov ? 1 : 0
+      if (this.reduced) {
+        this.hoverProg[i] = hoverTarget
+      } else {
+        const hrate = hoverTarget > this.hoverProg[i] ? 0.16 : 0.12
+        this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
+      }
     }
 
     // ── Draw bodies ───────────────────────────────────────────────────────────
@@ -360,12 +387,64 @@ class GravityWell {
         ctx.beginPath(); ctx.arc(sx, sy, rr + 8 + pp * 40, 0, TAU); ctx.stroke()
       }
 
-      ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
-      ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
+      // hp = eased hover reveal (0 idle → 1 fully hovered). The body fill fades to nothing
+      // so the hovered body reads as a hollow, outlined ring.
+      const hp = this.hoverProg[i]
 
-      ctx.strokeStyle = isFocus ? `rgba(${YELLOW},0.92)` : `rgba(${LIGHT},0.3)`
-      ctx.lineWidth = 1.5; ctx.stroke()
+      ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
+      if (hp < 0.999) {
+        ctx.save()
+        ctx.globalAlpha = bodyA * tAlpha * (1 - hp)
+        ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
+        ctx.restore()
+      }
+
+      // Ring stroke: warms to yellow as the body hollows out (the rim becomes the subject).
+      const ringCol = isFocus ? YELLOW : LIGHT
+      const ringA = isFocus ? 0.92 : 0.3
+      ctx.strokeStyle = `rgba(${ringCol},${ringA})`
+      ctx.lineWidth = 1.5 + hp * 0.5; ctx.stroke()
+
+      // ── Force signature ──────────────────────────────────────────────────
+      // Around the hollowed rim, bloom three concentric arc-ticks — eco / mil / geo —
+      // whose arc LENGTH ∝ each sub-metric (0–10). A quick visual fingerprint of the
+      // state's composition, distinct from the side-panel's quantitative bars.
+      if (hp > 0.01) this.drawSignature(sx, sy, rr, i, hp, bodyA * tAlpha)
     })
+  }
+
+  // The force-signature ring set. Three arcs share a start angle at the top (−90°) and
+  // sweep clockwise; each arc's sweep ∝ its metric / 10. Concentric, just outside the rim.
+  // Colours come from the existing palette constants only: mil in YELLOW (the accent), eco
+  // and geo in LIGHT at stepped opacity so the three read as one fingerprint, not three bars.
+  private drawSignature(sx: number, sy: number, rr: number, i: number, hp: number, baseAlpha: number) {
+    const ctx = this.ctx
+    const START = -Math.PI / 2 // 12 o'clock
+    const gap = Math.max(4, rr * 0.16) // breathing room outside the rim
+    const step = Math.max(3, rr * 0.1) // spacing between the three concentric arcs
+    const lw = Math.max(1.5, rr * 0.05)
+    // [metric 0–10, radius offset, colour, peak opacity]
+    const arcs: [number, number, string, number][] = [
+      [this.eco[i], gap,            LIGHT,  0.5],
+      [this.mil[i], gap + step,     YELLOW, 0.92],
+      [this.geo[i], gap + step * 2, LIGHT,  0.35],
+    ]
+    ctx.save()
+    ctx.lineCap = 'round'
+    ctx.lineWidth = lw
+    for (const [metric, off, col, peak] of arcs) {
+      const frac = Math.max(0, Math.min(1, metric / 10))
+      if (frac <= 0) continue
+      const radius = rr + off
+      // arc grows from the start angle as it reveals (hp) AND by its metric fraction
+      const sweep = frac * (TAU * 0.82) * hp
+      ctx.globalAlpha = baseAlpha * peak * hp
+      ctx.strokeStyle = `rgb(${col})`
+      ctx.beginPath()
+      ctx.arc(sx, sy, radius, START, START + sweep)
+      ctx.stroke()
+    }
+    ctx.restore()
   }
 
   private drawLabels(intro: number) {

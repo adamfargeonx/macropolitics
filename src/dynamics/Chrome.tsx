@@ -87,109 +87,59 @@ export interface EntityDetail {
   components?: { base: number; intrinsic: number; backing: number; gravity: number; stability: number } // for the methodology drill-down
 }
 
-// One power note: a label, an optional 0–10 bar (the three components), ≤20-word text,
-// and a concise source line (dataset + year) with a ⚑ marker when the figure is weak/flagged.
-// The full figure + link live in the evidence overlay (opened from the panel).
-function PowerNote({ label, text, value, source, icon, hint }: { label: string; text: string; value?: number; source?: AxisProvenance; icon?: IconName; hint?: string }) {
-  const weak = source && source.status !== 'sourced'
+// One scored parameter row (forces · ציון mode). Number sits IMMEDIATELY beside the
+// category label for fast label→value scanning; the bar is a full-width track beneath.
+// Fixed min-height so all three rows share identical height regardless of label length.
+function ForceParam({ label, value, icon, hint }: { label: string; value?: number; icon: IconName; hint?: string }) {
   return (
-    <div className="pnote">
-      <div className="pnote__head">
-        <span className="pnote__label" data-hint={hint}>{icon && <Icon name={icon} className="pnote__icon" />}{label}</span>
-        {value != null && (
-          <>
-            <span className="pnote__track"><span className="pnote__fill" style={{ width: `${value * 10}%` }} /></span>
-            <span className="pnote__val">{value}</span>
-          </>
-        )}
+    <div className="fparam">
+      <div className="fparam__lead">
+        <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
+        {value != null && <span className="fparam__val">{value}</span>}
       </div>
-      <p className="pnote__text">{text}</p>
-      {source && (
-        <p className={`pnote__src${weak ? ' pnote__src--flag' : ''}`} data-hint={source.note ?? source.figure}>
-          {weak && <span className="pnote__flag" aria-hidden>⚑ </span>}{source.source}
-        </p>
+      {value != null && (
+        <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
       )}
     </div>
   )
 }
 
-// The trigger that opens the evidence overlay: full per-axis sources, data-quality flags, and the
-// gravity calculation, for the curious. Sources + flags are concealed from the default panel — they
-// live behind this one tap, keeping the resting view clean.
-function EvidenceTrigger({ detail }: { detail: EntityDetail }) {
+// The evidence link — opens the sources/calculation overlay. A subtle on-brand text link
+// (not a grey box), consistent with the panel's accent language.
+function EvidenceLink({ detail }: { detail: EntityDetail }) {
   if (!detail.id) return null
   return (
-    <div className="evidence">
-      <button
-        className="evidence__btn"
-        onClick={() => window.dispatchEvent(new CustomEvent('mp-evidence', { detail: { id: detail.id } }))}
-      >
-        המקורות והחישוב <span aria-hidden>↗</span>
-      </button>
-    </div>
+    <button
+      className="fevidence"
+      onClick={() => window.dispatchEvent(new CustomEvent('mp-evidence', { detail: { id: detail.id } }))}
+    >
+      המקורות והחישוב <span aria-hidden>↗</span>
+    </button>
   )
 }
 
-// Orbital context (dynamics only): what this body orbits + which bodies orbit it. Clicking a
-// satellite re-centres the panel on it. Renders nothing where there's no orbital data (forces).
-function OrbitSection({ detail, onRelSelect }: { detail: EntityDetail; onRelSelect?: (id: string) => void }) {
-  const sats = detail.satellites ?? []
-  if (!detail.parentHe && sats.length === 0) return null
-  return (
-    <div className="panel__orbit">
-      <span className="panel__rels-h"><Icon name="orbit" className="panel__orbit-icon" />מסלול</span>
-      {detail.parentHe && <p className="panel__orbit-parent">במסלול סביב <b>{detail.parentHe}</b></p>}
-      {sats.length > 0 && (
-        <>
-          <span className="panel__orbit-sub">בתחום הכבידה שלה</span>
-          <div className="panel__rels-list">
-            {sats.map((s) => (
-              <button key={s.id} className="panel__rel" onClick={() => onRelSelect?.(s.id)}>{s.he}</button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// FORCES drill-down (forces view only): the interpretation layer. A toggle reveals the
-// general read plus three axis blocks (eco/mil/geo) drawn from FORCES_DESCRIPTIONS. Collapsed
-// by default; resets when the selection changes. Renders nothing where there's no description.
-function ForcesDrillDown({ detail }: { detail: EntityDetail }) {
-  const [open, setOpen] = useState(false)
-  // a fresh selection should always land collapsed — the drawer is per-body, not sticky.
-  // Reset during render on id change (React's recommended replacement for a setState-in-effect).
-  const [lastId, setLastId] = useState(detail.id)
-  if (detail.id !== lastId) { setLastId(detail.id); setOpen(false) }
+// FORCES narrative (forces · תיאור mode): the interpretation layer, shown flat (no collapsible).
+// General read plus three axis blocks (eco/mil/geo) drawn from FORCES_DESCRIPTIONS. Falls back to
+// the short POWER_NOTES summaries where a long description is absent, so the mode is never empty.
+function ForcesNarrative({ detail }: { detail: EntityDetail }) {
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
-  if (!desc) return null
-  const axes: { label: string; icon: IconName; text: string }[] = [
-    { label: 'כלכלי', icon: 'eco', text: desc.eco },
-    { label: 'צבאי', icon: 'mil', text: desc.mil },
-    { label: 'גאו-אסטרטגי', icon: 'geo', text: desc.geo },
+  const notes = detail.powerNotes
+  const general = desc?.general ?? notes?.general
+  const axes: { label: string; icon: IconName; text?: string }[] = [
+    { label: 'כלכלי', icon: 'eco', text: desc?.eco ?? notes?.eco },
+    { label: 'צבאי', icon: 'mil', text: desc?.mil ?? notes?.mil },
+    { label: 'גאו-אסטרטגי', icon: 'geo', text: desc?.geo ?? notes?.geo },
   ]
+  if (!general && axes.every((a) => !a.text)) return null
   return (
-    <div className="panelb__forces-detail">
-      <button
-        className="panelb__forces-toggle"
-        onClick={() => { sound.play('tab'); setOpen((o) => !o) }}
-        aria-expanded={open}
-      >
-        {open ? 'הסתרת המידע' : 'מידע על הכוחות'}
-        <span className={`panelb__forces-chev${open ? ' panelb__forces-chev--open' : ''}`} aria-hidden>▾</span>
-      </button>
-      <div className={`panelb__forces-body${open ? ' panelb__forces-body--open' : ''}`}>
-        <div className="panelb__forces-inner">
-          <p className="panelb__forces-gen">{desc.general}</p>
-          {axes.map((a) => (
-            <div key={a.label} className="panelb__forces-axis">
-              <span className="panelb__forces-axis-l"><Icon name={a.icon} className="panelb__forces-axis-icon" />{a.label}</span>
-              <p className="panelb__forces-axis-t">{a.text}</p>
-            </div>
-          ))}
+    <div className="fnarr">
+      {general && <p className="fnarr__gen">{general}</p>}
+      {axes.filter((a) => a.text).map((a) => (
+        <div key={a.label} className="fnarr__axis">
+          <span className="fnarr__axis-l"><Icon name={a.icon} className="fnarr__axis-icon" />{a.label}</span>
+          <p className="fnarr__axis-t">{a.text}</p>
         </div>
-      </div>
+      ))}
     </div>
   )
 }
@@ -218,13 +168,20 @@ function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number 
   return best
 }
 
-// DYNAMICS synthesis (dynamics view only) — the relations-of-power read: compressed forces,
-// the three sharpest authored relations, and a derived one-liner that fuses axis + relation.
-function DynamicsSynthesis({ detail, onRelSelect }: { detail: EntityDetail; onRelSelect?: (id: string) => void }) {
+// DYNAMICS card (dynamics view only) — a dedicated COMPACT layout fusing forces × relations,
+// sized to fit the first fold with no vertical scroll. Replaces the verbose forces stack here.
+// Compact header · power fingerprint (forces) · 2–3 defining ties (relations) · fused caption.
+function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
   const heById = useMemo(() => new Map(NODES.map((n) => [n.id, n.he])), [])
   const id = detail.id
   const f = detail.forces
-  // top relations by the strength of their dominant pole — the most defining ties first
+  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+  // the two tight descriptor chips (tier + axis) — disposition is dropped to stay compact
+  const chips: { icon: IconName; text: string }[] = [
+    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier },
+    { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel },
+  ]
+  // the 2–3 sharpest authored relations — most defining ties first (by dominant-pole strength)
   const top = useMemo(() => {
     if (!id) return []
     return relationsFor(id)
@@ -232,16 +189,12 @@ function DynamicsSynthesis({ detail, onRelSelect }: { detail: EntityDetail; onRe
       .sort((a, b) => b.dom.v - a.dom.v)
       .slice(0, 3)
   }, [id])
-  if (!id) return null
-  // strongest forces axis (for the caption)
+  // fused caption: strongest axis + top-tension partner + top-harmony partner
   const axisName = f
-    ? (['eco', 'mil', 'geo'] as const)
-        .map((k) => ({ k, v: f[k] }))
-        .reduce((m, x) => (x.v > m.v ? x : m)).k
+    ? (['eco', 'mil', 'geo'] as const).map((k) => ({ k, v: f[k] })).reduce((m, x) => (x.v > m.v ? x : m)).k
     : null
   const AXIS_HE: Record<'eco' | 'mil' | 'geo', string> = { eco: 'הכוח הכלכלי', mil: 'הכוח הצבאי', geo: 'המעמד הגאו-אסטרטגי' }
-  // top tension partner + top harmony partner among authored relations (for the caption)
-  const all = relationsFor(id)
+  const all = id ? relationsFor(id) : []
   const topTension = all.slice().sort((a, b) => b.rel.t - a.rel.t)[0]
   const topHarmony = all.slice().sort((a, b) => b.rel.h - a.rel.h)[0]
   const caption =
@@ -249,32 +202,46 @@ function DynamicsSynthesis({ detail, onRelSelect }: { detail: EntityDetail; onRe
       ? `${detail.he}: עוצמתה נשענת על ${AXIS_HE[axisName]}, מתוחה מול ${heById.get(topTension.other) ?? topTension.other}, ונסמכת על ${heById.get(topHarmony.other) ?? topHarmony.other}.`
       : null
   return (
-    <div className="panelb__synth">
-      <span className="panel__rels-h"><Icon name="orbit" className="panel__orbit-icon" />סינתזה</span>
-      {f && (
-        <div className="panelb__mini-bars">
-          {(['eco', 'mil', 'geo'] as const).map((k) => (
-            <div key={k} className="panelb__mini-bar">
-              <Icon name={k} className="panelb__mini-icon" />
-              <span className="panelb__mini-track"><i style={{ width: `${f[k] * 10}%` }} /></span>
-              <span className="panelb__mini-v">{f[k]}</span>
-            </div>
+    <aside className="panelb dcard panel--detail" dir="rtl">
+      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+      <header className="dcard__head">
+        {detail.rank && <span className="dcard__rank">{String(detail.rank).padStart(2, '0')}</span>}
+        <h1 className="dcard__title">{detail.he}</h1>
+        <div className="dcard__chips">
+          {chips.map((c) => (
+            <span key={c.text} className="dcard__chip"><Icon name={c.icon} className="dcard__chip-icon" />{c.text}</span>
           ))}
+        </div>
+      </header>
+      {f && (
+        <div className="dcard__fingerprint" data-hint="טביעת הכוח — שלושת מרכיבי העוצמה וכוח המשיכה הכולל">
+          <div className="dcard__bars">
+            {(['eco', 'mil', 'geo'] as const).map((k) => (
+              <div key={k} className="dcard__bar">
+                <Icon name={k} className="dcard__bar-icon" />
+                <span className="dcard__bar-track"><i style={{ width: `${f[k] * 10}%` }} /></span>
+                <span className="dcard__bar-v">{f[k]}</span>
+              </div>
+            ))}
+          </div>
+          <div className="dcard__score">
+            <b>{score}</b><span>כוח משיכה</span>
+          </div>
         </div>
       )}
       {top.length > 0 && (
-        <div className="panelb__rel-rows">
-          {top.map(({ other, rel, dom }) => (
-            <button key={other} className="panelb__rel-row" onClick={() => onRelSelect?.(other)}>
-              <span className="panelb__rel-name">{heById.get(other) ?? other}</span>
+        <div className="dcard__ties">
+          <span className="dcard__ties-h">קשרים מגדירים</span>
+          {top.map(({ other, dom }) => (
+            <button key={other} className="dcard__tie" onClick={() => onRelSelect?.(other)}>
+              <span className="dcard__tie-name">{heById.get(other) ?? other}</span>
               <span className={`panelb__chip ${POLE[dom.key].cls}`}>{POLE[dom.key].he}</span>
-              <span className="panelb__rel-why">{rel.why}</span>
             </button>
           ))}
         </div>
       )}
-      {caption && <p className="panelb__synth-caption">{caption}</p>}
-    </div>
+      {caption && <p className="dcard__caption">{caption}</p>}
+    </aside>
   )
 }
 
@@ -294,33 +261,39 @@ const DISPO_ICON: Record<string, IconName> = {
   'אגרסיבית': 'dispo-agg', 'אסרטיבית': 'dispo-assert', 'זהירה': 'dispo-caut',
 }
 
-// The detail panel — top: rank + title + three descriptors; score gauge; bottom: pnotes (כללי
-// reads as plain intro text; eco/mil/geo as scored component rows). Sources live in the evidence overlay.
-function SidePanelHybrid({ detail, onClose, onRelSelect, view }: DetailProps) {
-  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
-  const unit = detail.scoreLabel ? '/ 10' : '/ 100'
-  const scoreNum = Number(score)
+// Shared identity header — rank + title, with descriptor chips right-aligned (RTL leading edge)
+// in a cohesive cluster beneath the title. Used by the forces detail panel.
+function PanelHeader({ detail }: { detail: EntityDetail }) {
   const descriptors: { icon: IconName; text: string; hint: string }[] = [
     { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף (כוח-על, אזורי, ביניים או קצה)' },
     { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel, hint: 'שיוך — הגוש הגאו-פוליטי שאליו נוטה הגוף' },
     ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo, hint: 'עמדה — האוריינטציה האסטרטגית של הגוף' }] : []),
   ]
   return (
-    <aside className="panelb panel--detail" dir="rtl">
-      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
-      <div className="panelb__top">
-        {detail.rank && <span className="panelb__rank" data-hint="הדירוג בכוח המשיכה — מקומו של הגוף בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
-        <div className="panelb__id">
-          <h1 className="panelb__title">{detail.he}</h1>
-          <div className="panelb__descriptors">
-            {descriptors.map(d => (
-              <span key={d.text} className="panelb__desc" data-hint={d.hint}>
-                <Icon name={d.icon} className="panelb__desc-icon" />{d.text}
-              </span>
-            ))}
-          </div>
-        </div>
+    <header className="phead">
+      <div className="phead__line">
+        {detail.rank && <span className="phead__rank" data-hint="הדירוג בכוח המשיכה — מקומו של הגוף בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
+        <h1 className="phead__title">{detail.he}</h1>
       </div>
+      <div className="phead__descriptors">
+        {descriptors.map((d) => (
+          <span key={d.text} className="panelb__desc" data-hint={d.hint}>
+            <Icon name={d.icon} className="panelb__desc-icon" />{d.text}
+          </span>
+        ))}
+      </div>
+    </header>
+  )
+}
+
+// The grading cluster (forces · ציון mode) — power gauge + three fixed-height parameter rows,
+// backing note (if any), and the evidence link. One grouped, scannable unit.
+function ForcesScore({ detail }: { detail: EntityDetail }) {
+  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+  const unit = detail.scoreLabel ? '/ 10' : '/ 100'
+  const scoreNum = Number(score)
+  return (
+    <div className="fscore">
       <div className="panelb__scorebox" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
         <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
         <div className="panelb__score-side">
@@ -329,27 +302,42 @@ function SidePanelHybrid({ detail, onClose, onRelSelect, view }: DetailProps) {
         </div>
         <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
       </div>
-      {detail.powerNotes && (
-        <div className="pnotes">
-          <p className="pnotes__intro" data-hint="תיאור כללי — תמצית מעמדו של הגוף במערך הכוחות">{detail.powerNotes.general}</p>
-          <PowerNote label="כלכלי" icon="eco" text={detail.powerNotes.eco} value={detail.forces?.eco} hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" />
-          <PowerNote label="צבאי" icon="mil" text={detail.powerNotes.mil} value={detail.forces?.mil} hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" />
-          <PowerNote label="גאו-אסטרטגי" icon="geo" text={detail.powerNotes.geo} value={detail.forces?.geo} hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" />
-          {detail.backing && (
-            <div className="pnote pnote--backing">
-              <div className="pnote__head">
-                <span className="pnote__label">גיבוי ⟵ {detail.backing.patronHe}</span>
-                <span className="pnote__val">+{detail.backing.amount}</span>
-              </div>
-              <p className="pnote__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
-            </div>
-          )}
-          {view === 'forces' && <ForcesDrillDown detail={detail} />}
-          <EvidenceTrigger detail={detail} />
+      <div className="fparams">
+        <ForceParam label="כלכלי" icon="eco" value={detail.forces?.eco} hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" />
+        <ForceParam label="צבאי" icon="mil" value={detail.forces?.mil} hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" />
+        <ForceParam label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo} hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" />
+      </div>
+      {detail.backing && (
+        <div className="fbacking">
+          <span className="fbacking__label">גיבוי ⟵ {detail.backing.patronHe}</span>
+          <span className="fbacking__val">+{detail.backing.amount}</span>
+          <p className="fbacking__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
         </div>
       )}
-      {view === 'dynamics' && <DynamicsSynthesis detail={detail} onRelSelect={onRelSelect} />}
-      <OrbitSection detail={detail} onRelSelect={onRelSelect} />
+      <EvidenceLink detail={detail} />
+    </div>
+  )
+}
+
+// FORCES detail panel (forces view) — grouped header + a segmented switch (ציון / תיאור)
+// that toggles the body between the grading cluster and the narrative. Default = ציון.
+function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
+  const [mode, setMode] = useState<'score' | 'desc'>('score')
+  // a fresh selection always lands on ציון — the switch is per-body, not sticky.
+  const [lastId, setLastId] = useState(detail.id)
+  if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
+  const pick = (m: 'score' | 'desc') => { if (m !== mode) { sound.play('tab'); setMode(m) } }
+  return (
+    <aside className="panelb panel--detail" dir="rtl">
+      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+      <PanelHeader detail={detail} />
+      <div className="fswitch" role="tablist" aria-label="תצוגת הכוח">
+        <button className={`fswitch__btn${mode === 'score' ? ' is-on' : ''}`} role="tab" aria-selected={mode === 'score'} onClick={() => pick('score')}>ציון</button>
+        <button className={`fswitch__btn${mode === 'desc' ? ' is-on' : ''}`} role="tab" aria-selected={mode === 'desc'} onClick={() => pick('desc')}>תיאור</button>
+      </div>
+      <div className="fbody">
+        {mode === 'score' ? <ForcesScore detail={detail} /> : <ForcesNarrative detail={detail} />}
+      </div>
       {detail.relations.length > 0 && (
         <div className="panel__rels">
           <span className="panel__rels-h">יחסים</span>
@@ -362,6 +350,15 @@ function SidePanelHybrid({ detail, onClose, onRelSelect, view }: DetailProps) {
       )}
     </aside>
   )
+}
+
+// Router for the selected-body panel: a compact card for Dynamics, the richer two-mode
+// layout for Forces (and any other view that surfaces a detail).
+function SidePanelHybrid({ detail, onClose, onRelSelect, view }: DetailProps) {
+  if (view === 'dynamics') {
+    return <DynamicsCard detail={detail} onClose={onClose} onRelSelect={onRelSelect} view={view} />
+  }
+  return <ForcesPanel detail={detail} onClose={onClose} onRelSelect={onRelSelect} view={view} />
 }
 
 export function SidePanel({ detail, onClose, onRelSelect, view }: { detail?: EntityDetail | null; onClose?: () => void; onRelSelect?: (id: string) => void; view?: View }) {

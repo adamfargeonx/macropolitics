@@ -3,7 +3,6 @@ import { OrbitalField } from './engine'
 import { LabelLayer } from './LabelLayer'
 import { HoverReadout } from './HoverReadout'
 import { SidePanel, PanelDock, type EntityDetail } from './Chrome'
-import { DynamicsControls } from './DynamicsControls'
 import { NODES, LINKS, AXIS, AXIS_LABEL } from '../data/entities'
 import { bodyInputsForYear } from '../data/empirical'
 import { computeGravities, type GravityResult } from '../model/gravity'
@@ -15,10 +14,6 @@ import { sound } from '../sound'
 interface Hover { id: string | null; screen: { x: number; y: number } | null }
 
 const byId = new Map(NODES.map((n) => [n.id, n]))
-
-// Zoom-tier caption — mirrors the engine's reveal thresholds (simplifyStart 0.8 / detailStart 1.5).
-const tierCaption = (zoom: number): string =>
-  zoom < 0.8 ? 'שלד הגושים' : zoom > 1.5 ? 'הדינמיקה מתחת לפני השטח' : 'ארכיטקטורה אזורית'
 
 // Visually-hidden but screen-reader-available (clip technique — not display:none, which AT skips).
 const SR_ONLY: React.CSSProperties = {
@@ -52,7 +47,6 @@ export default function DynamicsView() {
   const [engine, setEngine] = useState<OrbitalField | null>(null)
   const [hover, setHover] = useState<Hover>({ id: null, screen: null })
   const [selected, setSelected] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(0.85)
 
   // The synthesis view is now live: weights (Scenario Sandbox) and year (Time Axis) recompute the
   // model, and the engine eases body sizes toward the new scores.
@@ -69,7 +63,6 @@ export default function DynamicsView() {
     const orbital = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: false })
     orbital.onHover = (id, screen) => { if (id) sound.play('hover'); document.body.classList.toggle('cursor-grab', !!id); setHover({ id, screen }) }
     orbital.onSelect = (id) => { if (id) sound.play('select'); setSelected(id) }
-    orbital.onZoom = (z) => setZoom(z)
     orbital.start_()
     setEngine(orbital)
     // logo hover → freeze all motion sitewide
@@ -117,19 +110,9 @@ export default function DynamicsView() {
         </ol>
       </div>
 
-      <div className="dyn-topbar" dir="rtl">
-        <DynamicsControls />
-      </div>
       <PanelDock>
         <SidePanel detail={detail} view="dynamics" onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
       </PanelDock>
-      <div className="zoomctl" dir="ltr">
-        <button onClick={() => engine?.zoomBy(1.25)} aria-label="התקרבות">+</button>
-        <span className="zoomctl__val">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => engine?.zoomBy(0.8)} aria-label="התרחקות">−</button>
-        <button className="zoomctl__reset" onClick={() => engine?.resetView()} aria-label="איפוס">⟲</button>
-      </div>
-      <div className="dyn-tier" dir="rtl" aria-live="polite">{tierCaption(zoom)}</div>
     </div>
   )
 }

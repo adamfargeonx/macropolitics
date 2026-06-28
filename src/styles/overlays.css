@@ -129,22 +129,6 @@
 .evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.07em; color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) { .evid { animation: none; } }
 
-/* evidence trigger + flags inside the forces panel (no divider — breathing room only) */
-.evidence { margin-top: 26px; }
-.evidence__flag { font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.07em; color: var(--warn); margin-bottom: 8px; }
-.evidence__btn {
-  display: inline-flex; align-items: center; gap: 4px; cursor: none;
-  background: none; border: none; border-bottom: 1px solid rgba(251, 255, 0, 0.2);
-  padding: 0 0 1px;
-  font-family: var(--body); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-  color: var(--yellow); opacity: 0.55;
-  transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
-}
-.evidence__btn:hover { opacity: 1; border-bottom-color: var(--yellow); }
-/* flagged source line markers */
-.pnote__src--flag, .panelb__src--flag { color: var(--warn) !important; }
-.pnote__flag { color: var(--warn); }
-
 /* Legend overlay (the visual-language key, opened by ⓘ) */
 .legend__scrim {
   position: fixed; inset: 0; z-index: 40; cursor: none;
@@ -240,16 +224,6 @@
 }
 .panel__rel:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
 .panel__rel:active { transform: scale(0.94); }
-/* orbital context (dynamics) — what a body orbits + which bodies orbit it */
-.panel__orbit { margin-top: 18px; }
-.panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
-.panel__orbit-icon { color: var(--yellow); opacity: 0.7; }
-.panel__orbit-parent { margin-top: 9px; font-family: var(--body); font-size: 13px; letter-spacing: 0.07em; color: var(--light); opacity: 0.85; }
-.panel__orbit-parent b { color: var(--yellow); font-weight: 700; }
-.panel__orbit-sub { display: block; margin-top: 11px; font-family: var(--body); font-size: 11px; letter-spacing: 0.10em; color: var(--ink-dim); }
-.panel__orbit .panel__rels-list { margin-top: 8px; }
-.panelb .panel__orbit { margin-top: 16px; }
-
 /* ── Side panel — entity detail card ─────────────────────────── */
 /* Sizes to its content — no internal scrollbar (so the rank/title/notes are never clipped). */
 .panelb {
@@ -257,16 +231,16 @@
   text-align: right; overflow: visible; padding: 28px 28px 28px;
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
-/* hero: rank chip + identity */
-.panelb__top { display: flex; align-items: flex-start; gap: 12px; }
-.panelb__rank {
+/* ── Grouped identity header (forces panel): rank + title on one line, descriptor chips
+   right-aligned (RTL leading edge) in a cohesive cluster beneath. ── */
+.phead__line { display: flex; align-items: baseline; gap: 10px; }
+.phead__rank {
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
-  color: var(--yellow); opacity: 0.55; margin-top: 6px; letter-spacing: 0.084em;
+  color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
 }
-.panelb__id { flex: 1; }
-.panelb__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
-/* three descriptor tags under the title — each with a CSS tooltip (cursor:none suppresses title attr) */
-.panelb__descriptors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
+/* descriptor chips — flush to the RTL leading (right) edge, beneath the title */
+.phead__descriptors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: flex-end; }
 .panelb__desc {
   position: relative;
   display: inline-flex; align-items: center; gap: 5px;
@@ -289,92 +263,11 @@
 .panelb__gauge { grid-column: 1 / -1; margin-top: 10px; height: 4px; background: var(--surface-1); }
 .panelb__gauge i { display: block; height: 100%; background: var(--yellow); animation: gaugeGrow 1.2s 0.25s cubic-bezier(0.25, 1, 0.5, 1) both; transform-origin: right; }
 @keyframes gaugeGrow { from { transform: scaleX(0); } }
-/* components */
-.panelb__comps { margin-top: 26px; }
-.panelb__comps-h { font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: 0.12em; }
-.panelb__cols { margin-top: 12px; display: flex; gap: 8px; }
-.panelb__col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; }
-.panelb__col-v { font-family: var(--display); font-size: var(--text-xl); font-weight: 700; color: var(--white); }
-.panelb__col-track { width: 100%; height: 56px; background: var(--surface-1); display: flex; align-items: flex-end; overflow: hidden; }
-.panelb__col-track i { display: block; width: 100%; background: linear-gradient(to top, var(--yellow), rgba(251,255,0,0.55)); animation: barRise 1.2s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; }
-.panelb__col-l { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.098em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 4px; }
-.panelb__col-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; }
-@keyframes barRise { from { height: 0 !important; } }
-/* notes */
-.panelb__notes { margin-top: 28px; list-style: none; counter-reset: n; }
-.panelb__notes li {
-  counter-increment: n; padding: 10px 0; margin-top: 14px;
-  display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
-}
-.panelb__notes li::before {
-  content: counter(n, decimal-leading-zero); grid-row: span 2;
-  font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--yellow); opacity: 0.5;
-}
-.panelb__note-k { font-size: var(--text-base); font-weight: 700; color: var(--white); display: inline-flex; align-items: center; gap: 6px; }
-.panelb__note-icon { color: var(--yellow); opacity: 0.8; font-size: 14px; }
-.panelb__notes p { grid-column: 2; font-family: var(--body); font-size: 13px; line-height: 1.6; letter-spacing: 0.07em; color: var(--light); opacity: 0.82; }
+.panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
 .panelb__rels { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-@media (prefers-reduced-motion: reduce) { .panelb__gauge i, .panelb__col-track i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .panelb__gauge i { animation: none; } }
 
-/* ── FORCES drill-down (forces view only): an expandable interpretation drawer ── */
-.panelb__forces-detail { margin-top: 18px; }
-.panelb__forces-toggle {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm);
-  letter-spacing: var(--tracking-label); color: var(--yellow); opacity: 0.7;
-  padding: 0; transition: opacity 0.2s var(--ease-out-expo);
-}
-.panelb__forces-toggle:hover { opacity: 1; }
-.panelb__forces-chev { font-size: 10px; transition: transform 0.3s var(--ease-out-expo); }
-.panelb__forces-chev--open { transform: rotate(180deg); }
-.panelb__forces-body {
-  display: grid; grid-template-rows: 0fr; opacity: 0;
-  transition: grid-template-rows 0.45s var(--ease-out-expo), opacity 0.35s var(--ease-out-expo);
-}
-.panelb__forces-body--open { grid-template-rows: 1fr; opacity: 1; }
-.panelb__forces-inner { overflow: hidden; min-height: 0; }
-.panelb__forces-gen {
-  margin-top: 14px; font-family: var(--body); font-size: var(--text-md);
-  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
-}
-.panelb__forces-axis {
-  margin-top: 14px; padding-inline-start: 12px;
-  border-inline-start: 2px solid var(--yellow-30);
-}
-.panelb__forces-axis-l {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.85;
-}
-.panelb__forces-axis-icon { color: var(--yellow); opacity: 0.8; font-size: 12px; }
-.panelb__forces-axis-t {
-  margin-top: 6px; font-family: var(--body); font-size: var(--text-md);
-  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
-}
-
-/* ── DYNAMICS synthesis (dynamics view only): forces × relations read ── */
-.panelb__synth { margin-top: 22px; }
-.panelb__synth .panel__rels-h { margin-bottom: 12px; }
-.panelb__mini-bars { display: flex; flex-direction: column; gap: 7px; }
-.panelb__mini-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
-.panelb__mini-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; }
-.panelb__mini-track { height: 4px; background: var(--surface-1); overflow: hidden; }
-.panelb__mini-track i {
-  display: block; height: 100%; background: var(--yellow);
-  animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
-}
-.panelb__mini-v { font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--white); }
-.panelb__rel-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
-.panelb__rel-row {
-  display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 8px;
-  padding: 8px 10px; text-align: start; background: var(--surface-1);
-  transition: background 0.2s var(--ease-out-expo);
-}
-.panelb__rel-row:hover { background: var(--yellow-06); }
-.panelb__rel-name {
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base);
-  letter-spacing: var(--tracking-body); color: var(--white);
-}
+/* shared pole chip — reused by the dynamics ties (and any relation pole indicator) */
 .panelb__chip {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   letter-spacing: var(--tracking-label); padding: 2px 7px; white-space: nowrap;
@@ -382,13 +275,135 @@
 .panelb__chip--t { color: var(--warn); background: var(--warn-bg); }
 .panelb__chip--f { color: var(--yellow); background: var(--yellow-08); }
 .panelb__chip--h { color: var(--ok); background: var(--ok-bg); }
-.panelb__rel-why {
-  font-family: var(--body); font-size: var(--text-sm); line-height: 1.6;
-  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+
+/* ════════════════════════════════════════════════════════════════
+   FORCES PANEL (view==='forces') — grouped header + segmented switch
+   (ציון / תיאור) toggling a grading cluster against a narrative.
+   ════════════════════════════════════════════════════════════════ */
+/* segmented switch — square (no rounded corners), on the panel accent language */
+.fswitch {
+  margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line-yellow);
 }
-.panelb__synth-caption {
+.fswitch__btn {
+  padding: 8px 0; text-align: center; cursor: none; background: none; border: none;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label); color: var(--ink-dim);
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.fswitch__btn:first-child { border-inline-end: 1px solid var(--line-yellow); }
+.fswitch__btn:hover { color: var(--light); }
+.fswitch__btn.is-on { color: var(--bg); background: var(--yellow); }
+.fbody { margin-top: 18px; }
+
+/* ציון mode — the grading cluster (gauge + three fixed-height parameter rows) */
+.fparams { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.fparam {
+  min-height: 46px; padding: 8px 10px; background: var(--surface-1);
+  display: flex; flex-direction: column; justify-content: center; gap: 7px;
+}
+.fparam__lead { display: flex; align-items: baseline; gap: 8px; }
+.fparam__label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base);
+  letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9;
+}
+.fparam__icon { color: var(--yellow); opacity: 0.85; font-size: 13px; flex-shrink: 0; }
+.fparam__val {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xl);
+  color: var(--white); line-height: 1;
+}
+.fparam__track { height: 4px; background: var(--line-2); overflow: hidden; }
+.fparam__track i {
+  display: block; height: 100%; background: var(--yellow);
+  animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
+}
+@media (prefers-reduced-motion: reduce) { .fparam__track i { animation: none; } }
+/* backing note — borrowed weight from a patron (no single-sided container stroke) */
+.fbacking {
+  margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px;
+}
+.fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9; }
+.fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
+.fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-sm); line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+/* evidence link — subtle underlined text link, NOT a grey box */
+.fevidence {
+  margin-top: 18px; display: inline-flex; align-items: center; gap: 4px; cursor: none;
+  background: none; border: none; border-bottom: 1px solid var(--yellow-30); padding: 0 0 1px;
+  font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
+  color: var(--yellow); opacity: 0.6; transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.fevidence:hover { opacity: 1; border-bottom-color: var(--yellow); }
+
+/* תיאור mode — the narrative (general read + three axis blocks), shown flat */
+.fnarr__gen {
+  font-family: var(--body); font-size: var(--text-md);
+  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.fnarr__axis { margin-top: 14px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30); }
+.fnarr__axis-l {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.85;
+}
+.fnarr__axis-icon { color: var(--yellow); opacity: 0.8; font-size: 12px; }
+.fnarr__axis-t {
+  margin-top: 6px; font-family: var(--body); font-size: var(--text-md);
+  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DYNAMICS CARD (view==='dynamics') — compact forces × relations card,
+   sized with tight/fixed heights to fit the first fold with NO scroll.
+   ════════════════════════════════════════════════════════════════ */
+.dcard { padding: 24px 24px 22px; }
+.dcard__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.dcard__rank {
+  flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
+  color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
+}
+.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1; }
+.dcard__chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.dcard__chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); color: var(--ink-dim);
+  border: 1px solid var(--line); padding: 3px 9px;
+}
+.dcard__chip-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
+/* power fingerprint — three compact bars + overall score numeral, one tight cluster */
+.dcard__fingerprint {
+  margin-top: 18px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  padding: 12px 14px; background: var(--surface-1);
+}
+.dcard__bars { display: flex; flex-direction: column; gap: 6px; }
+.dcard__bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.dcard__bar-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; }
+.dcard__bar-track { height: 4px; background: var(--line-2); overflow: hidden; }
+.dcard__bar-track i {
+  display: block; height: 100%; background: var(--yellow);
+  animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
+}
+.dcard__bar-v { font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--white); min-width: 14px; text-align: end; }
+.dcard__score { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dcard__score b { font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-3xl); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.9; }
+.dcard__score span { font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; letter-spacing: var(--tracking-label); color: var(--ink-dim); }
+@media (prefers-reduced-motion: reduce) { .dcard__bar-track i { animation: none; } }
+/* defining ties — 2–3 sharpest authored relations, each a clickable re-centre row */
+.dcard__ties { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
+.dcard__ties-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__tie {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 38px; padding: 0 10px; text-align: start; cursor: none;
+  background: var(--surface-1); border: none; transition: background var(--dur-fast) ease;
+}
+.dcard__tie:hover { background: var(--yellow-06); }
+.dcard__tie-name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: var(--tracking-body); color: var(--white); }
+/* fused synthesis caption */
+.dcard__caption {
   margin-top: 16px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30);
-  font-family: var(--body); font-size: var(--text-md); line-height: 1.7;
+  font-family: var(--body); font-size: var(--text-sm); line-height: 1.6;
   letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.9;
 }
 

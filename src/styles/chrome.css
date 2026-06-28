@@ -53,33 +53,6 @@
 @keyframes eq { from { height: 4px; opacity: 0.55; } to { height: 16px; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .soundtoggle__bars i { animation: none; height: 6px; } }
 
-/* Zoom controls ───────────────────────────────────────────── */
-.zoomctl {
-  position: absolute; bottom: 26px; left: 36px; z-index: 6;
-  display: flex; align-items: center; gap: 8px;
-}
-.zoomctl button {
-  width: 34px; height: 34px;
-  background: rgba(6, 3, 15, 0.6);
-  border: 1px solid rgba(251, 255, 0, 0.35);
-  color: var(--yellow); font-size: 18px; line-height: 1;
-  cursor: none; transition: background 0.18s ease, border-color 0.18s ease;
-  display: flex; align-items: center; justify-content: center;
-}
-.zoomctl button:hover { background: rgba(251, 255, 0, 0.14); border-color: var(--yellow); }
-.zoomctl__reset { font-size: 15px !important; }
-.zoomctl__val { color: var(--yellow); font-size: 12px; opacity: 0.7; min-width: 38px; text-align: center; letter-spacing: 0.05em; }
-
-/* zoom-tier caption — names the active reveal layer (skeleton / regional / wiring) */
-.dyn-tier {
-  position: absolute; bottom: 70px; left: 36px; z-index: 6;
-  font-family: var(--body); font-weight: var(--fw-bold);
-  font-size: 10px; letter-spacing: var(--tracking-micro);
-  color: var(--ink-dim); pointer-events: none;
-  transition: color 0.3s ease;
-}
-@media (prefers-reduced-motion: reduce) { .dyn-tier { transition: none; } }
-
 /* forces sort/filter pills + threshold slider — rendered inside .gctl (panel) and the tools disclosure */
 .forcesctl__opt {
   cursor: none; background: none; border: none; padding: 5px 12px; border-radius: var(--r-pill);
@@ -128,28 +101,6 @@
 .sandbox__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
 .sandbox__v { font-family: var(--latin); font-size: 12px; font-weight: 700; color: var(--yellow); text-align: left; direction: ltr; }
 .sandbox__hint { margin-top: 6px; font-family: var(--body); font-size: 10.5px; line-height: 1.5; letter-spacing: 0.02em; color: var(--ink-faint); }
-/* Dynamics top control cluster — reading toggle + Time/Scenario trigger, top-centre.
-   Free zone: header sits top-right, utility nav top-left, so the centre is clear. */
-.dyn-topbar {
-  position: absolute; top: var(--sp-5); left: 50%; transform: translateX(-50%); z-index: 7;
-  display: flex; align-items: center; gap: 8px;
-}
-/* .dynctl is a passthrough — its trigger lays out in .dyn-topbar; its panel escapes (absolute) */
-.dynctl { display: contents; }
-.dynctl__trigger {
-  display: flex; align-items: center; gap: 7px;
-  background: rgba(6, 3, 15, 0.6); border: 1px solid var(--line-yellow); border-radius: 0;
-  padding: 6px 14px; cursor: none;
-  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em;
-  color: var(--ink-dim);
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease;
-}
-.dynctl__trigger:hover { color: var(--light); border-color: rgba(251, 255, 0, 0.45); }
-.dynctl__trigger.is-open { color: var(--bg); background: var(--yellow); border-color: var(--yellow); }
-.dynctl__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; }
-.dynctl__trigger.is-on .dynctl__dot { background: var(--yellow); box-shadow: 0 0 8px rgba(251, 255, 0, 0.5); }
-.dynctl__trigger.is-open .dynctl__dot { background: var(--bg); box-shadow: none; }
-.dynctl__tag { color: var(--yellow); font-size: 10px; padding-inline-start: 4px; }
 
 /* Compound state breadcrumb — visible below forcesctl when secondary filters are active */
 .forces-state {
@@ -306,13 +257,13 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .about__eq-term:first-child { color: var(--yellow); }
 .about__eq-op { font-family: var(--body); font-size: 17px; color: var(--yellow); opacity: 0.7; }
 .about__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-/* each lens as a small card — top accent rule + index, subtle hover lift */
+/* each lens as a small card — even box border (no single-sided top stroke), index, subtle hover lift */
 .about__col {
   position: relative; padding: 14px 13px 13px; border: 1px solid var(--line-2);
-  border-top: 2px solid var(--yellow-30); background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.015);
   transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out-expo);
 }
-.about__col:hover { border-top-color: var(--yellow); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
+.about__col:hover { border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
 .about__col-n { font-family: var(--display); font-size: 11px; font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: 0.1em; }
 .about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin: 4px 0 7px; }
 .about__col p { font-family: var(--body); font-size: 12.5px; line-height: 1.62; letter-spacing: 0.04em; color: var(--light); opacity: 0.78; }

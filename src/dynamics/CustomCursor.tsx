@@ -33,7 +33,8 @@ export function CustomCursor() {
       const active = targetActive || document.body.classList.contains('cursor-grab')
       const ring = ringRef.current, dot = dotRef.current
       if (ring) {
-        const s = (active ? 1.2 : 1) * (pressed ? 0.82 : 1)
+        // hover contracts the ring to a tight circle (was: grew); press tightens a touch more
+        const s = (active ? 0.5 : 1) * (pressed ? 0.82 : 1)
         ring.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%) scale(${s})`
         ring.style.opacity = visible ? '1' : '0'
         ring.classList.toggle('cursor--on', active)

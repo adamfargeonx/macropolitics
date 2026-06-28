@@ -3,8 +3,7 @@
 // World space ≈ original px; a camera (zoom default 1.4, pan) maps world → screen.
 // The particle starfield lives in SCREEN space (interactive background, unaffected by camera).
 
-import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, backingOf, powerSize, type Entity } from '../data/entities'
-import { authoredRelation } from '../data/relations'
+import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, powerSize, type Entity } from '../data/entities'
 import { isInteractive } from '../sound'
 
 const YELLOW = '251,255,0'
@@ -14,7 +13,14 @@ const DARK = '11,0,36'
 const D2R = Math.PI / 180
 const TAU = Math.PI * 2
 
+const DEFAULT_ZOOM = 0.85 // the default framed view
+const FOCUS_ZOOM = 1.35 // gentle zoom-in when a body is selected
+const CAM_DUR = 600 // ms — camera tween duration (pan + zoom), ease-out-expo
+
 // ── Tunable visual config (set a flag false / value 0 to revert that piece) ──
+// Relations & dynamics are conveyed through orbital placement and proximity ONLY —
+// no drawn lines between bodies. There are no zoom tiers; the camera only frames the field
+// and eases toward a focused body on selection.
 const VISUALS = {
   allegianceRim: true, // whisper-subtle temperature rim by bloc
   rimAlpha: 0.4,
@@ -23,25 +29,7 @@ const VISUALS = {
   zoomGatedLabels: true, // hide minor labels until zoomed past gate
   labelGate: 0.95,
   speedScale: 0.62, // calm the motion (1 = original measured speeds)
-  allianceWeb: true, // the alliance web stays faintly visible at rest (informative layer)
-  allianceWebAlpha: 0.1,
-  // ── Zoom-tier reveals (additive layers gated on the camera's zoom) ──
-  // ZOOM-OUT → SIMPLIFY: minor bodies fade toward the bloc skeleton; the web strengthens.
-  simplifyStart: 0.8, // at/above this zoom minors are at full strength
-  simplifyEnd: 0.5, // at/below this zoom minors reach their floor
-  minorFadeFloor: 0.16, // residual alpha for faded minor bodies
-  webBoostMax: 0.16, // extra alliance-web alpha added at full zoom-out
-  // ZOOM-IN → REVEAL DETAIL: backing flows + authored hairlines ease in past the gate.
-  detailStart: 1.5, // backing/relation layers begin appearing here
-  detailEnd: 2.4, // …and reach full strength here
-  backingFlowAlpha: 0.34, // peak alpha for patron→proxy flows (yellow)
-  authoredEdgeAlpha: 0.3, // peak alpha for pole-tinted authored hairlines
 }
-const MINOR_KINDS = new Set<string>(['intermediate', 'edge', 'nonstate'])
-// Pole tints for authored hairlines — dominant relation valence by colour (token-aligned).
-const POLE_WARN = '255,157,110' // --warn  → tension dominant
-const POLE_OK = '143,227,136' // --ok    → harmony dominant
-const POLE_YELLOW = YELLOW // friction / mixed → neutral accent
 // Muted bloc temperatures — read as warm/cool, not "team colors"
 const AXIS_COLOR: Record<string, string> = {
   west: '132,160,196', // cool steel
@@ -73,11 +61,8 @@ const ORDER = (() => {
 })()
 const PRI: Record<string, number> = { great: 0, regional: 1, intermediate: 2, edge: 3, nonstate: 4 }
 
-// Great powers + regional hubs — kept prominent when the view simplifies to the bloc skeleton.
-const HUBS = new Set<string>(['usa', 'iran', 'saudi', 'russia', 'china', 'turkey', 'israel'])
-
 // Each node's ring index (0–5 matching RINGS order; RINGS.length = orphan, appears last).
-// Nodes sharing a ring appear together; rings reveal sequentially in drawOrbits / frame.
+// Nodes sharing a ring appear together; rings reveal sequentially (per-orbit staggered entrance).
 const NODE_RING: Map<string, number> = new Map()
 for (const n of NODES) {
   if (n.parent === 'C') {
@@ -89,43 +74,8 @@ for (const n of NODES) {
   }
 }
 
-// Patron → proxy backing edges, precomputed once (graph-derived via backingOf → {patronId}).
-// e.g. iran → hezbollah/hamas/pij/militias/yemen, usa → sdf, saudi → fatah.
-const BACKING_FLOWS: { patron: string; proxy: string }[] = (() => {
-  const flows: { patron: string; proxy: string }[] = []
-  for (const n of NODES) {
-    const b = backingOf(n.id)
-    if (b && idIndex.has(b.patronId)) flows.push({ patron: b.patronId, proxy: n.id })
-  }
-  return flows
-})()
-
-// Strongest authored relation per body, tinted by its dominant valence (tension/friction/harmony).
-// Deduped to one undirected edge per pair, precomputed once.
-const AUTHORED_EDGES: { a: string; b: string; pole: string }[] = (() => {
-  const seen = new Set<string>()
-  const edges: { a: string; b: string; pole: string }[] = []
-  for (const n of NODES) {
-    let best: { other: string; t: number; f: number; h: number } | null = null
-    let bestMag = -1
-    for (const m of NODES) {
-      if (m.id === n.id) continue
-      const rel = authoredRelation(n.id, m.id)
-      if (!rel) continue
-      const mag = Math.max(rel.t, rel.f, rel.h)
-      if (mag > bestMag) { bestMag = mag; best = { other: m.id, t: rel.t, f: rel.f, h: rel.h } }
-    }
-    if (!best) continue
-    const key = n.id < best.other ? `${n.id}|${best.other}` : `${best.other}|${n.id}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const pole = best.t >= best.f && best.t >= best.h ? POLE_WARN : best.h >= best.f ? POLE_OK : POLE_YELLOW
-    edges.push({ a: n.id, b: best.other, pole })
-  }
-  return edges
-})()
-
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t))
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v)
 const clamp01 = (t: number) => clamp(t, 0, 1)
 
@@ -137,9 +87,12 @@ export class OrbitalField {
   private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
   private placedBuf: { x: number; y: number; w: number; h: number }[] = [] // reused scratch for label de-collision
   private world = new Map<string, { x: number; y: number }>()
-  // camera — default zoomed-in; pan + wheel + buttons adjust the bigger/wider system
-  zoom = 0.85
+  // camera — pan + wheel adjust the framed system; selecting a body eases the camera to centre it
+  zoom = DEFAULT_ZOOM
   private pan = { x: 0, y: 0 }
+  // camera tween (pan + zoom) — recenters on a focused body, or eases back to the default frame
+  private cam: { fromZoom: number; toZoom: number; fromPan: { x: number; y: number }; toPan: { x: number; y: number }; t0: number; dur: number } | null = null
+  private focusedBody: string | null = null
   // particles (screen space)
   private particles: { x: number; y: number; vx: number; vy: number; dx: number; dy: number; size: number; b: number }[] = []
   private click: { x: number; y: number; t: number } | null = null
@@ -200,19 +153,6 @@ export class OrbitalField {
   private get maxR() { return Math.min(this.fieldW, this.h) * 0.5 }
   private get viewScale() { return this.maxR / 520 } // world px → screen px at zoom 1
 
-  // ── Zoom-tier ramps (0…1). simplify rises as we zoom OUT; detail rises as we zoom IN. ──
-  // smoothstep over the gap so layers ease in/out — no hard pop at the threshold.
-  private get simplifyT() {
-    const { simplifyStart: a, simplifyEnd: b } = VISUALS
-    const t = clamp01((a - this.zoom) / (a - b))
-    return t * t * (3 - 2 * t)
-  }
-  private get detailT() {
-    const { detailStart: a, detailEnd: b } = VISUALS
-    const t = clamp01((this.zoom - a) / (b - a))
-    return t * t * (3 - 2 * t)
-  }
-
   resize = () => {
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
     // clientWidth/Height are LAYOUT metrics — immune to the .stage entrance transform (scale),
@@ -236,6 +176,7 @@ export class OrbitalField {
   }
 
   setZoom(z: number, towardX?: number, towardY?: number) {
+    this.cam = null // a direct zoom (wheel) cancels any in-flight camera tween
     const tx = towardX ?? this.cx, ty = towardY ?? this.cy
     const wbefore = this.toWorld(tx, ty)
     this.zoom = clamp(z, 0.4, 4)
@@ -245,7 +186,52 @@ export class OrbitalField {
     this.onZoom?.(this.zoom)
   }
   zoomBy(f: number) { this.setZoom(this.zoom * f) }
-  resetView() { this.zoom = 0.85; this.pan = { x: 0, y: 0 }; this.onZoom?.(this.zoom) }
+
+  // Start a smooth pan+zoom tween toward a target camera state (ease-out-expo, ~600ms).
+  private tweenCamera(toZoom: number, toPan: { x: number; y: number }) {
+    this.cam = {
+      fromZoom: this.zoom, toZoom: clamp(toZoom, 0.4, 4),
+      fromPan: { x: this.pan.x, y: this.pan.y }, toPan,
+      t0: this.now || performance.now(), dur: this.reduced ? 0 : CAM_DUR,
+    }
+  }
+
+  // Recenter the clicked body to the viewport centre with a gentle zoom-in. Computes the pan that
+  // places the body's world position at the field centre at FOCUS_ZOOM, then tweens there.
+  focusOn(id: string) {
+    const idx = idIndex.get(id); if (idx == null) return
+    this.focusedBody = id
+    const ns = this.nodes[idx]
+    const s = this.viewScale * FOCUS_ZOOM
+    this.tweenCamera(FOCUS_ZOOM, { x: -ns.wx * s, y: -ns.wy * s })
+  }
+
+  // Ease back to the default framed view (centred, default zoom).
+  resetView() { this.focusedBody = null; this.tweenCamera(DEFAULT_ZOOM, { x: 0, y: 0 }) }
+
+  // Advance the camera tween, if any. Tracks a focused body so its drift keeps it centred.
+  private stepCamera() {
+    if (this.focusedBody) {
+      // keep the orbiting body centred as it moves: retarget the pan toward its live world position
+      const idx = idIndex.get(this.focusedBody)
+      if (idx != null && (!this.cam || this.cam.toZoom === FOCUS_ZOOM)) {
+        const ns = this.nodes[idx]
+        const s = this.viewScale * FOCUS_ZOOM
+        const targetPan = { x: -ns.wx * s, y: -ns.wy * s }
+        if (this.cam) { this.cam.toPan = targetPan }
+        else { this.zoom = FOCUS_ZOOM; this.pan.x += (targetPan.x - this.pan.x) * 0.12; this.pan.y += (targetPan.y - this.pan.y) * 0.12 }
+      }
+    }
+    if (!this.cam) return
+    const c = this.cam
+    const k = c.dur <= 0 ? 1 : clamp01((this.now - c.t0) / c.dur)
+    const e = easeOutExpo(k)
+    this.zoom = c.fromZoom + (c.toZoom - c.fromZoom) * e
+    this.pan.x = c.fromPan.x + (c.toPan.x - c.fromPan.x) * e
+    this.pan.y = c.fromPan.y + (c.toPan.y - c.fromPan.y) * e
+    this.onZoom?.(this.zoom)
+    if (k >= 1) this.cam = null
+  }
 
   private seedStars() {
     const count = this.noStarfield ? 0 : this.reduced ? 70 : Math.min(190, Math.round((this.w * this.h) / 8200))
@@ -347,6 +333,8 @@ export class OrbitalField {
     if (id === this.selected) return
     this.selected = id; this.hoverSince = this.now
     this.refreshConnected()
+    // recenter the field on the chosen body (gentle zoom-in); empty/close eases back to the frame
+    if (id) this.focusOn(id); else this.resetView()
     this.onSelect?.(id)
   }
   clearSelection() { this.setSelected(null) }
@@ -378,12 +366,13 @@ export class OrbitalField {
     const ctx = this.ctx
     ctx.clearRect(0, 0, this.w, this.h)
 
+    this.stepCamera() // advance pan/zoom tween (recenter on focus) before projecting bodies
     this.drawStars(t, intro)
     this.resolve(t)
     this.drawOrbits(t)
     this.drawCenters(intro)
-    this.drawLinks(t, intro)
-    this.drawReveal(t, intro)
+    // orbit-only: no connector links / backing-flow reveal — relations read via orbit + proximity.
+    // per-orbit staggered entrance kept from the live sequencing (rings reveal in order).
     for (let k = 0; k < this.nodes.length; k++) {
       const ri = NODE_RING.get(this.nodes[k].e.id) ?? RINGS.length
       this.nodes[k].appear = clamp01((t - ri * 0.65) / 0.75)
@@ -463,68 +452,6 @@ export class OrbitalField {
     ctx.restore()
   }
 
-  private drawLinks(t: number, intro: number) {
-    const ctx = this.ctx
-    // zoom-out → the bloc skeleton: strengthen the faint alliance web
-    const webAlpha = VISUALS.allianceWebAlpha + VISUALS.webBoostMax * this.simplifyT
-    for (let li = 0; li < LINKS.length; li++) {
-      const [a, b] = LINKS[li]
-      const na = this.nodes[idIndex.get(a)!], nb = this.nodes[idIndex.get(b)!]
-      if (!na || !nb) continue
-      const lit = this.focusId ? this.connected.has(a) && this.connected.has(b) : false
-      if (!lit && this.focusId) continue
-      if (!lit && !VISUALS.allianceWeb) continue
-      const dx = nb.sx - na.sx, dy = nb.sy - na.sy
-      const cx = (na.sx + nb.sx) / 2 - dy * 0.1, cy = (na.sy + nb.sy) / 2 + dx * 0.1
-      ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.85 : webAlpha) * intro})`; ctx.lineWidth = lit ? 1.4 : 1; ctx.stroke()
-      if (lit) { const p = (t * 0.45 + li * 0.13) % 1, q = 1 - p; const lx = q * q * na.sx + 2 * q * p * cx + p * p * nb.sx, ly = q * q * na.sy + 2 * q * p * cy + p * p * nb.sy; ctx.fillStyle = `rgba(${YELLOW},0.95)`; ctx.beginPath(); ctx.arc(lx, ly, 2.4, 0, TAU); ctx.fill() }
-    }
-  }
-
-  // ZOOM-IN reveal: the wiring underneath. Thin curved patron→proxy backing flows (yellow) plus
-  // optional pole-tinted authored hairlines, all easing in past the detail gate. Additive only.
-  private drawReveal(t: number, intro: number) {
-    const dt = this.detailT
-    if (dt <= 0) return
-    const ctx = this.ctx
-    const focus = this.focusId
-    ctx.save()
-    // pole-tinted authored hairlines — the strongest authored relation per visible body
-    ctx.lineWidth = 1
-    for (const ed of AUTHORED_EDGES) {
-      if (focus && ed.a !== focus && ed.b !== focus && !this.connected.has(ed.a) && !this.connected.has(ed.b)) continue
-      const na = this.nodes[idIndex.get(ed.a)!], nb = this.nodes[idIndex.get(ed.b)!]
-      if (!na || !nb) continue
-      const dx = nb.sx - na.sx, dy = nb.sy - na.sy
-      const cx = (na.sx + nb.sx) / 2 + dy * 0.06, cy = (na.sy + nb.sy) / 2 - dx * 0.06
-      ctx.beginPath(); ctx.moveTo(na.sx, na.sy); ctx.quadraticCurveTo(cx, cy, nb.sx, nb.sy)
-      ctx.strokeStyle = `rgba(${ed.pole},${VISUALS.authoredEdgeAlpha * dt * intro})`
-      ctx.stroke()
-    }
-    // backing flows — patron → proxy, subtle yellow, a travelling dot reads direction of support
-    ctx.lineWidth = 1
-    for (let i = 0; i < BACKING_FLOWS.length; i++) {
-      const f = BACKING_FLOWS[i]
-      if (focus && f.patron !== focus && f.proxy !== focus && !this.connected.has(f.patron) && !this.connected.has(f.proxy)) continue
-      const np = this.nodes[idIndex.get(f.patron)!], nx = this.nodes[idIndex.get(f.proxy)!]
-      if (!np || !nx) continue
-      const dx = nx.sx - np.sx, dy = nx.sy - np.sy
-      const cx = (np.sx + nx.sx) / 2 - dy * 0.16, cy = (np.sy + nx.sy) / 2 + dx * 0.16
-      ctx.beginPath(); ctx.moveTo(np.sx, np.sy); ctx.quadraticCurveTo(cx, cy, nx.sx, nx.sy)
-      ctx.strokeStyle = `rgba(${YELLOW},${VISUALS.backingFlowAlpha * dt * intro})`
-      ctx.stroke()
-      if (!this.reduced) {
-        const p = (t * 0.35 + i * 0.17) % 1, q = 1 - p
-        const lx = q * q * np.sx + 2 * q * p * cx + p * p * nx.sx
-        const ly = q * q * np.sy + 2 * q * p * cy + p * p * nx.sy
-        ctx.fillStyle = `rgba(${YELLOW},${0.8 * dt * intro})`
-        ctx.beginPath(); ctx.arc(lx, ly, 1.8, 0, TAU); ctx.fill()
-      }
-    }
-    ctx.restore()
-  }
-
   private glow(x: number, y: number, radius: number, alpha: number) {
     const ctx = this.ctx
     const grd = ctx.createRadialGradient(x, y, 0, x, y, radius)
@@ -542,10 +469,7 @@ export class OrbitalField {
     const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse
     const nonstate = e.kind === 'nonstate'
     const axisCol = AXIS_COLOR[AXIS[e.id] ?? 'none']
-    // zoom-out simplify: fade minor, non-hub bodies toward the floor (keep focus/connected lit)
-    const exempt = isFocus || this.connected.has(e.id) || HUBS.has(e.id) || !MINOR_KINDS.has(e.kind)
-    const simplify = exempt ? 1 : 1 - (1 - VISUALS.minorFadeFloor) * this.simplifyT
-    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2) * simplify
+    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2)
 
     // soft glow / corona — states only (great powers a touch stronger)
     if (inWeb && !nonstate) this.glow(ns.sx, ns.sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
@@ -583,8 +507,6 @@ export class OrbitalField {
       const minor = ns.e.kind === 'intermediate' || ns.e.kind === 'edge' || ns.e.kind === 'nonstate'
       let hide = ns.sx < -40 || ns.sx > this.w + 40 || ns.sy < -40 || ns.sy > this.h + 40
       if (!forced && minor && !showMinor) hide = true
-      // zoom-out skeleton: drop minor, non-hub labels once the simplify ramp engages
-      if (!forced && minor && !HUBS.has(ns.e.id) && this.simplifyT > 0.5) hide = true
       if (!hide && !forced) for (const p of placed) { if (Math.abs(x - p.x) < (w + p.w) / 2 - 4 && Math.abs(y - p.y) < (hh + p.h) / 2 - 1) { hide = true; break } }
       const dim = this.focusId && !this.connected.has(ns.e.id) ? 0.14 : 1
       el.style.opacity = String(hide ? 0 : a * dim)

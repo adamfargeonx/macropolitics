@@ -466,7 +466,7 @@
 @keyframes triDraw { to { stroke-dashoffset: 0; } }
 
 /* press feedback */
-.tab:active, .zoomctl button:active, .panel__close:active, .soundtoggle:active { transform: scale(0.93); }
+.tab:active, .panel__close:active, .soundtoggle:active { transform: scale(0.93); }
 .home__lens:active { transform: translateY(-1px) scale(0.98); }
 
 @media (prefers-reduced-motion: reduce) {

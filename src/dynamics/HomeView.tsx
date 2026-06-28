@@ -86,9 +86,11 @@ export default function HomeView({ open, intro = false, lockTo = null, onToggle,
       if (L) {
         if (Number.isNaN(L.from)) {
           L.from = angle; L.t0 = now
-          let delta = (LOCK_ANGLE[L.to] - ((angle % 360) + 360) % 360) % 360
-          if (delta < 0) delta += 360
-          L.target = angle + 360 + delta
+          // shortest signed turn to the chosen title — no extra full loops, just rotate the near way
+          const cur = ((angle % 360) + 360) % 360
+          let delta = LOCK_ANGLE[L.to] - cur
+          delta = ((delta + 180) % 360 + 360) % 360 - 180
+          L.target = angle + delta
         }
         const p = Math.min(1, (now - L.t0) / LOCK_SWEEP_MS)
         angle = L.from + (L.target - L.from) * (1 - Math.pow(1 - p, 3))
