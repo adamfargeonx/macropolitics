@@ -3,11 +3,12 @@
 
 type Voice = 'hover' | 'click' | 'select' | 'tab' | 'transition' | 'back' | 'open'
 
-// Named sample files (supplied assets).
+// Named sample files (supplied assets). BASE_URL handles the /macropolitics/ subpath on GitHub Pages.
+const BASE = import.meta.env.BASE_URL
 const SAMPLE_URLS: Record<string, string> = {
-  click: '/audio/click.wav',         // MAIN CLICK
-  transition: '/audio/transition.mp3', // SCREENSWITCH
-  ffft: '/audio/ffft.mp3',           // FFFT — soft whoosh
+  click: `${BASE}audio/click.wav`,         // MAIN CLICK
+  transition: `${BASE}audio/transition.mp3`, // SCREENSWITCH
+  ffft: `${BASE}audio/ffft.mp3`,           // FFFT — soft whoosh
 }
 // Which sample (and level) each UI voice uses. null → procedural only.
 const VOICE_MAP: Record<Voice, { s: string; g: number } | null> = {
@@ -83,7 +84,7 @@ class SoundEngine {
   private async loadAmbientFile() {
     const ctx = this.ctx; if (!ctx || !this.master || !this.ambBus || this.fileLoaded) return
     try {
-      const res = await fetch('/audio/ambient.mp3', { cache: 'force-cache' })
+      const res = await fetch(`${BASE}audio/ambient.mp3`, { cache: 'force-cache' })
       if (!res.ok) return
       const audio = await ctx.decodeAudioData(await res.arrayBuffer())
       const src = ctx.createBufferSource(); src.buffer = audio; src.loop = true
