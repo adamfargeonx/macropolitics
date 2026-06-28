@@ -248,7 +248,7 @@ class GravityWell {
     const t = (now - this.start) / 1000
     const labelIntro = Math.max(0, Math.min(1, t / 2.5))
     for (let i = 0; i < BODIES.length; i++) {
-      this.bodyAppear[i] = Math.max(0, Math.min(1, (t - i * 0.05) / 1.4))
+      this.bodyAppear[i] = Math.max(0, Math.min(1, (t - i * 0.12) / 0.6))
     }
     const ctx = this.ctx
 
