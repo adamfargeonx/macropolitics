@@ -372,11 +372,11 @@
   from { transform: scale(1); opacity: 1; filter: blur(0); }
   to   { transform: scale(6); opacity: 0; filter: blur(6px); }
 }
-/* page → anywhere: the current page fades out (no zoom — avoids the shrink-to-dot visual) */
-.nav-rail--collapse { animation: railCollapse 0.38s var(--ease-in-out-quart) both; }
+/* page → anywhere: the current page collapses down into the core */
+.nav-rail--collapse { animation: railCollapse 0.52s var(--ease-in-out-quart) both; }
 @keyframes railCollapse {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from { transform: scale(1);    opacity: 1; filter: blur(0); }
+  to   { transform: scale(0.04); opacity: 0; filter: blur(3px); }
 }
 /* the incoming page blooms out from the core */
 .nav-rail--bloom { animation: railBloom 0.48s var(--ease-out-expo) both; }
@@ -385,13 +385,13 @@
   45%  { opacity: 1; }
   to   { transform: scale(1);    opacity: 1; clip-path: circle(150% at 50% 50%); }
 }
-/* returning home: revealed through an expanding circle-mask — the core opening up.
-   Start from opacity:0 so the collapsed (invisible) page hands off without a flash. */
-.nav-rail--mask { animation: railMask 0.65s var(--ease-out-expo) both; }
+/* returning home: exact inverse of zoom-up — home zooms back in from large scale,
+   as if the camera pulls back through the same portal it flew through going out */
+.nav-rail--mask { animation: railMask 0.62s var(--ease-out-expo) both; }
 @keyframes railMask {
-  from { clip-path: circle(3% at 50% 50%); transform: scale(1.06); opacity: 0; }
-  25%  { opacity: 1; }
-  to   { clip-path: circle(150% at 50% 50%); transform: scale(1); opacity: 1; }
+  from { transform: scale(5); opacity: 0; filter: blur(6px); }
+  38%  { opacity: 1; filter: blur(0); }
+  to   { transform: scale(1); opacity: 1; filter: blur(0); }
 }
 
 /* page → page: a directional slide by the pages' order on the bottom toggle. translateX is
