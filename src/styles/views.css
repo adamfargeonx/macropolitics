@@ -372,11 +372,11 @@
   from { transform: scale(1); opacity: 1; filter: blur(0); }
   to   { transform: scale(6); opacity: 0; filter: blur(6px); }
 }
-/* page → anywhere: the current page collapses down into the core */
-.nav-rail--collapse { animation: railCollapse 0.52s var(--ease-in-out-quart) both; }
+/* page → anywhere: the current page fades out (no zoom — avoids the shrink-to-dot visual) */
+.nav-rail--collapse { animation: railCollapse 0.38s var(--ease-in-out-quart) both; }
 @keyframes railCollapse {
-  from { transform: scale(1);    opacity: 1; filter: blur(0); }
-  to   { transform: scale(0.04); opacity: 0; filter: blur(3px); }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 /* the incoming page blooms out from the core */
 .nav-rail--bloom { animation: railBloom 0.48s var(--ease-out-expo) both; }

@@ -61,7 +61,7 @@ export default function App() {
     if (v !== 'home') setHomeOpen(true) // returning home lands on the open circle; leaving stages it
     if (reduceMotion) { viewRef.current = v; setView(v); return }
 
-    const LOCK = 900, LEAVE = 460, ENTER = 500
+    const LOCK = 900, LEAVE = 350, ENTER = 500
     const t: { to: View; timers: number[] } = { to: v, timers: [] }
     transRef.current = t
     setNavTarget(v)
