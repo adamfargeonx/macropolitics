@@ -321,7 +321,7 @@ class GravityWell {
       if (this.reduced) {
         this.hoverProg[i] = hoverTarget
       } else {
-        const hrate = hoverTarget > this.hoverProg[i] ? 0.16 : 0.12
+        const hrate = hoverTarget > this.hoverProg[i] ? 0.09 : 0.07
         this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
       }
     }
@@ -420,22 +420,27 @@ class GravityWell {
   private drawSignature(sx: number, sy: number, rr: number, i: number, hp: number, baseAlpha: number) {
     const ctx = this.ctx
     const START = -Math.PI / 2 // 12 o'clock
-    const gap = Math.max(4, rr * 0.16) // breathing room outside the rim
-    const step = Math.max(3, rr * 0.1) // spacing between the three concentric arcs
-    const lw = Math.max(1.5, rr * 0.05)
-    // [metric 0–10, radius offset, colour, peak opacity]
+    const gap = Math.max(3, rr * 0.12) // breathing room inside the rim
+    const step = Math.max(2, rr * 0.09) // spacing between the three concentric arcs
+    const lw = Math.max(1.2, rr * 0.045)
+    // [metric 0–10, radius offset inward, colour, peak opacity]
     const arcs: [number, number, string, number][] = [
       [this.eco[i], gap,            LIGHT,  0.5],
       [this.mil[i], gap + step,     YELLOW, 0.92],
       [this.geo[i], gap + step * 2, LIGHT,  0.35],
     ]
     ctx.save()
+    // clip to the circle so arcs stay contained inside the rim
+    ctx.beginPath()
+    ctx.arc(sx, sy, rr - 0.5, 0, TAU)
+    ctx.clip()
     ctx.lineCap = 'round'
     ctx.lineWidth = lw
     for (const [metric, off, col, peak] of arcs) {
       const frac = Math.max(0, Math.min(1, metric / 10))
       if (frac <= 0) continue
-      const radius = rr + off
+      const radius = rr - off // arcs go INSIDE the circle
+      if (radius <= 1) continue
       // arc grows from the start angle as it reveals (hp) AND by its metric fraction
       const sweep = frac * (TAU * 0.82) * hp
       ctx.globalAlpha = baseAlpha * peak * hp

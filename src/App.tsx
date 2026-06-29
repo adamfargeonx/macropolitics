@@ -39,10 +39,7 @@ export default function App() {
   const initial = hashToView(window.location.hash) ?? 'home'
   const [homeOpen, setHomeOpen] = useState(initial !== 'home')
   const [view, setView] = useState<View>(initial)
-  // Two separate layers: home (persistent ring) and page. Each has its own animation class.
-  const [pageRail, setPageRail] = useState('')
-  const [leavingHome, setLeavingHome] = useState(false) // home layer stays while page fades in
-  const [enteringHome, setEnteringHome] = useState(false) // home layer mounts while page fades out
+  const [rail, setRail] = useState('')
   const [navTarget, setNavTarget] = useState<View | null>(null)
   const viewRef = useRef(view)
   const transRef = useRef<{ to: View; timers: number[] } | null>(null)
@@ -50,10 +47,6 @@ export default function App() {
   useEffect(() => () => { transRef.current?.timers.forEach(clearTimeout) }, [])
   const reduceMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  // Navigation: the home orbit ring is the permanent visual axis of the whole experience.
-  //  · home → page: ring stays fixed. Home text fades out. Page fades in around/over the ring.
-  //  · page → home: page fades out. Home fades in (ring reappears). No zoom or blur.
-  //  · page → page: directional slide by bottom-toggle order (RTL: forces=right … dynamics=left).
   const go = useCallback((v: View) => {
     if (v === viewRef.current || transRef.current) return
     const from = viewRef.current
@@ -65,34 +58,22 @@ export default function App() {
     transRef.current = t
     setNavTarget(v)
 
+    let leaveClass = '', enterClass = '', leaveMs = 420, enterMs = 460
     if (from === 'home') {
-      // Ring stays. Text fades fast. Page appears over the ring.
-      setLeavingHome(true)
-      viewRef.current = v; setView(v)
-      setPageRail('nav-rail--page-over-home')
-      t.timers.push(window.setTimeout(() => {
-        setLeavingHome(false); setPageRail(''); setNavTarget(null); transRef.current = null
-      }, 400))
+      leaveClass = 'nav-rail--zoom-up'; enterClass = 'nav-rail--bloom'; leaveMs = 520; enterMs = 480
     } else if (v === 'home') {
-      // Page fades, home fades in simultaneously.
-      setEnteringHome(true)
-      setPageRail('nav-rail--page-leaving')
-      t.timers.push(window.setTimeout(() => {
-        viewRef.current = 'home'; setView('home')
-        setPageRail(''); setEnteringHome(false); setNavTarget(null); transRef.current = null
-      }, 350))
+      leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask'; leaveMs = 460; enterMs = 500
     } else {
-      // Page → page: slide in the order of the bottom toggle (RTL: forces=right … dynamics=left).
       const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']
       const goingLeft = TAB_ORDER.indexOf(v) > TAB_ORDER.indexOf(from)
-      const leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
-      const enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
-      setPageRail(leaveClass)
-      t.timers.push(window.setTimeout(() => {
-        viewRef.current = v; setView(v); setPageRail(enterClass)
-        t.timers.push(window.setTimeout(() => { setPageRail(''); setNavTarget(null); transRef.current = null }, 460))
-      }, 420))
+      leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
+      enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
     }
+    setRail(leaveClass)
+    t.timers.push(window.setTimeout(() => {
+      viewRef.current = v; setView(v); setRail(enterClass)
+      t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, enterMs))
+    }, leaveMs))
   }, [reduceMotion])
 
   useEffect(() => {
@@ -121,39 +102,23 @@ export default function App() {
 
   const onLoaderDone = () => { setLoaded(true); if (!homeOpen) setIntro(true) }
 
-  const showHomeLayer = view === 'home' || leavingHome || enteringHome
-  const showPageLayer = view !== 'home'
-
   return (
     <>
-      {/* GlobalField: keep during home↔page transitions to avoid a flash of raw background */}
-      {(view !== 'dynamics' || leavingHome || enteringHome) && (
-        <GlobalField view={(leavingHome || enteringHome) ? 'home' : view} />
-      )}
+      {view !== 'dynamics' && <GlobalField view={view} />}
 
-      {/* Home layer — the orbit ring is the visual anchor of the whole experience.
-          Stays mounted during home→page (ring visible, text fades).
-          Mounts during page→home (fades in while page fades out). */}
-      {showHomeLayer && (
-        <div className={`nav-rail${leavingHome ? ' nav-rail--home-leaving' : enteringHome ? ' nav-rail--home-entering' : ''}`}>
-          <HomeView
-            open={homeOpen}
-            intro={view === 'home' && !leavingHome && !enteringHome ? intro : false}
-            lockTo={null}
-            onToggle={() => setHomeOpen(o => !o)}
-            onView={go}
-          />
-        </div>
-      )}
-
-      {/* Page layer — fades in over the home ring (home→page), or slides page-to-page */}
-      {showPageLayer && (
-        <div className={`nav-rail${pageRail ? ' ' + pageRail : ''}`}>
-          {view === 'forces' ? <ForcesView />
-            : view === 'relations' ? <RelationsView />
-            : <DynamicsView />}
-        </div>
-      )}
+      <div className={`nav-rail${rail ? ' ' + rail : ''}`}>
+        {view === 'home'
+          ? <HomeView
+              open={homeOpen}
+              intro={view === 'home' ? intro : false}
+              lockTo={null}
+              onToggle={() => setHomeOpen(o => !o)}
+              onView={go}
+            />
+          : view === 'forces' ? <ForcesView />
+          : view === 'relations' ? <RelationsView />
+          : <DynamicsView />}
+      </div>
 
       {view !== 'home' && <Header onHome={() => go('home')} />}
       {view !== 'home' && <UtilityNav />}

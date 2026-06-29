@@ -1,11 +1,20 @@
 import { type Dispatch, type SetStateAction } from 'react'
 import { type Year } from '../data/empirical'
+import { NODES } from '../data/entities'
+import { AXIS } from '../data/entities'
 import { sound } from '../sound'
 import { YearToggle, ScenarioSliders } from './ScenarioControls'
 import {
   BLOCS, BLOC_LABEL,
   type Bloc, type Raw,
 } from './forces-model'
+
+const BLOC_COUNT: Record<Bloc, number> = {
+  all: NODES.length,
+  west: NODES.filter(n => AXIS[n.id] === 'west').length,
+  east: NODES.filter(n => AXIS[n.id] === 'east').length,
+  neutral: NODES.filter(n => AXIS[n.id] === 'neutral').length,
+}
 
 type ForcesToolsProps = {
   filterBloc: Bloc
@@ -34,7 +43,7 @@ export function ForcesTools(props: ForcesToolsProps) {
         {BLOCS.map((bl) => (
           <button key={bl} className={`forcesctl__opt${filterBloc === bl ? ' is-on' : ''}`}
             onClick={() => { sound.play('tab'); setFilterBloc(bl) }} aria-pressed={filterBloc === bl}>
-            {BLOC_LABEL[bl]}
+            {BLOC_LABEL[bl]} ({BLOC_COUNT[bl]})
           </button>
         ))}
       </div>

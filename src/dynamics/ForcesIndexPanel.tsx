@@ -1,10 +1,10 @@
+import { useState, useMemo } from 'react'
 import { type Year } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { sound } from '../sound'
-import { Words } from './Words'
 import {
-  metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N,
+  metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N, passesBloc,
   type Order, type Bloc,
 } from './forces-model'
 
@@ -39,26 +39,46 @@ const METRIC_DESC: Record<Order, string> = {
   geo:   'כוח גאו-אסטרטגי — מיקום, משאבים טבעיים, בריתות ועומק השפעה אזורית. מציאות שאי אפשר לקנות ולא ניתן לשנות.',
 }
 
-// The resting side panel — now the unified forces dashboard: thesis line, the sort + tools
-// controls (moved off the canvas), and the ranked gravity index (map-linked rows).
+
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
+  const [descOpen, setDescOpen] = useState(false)
+
+  // Top entity per sort order in current bloc filter
+  const tops = useMemo(() => {
+    const pool = filterBloc === 'all' ? NODES : NODES.filter(n => passesBloc(n.id, filterBloc))
+    return ORDERS.reduce((acc, o) => {
+      const sorted = [...pool].sort((a, b) => metricVal(b, o, grav) - metricVal(a, o, grav))
+      acc[o] = sorted[0]?.he ?? ''
+      return acc
+    }, {} as Record<Order, string>)
+  }, [grav, filterBloc])
+
   return (
     <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>
-      <p className="panel__body panel__body--words panel__body--metric">
-        <Words key={orderBy} delay={0.2} text={METRIC_DESC[orderBy]} />
-      </p>
-      {/* unified controls — sort the index + open the tools disclosure (filters/year/scenario) */}
+      <div className={`panel__desc-wrap${descOpen ? ' is-open' : ''}`}>
+        <p className="panel__body panel__body--metric panel__desc-text">
+          {METRIC_DESC[orderBy]}
+        </p>
+        <button className="panel__desc-toggle" onClick={() => setDescOpen(o => !o)}>
+          {descOpen ? '▲ פחות' : '▼ קרא עוד'}
+        </button>
+      </div>
+      {/* unified controls — sort the index + open the tools disclosure */}
       <div className="gctl" role="group" aria-label="מיון וכלים">
         <span className="gctl__lbl">מיון</span>
         {ORDERS.map((o) => (
           <button
             key={o}
             className={`gctl__opt${orderBy === o ? ' is-on' : ''}`}
-            onClick={() => { sound.play('tab'); setOrderBy(o) }}
+            onClick={() => { sound.play('tab'); setOrderBy(o); setDescOpen(false) }}
             aria-pressed={orderBy === o}
-          >{ORDER_SHORT[o]}</button>
+            title={tops[o] ? `#1 ${tops[o]}` : undefined}
+          >
+            <span>{ORDER_SHORT[o]}</span>
+            {tops[o] && <span className="gctl__opt-top">{tops[o]}</span>}
+          </button>
         ))}
         <button
           className={`gctl__tools${toolsOpen ? ' is-on' : ''}${stateActive ? ' has-state' : ''}`}

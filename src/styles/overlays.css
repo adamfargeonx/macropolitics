@@ -94,7 +94,7 @@
 .evid__link { display: inline-block; margin-top: 8px; font-family: var(--body); font-size: 10px; letter-spacing: 0.07em; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
 .evid__link:hover { color: var(--yellow); }
 /* sourced 2020→2025 trend (a real temporal datapoint) */
-.evid__trend { margin-top: 9px; padding: 7px 9px; background: rgba(251, 255, 0, 0.04); border-inline-start: 2px solid var(--yellow-30); }
+.evid__trend { margin-top: 9px; padding: 7px 9px; background: rgba(251, 255, 0, 0.04); }
 .evid__trend-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 7px; font-family: var(--latin); font-size: 12px; font-weight: 700; color: var(--white); }
 .evid__trend-arrow { color: var(--ink-dim); }
 .evid__trend-pct { font-size: 11px; }
@@ -103,7 +103,7 @@
 .evid__trend-years { font-family: var(--body); font-size: 9.5px; font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--ink-faint); }
 .evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; letter-spacing: 0.084em; color: var(--ink-faint); }
 /* unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one set of styles */
-.evid__comp { margin-top: 10px; padding: 9px 10px; background: rgba(251, 255, 0, 0.03); border-inline-start: 2px solid var(--yellow-30); }
+.evid__comp { margin-top: 10px; padding: 9px 10px; background: rgba(251, 255, 0, 0.03); }
 .evid__comp-lbl { display: block; font-family: var(--body); font-size: 9.5px; font-weight: var(--fw-bold); letter-spacing: 0.084em; color: var(--ink-dim); margin-bottom: 8px; }
 .evid__comp-grid { display: flex; flex-direction: column; gap: 5px; }
 /* item 8: every parameter is a consistent bar row — [status][label][bar][value] on common axes,
@@ -164,7 +164,7 @@
 /* item 10: row dividers removed — each row carries the language's vertical accent instead */
 .legend__row {
   display: flex; align-items: center; gap: 16px; padding: 13px 0;
-  border-inline-start: 2px solid var(--yellow-30); padding-inline-start: 16px;
+  padding-inline-start: 16px;
 }
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: 13.5px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
@@ -183,7 +183,7 @@
 .legend__hint {
   margin-top: 18px; padding: 12px 14px; font-family: var(--body);
   font-size: 13px; line-height: 1.45; color: var(--yellow); opacity: 0.92;
-  background: rgba(251, 255, 0, 0.05); border-inline-start: 2px solid rgba(251, 255, 0, 0.5);
+  background: rgba(251, 255, 0, 0.05);
 }
 .legend__foot { margin-top: 16px; font-family: var(--body); font-size: 11px; color: var(--light); opacity: 0.60; letter-spacing: 0.08em; text-align: center; }
 @media (prefers-reduced-motion: reduce) {

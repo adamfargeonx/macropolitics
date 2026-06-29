@@ -15,7 +15,7 @@ const VOICE_MAP: Record<Voice, { s: string; g: number } | null> = {
   click: { s: 'click', g: 0.9 },
   select: { s: 'click', g: 0.6 },
   transition: { s: 'transition', g: 0.85 },
-  hover: { s: 'ffft', g: 0.3 },
+  hover: { s: 'click', g: 0.08 },
   tab: { s: 'ffft', g: 0.7 },
   open: { s: 'ffft', g: 0.7 },
   back: { s: 'ffft', g: 0.55 },

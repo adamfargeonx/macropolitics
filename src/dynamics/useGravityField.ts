@@ -55,7 +55,19 @@ export function useGravityField(
       const count = mode === 'scattered'
         ? Math.min(140, Math.round((w * h) / 10000))
         : Math.min(440, Math.round((w * h) / 3000))
-      ps = Array.from({ length: count }, spawn)
+      ps = Array.from({ length: count }, (_, idx) => {
+        if (mode === 'scattered') return spawn()
+        // 70% pre-seeded anywhere in the field, 30% spawn at rim
+        if (idx < count * 0.7) {
+          const x = cx + (Math.random() - 0.5) * w * 1.2
+          const y = cy + (Math.random() - 0.5) * h * 1.2
+          const toC = Math.atan2(cy - y, cx - x)
+          const sp = 0.12 + Math.random() * 0.18
+          const bx = (Math.random() - 0.5) * 0.5, by = (Math.random() - 0.5) * 0.5
+          return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
+        }
+        return spawn()
+      })
     }
     // debounce: re-seeding 440 particles on every continuous resize event is wasteful
     let resizeT = 0
@@ -74,7 +86,7 @@ export function useGravityField(
     const scattered = mode === 'scattered'
     let intro = 0
     const loop = () => {
-      intro = Math.min(1, intro + 0.012)
+      intro = Math.min(1, intro + 0.025)
       const now = performance.now()
       // programmatic impulse (e.g. loader centre pulse)
       const cur = impulseRef?.current

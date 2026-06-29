@@ -133,9 +133,6 @@
   left: 42px; top: 50%; transform: translateY(-50%);
   z-index: 5; pointer-events: none;
   display: flex; flex-direction: column; gap: 6px;
-  /* yellow border accent on the right (RTL "start" = visual right) */
-  border-inline-start: 2px solid rgba(251, 255, 0, 0.35);
-  padding-inline-start: 18px;
   max-width: 200px;
 }
 .forces-annot__count {
@@ -182,7 +179,7 @@
 .fnode--ns .fnode__disk { background: rgba(11, 0, 36, 0.55); box-shadow: none; }
 /* names hidden by default (a clean constellation); revealed by zoom-gate, hover or proximity.
    transition-delay scales with --rk so names cascade in most-important → least-important. */
-.fnode__name { font-size: 12px; font-weight: 700; color: var(--white); white-space: nowrap; opacity: 0; letter-spacing: 0.08em; transition: opacity 0.45s ease, color 0.2s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
+.fnode__name { font-size: 12px; font-weight: 400; color: var(--white); white-space: nowrap; opacity: 0; letter-spacing: 0.08em; transition: opacity 0.45s ease, color 0.2s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
 .fnode__score { font-family: var(--display); font-weight: 700; font-size: 11px; color: var(--yellow); opacity: 0; margin-top: -2px; letter-spacing: 0.06em; transition: opacity 0.45s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
 .forces--names .fnode__name { opacity: 0.92; }
 .forces--names .fnode__score { opacity: 0.7; }
@@ -207,7 +204,7 @@
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
 .gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; }
 .gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-inline-end: 2px; }
-.gctl__opt { cursor: none; background: none; border: 1px solid var(--line); padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__opt { cursor: none; background: none; border: 1px solid var(--line); padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__opt:hover:not(.is-on) { color: var(--light); border-color: var(--ink-dim); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
 .gctl__tools { margin-inline-start: auto; cursor: none; background: none; border: 1px solid var(--line); padding: 4px 10px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
@@ -216,6 +213,26 @@
 
 /* per-metric description transitions when filter changes */
 .panel__body--metric { transition: opacity 0.3s ease; }
+
+/* collapsible metric description */
+.panel__desc-wrap { position: relative; }
+.panel__desc-text {
+  margin-top: 14px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; transition: all 0.3s var(--ease-out-expo);
+}
+.panel__desc-wrap.is-open .panel__desc-text { display: block; -webkit-line-clamp: unset; }
+.panel__desc-toggle {
+  cursor: none; background: none; border: none; padding: 0;
+  font-family: var(--body); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--ink-dim); margin-top: 4px;
+  transition: color var(--dur-fast) ease;
+}
+.panel__desc-toggle:hover { color: var(--yellow); }
+/* sort button with #1 entity name below */
+.gctl__opt { flex-direction: column; align-items: center; gap: 1px; padding: 5px 9px; }
+.gctl__opt-top { font-size: 9px; font-weight: 400; letter-spacing: 0.04em; color: var(--ink-dim); white-space: nowrap; overflow: hidden; max-width: 46px; text-overflow: ellipsis; }
+.gctl__opt.is-on .gctl__opt-top { color: var(--bg); opacity: 0.7; }
 
 /* gravity index — the ranked ledger (forces default panel) */
 .gindex { margin-top: 34px; display: flex; flex-direction: column; }
@@ -242,7 +259,7 @@
 .gindex__row:nth-child(n+11) { animation-delay: 0.40s; }
 .gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); transform: translateX(-4px); }
 .gindex__rank { font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: 0.10em; color: var(--yellow); opacity: 0.3; }
-.gindex__name { font-size: 12.5px; font-weight: 700; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }
+.gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }
 .gindex__row--ns .gindex__name { font-weight: 400; opacity: 0.72; }
 .gindex__bar { height: 3px; background: rgba(255, 255, 255, 0.06); }
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }
