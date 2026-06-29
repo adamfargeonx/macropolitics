@@ -362,66 +362,49 @@
 }
 @keyframes loaderDotIn { to { opacity: 1; } }
 
-/* ── Page transitions — the home core is the hub; every view nests inside it. The active view
-   lives in .nav-rail, which App animates through the core on each navigation. ── */
-.nav-rail { position: fixed; inset: 0; transform-origin: 50% 50%; will-change: transform, opacity, clip-path; }
+/* ── Page transitions — the home orbit ring is the permanent visual axis.
+   Two layers: home layer (ring stays) + page layer (fades in/out over it). ── */
+.nav-rail { position: fixed; inset: 0; transform-origin: 50% 50%; will-change: transform, opacity; }
 
-/* home → dynamics: portal — orbit ring expands as if we're passing through the core into the field */
-.nav-rail--portal-out { animation: railPortalOut 0.45s var(--ease-in-out-quart) both; }
-@keyframes railPortalOut {
-  from { transform: scale(1);   opacity: 1; filter: blur(0); }
-  60%  { opacity: 0.5; }
-  to   { transform: scale(1.5); opacity: 0; filter: blur(5px); }
+/* home → page: ring stays. Text/nav fades out fast. Orbit lingers briefly then fades. */
+.nav-rail--home-leaving { pointer-events: none; }
+.nav-rail--home-leaving .home-title,
+.nav-rail--home-leaving .home-tagline,
+.nav-rail--home-leaving .home-eq,
+.nav-rail--home-leaving .home-nav,
+.nav-rail--home-leaving .home-credit,
+.nav-rail--home-leaving .home-intro {
+  animation: homeContentOut 0.3s ease both;
 }
-.nav-rail--portal-in { animation: railPortalIn 0.6s var(--ease-out-expo) both; }
-@keyframes railPortalIn {
-  from { transform: scale(1.6); opacity: 0; filter: blur(6px); }
-  28%  { opacity: 0.9; filter: blur(0); }
-  to   { transform: scale(1);   opacity: 1; filter: blur(0); }
+.nav-rail--home-leaving .home-core {
+  animation: homeContentOut 0.3s 0.04s ease both;
 }
-
-/* home → forces: contract toward the forces focal point (lower-left — where USA's gravity well opens) */
-.nav-rail--contract-forces {
-  transform-origin: calc(50% - 26.8vmin) calc(50% + 15.5vmin);
-  animation: railContractFocal 0.48s var(--ease-in-out-quart) both;
+.nav-rail--home-leaving .home-orbit {
+  animation: homeRingFade 0.9s ease both;
 }
-.nav-rail--bloom-forces {
-  transform-origin: calc(50% - 26.8vmin) calc(50% + 15.5vmin);
-  animation: railBloomFocal 0.58s var(--ease-out-expo) both;
-}
-/* home → relations: mirror of forces but toward the lower-right focal point */
-.nav-rail--contract-relations {
-  transform-origin: calc(50% + 26.8vmin) calc(50% + 15.5vmin);
-  animation: railContractFocal 0.48s var(--ease-in-out-quart) both;
-}
-.nav-rail--bloom-relations {
-  transform-origin: calc(50% + 26.8vmin) calc(50% + 15.5vmin);
-  animation: railBloomFocal 0.58s var(--ease-out-expo) both;
-}
-@keyframes railContractFocal {
-  from { transform: scale(1); opacity: 1; filter: blur(0); }
-  65%  { opacity: 0.3; }
-  to   { transform: scale(6); opacity: 0; filter: blur(4px); }
-}
-@keyframes railBloomFocal {
-  from { transform: scale(0.08); opacity: 0; filter: blur(5px); }
-  38%  { opacity: 1; filter: blur(0); }
-  to   { transform: scale(1);   opacity: 1; filter: blur(0); }
+@keyframes homeContentOut { to { opacity: 0; } }
+@keyframes homeRingFade {
+  0%, 45% { opacity: 1; }
+  100%     { opacity: 0; }
 }
 
-/* page → anywhere: the current page collapses down into the core */
-.nav-rail--collapse { animation: railCollapse 0.52s var(--ease-in-out-quart) both; }
-@keyframes railCollapse {
-  from { transform: scale(1);    opacity: 1; filter: blur(0); }
-  to   { transform: scale(0.04); opacity: 0; filter: blur(3px); }
+/* page → home: home layer fades in while page layer fades out simultaneously */
+.nav-rail--home-entering {
+  animation: homeFadeIn 0.55s var(--ease-out-expo) both;
 }
-/* returning home: inverse of the original zoom-up — home zooms back in from large scale */
-.nav-rail--mask { animation: railMask 0.62s var(--ease-out-expo) both; }
-@keyframes railMask {
-  from { transform: scale(5); opacity: 0; filter: blur(6px); }
-  38%  { opacity: 1; filter: blur(0); }
-  to   { transform: scale(1); opacity: 1; filter: blur(0); }
+@keyframes homeFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* home → page: page content fades in over the stationary ring */
+.nav-rail--page-over-home {
+  animation: pageOverHome 0.75s var(--ease-out-expo) both;
 }
+@keyframes pageOverHome { from { opacity: 0; } to { opacity: 1; } }
+
+/* page → home: page fades out */
+.nav-rail--page-leaving {
+  animation: pageFadeOut 0.55s ease both;
+}
+@keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
 
 /* page → page: a directional slide by the pages' order on the bottom toggle. translateX is
    physical (px right = +), so direction is set in App regardless of RTL. The outgoing page
@@ -436,10 +419,17 @@
 @keyframes railInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-rail--portal-out, .nav-rail--portal-in,
-  .nav-rail--contract-forces, .nav-rail--bloom-forces,
-  .nav-rail--contract-relations, .nav-rail--bloom-relations,
-  .nav-rail--collapse, .nav-rail--mask,
+  .nav-rail--home-leaving .home-title,
+  .nav-rail--home-leaving .home-tagline,
+  .nav-rail--home-leaving .home-eq,
+  .nav-rail--home-leaving .home-nav,
+  .nav-rail--home-leaving .home-credit,
+  .nav-rail--home-leaving .home-intro,
+  .nav-rail--home-leaving .home-core,
+  .nav-rail--home-leaving .home-orbit,
+  .nav-rail--home-entering,
+  .nav-rail--page-over-home,
+  .nav-rail--page-leaving,
   .nav-rail--out-right, .nav-rail--out-left, .nav-rail--in-left, .nav-rail--in-right { animation: none; }
 }
 
