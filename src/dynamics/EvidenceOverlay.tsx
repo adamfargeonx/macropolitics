@@ -58,23 +58,27 @@ function paramStatus(axis: Axis, miss: boolean): SourceStatus {
 
 // Unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — every parameter is a bar row
 // with an inline status badge (sourced ✓ · estimate ~ · assessment ⊙ · no-data ✕). One component, three axes.
-function Composite({ axis, sub, missing }: { axis: Axis; sub: Record<string, number>; missing: string[] }) {
+function Composite({ axis, sub, missing, status }: { axis: Axis; sub: Record<string, number>; missing: string[]; status: SourceStatus }) {
   const rows = AXIS_ROWS[axis]
   const missFn = AXIS_MISS[axis]
+  const hasBreakdown = Object.keys(sub).length > 0
   return (
     <div className="evid__comp">
       <span className="evid__comp-lbl">מדד מורכב · <bdi>{AXIS_SRC[axis]}</bdi></span>
       <div className="evid__comp-grid">
         {rows.map(({ k, he }) => {
+          const has = k in sub
           const v = sub[k] ?? 0
           const miss = missFn(k, missing)
-          const status = paramStatus(axis, miss)
+          // status per row: missing→no-data; value present→axis-derived status;
+          // value absent (assessed, not sourced)→judgment so it still reads as graded
+          const rowStatus: SourceStatus = miss ? 'no-data' : has ? paramStatus(axis, false) : (hasBreakdown ? 'judgment' : (status === 'sourced' ? 'estimate' : status))
           return (
-            <div className={`evid__comp-row${miss ? ' evid__comp-row--miss' : ''}`} key={k}>
-              <span className={`evid__comp-status evid__comp-status--${status}`} title={STATUS_LABEL[status]} aria-label={STATUS_LABEL[status]}>{STATUS_GLYPH[status]}</span>
+            <div className={`evid__comp-row${miss || !has ? ' evid__comp-row--miss' : ''}`} key={k}>
+              <span className={`evid__comp-status evid__comp-status--${rowStatus}`} title={STATUS_LABEL[rowStatus]} aria-label={STATUS_LABEL[rowStatus]}>{STATUS_GLYPH[rowStatus]}</span>
               <span className="evid__comp-k">{he}</span>
-              <span className="evid__comp-bar"><i style={{ width: `${v * 10}%` }} /></span>
-              <span className="evid__comp-v">{v.toFixed(1)}</span>
+              <span className="evid__comp-bar"><i style={{ width: `${has ? v * 10 : 0}%` }} /></span>
+              <span className="evid__comp-v">{has ? v.toFixed(1) : '—'}</span>
             </div>
           )
         })}
@@ -179,7 +183,7 @@ export function EvidenceOverlay() {
                     <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
                   </div>
                   <p className="evid__figure">{p.figure}</p>
-                  {breakdown[axis] && <Composite axis={axis} sub={breakdown[axis]!} missing={missingOf[axis]} />}
+                  <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} />
                   <Trend id={id} axis={axis} />
                   {p.note && <p className="evid__note">{p.note}</p>}
                   <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>

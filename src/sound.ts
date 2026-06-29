@@ -15,7 +15,7 @@ const VOICE_MAP: Record<Voice, { s: string; g: number } | null> = {
   click: { s: 'click', g: 0.9 },
   select: { s: 'click', g: 0.6 },
   transition: { s: 'transition', g: 0.85 },
-  hover: { s: 'click', g: 0.08 },
+  hover: null,
   tab: { s: 'ffft', g: 0.7 },
   open: { s: 'ffft', g: 0.7 },
   back: { s: 'ffft', g: 0.55 },
@@ -91,7 +91,7 @@ class SoundEngine {
       const g = ctx.createGain(); g.gain.value = 0
       src.connect(g); g.connect(this.master); src.start()
       const t = ctx.currentTime
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.6, t + 6)   // dramatic build, sits under UI
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 6)   // dramatic build, sits under UI
       this.ambBus.gain.linearRampToValueAtTime(0.06, t + 5)                      // duck the procedural bed
       this.fileLoaded = true
     } catch { /* no file / decode error → keep the procedural bed */ }
@@ -151,7 +151,7 @@ class SoundEngine {
     const m = VOICE_MAP[v]
     if (m && this.playSample(m.s, m.g)) return
     switch (v) {
-      case 'hover': this.blip(1180, 0.06, 'sine', 0.025); break
+      case 'hover': this.blip(2100, 0.035, 'triangle', 0.05); break
       case 'click': this.clickHit(); break
       case 'select': this.blip(440, 0.12, 'sine', 0.05); this.blip(660, 0.16, 'sine', 0.035); break
       case 'open': this.blip(330, 0.18, 'sine', 0.045, 520); break

@@ -98,7 +98,7 @@
   display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
   background: var(--tooltip-bg); border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); padding: 4px 10px;
 }
-.sheet-chip__name { font-family: var(--display); font-size: 14px; font-weight: var(--fw-bold); color: var(--tooltip-fg); letter-spacing: var(--tracking-title); }
+.sheet-chip__name { font-family: var(--display); font-size: 14px; font-weight: 400; color: var(--tooltip-fg); letter-spacing: var(--tracking-title); }
 .sheet-chip__score { font-family: var(--latin); font-size: var(--text-lg); font-weight: 700; color: var(--tooltip-fg); opacity: 0.78; direction: ltr; }
 .sheet-hint {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;

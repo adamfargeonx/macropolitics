@@ -42,7 +42,7 @@ export function useGravityField(
       const r = Math.max(w, h) * (0.42 + Math.random() * 0.55)
       const x = cx + Math.cos(ang) * r, y = cy + Math.sin(ang) * r
       const toC = Math.atan2(cy - y, cx - x)
-      const sp = 0.12 + Math.random() * 0.18
+      const sp = 0.25 + Math.random() * 0.3
       return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
     }
     const resize = () => {
@@ -57,14 +57,14 @@ export function useGravityField(
         : Math.min(440, Math.round((w * h) / 3000))
       ps = Array.from({ length: count }, (_, idx) => {
         if (mode === 'scattered') return spawn()
-        // 70% pre-seeded anywhere in the field, 30% spawn at rim
-        if (idx < count * 0.7) {
-          const x = cx + (Math.random() - 0.5) * w * 1.2
-          const y = cy + (Math.random() - 0.5) * h * 1.2
+        // 85% pre-seeded anywhere in the field, 15% spawn at rim
+        if (idx < count * 0.85) {
+          const x = cx + (Math.random() - 0.5) * w * 0.9
+          const y = cy + (Math.random() - 0.5) * h * 0.9
           const toC = Math.atan2(cy - y, cx - x)
-          const sp = 0.12 + Math.random() * 0.18
+          const sp = 0.4 + Math.random() * 0.5
           const bx = (Math.random() - 0.5) * 0.5, by = (Math.random() - 0.5) * 0.5
-          return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
+          return { x, y, px: x, py: y, vx: Math.cos(toC + 0.15) * sp, vy: Math.sin(toC + 0.15) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
         }
         return spawn()
       })
@@ -86,7 +86,7 @@ export function useGravityField(
     const scattered = mode === 'scattered'
     let intro = 0
     const loop = () => {
-      intro = Math.min(1, intro + 0.025)
+      intro = Math.min(1, intro + 0.05)
       const now = performance.now()
       // programmatic impulse (e.g. loader centre pulse)
       const cur = impulseRef?.current

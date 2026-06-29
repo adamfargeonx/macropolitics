@@ -20,11 +20,7 @@ import { type Order } from './forces-model'
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
-const BG = '6,3,15'
 const TAU = Math.PI * 2
-
-// Name fits inside a circle of screen-radius r — used to size + gate the in-body label.
-const labelFontPx = (r: number) => Math.max(9, Math.min(18, r * 0.5))
 
 // The field's usable fraction of the shorter side — radii scale by this so packing stays isotropic.
 const PLAY = 0.92
@@ -359,8 +355,14 @@ class GravityWell {
 
     const r = this.bodyR(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
-    const scale = (1 + (bloom - 1) * 0.12) * pulse
-    const rr = r * scale * bodyA
+    const scale = (1 + (bloom - 1) * 0.18) * pulse
+    let rr = r * scale * bodyA
+    // Hovered/selected body grows to a readable floor so its in-circle gauge is legible
+    // (and so even small states open into a real readout). Eased by hoverProg → smooth grow.
+    if (isFocus) {
+      const floor = Math.max(48, this.playSize * 0.09) * bodyA
+      if (rr < floor) rr += (floor - rr) * Math.min(1, this.hoverProg[i])
+    }
 
     // Metric (lens) filter alpha only — the scroll narrative now moves bodies, doesn't dim them
     const tAlpha = isFocus ? 1.0 : this.metricAlpha[i]
@@ -413,76 +415,80 @@ class GravityWell {
     })
   }
 
-  // The force-signature ring set. Three arcs share a start angle at the top (−90°) and
-  // sweep clockwise; each arc's sweep ∝ its metric / 10. Concentric, just outside the rim.
-  // Colours come from the existing palette constants only: mil in YELLOW (the accent), eco
-  // and geo in LIGHT at stepped opacity so the three read as one fingerprint, not three bars.
+  // The force-signature gauge — a clean set of three CONCENTRIC value-rings drawn fully INSIDE
+  // the hovered/hollow circle (clipped to the rim, never spilling onto neighbours). Each ring is
+  // a faint full-circle track plus a value arc whose sweep ∝ its metric / 10 (a full lap = 10).
+  // mil = YELLOW (the accent), eco & geo = LIGHT at stepped opacity, so the three read as one
+  // contained radial fingerprint — distinct from the side-panel's linear bars.
   private drawSignature(sx: number, sy: number, rr: number, i: number, hp: number, baseAlpha: number) {
     const ctx = this.ctx
+    if (rr < 15) return // too small to read a gauge — skip rather than draw a smear
     const START = -Math.PI / 2 // 12 o'clock
-    const gap = Math.max(3, rr * 0.12) // breathing room inside the rim
-    const step = Math.max(2, rr * 0.09) // spacing between the three concentric arcs
-    const lw = Math.max(1.2, rr * 0.045)
-    // [metric 0–10, radius offset inward, colour, peak opacity]
-    const arcs: [number, number, string, number][] = [
-      [this.eco[i], gap,            LIGHT,  0.5],
-      [this.mil[i], gap + step,     YELLOW, 0.92],
-      [this.geo[i], gap + step * 2, LIGHT,  0.35],
+    // [metric 0–10, radius as a fraction of rr, colour, peak opacity]
+    const rings: [number, number, string, number][] = [
+      [this.eco[i], 0.82, LIGHT,  0.55],
+      [this.mil[i], 0.60, YELLOW, 0.95],
+      [this.geo[i], 0.38, LIGHT,  0.42],
     ]
     ctx.save()
-    // clip to the circle so arcs stay contained inside the rim
-    ctx.beginPath()
-    ctx.arc(sx, sy, rr - 0.5, 0, TAU)
-    ctx.clip()
+    // clip to the circle so the gauge stays contained inside the rim
+    ctx.beginPath(); ctx.arc(sx, sy, rr - 0.5, 0, TAU); ctx.clip()
     ctx.lineCap = 'round'
-    ctx.lineWidth = lw
-    for (const [metric, off, col, peak] of arcs) {
-      const frac = Math.max(0, Math.min(1, metric / 10))
-      if (frac <= 0) continue
-      const radius = rr - off // arcs go INSIDE the circle
-      if (radius <= 1) continue
-      // arc grows from the start angle as it reveals (hp) AND by its metric fraction
-      const sweep = frac * (TAU * 0.82) * hp
-      ctx.globalAlpha = baseAlpha * peak * hp
+    ctx.lineWidth = Math.max(2, rr * 0.07)
+    for (const [metric, rf, col, peak] of rings) {
+      const radius = rr * rf
+      if (radius < 2) continue
+      // faint full-circle track
+      ctx.globalAlpha = baseAlpha * hp * 0.13
       ctx.strokeStyle = `rgb(${col})`
-      ctx.beginPath()
-      ctx.arc(sx, sy, radius, START, START + sweep)
-      ctx.stroke()
+      ctx.beginPath(); ctx.arc(sx, sy, radius, 0, TAU); ctx.stroke()
+      // value arc — a full lap = 10
+      const frac = Math.max(0, Math.min(1, metric / 10))
+      if (frac > 0) {
+        ctx.globalAlpha = baseAlpha * peak * hp
+        ctx.beginPath(); ctx.arc(sx, sy, radius, START, START + frac * TAU * hp); ctx.stroke()
+      }
     }
     ctx.restore()
   }
 
+  // On-canvas ledger: the TOP-N states (by the active metric) carry a rank + name label below
+  // their body, always legible at rest. Switching the sort category re-ranks live, so the field
+  // itself visibly re-orders — the canvas, not just the side panel, answers "who leads here". The
+  // focused body always gets its label too (highlighted). Light weight per the type pass.
   private drawLabels(intro: number) {
     const ctx = this.ctx
     ctx.save()
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
+    ctx.textBaseline = 'top'
 
     const focus = this.selectedIdx ?? this.hoveredIdx
 
+    // rank by the live metric (massTarget is set per category in setField)
+    const order = Array.from({ length: BODIES.length }, (_, i) => i)
+      .sort((a, b) => this.massTarget[b] - this.massTarget[a])
+    const rankOf = new Int16Array(BODIES.length)
+    order.forEach((idx, rk) => { rankOf[idx] = rk })
+    const TOP_N = 8
+
     for (let i = 0; i < BODIES.length; i++) {
       const b = BODIES[i]
+      const isFocus = i === focus
+      const inTop = rankOf[i] < TOP_N
+      if (!inTop && !isFocus) continue
+
       const sx = this.bodyScreenX[i]
       const sy = this.bodyScreenY[i]
-      const r = this.bodyR(this.mass[i])
-      const isFocus = i === focus
-      const isGreatOrRegional = this.mass[i] >= 40
+      const rr = this.bodyR(this.mass[i])
+      const tAlpha = isFocus ? 1 : this.metricAlpha[i]
+      const fontPx = Math.max(10, Math.min(14, rr * 0.42))
+      const labelY = sy + rr + Math.max(6, rr * 0.16)
+      const rank = String(rankOf[i] + 1).padStart(2, '0')
 
-      if (isFocus) continue
-      if (!isGreatOrRegional) continue
-
-      // size the label to the body, then keep it only if it visually fits inside the circle
-      const fontPx = labelFontPx(r)
-      ctx.font = `700 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
-      const textW = ctx.measureText(b.he).width
-      if (textW > r * 1.7) continue
-
-      const tAlpha = this.metricAlpha[i]
-
-      // dark text reads on the light-cream body fill
-      ctx.globalAlpha = intro * 0.92 * tAlpha
-      ctx.fillStyle = `rgb(${BG})`
-      ctx.fillText(b.he, sx, sy)
+      ctx.globalAlpha = intro * (isFocus ? 1 : 0.82) * tAlpha
+      ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
+      ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
+      ctx.fillText(`${rank}  ${b.he}`, sx, labelY)
     }
     ctx.restore()
   }

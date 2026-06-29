@@ -51,7 +51,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 .rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px var(--yellow-50); }
-.rel-ref__name { font-size: 14px; font-weight: 900; color: var(--yellow); }
+.rel-ref__name { font-size: 14px; font-weight: 500; color: var(--yellow); }
 .rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; color: var(--white); opacity: 0.5; letter-spacing: 0.14em; }
 .rnode {
   position: absolute; transform: translate(-50%, -50%); z-index: 3;
@@ -62,7 +62,7 @@
   border-radius: 50%; background: var(--light); border: 1.5px solid;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.rnode__name { font-size: 11px; font-weight: 700; color: var(--white); white-space: nowrap; }
+.rnode__name { font-size: 11px; font-weight: 400; color: var(--white); white-space: nowrap; }
 .rnode--hover { z-index: 5; }
 .rnode--hover .rnode__disk { transform: scale(1.15); box-shadow: 0 0 22px rgba(251, 255, 0, 0.3); }
 .rnode--dim { opacity: 0.28; }
