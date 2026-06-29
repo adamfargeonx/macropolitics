@@ -72,7 +72,7 @@ export default function App() {
       setPageRail('nav-rail--page-over-home')
       t.timers.push(window.setTimeout(() => {
         setLeavingHome(false); setPageRail(''); setNavTarget(null); transRef.current = null
-      }, 900))
+      }, 400))
     } else if (v === 'home') {
       // Page fades, home fades in simultaneously.
       setEnteringHome(true)
@@ -80,7 +80,7 @@ export default function App() {
       t.timers.push(window.setTimeout(() => {
         viewRef.current = 'home'; setView('home')
         setPageRail(''); setEnteringHome(false); setNavTarget(null); transRef.current = null
-      }, 550))
+      }, 350))
     } else {
       // Page → page: slide in the order of the bottom toggle (RTL: forces=right … dynamics=left).
       const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']

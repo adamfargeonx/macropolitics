@@ -366,43 +366,36 @@
    Two layers: home layer (ring stays) + page layer (fades in/out over it). ── */
 .nav-rail { position: fixed; inset: 0; transform-origin: 50% 50%; will-change: transform, opacity; }
 
-/* home → page: ring stays. Text/nav fades out fast. Orbit lingers briefly then fades. */
+/* home → page: ring stays at 100% opacity as the permanent anchor — no animation on it.
+   Only text/nav/core fade out (fast). Page then appears over the fixed ring. */
 .nav-rail--home-leaving { pointer-events: none; }
 .nav-rail--home-leaving .home-title,
 .nav-rail--home-leaving .home-tagline,
 .nav-rail--home-leaving .home-eq,
 .nav-rail--home-leaving .home-nav,
 .nav-rail--home-leaving .home-credit,
-.nav-rail--home-leaving .home-intro {
-  animation: homeContentOut 0.3s ease both;
-}
+.nav-rail--home-leaving .home-intro,
 .nav-rail--home-leaving .home-core {
-  animation: homeContentOut 0.3s 0.04s ease both;
+  animation: homeContentOut 0.15s ease both;
 }
-.nav-rail--home-leaving .home-orbit {
-  animation: homeRingFade 0.9s ease both;
-}
+/* .home-orbit: intentionally no animation — it stays solid as the visual anchor */
 @keyframes homeContentOut { to { opacity: 0; } }
-@keyframes homeRingFade {
-  0%, 45% { opacity: 1; }
-  100%     { opacity: 0; }
-}
 
-/* page → home: home layer fades in while page layer fades out simultaneously */
+/* page → home: home fades in as page fades out */
 .nav-rail--home-entering {
-  animation: homeFadeIn 0.55s var(--ease-out-expo) both;
+  animation: homeFadeIn 0.3s var(--ease-out-expo) both;
 }
 @keyframes homeFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* home → page: page content fades in over the stationary ring */
+/* home → page: page appears over the stationary ring */
 .nav-rail--page-over-home {
-  animation: pageOverHome 0.75s var(--ease-out-expo) both;
+  animation: pageOverHome 0.4s var(--ease-out-expo) both;
 }
 @keyframes pageOverHome { from { opacity: 0; } to { opacity: 1; } }
 
-/* page → home: page fades out */
+/* page → home: page exits */
 .nav-rail--page-leaving {
-  animation: pageFadeOut 0.55s ease both;
+  animation: pageFadeOut 0.3s ease both;
 }
 @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
 
@@ -426,7 +419,6 @@
   .nav-rail--home-leaving .home-credit,
   .nav-rail--home-leaving .home-intro,
   .nav-rail--home-leaving .home-core,
-  .nav-rail--home-leaving .home-orbit,
   .nav-rail--home-entering,
   .nav-rail--page-over-home,
   .nav-rail--page-leaving,
