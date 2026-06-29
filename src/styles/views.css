@@ -366,27 +366,56 @@
    lives in .nav-rail, which App animates through the core on each navigation. ── */
 .nav-rail { position: fixed; inset: 0; transform-origin: 50% 50%; will-change: transform, opacity, clip-path; }
 
-/* home → page: the home zooms up THROUGH the core toward the viewer and fades (we pass inside) */
-.nav-rail--zoom-up { animation: railZoomUp 0.52s var(--ease-in-out-quart) both; }
-@keyframes railZoomUp {
-  from { transform: scale(1); opacity: 1; filter: blur(0); }
-  to   { transform: scale(6); opacity: 0; filter: blur(6px); }
+/* home → dynamics: portal — orbit ring expands as if we're passing through the core into the field */
+.nav-rail--portal-out { animation: railPortalOut 0.45s var(--ease-in-out-quart) both; }
+@keyframes railPortalOut {
+  from { transform: scale(1);   opacity: 1; filter: blur(0); }
+  60%  { opacity: 0.5; }
+  to   { transform: scale(1.5); opacity: 0; filter: blur(5px); }
 }
+.nav-rail--portal-in { animation: railPortalIn 0.6s var(--ease-out-expo) both; }
+@keyframes railPortalIn {
+  from { transform: scale(1.6); opacity: 0; filter: blur(6px); }
+  28%  { opacity: 0.9; filter: blur(0); }
+  to   { transform: scale(1);   opacity: 1; filter: blur(0); }
+}
+
+/* home → forces: contract toward the forces focal point (lower-left — where USA's gravity well opens) */
+.nav-rail--contract-forces {
+  transform-origin: calc(50% - 26.8vmin) calc(50% + 15.5vmin);
+  animation: railContractFocal 0.48s var(--ease-in-out-quart) both;
+}
+.nav-rail--bloom-forces {
+  transform-origin: calc(50% - 26.8vmin) calc(50% + 15.5vmin);
+  animation: railBloomFocal 0.58s var(--ease-out-expo) both;
+}
+/* home → relations: mirror of forces but toward the lower-right focal point */
+.nav-rail--contract-relations {
+  transform-origin: calc(50% + 26.8vmin) calc(50% + 15.5vmin);
+  animation: railContractFocal 0.48s var(--ease-in-out-quart) both;
+}
+.nav-rail--bloom-relations {
+  transform-origin: calc(50% + 26.8vmin) calc(50% + 15.5vmin);
+  animation: railBloomFocal 0.58s var(--ease-out-expo) both;
+}
+@keyframes railContractFocal {
+  from { transform: scale(1); opacity: 1; filter: blur(0); }
+  65%  { opacity: 0.3; }
+  to   { transform: scale(6); opacity: 0; filter: blur(4px); }
+}
+@keyframes railBloomFocal {
+  from { transform: scale(0.08); opacity: 0; filter: blur(5px); }
+  38%  { opacity: 1; filter: blur(0); }
+  to   { transform: scale(1);   opacity: 1; filter: blur(0); }
+}
+
 /* page → anywhere: the current page collapses down into the core */
 .nav-rail--collapse { animation: railCollapse 0.52s var(--ease-in-out-quart) both; }
 @keyframes railCollapse {
   from { transform: scale(1);    opacity: 1; filter: blur(0); }
   to   { transform: scale(0.04); opacity: 0; filter: blur(3px); }
 }
-/* the incoming page blooms out from the core */
-.nav-rail--bloom { animation: railBloom 0.48s var(--ease-out-expo) both; }
-@keyframes railBloom {
-  from { transform: scale(0.16); opacity: 0; clip-path: circle(0% at 50% 50%); }
-  45%  { opacity: 1; }
-  to   { transform: scale(1);    opacity: 1; clip-path: circle(150% at 50% 50%); }
-}
-/* returning home: exact inverse of zoom-up — home zooms back in from large scale,
-   as if the camera pulls back through the same portal it flew through going out */
+/* returning home: inverse of the original zoom-up — home zooms back in from large scale */
 .nav-rail--mask { animation: railMask 0.62s var(--ease-out-expo) both; }
 @keyframes railMask {
   from { transform: scale(5); opacity: 0; filter: blur(6px); }
@@ -407,7 +436,10 @@
 @keyframes railInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-rail--zoom-up, .nav-rail--collapse, .nav-rail--bloom, .nav-rail--mask,
+  .nav-rail--portal-out, .nav-rail--portal-in,
+  .nav-rail--contract-forces, .nav-rail--bloom-forces,
+  .nav-rail--contract-relations, .nav-rail--bloom-relations,
+  .nav-rail--collapse, .nav-rail--mask,
   .nav-rail--out-right, .nav-rail--out-left, .nav-rail--in-left, .nav-rail--in-right { animation: none; }
 }
 

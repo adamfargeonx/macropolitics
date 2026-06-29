@@ -41,7 +41,7 @@ export default function App() {
   const [view, setView] = useState<View>(initial)
   const [rail, setRail] = useState('')                 // nav-rail transition class (zoom-up/collapse/bloom/mask)
   const [navTarget, setNavTarget] = useState<View | null>(null) // light the destination tab during a transition
-  const [lockTo, setLockTo] = useState<View | null>(null)       // HomeView sweeps the orbit dot to this title
+  const [lockTo] = useState<View | null>(null)                   // kept for HomeView interface compat (smart animate replaced the orbit sweep)
   const viewRef = useRef(view)
   const transRef = useRef<{ to: View; timers: number[] } | null>(null) // in-flight transition (also the re-entry lock)
   useEffect(() => { viewRef.current = view }, [view])
@@ -61,37 +61,40 @@ export default function App() {
     if (v !== 'home') setHomeOpen(true) // returning home lands on the open circle; leaving stages it
     if (reduceMotion) { viewRef.current = v; setView(v); return }
 
-    const LOCK = 900, LEAVE = 460, ENTER = 500
     const t: { to: View; timers: number[] } = { to: v, timers: [] }
     transRef.current = t
     setNavTarget(v)
-    // home ↔ page nests through the core (zoom/mask); page ↔ page slides left/right by the
-    // pages' order on the bottom toggle (RTL: forces=right … dynamics=left).
+    // home → page: smart animate — each destination gets its own visual transition metaphor.
+    //   dynamics: portal through the orbital core (scale up from center).
+    //   forces:   contract toward the forces focal point (lower-left, where USA's orbit sits).
+    //   relations: mirror of forces toward lower-right.
+    // page → home: collapse into core, home zooms back in from large scale.
+    // page → page: directional slide by bottom-toggle order (RTL: forces=right … dynamics=left).
     const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']
-    let leaveClass: string, enterClass: string
-    if (from === 'home') { leaveClass = 'nav-rail--zoom-up'; enterClass = 'nav-rail--bloom' }
-    else if (v === 'home') { leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask' }
-    else {
+    let leaveClass: string, enterClass: string, leaveMs: number, enterMs: number
+    if (from === 'home') {
+      if (v === 'dynamics') {
+        leaveClass = 'nav-rail--portal-out';       enterClass = 'nav-rail--portal-in';       leaveMs = 450; enterMs = 600
+      } else if (v === 'forces') {
+        leaveClass = 'nav-rail--contract-forces';  enterClass = 'nav-rail--bloom-forces';    leaveMs = 480; enterMs = 580
+      } else {
+        leaveClass = 'nav-rail--contract-relations'; enterClass = 'nav-rail--bloom-relations'; leaveMs = 480; enterMs = 580
+      }
+    } else if (v === 'home') {
+      leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask'; leaveMs = 460; enterMs = 500
+    } else {
       const goingLeft = TAB_ORDER.indexOf(v) > TAB_ORDER.indexOf(from) // target sits further left (RTL)
       leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
-      enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
+      enterClass = goingLeft ? 'nav-rail--in-left'  : 'nav-rail--in-right'
+      leaveMs = 420; enterMs = 460
     }
 
-    const startLeave = () => {
-      setRail(leaveClass)
-      t.timers.push(window.setTimeout(() => {
-        viewRef.current = v; setView(v)   // swap the view at the core (smallest point)
-        setRail(enterClass)
-        t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, ENTER))
-      }, LEAVE))
-    }
-
-    if (from === 'home') {
-      setLockTo(v) // the dot does its dramatic sweep to the title before we dive in
-      t.timers.push(window.setTimeout(() => { setLockTo(null); startLeave() }, LOCK))
-    } else {
-      startLeave()
-    }
+    setRail(leaveClass)
+    t.timers.push(window.setTimeout(() => {
+      viewRef.current = v; setView(v)
+      setRail(enterClass)
+      t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, enterMs))
+    }, leaveMs))
   }, [reduceMotion])
 
   useEffect(() => {
