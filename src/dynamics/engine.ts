@@ -103,6 +103,9 @@ export class OrbitalField {
   private mouse = { x: -9999, y: -9999 }
   private down: { x: number; y: number } | null = null
   private dragging = false
+  // touch: track active pointers for two-finger pinch-zoom
+  private pointers = new Map<number, { x: number; y: number }>()
+  private pinch: { dist: number; zoom: number } | null = null
   private hovered: string | null = null
   private selected: string | null = null
   private hoverSince = 0
@@ -131,6 +134,7 @@ export class OrbitalField {
     this.container.addEventListener('pointerleave', this.onLeave)
     this.container.addEventListener('pointerdown', this.onDown)
     window.addEventListener('pointerup', this.onUp)
+    window.addEventListener('pointercancel', this.onUp)
     this.container.addEventListener('wheel', this.onWheel, { passive: false })
   }
 
@@ -262,12 +266,21 @@ export class OrbitalField {
     this.container.removeEventListener('pointerleave', this.onLeave)
     this.container.removeEventListener('pointerdown', this.onDown)
     window.removeEventListener('pointerup', this.onUp)
+    window.removeEventListener('pointercancel', this.onUp)
     this.container.removeEventListener('wheel', this.onWheel)
   }
 
   private onMove = (ev: PointerEvent) => {
     const rect = this.container.getBoundingClientRect()
     const mx = ev.clientX - rect.left, my = ev.clientY - rect.top
+    if (this.pointers.has(ev.pointerId)) this.pointers.set(ev.pointerId, { x: mx, y: my })
+    // two-finger pinch-zoom (touch): scale toward the midpoint, suppress pan/hover
+    if (this.pinch && this.pointers.size >= 2) {
+      const [a, b] = [...this.pointers.values()]
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1
+      this.setZoom(this.pinch.zoom * (dist / this.pinch.dist), (a.x + b.x) / 2, (a.y + b.y) / 2)
+      return
+    }
     if (this.down) {
       const dx = mx - this.mouse.x, dy = my - this.mouse.y
       if (this.dragging || Math.hypot(mx - this.down.x, my - this.down.y) > 4) {
@@ -283,13 +296,28 @@ export class OrbitalField {
     // container but must not scatter the field or clear the selection
     if (isInteractive(ev.target)) return
     const rect = this.container.getBoundingClientRect()
-    this.down = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
-    this.mouse.x = this.down.x; this.mouse.y = this.down.y; this.dragging = false
+    const x = ev.clientX - rect.left, y = ev.clientY - rect.top
+    this.pointers.set(ev.pointerId, { x, y })
+    if (this.pointers.size === 2) {
+      // second finger down → begin pinch; cancel any single-press tap/pan intent
+      this.down = null; this.dragging = false
+      const [a, b] = [...this.pointers.values()]
+      this.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: this.zoom }
+      return
+    }
+    this.down = { x, y }
+    this.mouse.x = x; this.mouse.y = y; this.dragging = false
+    // harden tap hit-testing: a still touch tap may emit no pointermove before up,
+    // so hit-test at the press point now rather than relying on a prior move.
+    this.hitTest()
   }
-  private onUp = () => {
+  private onUp = (ev: PointerEvent) => {
+    this.pointers.delete(ev.pointerId)
+    if (this.pointers.size < 2) this.pinch = null
+    if (this.pointers.size > 0) { this.down = null; this.dragging = false; return } // fingers remain
     if (this.down && !this.dragging) {
       if (this.hovered) {
-        // click on a body → pin/unpin it
+        // click/tap on a body → pin/unpin it
         this.setSelected(this.selected === this.hovered ? null : this.hovered)
       } else {
         // click on empty space → deselect + scatter particles
@@ -300,6 +328,8 @@ export class OrbitalField {
       }
     }
     this.down = null; this.dragging = false
+    // touch has no pointerleave — clear the transient hover so no stale readout sticks
+    if (ev.pointerType === 'touch') { this.mouse.x = -9999; this.mouse.y = -9999; this.setHovered(null) }
   }
   private onWheel = (ev: WheelEvent) => {
     ev.preventDefault()

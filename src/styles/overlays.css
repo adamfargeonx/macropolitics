@@ -27,13 +27,16 @@
    Shared by every custom tooltip (panelb__desc, readout, home-nav__sub,
    sheet-chip, and the data-hint pattern below). NOT for button hover. ── */
 .tooltip,
-[data-hint]:hover::after {
+[data-hint]:hover::after,
+[data-hint]:active::after {
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
-/* generic data-hint tooltip — anchored above the element, RTL-aware */
+/* generic data-hint tooltip — anchored above the element, RTL-aware.
+   :active makes it reachable on touch (press-and-hold) where there is no hover. */
 [data-hint] { position: relative; }
-[data-hint]:hover::after {
+[data-hint]:hover::after,
+[data-hint]:active::after {
   content: attr(data-hint);
   position: absolute; bottom: calc(100% + 7px); inset-inline-start: 0; z-index: 200;
   min-width: 160px; max-width: 240px; padding: 7px 10px;

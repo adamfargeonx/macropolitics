@@ -200,7 +200,9 @@ body {
   overflow: hidden;
   cursor: none;
 }
-.field { position: absolute; inset: 0; display: block; }
+/* interactive canvases own their gestures (drag-pan, pinch-zoom, scroll-narrative) — keep the
+   browser from hijacking two-finger/drag as page zoom/scroll. Panels (separate elements) still scroll. */
+.field { position: absolute; inset: 0; display: block; touch-action: none; }
 
 /* soft scrim: revolving nodes fade out behind the side panel (depth) — data views only.
    Fades away when the dock is collapsed (no panel to back). No column-divider line. */

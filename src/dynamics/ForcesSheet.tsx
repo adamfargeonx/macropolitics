@@ -223,7 +223,15 @@ class GravityWell {
     this.mouse.x = -9999; this.mouse.y = -9999
     if (this.hoveredIdx !== null) { this.hoveredIdx = null; this.onHover?.(null) }
   }
-  private onDown = () => {
+  private onDown = (ev?: PointerEvent) => {
+    // harden tap hit-testing: a still touch tap may emit no pointermove first, so resolve the
+    // body at the press point now instead of trusting a prior hover.
+    if (ev) {
+      const r = this.container.getBoundingClientRect()
+      this.mouse.x = ev.clientX - r.left
+      this.mouse.y = ev.clientY - r.top
+      this.hitTest()
+    }
     if (this.hoveredIdx !== null) {
       const next = this.selectedIdx === this.hoveredIdx ? null : this.hoveredIdx
       this.selectedIdx = next
@@ -231,6 +239,12 @@ class GravityWell {
     } else if (this.selectedIdx !== null) {
       this.selectedIdx = null
       this.onSelect?.(null)
+    }
+    // touch has no pointerleave — clear the transient hover so no stale chip sticks to a
+    // non-selected body (the selected body's chip/gauge is driven by selectedIdx now)
+    if (ev?.pointerType === 'touch') {
+      this.mouse.x = -9999; this.mouse.y = -9999
+      if (this.hoveredIdx !== null) { this.hoveredIdx = null; this.onHover?.(null) }
     }
   }
 
@@ -313,7 +327,9 @@ class GravityWell {
       // Expo-out feel: a per-frame lerp toward the hover state. Asymmetric rates —
       // a touch quicker in than out — land the ~280–360ms "fast then settle" curve.
       // reduced-motion: snap to the end state (no tween).
-      const hoverTarget = isHov ? 1 : 0
+      // reveal the in-circle gauge + grow on hover OR selection (tap) — touch has no hover,
+      // so a tapped/selected body must open its readout the same way a hovered one does
+      const hoverTarget = (isHov || isSel) ? 1 : 0
       if (this.reduced) {
         this.hoverProg[i] = hoverTarget
       } else {
