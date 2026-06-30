@@ -214,7 +214,18 @@ body {
 
 /* ── 768px responsive: field goes full-width, scrim removed ──── */
 @media (max-width: 768px) {
-  :root { --rail-w: 0px; }
+  :root {
+    --rail-w: 0px;
+    /* coordinated bottom band: a full-width footer tab bar + a bottom sheet that
+       sits ABOVE it. Canvas fields reserve (--tabbar-h + --sheet-h) below them so
+       nothing in the bottom region overlaps. */
+    --tabbar-h: 54px;
+    --sheet-h: 50dvh;
+  }
   .stage::before { display: none; }
+}
+/* ── ≤480px phone tier: tighten chrome insets so top/bottom bars fit a 375px width ── */
+@media (max-width: 480px) {
+  :root { --sp-8: 18px; --sp-6: 16px; }
 }
 

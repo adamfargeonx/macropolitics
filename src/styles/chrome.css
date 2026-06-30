@@ -230,7 +230,8 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 /* "המודל" — the methodology overlay */
 .about {
   position: relative; width: min(620px, calc(100vw - 48px));
-  max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: none;
+  max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   padding: 32px 36px 24px; text-align: right;
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
@@ -277,3 +278,30 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 }
 @media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .about { animation: none; } }
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE CHROME (≤768px) — top bar compaction + bottom-band hygiene.
+   The bottom region is owned by the footer tab bar + bottom sheet, so the
+   sound toggle, hint and tools disclosure all move clear of it.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .hdr  { top: var(--sp-4); right: var(--sp-4); gap: var(--sp-2); }
+  .unav { top: var(--sp-4); left: var(--sp-4); gap: var(--sp-2); }
+  /* sound toggle → top-left, tucked under the utility nav (clears the bottom band
+     AND the relations top "מתח" vertex that lives at top-centre) */
+  .soundtoggle { top: calc(var(--sp-4) + 42px); bottom: auto; right: auto; left: var(--sp-4); }
+  /* the interaction hint sits just above the footer tab bar */
+  .forces-hint { bottom: calc(var(--tabbar-h) + 12px); }
+  /* tools disclosure: dock near the top, never floating over the bottom sheet */
+  .forcestools { top: 60px; bottom: auto; max-height: 56dvh; overflow-y: auto; overscroll-behavior: contain; }
+  /* intro toast clears the relocated sound toggle */
+  .abtoast { top: calc(var(--sp-4) + 88px); }
+}
+@media (max-width: 480px) {
+  /* header: orbit mark only — drop the wordmark text to fit a 375px bar */
+  .hdr__wm { display: none; }
+  /* utility nav: icon-only pills (font-size:0 hides the bare label text node;
+     the icon carries its own explicit size) */
+  .unav__model, .unav__legend { font-size: 0; gap: 0; padding: 8px 10px; }
+  .unav__icon { font-size: 16px; }
+}

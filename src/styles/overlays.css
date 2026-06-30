@@ -45,7 +45,8 @@
 /* ── Evidence overlay — tabbed (sources | calculation); wide, axes side-by-side, low-scroll ── */
 .evid {
   position: relative; width: min(860px, calc(100vw - 48px));
-  max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: none;
+  max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   padding: 28px 32px 20px; text-align: right;
   /* surface/border/shadow/animation inherited from the shared panel shell */
 }
@@ -195,7 +196,7 @@
 .panel {
   position: absolute; top: 88px; right: 44px;
   width: 396px; z-index: var(--z-panel); text-align: right; padding: 28px;
-  max-height: calc(100vh - 124px); overflow-y: auto; scrollbar-width: none;
+  max-height: calc(100dvh - 124px); overflow-y: auto; scrollbar-width: none;
 }
 .panel::-webkit-scrollbar { display: none; }
 .panel__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
@@ -405,5 +406,17 @@
   margin-top: 16px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30);
   font-family: var(--body); font-size: var(--text-sm); line-height: 1.6;
   letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.9;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE (≤768px) — the index/detail panels live INSIDE the bottom sheet
+   (.pdock__panel), so they must stop self-positioning at a fixed 396px/right:44px
+   and instead fill the sheet, which owns the scrolling.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .panel, .panelb {
+    position: static; width: 100%; right: auto; left: auto; top: auto;
+    max-height: none; overflow: visible; padding: 18px 18px 22px;
+  }
 }
 

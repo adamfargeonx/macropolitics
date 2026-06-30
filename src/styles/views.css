@@ -6,7 +6,7 @@
 /* the relations lens enters by zooming OUT — pulling back to reveal all states at once */
 @keyframes relZoomOut { from { transform: scale(1.55); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .rel-field { animation: none; } }
-@media (max-width: 768px) { .rel-field { right: 0; bottom: calc(50vh + 64px); } }
+@media (max-width: 768px) { .rel-field { right: 0; bottom: calc(var(--tabbar-h) + var(--sheet-h)); } }
 .rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);

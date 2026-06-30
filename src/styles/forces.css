@@ -29,30 +29,29 @@
 /* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
 @media (max-width: 768px) {
   .pdock__panel {
-    /* override: pin to bottom, full-width, constrained height */
-    top: auto; right: 0; bottom: 0; left: 0; width: 100%;
-    max-height: 50vh; overflow-y: auto;
+    /* override: bottom sheet that sits ABOVE the footer tab bar, full-width */
+    top: auto; right: 0; bottom: var(--tabbar-h); left: 0; width: 100%;
+    max-height: var(--sheet-h); overflow-y: auto;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
     transform: translateY(0);
   }
-  .pdock--closed .pdock__panel { transform: translateY(100%); }
-  /* peek on handle hover */
+  .pdock--closed .pdock__panel { transform: translateY(calc(100% + var(--tabbar-h))); }
+  /* peek on handle hover (desktop/hybrid only; touch uses the tap-toggle) */
   .pdock--closed:has(.pdock__handle:hover) .pdock__panel,
   .pdock--closed:has(.pdock__handle:focus-visible) .pdock__panel {
-    transform: translateY(calc(100% - 54px));
+    transform: translateY(calc(100% + var(--tabbar-h) - 54px));
   }
   /* handle rotates to sit at the top edge of the bottom sheet */
   .pdock__handle {
     position: absolute; top: -34px; right: 50%; left: auto;
     transform: translateX(50%);
-    width: 54px; height: 34px; padding: 0;
+    width: 64px; height: 34px; padding: 0;
     flex-direction: row;
     border-radius: 0;
     border-right: 1px solid var(--line-yellow); border-bottom: none;
   }
   .pdock__handle:active { transform: translateX(50%) scale(0.96); }
   .pdock__handle-lbl { writing-mode: horizontal-tb; }
-  /* fields: full-width (--rail-w is already 0 from :root override) */
-  .forces-field { right: 0; bottom: calc(50vh + 70px); }
 }
 @media (prefers-reduced-motion: reduce) { .pdock__panel { transition: none; } .pdock__chev { transition: none; } }
 
@@ -85,6 +84,22 @@
   transition: transform 0.4s var(--ease-out-expo), width 0.4s var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) { .tabs__marker { transition: none; } }
+
+/* ── Mobile (≤768px): the tab bar becomes a full-width bottom FOOTER so it never
+   floats over the bottom sheet. The sliding marker still measures real geometry. ── */
+@media (max-width: 768px) {
+  .tabs {
+    left: 0; right: 0; bottom: 0; transform: none; width: 100%;
+    gap: 0; height: var(--tabbar-h);
+    border: none; border-top: 1px solid var(--line-yellow);
+    background: rgba(8, 4, 18, 0.97); z-index: var(--z-persistent);
+  }
+  .tab {
+    flex: 1 1 0; padding: 0; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tabs__marker { top: 0; bottom: 0; }
+}
 
 /* ── Forces view ───────────────────────────────────────────── */
 .forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
@@ -345,5 +360,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fnode__disk, .fnode--focus .fnode__disk::after, .pnote__fill, .forces .fnode { animation: none; }
+}
+
+/* ── Mobile (≤768px): the forces canvas sits ABOVE the bottom sheet + footer so no
+   bodies hide behind the sheet. Placed after the base .sheet-embed/.forces-field
+   definitions above so it wins the cascade (equal specificity → later source). ── */
+@media (max-width: 768px) {
+  .forces-field, .sheet-embed {
+    right: 0; bottom: calc(var(--tabbar-h) + var(--sheet-h));
+  }
 }
 
