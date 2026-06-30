@@ -467,3 +467,28 @@
   .stage, .fnode, .rnode, .fbar__fill, .rel-tri polygon, .labels { animation: none; }
   .rnode { transition: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE re-layouts (≤600px) — Home and Relations.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* HOME: the on-ring nav is kept (it's the brand), but made to FIT a tall narrow screen. */
+  .home { --ring-d: min(58vmin, 280px); }
+  /* wordmark: tighter tracking + smaller cap so "מאקרופוליטיקה" stops clipping edge-to-edge.
+     Drop the +4px optical nudge (that was tuned for the wide desktop tracking). */
+  .home-title {
+    font-size: clamp(18px, 6.4vw, 34px);
+    letter-spacing: 0.16em; padding-inline-start: 0.16em;
+    transform: translate(-50%, -50%);
+  }
+  /* the equation reveals only on orbit-hover (a desktop affordance) and on a phone it just
+     overlaps the bottom nav labels — drop it on mobile */
+  .home-eq { display: none; }
+  .home-nav__label { font-size: var(--text-xl); }
+
+  /* RELATIONS: smaller vertex labels + node names so the (now smaller) triangle reads cleanly
+     and labels stop overhanging the field edges */
+  .rel-vtx { font-size: 15px; }
+  .rel-vtx i { font-size: 8px; }
+  .rnode__name { font-size: 10px; }
+}

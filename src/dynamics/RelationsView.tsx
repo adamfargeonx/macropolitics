@@ -86,24 +86,28 @@ function relaxCollisions(points: NodePoint[], w: number, h: number, iters = 24, 
 }
 
 // TRIANGLE layout — barycentric placement of every state relative to the reference.
+// On a narrow field (phone) the triangle shrinks and nodes get smaller so the corners
+// inset (vertex labels stop overhanging) and de-collision can actually find room.
 function triangleGeo(refId: string, w: number, h: number) {
-  const cx = w / 2, cy = h / 2 + h * 0.02, s = Math.min(w, h) * 0.47
+  const small = Math.min(w, h) < 460
+  const cx = w / 2, cy = h / 2 + h * 0.02, s = Math.min(w, h) * (small ? 0.42 : 0.47)
   const Vt = { x: cx, y: cy - s * 0.95 }            // מתח — top
   const Vf = { x: cx - s * 0.92, y: cy + s * 0.72 } // חיכוך — bottom-left
   const Vh = { x: cx + s * 0.92, y: cy + s * 0.72 } // הרמוניה — bottom-right
+  const jit = small ? 12 : 18
   const points: NodePoint[] = STATES.filter((e) => e.id !== refId).map((e) => {
     const raw = relation(refId, e.id)
     const r = sharpen(raw)
-    const jx = ((hash(e.id) % 1000) / 1000 - 0.5) * 18
-    const jy = ((hash(e.id + '~') % 1000) / 1000 - 0.5) * 18
+    const jx = ((hash(e.id) % 1000) / 1000 - 0.5) * jit
+    const jy = ((hash(e.id + '~') % 1000) / 1000 - 0.5) * jit
     return {
       e, r: raw,
       x: r.tension * Vt.x + r.friction * Vf.x + r.harmony * Vh.x + jx,
       y: r.tension * Vt.y + r.friction * Vf.y + r.harmony * Vh.y + jy,
-      d: Math.max(9, Math.min(30, powerSize(e.power) * 0.42)),
+      d: Math.max(8, Math.min(small ? 20 : 30, powerSize(e.power) * (small ? 0.34 : 0.42))),
     }
   })
-  relaxCollisions(points, w, h)
+  relaxCollisions(points, w, h, 24, small ? 14 : 21)
   return { mode: 'triangle' as const, cx, cy, Vt, Vf, Vh, points }
 }
 
@@ -112,7 +116,8 @@ export interface Edge { a: string; b: string; ax: number; ay: number; bx: number
 // CONSTELLATION layout — the whole web at once. X = bloc/axis lane (west↔east, neutral centre,
 // jittered so same-axis states don't stack); Y = power (strong at top). Edges = authored pairs.
 function networkGeo(refId: string, w: number, h: number) {
-  const padX = 64, padY = 56
+  const small = Math.min(w, h) < 460
+  const padX = small ? 30 : 64, padY = small ? 40 : 56
   const fieldW = w - padX * 2, fieldH = h - padY * 2
   const points: NodePoint[] = STATES.map((e) => {
     const lane = AXIS_LANE[AXIS[e.id] ?? 'none'] // -1 west · 0 neutral · +1 east
@@ -126,10 +131,10 @@ function networkGeo(refId: string, w: number, h: number) {
       r: e.id === refId ? { tension: 0, friction: 0, harmony: 1 } : relation(refId, e.id),
       x: padX + Math.min(Math.max(nx, 0.02), 0.98) * fieldW,
       y: padY + Math.min(Math.max(ny, 0.02), 0.98) * fieldH,
-      d: Math.max(9, Math.min(30, powerSize(e.power) * 0.42)),
+      d: Math.max(8, Math.min(small ? 20 : 30, powerSize(e.power) * (small ? 0.34 : 0.42))),
     }
   })
-  relaxCollisions(points, w, h, 30, 18)
+  relaxCollisions(points, w, h, 30, small ? 13 : 18)
   // edges from authored relations — only between two plotted states
   const posOf = new Map(points.map((p) => [p.e.id, p]))
   const edges: Edge[] = []
