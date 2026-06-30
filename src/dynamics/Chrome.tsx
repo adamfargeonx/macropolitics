@@ -12,7 +12,7 @@ import { Icon, type IconName } from './Icon'
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
 // while collapsed peeks the panel as a preview.
-export function PanelDock({ children }: { children: ReactNode }) {
+export function PanelDock({ children, forceOpen, forceClosed }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean }) {
   // mounts closed, then slides in after the page transition has landed — the panel
   // arriving a beat late reads as a considered reveal, not a static frame.
   const [open, setOpen] = useState(false)
@@ -20,14 +20,17 @@ export function PanelDock({ children }: { children: ReactNode }) {
     const t = window.setTimeout(() => setOpen(true), 850)
     return () => window.clearTimeout(t)
   }, [])
+  // mobile map/list toggle drives the sheet: forceClosed (map, nothing selected) keeps the field
+  // full-screen; forceOpen (list, or a body selected) pins it open. Desktop passes neither.
+  const isOpen = forceClosed ? false : (forceOpen || open)
   return (
-    <div className={`pdock${open ? ' pdock--open' : ' pdock--closed'}`}>
+    <div className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">{children}</div>
       <button
         className="pdock__handle"
         onClick={() => { sound.play('tab'); setOpen((o) => !o) }}
-        aria-label={open ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
-        aria-expanded={open}
+        aria-label={isOpen ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
+        aria-expanded={isOpen}
       >
         <svg className="pdock__chev" viewBox="0 0 24 24" aria-hidden="true">
           <polyline points="9 5 16 12 9 19" />

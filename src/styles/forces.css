@@ -371,3 +371,27 @@
   }
 }
 
+/* ── Mobile map/list toggle — choose the field or the ranked index as the lead surface.
+   Higher-specificity (.forces--m-* .sheet-embed) overrides the split layout above. ── */
+.forces-mswitch { display: none; }
+@media (max-width: 768px) {
+  .forces-mswitch {
+    display: flex; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: var(--z-chrome); border: 1px solid var(--line-yellow); background: rgba(8, 4, 18, 0.92);
+  }
+  .forces-mswitch__btn {
+    cursor: none; background: none; border: none; padding: 6px 18px;
+    font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-dim);
+    transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+  }
+  .forces-mswitch__btn.is-on { background: var(--yellow); color: var(--bg); }
+  /* MAP: the field fills the screen above the footer (sheet overlays only when a body is tapped) */
+  .forces--m-map .forces-field, .forces--m-map .sheet-embed { bottom: var(--tabbar-h); }
+  /* LIST: hide the field; the ranked index sheet fills the screen (below the toggle row,
+     above the footer) instead of floating content-sized at the bottom */
+  .forces--m-list .sheet-embed, .forces--m-list .forces-field { display: none; }
+  .forces--m-list .pdock__panel { top: 52px; bottom: var(--tabbar-h); max-height: none; }
+  /* let the index surface fill the sheet rather than ending content-short */
+  .forces--m-list .pdock__panel > .panel { min-height: 100%; }
+}
+

@@ -6,6 +6,7 @@ import { useWeights, weightsStore } from '../model/weights-store'
 import { useYear, yearStore } from '../model/year-store'
 import { useScenarioWeights } from './useScenario'
 import { SidePanel, PanelDock } from './Chrome'
+import { sound } from '../sound'
 import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
 import { ForcesIndexPanel } from './ForcesIndexPanel'
@@ -15,6 +16,19 @@ import {
   metricVal, passesBloc, buildForceDetail,
   type Order, type Bloc,
 } from './forces-model'
+
+// Tracks the mobile (bottom-sheet) breakpoint so the map/list toggle only drives the sheet there.
+function useIsMobile() {
+  const [m, setM] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(max-width: 768px)').matches)
+  useEffect(() => {
+    if (typeof matchMedia === 'undefined') return
+    const mq = matchMedia('(max-width: 768px)')
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
 
 // The Forces page — a single committed reading: the horizontal force-field. States are luminous
 // bodies sized by live gravity (mass = power), spread across the full width and sorted strong→weak.
@@ -27,6 +41,9 @@ export default function ForcesView() {
   const [minScore, setMinScore] = useState(0)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [showAllIndex, setShowAllIndex] = useState(false)
+  // mobile only: toggle the field (map) vs the ranked index (list) as the primary surface
+  const [mobileMode, setMobileMode] = useState<'map' | 'list'>('map')
+  const isMobile = useIsMobile()
 
   const weights = useWeights()
   const year = useYear()
@@ -56,11 +73,17 @@ export default function ForcesView() {
 
   return (
     <div
-      className="stage forces"
+      className={`stage forces forces--m-${mobileMode}`}
       dir="rtl"
       onClick={() => { setSelected(null); setToolsOpen(false) }}
     >
       <ForcesSheet grav={grav} orderBy={orderBy} selected={selected} onSelect={setSelected} onHover={setHovered} />
+
+      {/* mobile-only map/list switch — choose the field or the ranked index as the lead surface */}
+      <div className="forces-mswitch" role="tablist" aria-label="תצוגת מובייל" onClick={(e) => e.stopPropagation()}>
+        <button role="tab" aria-selected={mobileMode === 'map'} className={`forces-mswitch__btn${mobileMode === 'map' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('map') }}>מפה</button>
+        <button role="tab" aria-selected={mobileMode === 'list'} className={`forces-mswitch__btn${mobileMode === 'list' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('list') }}>רשימה</button>
+      </div>
 
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
       {stateActive && !tools.mounted && (
@@ -85,7 +108,10 @@ export default function ForcesView() {
         />
       )}
 
-      <PanelDock>
+      <PanelDock
+        forceOpen={isMobile ? (mobileMode === 'list' || !!selected) : undefined}
+        forceClosed={isMobile && mobileMode === 'map' && !selected}
+      >
         {selected ? (
           <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
         ) : (

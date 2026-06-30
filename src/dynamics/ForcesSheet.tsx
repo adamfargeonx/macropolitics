@@ -485,7 +485,8 @@ class GravityWell {
       .sort((a, b) => this.massTarget[b] - this.massTarget[a])
     const rankOf = new Int16Array(BODIES.length)
     order.forEach((idx, rk) => { rankOf[idx] = rk })
-    const TOP_N = 8
+    // fewer on-canvas labels on a narrow phone field so they don't pile up
+    const TOP_N = this.w < 480 ? 5 : 8
 
     for (let i = 0; i < BODIES.length; i++) {
       const b = BODIES[i]
