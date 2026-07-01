@@ -110,11 +110,16 @@
 /* sheet hover/select readout — a tooltip: dark text on the yellow field */
 .sheet-chip {
   position: absolute; transform: translate(-50%, -100%); z-index: 6; pointer-events: none;
-  display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
-  background: var(--tooltip-bg); border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); padding: 4px 10px;
+  display: flex; flex-direction: column; gap: 3px; white-space: nowrap;
+  background: var(--tooltip-bg); border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); padding: 5px 10px 6px;
 }
+.sheet-chip__head { display: flex; align-items: baseline; gap: 8px; }
 .sheet-chip__name { font-family: var(--display); font-size: 14px; font-weight: 400; color: var(--tooltip-fg); letter-spacing: var(--tracking-title); }
 .sheet-chip__score { font-family: var(--latin); font-size: var(--text-lg); font-weight: 700; color: var(--tooltip-fg); opacity: 0.78; direction: ltr; }
+/* compact eco/mil/geo breakdown row — the literal explanation of the in-body gauge rings */
+.sheet-chip__sig { display: flex; gap: 9px; padding-top: 2px; border-top: 1px solid rgba(6, 3, 15, 0.16); margin-top: 1px; }
+.sheet-chip__sig-k { font-family: var(--body); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; color: var(--tooltip-fg); opacity: 0.68; }
+.sheet-chip__sig-k b { font-family: var(--latin); font-weight: 700; opacity: 1; margin-inline-start: 3px; }
 .sheet-hint {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
   font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--ink-faint);

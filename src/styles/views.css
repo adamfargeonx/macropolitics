@@ -210,13 +210,52 @@
 .home--open .home-tagline > span { transform: translateY(0); transition-delay: 0.3s; }
 .home--open .home-nav__label > span { transform: translateY(0); transition-delay: calc(0.55s + var(--bd, 0s) * 0.4); }
 
-/* wordmark reveal — explode-blast: scales up from a tight, blurred core (no mask slide) */
-.home-title > span {
+/* wordmark reveal — explode-blast: scales up from a tight, blurred core (no mask slide).
+   The wordmark is per-CHARACTER spans (see Words.tsx `Letters`) so the LEAVE transition (below)
+   can fan them out one by one; the entrance keeps one shared delay so it still reads as a single
+   unified blast, not a stagger. */
+.home-title .letters__ch {
   display: inline-block; will-change: transform, opacity, filter;
   transform: scale(0.55); opacity: 0; filter: blur(14px);
   transition: transform 0.92s var(--ease-out-expo), opacity 0.55s ease, filter 0.7s var(--ease-out-expo);
 }
-.home--open .home-title > span { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
+.home--open .home-title .letters__ch { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
+
+/* ── Home leaving (home → a page): a three-beat choreographed exit —
+   1) the wordmark dissolves letter-by-letter (fast wave, right-to-left reading order)
+   2) tagline/equation slide away and the nav labels fade+shrink just after
+   3) the ring itself zooms into the void (App.tsx then applies .nav-rail--zoom-up)
+   All three phases fire together here but with staggered transition-delays, so they READ as
+   sequenced even though it's one class toggle — simpler and less brittle than chained timers
+   for each visual layer, while still matching the requested order. ── */
+.home--leaving .home-title .letters__ch {
+  transition: transform 0.34s var(--ease-in-out-quart), opacity 0.26s ease, filter 0.34s var(--ease-in-out-quart);
+  transition-delay: calc(var(--ci, 0) * 0.016s);
+  transform: scale(0.5) translateY(-8px); opacity: 0; filter: blur(10px);
+}
+.home--leaving .home-tagline > span,
+.home--leaving .home-eq > span {
+  transition: transform 0.28s var(--ease-in-out-quart), opacity 0.22s ease;
+  transition-delay: 0.05s;
+  transform: translateY(-110%); opacity: 0;
+}
+.home--leaving .home-nav__item {
+  transition: opacity 0.26s ease, transform 0.26s var(--ease-in-out-quart);
+  transition-delay: 0.16s;
+  opacity: 0; transform: scale(0.82);
+}
+.home--leaving .home-credit,
+.home--leaving .home-hint {
+  transition: opacity 0.2s ease; transition-delay: 0.1s; opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home--leaving .home-title .letters__ch,
+  .home--leaving .home-tagline > span,
+  .home--leaving .home-eq > span,
+  .home--leaving .home-nav__item,
+  .home--leaving .home-credit,
+  .home--leaving .home-hint { transition: none; }
+}
 
 /* brand wordmark — light weight, wide kerning. The trailing letter-spacing is added after the
    last glyph (the left end in RTL); padding-inline-start = one full letter-spacing balances it so
@@ -328,7 +367,7 @@
   .home-orbit, .home-orbit__spin, .home-core__dot, .home-nav__item, .home-nav__label, .home-hint { animation: none; }
   .home-orbit { transition: none; }
   .home-tagline > span, .home-nav__label > span { transition: none; transform: none; }
-  .home-title > span { transition: none; transform: none; opacity: 1; filter: none; }
+  .home-title .letters__ch { transition: none; transform: none; opacity: 1; filter: none; }
 }
 
 /* ── Loader (overlay; gravitational COLLAPSE → IGNITION → settle → home) ── */

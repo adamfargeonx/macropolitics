@@ -1,6 +1,7 @@
 // Static page chrome around the field: logo, side panel, right rail, bottom tabs.
 // Co-located presentational components.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { NODES, type PowerNotes } from '../data/entities'
 import type { AxisProvenance } from '../data/empirical'
 import { FORCES_DESCRIPTIONS } from '../data/forces-descriptions'
@@ -12,10 +13,19 @@ import { Icon, type IconName } from './Icon'
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
 // while collapsed peeks the panel as a preview.
+//
+// Portals into #panel-root (a sibling of .nav-rail in App.tsx) rather than rendering inline —
+// .nav-rail is what gets scaled/blurred by the page-transition (zoom-up/bloom/collapse/mask),
+// and the panel must NOT ride along with that; it's a foreground layer that animates in/out on
+// its own (slide + fade), independent of whichever page transition is happening behind it.
 export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void }) {
   // mounts closed, then slides in after the page transition has landed — the panel
   // arriving a beat late reads as a considered reveal, not a static frame.
   const [open, setOpen] = useState(false)
+  // the portal target may not exist yet on the very first render (App.tsx renders it as a
+  // sibling) — fall back to an inline render for that one frame, then re-parent once mounted.
+  const [root, setRoot] = useState<HTMLElement | null>(null)
+  useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
   useEffect(() => {
     const t = window.setTimeout(() => setOpen(true), 850)
     return () => window.clearTimeout(t)
@@ -23,7 +33,7 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: {
   // mobile map/list toggle drives the sheet: forceClosed (map, nothing selected) keeps the field
   // full-screen; forceOpen (list, or a body selected) pins it open. Desktop passes neither.
   const isOpen = forceClosed ? false : (forceOpen || open)
-  return (
+  const node = (
     <div className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">{children}</div>
       <button
@@ -39,6 +49,7 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: {
       </button>
     </div>
   )
+  return root ? createPortal(node, root) : node
 }
 
 export function Header({ onHome }: { onHome?: () => void }) {
@@ -205,7 +216,7 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       ? `${detail.he}: עוצמתה נשענת על ${AXIS_HE[axisName]}, מתוחה מול ${heById.get(topTension.other) ?? topTension.other}, ונסמכת על ${heById.get(topHarmony.other) ?? topHarmony.other}.`
       : null
   return (
-    <aside className="panelb dcard panel--detail" dir="rtl">
+    <aside className="panelb dcard panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <header className="dcard__head">
         {detail.rank && <span className="dcard__rank">{String(detail.rank).padStart(2, '0')}</span>}
@@ -331,7 +342,12 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
   if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
   const pick = (m: 'score' | 'desc') => { if (m !== mode) { sound.play('tab'); setMode(m) } }
   return (
-    <aside className="panelb panel--detail" dir="rtl">
+    // stopPropagation: ForcesView's outer .stage has an onClick that deselects the current body
+    // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
+    // the panel — the ציון/תיאור switch, the evidence link, relation chips — bubbles up and
+    // immediately deselects too, which is why the description tab looked like it "did nothing":
+    // setMode('desc') fired, then the bubbled setSelected(null) reverted the whole panel closed.
+    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
       <div className="fswitch" role="tablist" aria-label="תצוגת הכוח">

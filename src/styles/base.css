@@ -188,6 +188,14 @@ body {
 /* Global particle field — one fixed canvas behind every view (the gravity background). */
 .globalfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
+/* Panel foreground layer — a sibling of .nav-rail (see App.tsx), NOT a descendant, so the
+   selected-entity / index panel (.pdock, portaled here from Chrome.tsx's PanelDock) is never
+   caught in the page-transition zoom/bloom/collapse/mask transforms applied to .nav-rail. It
+   establishes the same fixed/full-viewport containing block .pdock used to inherit from its
+   host view's .stage, so .pdock's own absolute positioning lines up identically either way. */
+.panel-root { position: fixed; inset: 0; z-index: var(--z-panel); pointer-events: none; }
+.panel-root > * { pointer-events: auto; }
+
 /* Stage ───────────────────────────────────────────────────── */
 /* Transparent so the global field shows through; the gradients become a faint ambient tint. */
 .stage {

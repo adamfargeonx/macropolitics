@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type View } from './Chrome'
 import { sound } from '../sound'
-import { Words } from './Words'
+import { Words, Letters } from './Words'
 
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
 // `sub` is the brief explainer revealed on hover (and when the orbit dot sweeps near — see below).
@@ -31,7 +31,7 @@ const LOCK_SWEEP_MS = 900 // must match App's LOCK — the dramatic dot sweep be
  *             descriptor reveals. Faster scrolling makes the core glow (speed-sensitive).
  * Clicking the centre toggles between them; the expansion is animated, not a dissolve.
  */
-export default function HomeView({ open, intro = false, lockTo = null, onToggle, onView }: { open: boolean; intro?: boolean; lockTo?: View | null; onToggle: () => void; onView: (v: View) => void }) {
+export default function HomeView({ open, intro = false, lockTo = null, leaving = false, onToggle, onView }: { open: boolean; intro?: boolean; lockTo?: View | null; leaving?: boolean; onToggle: () => void; onView: (v: View) => void }) {
   const toggle = () => { sound.start(); sound.play(open ? 'back' : 'open'); onToggle() }
   const [orbitHovered, setOrbitHovered] = useState(false)
   const [nearNav, setNearNav] = useState<View | null>(null)
@@ -117,7 +117,7 @@ export default function HomeView({ open, intro = false, lockTo = null, onToggle,
   }, [open])
 
   return (
-    <div ref={rootRef} className={`stage home ${open ? 'home--open' : 'home--closed'}${open && orbitHovered ? ' home--orbit-hover' : ''}${!open && orbitHovered ? ' home--core-hover' : ''}`} dir="rtl">
+    <div ref={rootRef} className={`stage home ${open ? 'home--open' : 'home--closed'}${open && orbitHovered ? ' home--orbit-hover' : ''}${!open && orbitHovered ? ' home--core-hover' : ''}${leaving ? ' home--leaving' : ''}`} dir="rtl">
       <div className="home-center" aria-hidden>
         {/* the mask fills the ring: pitch-black core, hover exposes field at 50%. Orbit hover also
             triggers the formula reveal — so we track enter/leave on the mask too. */}
@@ -150,7 +150,7 @@ export default function HomeView({ open, intro = false, lockTo = null, onToggle,
       )}
 
       <p className="home-tagline"><span>תורת היחסות של המזרח התיכון</span></p>
-      <h1 className="home-title"><span>מאקרופוליטיקה</span></h1>
+      <h1 className="home-title"><Letters text="מאקרופוליטיקה" /></h1>
       <p className="home-eq" aria-hidden><span>יחסי הכוחות = הכוחות + היחסים</span></p>
 
       <nav className="home-nav" aria-label="כניסה">

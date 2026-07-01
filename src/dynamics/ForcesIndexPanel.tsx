@@ -91,16 +91,6 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
   const [descOpen, setDescOpen] = useState(false)
 
-  // Top entity per sort order in current bloc filter
-  const tops = useMemo(() => {
-    const pool = filterBloc === 'all' ? NODES : NODES.filter(n => passesBloc(n.id, filterBloc))
-    return ORDERS.reduce((acc, o) => {
-      const sorted = [...pool].sort((a, b) => metricVal(b, o, grav) - metricVal(a, o, grav))
-      acc[o] = sorted[0]?.he ?? ''
-      return acc
-    }, {} as Record<Order, string>)
-  }, [grav, filterBloc])
-
   return (
     <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>

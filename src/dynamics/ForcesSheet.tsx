@@ -4,9 +4,11 @@
 // story. Hover/select bloom each body with a gentle, premium-eased glow. setGravities() eases each
 // body's mass toward the active scenario/year so the field re-forms rather than snapping.
 //
-// Scrollytelling layer: wheel/touch accumulates a virtual scrollProgress (0–5.5). Spring physics
-// (mass-spring-damper) follow the target. At progress 1–5, each tier sweeps into focus while others
-// dim via an exponential alpha falloff. An editorial annotation overlay rides the scroll stage.
+// Scrollytelling layer: touch free-accumulates a virtual scrollProgress (0–5.5); desktop wheel is
+// DISCRETE — each wheel gesture steps exactly one integer tier (0..5) with a cooldown so a single
+// continuous scroll can't blow through several tiers. Either way, spring physics (mass-spring-damper)
+// ease toward the target. At progress 1–5, each tier sweeps into focus while others dim via an
+// exponential alpha falloff. An editorial annotation overlay rides the scroll stage.
 //
 // Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio handling
 // via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
@@ -21,6 +23,9 @@ import { isInteractive } from '../sound'
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
 const LIGHT = '244,242,236'
+// dark ink for in-body text drawn over the LIGHT fill (mirrors engine.ts's DARK constant) —
+// the body fill is near-white, so labels drawn on top need a dark colour to stay legible.
+const DARK = '11,0,36'
 const TAU = Math.PI * 2
 
 // The field's usable fraction of the shorter side — radii scale by this so packing stays isotropic.
@@ -110,6 +115,10 @@ class GravityWell {
   private eco: Float32Array
   private mil: Float32Array
   private geo: Float32Array
+  // shared fade-in curve for in-circle name labels (set once per frame, read per body)
+  private labelIntro = 0
+  // indices that carry an on-canvas name label this frame (top-N by active metric + focus)
+  private labelSet = new Set<number>()
 
   frozen = false
   private frozenAt = 0
@@ -353,13 +362,23 @@ class GravityWell {
       }
     }
 
-    // ── Draw bodies ───────────────────────────────────────────────────────────
+    // ── Which bodies carry an on-canvas name label ────────────────────────────
+    // Same "always-legible ledger" set as before (top-N by the live/active metric, plus
+    // whichever body is focused) — only the POSITION moved (in-circle instead of below),
+    // and the rank NUMBER is gone. fewer labels on a narrow phone field so they don't pile up.
+    const focus = this.selectedIdx ?? this.hoveredIdx
+    const order = Array.from({ length: BODIES.length }, (_, i) => i)
+      .sort((a, b) => this.massTarget[b] - this.massTarget[a])
+    const TOP_N = this.narrow ? 5 : 8
+    this.labelSet.clear()
+    order.slice(0, TOP_N).forEach((idx) => this.labelSet.add(idx))
+    if (focus !== null) this.labelSet.add(focus)
+
+    // ── Draw bodies (in-circle name labels fade in with the same intro curve) ───
+    this.labelIntro = labelIntro
     for (let i = 0; i < BODIES.length; i++) {
       this.drawBody(i, t)
     }
-
-    // ── Draw labels ───────────────────────────────────────────────────────────
-    this.drawLabels(labelIntro)
 
     this.raf = requestAnimationFrame(this.frame)
   }
@@ -432,6 +451,11 @@ class GravityWell {
         ctx.restore()
       }
 
+      // In-circle name label — sits ON the light fill, so it fades out together with the fill
+      // as the body hollows out on hover (no floating dark text over an empty ring). Only the
+      // "ledger" set (top-N by active metric + whatever's focused) attempts a label.
+      if (hp < 0.999 && this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha * (1 - hp))
+
       // Ring stroke: warms to yellow as the body hollows out (the rim becomes the subject).
       const ringCol = isFocus ? YELLOW : LIGHT
       const ringA = isFocus ? 0.92 : 0.3
@@ -444,6 +468,36 @@ class GravityWell {
       // state's composition, distinct from the side-panel's quantitative bars.
       if (hp > 0.01) this.drawSignature(sx, sy, rr, i, hp, bodyA * tAlpha)
     })
+  }
+
+  // In-circle name label — the state name centred INSIDE the body, like a real map/bubble-chart
+  // label, instead of floating text below it. Font scales to the body radius; if the name still
+  // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim.
+  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number) {
+    if (alpha <= 0.01) return
+    const b = BODIES[i]
+    const ctx = this.ctx
+    const MIN_PX = 9
+    // font-size scales with radius; cap so it never dwarfs small circles
+    let fontPx = Math.min(15, Math.max(MIN_PX, rr * 0.34))
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
+    // the usable chord width inside the circle at label height — shrink font until it fits,
+    // bail out (no label) rather than overflow past the rim
+    const maxWidth = rr * 1.7
+    let width = ctx.measureText(b.he).width
+    while (width > maxWidth && fontPx > MIN_PX) {
+      fontPx -= 1
+      ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
+      width = ctx.measureText(b.he).width
+    }
+    if (width > maxWidth || rr < 16) { ctx.restore(); return }
+    ctx.globalAlpha = alpha * this.labelIntro
+    ctx.fillStyle = `rgb(${DARK})`
+    ctx.fillText(b.he, sx, sy)
+    ctx.restore()
   }
 
   // The force-signature gauge — a clean set of three CONCENTRIC value-rings drawn fully INSIDE
@@ -479,48 +533,6 @@ class GravityWell {
         ctx.globalAlpha = baseAlpha * peak * hp
         ctx.beginPath(); ctx.arc(sx, sy, radius, START, START + frac * TAU * hp); ctx.stroke()
       }
-    }
-    ctx.restore()
-  }
-
-  // On-canvas ledger: the TOP-N states (by the active metric) carry a rank + name label below
-  // their body, always legible at rest. Switching the sort category re-ranks live, so the field
-  // itself visibly re-orders — the canvas, not just the side panel, answers "who leads here". The
-  // focused body always gets its label too (highlighted). Light weight per the type pass.
-  private drawLabels(intro: number) {
-    const ctx = this.ctx
-    ctx.save()
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-
-    const focus = this.selectedIdx ?? this.hoveredIdx
-
-    // rank by the live metric (massTarget is set per category in setField)
-    const order = Array.from({ length: BODIES.length }, (_, i) => i)
-      .sort((a, b) => this.massTarget[b] - this.massTarget[a])
-    const rankOf = new Int16Array(BODIES.length)
-    order.forEach((idx, rk) => { rankOf[idx] = rk })
-    // fewer on-canvas labels on a narrow phone field so they don't pile up
-    const TOP_N = this.w < 480 ? 5 : 8
-
-    for (let i = 0; i < BODIES.length; i++) {
-      const b = BODIES[i]
-      const isFocus = i === focus
-      const inTop = rankOf[i] < TOP_N
-      if (!inTop && !isFocus) continue
-
-      const sx = this.bodyScreenX[i]
-      const sy = this.bodyScreenY[i]
-      const rr = this.bodyR(this.mass[i])
-      const tAlpha = isFocus ? 1 : this.metricAlpha[i]
-      const fontPx = Math.max(10, Math.min(14, rr * 0.42))
-      const labelY = sy + rr + Math.max(6, rr * 0.16)
-      const rank = String(rankOf[i] + 1).padStart(2, '0')
-
-      ctx.globalAlpha = intro * (isFocus ? 1 : 0.82) * tAlpha
-      ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
-      ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
-      ctx.fillText(`${rank}  ${b.he}`, sx, labelY)
     }
     ctx.restore()
   }
@@ -601,14 +613,32 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     window.addEventListener('mp-unfreeze', onUnfreeze)
     well.start_()
 
-    // ── Wheel scroll: virtual accumulation → spring target ───────────────────
+    // ── Wheel scroll: DISCRETE stepped tiers, not continuous free-scroll ─────────────
+    // Each deliberate wheel "gesture" advances/retreats exactly one integer tier
+    // (0..5). A small accumulator absorbs light trackpad ticks below THRESHOLD so a
+    // single feather-touch doesn't fire a step; once THRESHOLD is crossed the step
+    // fires immediately and a COOLDOWN blocks further steps so one continuous scroll
+    // gesture can't blow through several tiers at once. setScrollTarget()/the spring-
+    // eased dispersion in GravityWell is untouched — only how it's driven changes.
+    const WHEEL_THRESHOLD = 48
+    const WHEEL_COOLDOWN_MS = 620
+    let wheelAccum = 0
+    let wheelCooldownUntil = 0
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault()
+      const now = performance.now()
+      if (now < wheelCooldownUntil) return
       let dy = ev.deltaY
       if (ev.deltaMode === 1) dy *= 20    // Firefox line mode
       if (ev.deltaMode === 2) dy *= 480   // page mode
-      scrollPosRef.current = Math.max(0, Math.min(5.5, scrollPosRef.current + dy * 0.0038))
-      well.setScrollTarget(scrollPosRef.current)
+      wheelAccum += dy
+      if (Math.abs(wheelAccum) < WHEEL_THRESHOLD) return
+      const dir = Math.sign(wheelAccum)
+      wheelAccum = 0
+      wheelCooldownUntil = now + WHEEL_COOLDOWN_MS
+      const next = Math.max(0, Math.min(5, Math.round(scrollPosRef.current) + dir))
+      scrollPosRef.current = next
+      well.setScrollTarget(next)
     }
     stage.addEventListener('wheel', onWheel, { passive: false })
 
@@ -662,7 +692,8 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     wellRef.current?.setScrollTarget(tierFocus)
   }, [tierFocus])
 
-  const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0
+  const chipGrav = chip ? grav.get(chip.id) : undefined
+  const chipScore = Math.round(chipGrav?.power ?? 0)
   const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
 
   return (
@@ -674,11 +705,23 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
 
-      {/* ── Focus chip: name + score above the hovered/selected body ─────── */}
+      {/* ── Focus chip: name + score above the hovered/selected body, plus a compact
+          eco/mil/geo breakdown — this replaces the old abstract canvas gauge-rings as the
+          explanation of what the in-body rings mean, since it's real DOM text (no canvas
+          font-fitting) and this tooltip is already the "explain the hover" mechanism ── */}
       {chip && (
         <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
-          <span className="sheet-chip__name">{chip.he}</span>
-          <span className="sheet-chip__score">{chipScore}</span>
+          <span className="sheet-chip__head">
+            <span className="sheet-chip__name">{chip.he}</span>
+            <span className="sheet-chip__score">{chipScore}</span>
+          </span>
+          {chipGrav && (
+            <span className="sheet-chip__sig">
+              <span className="sheet-chip__sig-k">כלכלי <b>{Math.round(chipGrav.eco)}</b></span>
+              <span className="sheet-chip__sig-k">צבאי <b>{Math.round(chipGrav.mil)}</b></span>
+              <span className="sheet-chip__sig-k">גאו <b>{Math.round(chipGrav.geo)}</b></span>
+            </span>
+          )}
         </div>
       )}
 

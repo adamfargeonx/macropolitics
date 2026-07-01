@@ -41,6 +41,9 @@ export default function App() {
   const [view, setView] = useState<View>(initial)
   const [rail, setRail] = useState('')
   const [navTarget, setNavTarget] = useState<View | null>(null)
+  // the choreographed pre-phase of leaving home: wordmark dissolves letter-by-letter, then nav
+  // labels fade — BEFORE the ring itself zooms into the void (see HomeView's `leaving` prop).
+  const [homeLeaving, setHomeLeaving] = useState(false)
   const viewRef = useRef(view)
   const transRef = useRef<{ to: View; timers: number[] } | null>(null)
   useEffect(() => { viewRef.current = view }, [view])
@@ -58,10 +61,23 @@ export default function App() {
     transRef.current = t
     setNavTarget(v)
 
-    let leaveClass = '', enterClass = '', leaveMs = 420, enterMs = 460
     if (from === 'home') {
-      leaveClass = 'nav-rail--zoom-up'; enterClass = 'nav-rail--bloom'; leaveMs = 520; enterMs = 480
-    } else if (v === 'home') {
+      // Three beats: (1) wordmark exits letter-by-letter + nav labels fade (~560ms, driven by
+      // `home--leaving`), (2) the ring zooms into the void (~440ms), (3) the page blooms in.
+      setHomeLeaving(true)
+      t.timers.push(window.setTimeout(() => {
+        setHomeLeaving(false)
+        setRail('nav-rail--zoom-up')
+        t.timers.push(window.setTimeout(() => {
+          viewRef.current = v; setView(v); setRail('nav-rail--bloom')
+          t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 480))
+        }, 440))
+      }, 560))
+      return
+    }
+
+    let leaveClass = '', enterClass = '', leaveMs = 420, enterMs = 460
+    if (v === 'home') {
       leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask'; leaveMs = 460; enterMs = 500
     } else {
       const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']
@@ -100,7 +116,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [go])
 
-  const onLoaderDone = () => { setLoaded(true); if (!homeOpen) setIntro(true) }
+  // The thesis is a permanent fixture of the CLOSED home state, not a one-time load flag — set it
+  // once the loader finishes regardless of which route the session started on. (Previously this
+  // was gated by `!homeOpen`, so a session that started on a page — homeOpen initializes true —
+  // never armed it; returning to a cold, closed home later then showed no thesis at all.)
+  // HomeView's own `showThesis = intro && !open` already decides visibility from the ring's state.
+  const onLoaderDone = () => { setLoaded(true); setIntro(true) }
 
   return (
     <>
@@ -112,6 +133,7 @@ export default function App() {
               open={homeOpen}
               intro={view === 'home' ? intro : false}
               lockTo={null}
+              leaving={homeLeaving}
               onToggle={() => setHomeOpen(o => !o)}
               onView={go}
             />
@@ -119,6 +141,13 @@ export default function App() {
           : view === 'relations' ? <RelationsView />
           : <DynamicsView />}
       </div>
+
+      {/* The selected-entity / index side panel lives here — a sibling of .nav-rail, NOT a
+          descendant of it, so it is never caught in the page-transition zoom/bloom/collapse/mask
+          transforms above. Each view's <PanelDock> portals its content into this node (see
+          Chrome.tsx) — it animates in/out on its own terms (slide/fade), independent of the
+          page-transition choreography. */}
+      <div id="panel-root" className="panel-root" />
 
       {view !== 'home' && <Header onHome={() => go('home')} />}
       {view !== 'home' && <UtilityNav />}

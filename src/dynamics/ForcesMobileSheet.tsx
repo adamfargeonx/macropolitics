@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { sound } from '../sound'
 
 // Mobile Forces has ONE structural element instead of competing bands of chrome: a single
@@ -31,6 +32,12 @@ export function ForcesMobileSheet({
   const sheetRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ startY: number; startH: number; moved: boolean } | null>(null)
   const [dragging, setDragging] = useState(false)
+  // portal into #panel-root (a sibling of .nav-rail, see App.tsx) — .nav-rail carries
+  // will-change:transform, which makes any position:fixed descendant (like this sheet) a
+  // passenger of its page-transition zoom/scale. Rendering here instead keeps the sheet a
+  // foreground layer that only ever animates via its own height/drag logic.
+  const [root, setRoot] = useState<HTMLElement | null>(null)
+  useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
 
   // never auto-collapse (selecting → deselecting shouldn't yank the sheet down), only ever
   // bump UP to satisfy a minimum when it's requested (e.g. a body gets selected while peeked).
@@ -96,7 +103,7 @@ export function ForcesMobileSheet({
     setSnap(best)
   }
 
-  return (
+  const node = (
     <div ref={sheetRef} className={`fmsheet fmsheet--${snap}${dragging ? ' fmsheet--dragging' : ''}`} dir="rtl" onClick={(e) => e.stopPropagation()}>
       <div
         className="fmsheet__handle"
@@ -120,4 +127,5 @@ export function ForcesMobileSheet({
       <div className="fmsheet__body">{children}</div>
     </div>
   )
+  return root ? createPortal(node, root) : node
 }
