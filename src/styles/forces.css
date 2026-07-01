@@ -132,21 +132,6 @@
   font-family: var(--body); font-size: 11px; letter-spacing: 0.14em;
   color: var(--ink-faint); white-space: nowrap;
 }
-/* ── Tier chip bar (touch) — an explicit, always-visible replacement for the hidden
-   wheel/drag gesture. Horizontally scrollable: the labels don't all fit a phone width,
-   and a scrolling chip row is a familiar mobile pattern (no wrap, no truncation). ── */
-.forces-tierbar {
-  position: absolute; top: 84px; left: 16px; right: 16px; z-index: 6;
-  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
-}
-.forces-tierbar::-webkit-scrollbar { display: none; }
-.forces-tierbar__chip {
-  flex: 0 0 auto; cursor: none; background: rgba(10, 6, 22, 0.82); border: 1px solid var(--line-yellow);
-  padding: 7px 13px; white-space: nowrap;
-  font-family: var(--body); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim);
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease;
-}
-.forces-tierbar__chip.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
 .sheet-scroll-cta__arrow {
   font-size: 14px; color: var(--yellow); opacity: 0.5;
   animation: scrollArrowBounce 1.8s ease-in-out infinite;
@@ -381,61 +366,114 @@
    bodies hide behind the sheet. Placed after the base .sheet-embed/.forces-field
    definitions above so it wins the cascade (equal specificity → later source). ── */
 @media (max-width: 768px) {
-  .forces-field, .sheet-embed {
-    right: 0; bottom: calc(var(--tabbar-h) + var(--sheet-h));
-  }
+  /* the field is ALWAYS full height above the footer on mobile — there is no separate "map
+     mode"; the field never resizes, the mobile sheet below just slides up and covers more of
+     it as it grows (the same relationship a native map app has between its map and its sheet) */
+  .forces-field, .sheet-embed { right: 0; bottom: var(--tabbar-h); }
 }
 
-/* ── Mobile map/list toggle — choose the field or the ranked index as the lead surface.
-   Higher-specificity (.forces--m-* .sheet-embed) overrides the split layout above. ── */
-.forces-mswitch { display: none; }
+/* ════════════════════════════════════════════════════════════════
+   MOBILE FORCES SHEET — one draggable sheet replaces the old map/list mode
+   switch + controls-open toggle + floating tools card + floating breadcrumb.
+   Peek = a slim strip (handle + one-line summary + the filter button); drag or
+   tap the handle to grow toward near-full-screen. See ForcesMobileSheet.tsx.
+   ════════════════════════════════════════════════════════════════ */
+.fmsheet { display: none; }
 @media (max-width: 768px) {
-  .forces-mswitch {
-    display: flex; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    z-index: var(--z-chrome); border: 1px solid var(--line-yellow); background: rgba(8, 4, 18, 0.92);
+  .fmsheet {
+    display: flex; flex-direction: column;
+    position: fixed; left: 0; right: 0; bottom: var(--tabbar-h); z-index: 7;
+    background: var(--panel-surface); border-top: 1px solid var(--line-yellow);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+    transition: height 0.32s var(--ease-out-expo);
+    overflow: hidden;
   }
-  .forces-mswitch__btn {
-    cursor: none; background: none; border: none; padding: 6px 18px;
-    font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-dim);
-    transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+  .fmsheet--dragging { transition: none; }
+  .fmsheet__handle {
+    flex: none; height: 22px; display: flex; align-items: center; justify-content: center;
+    cursor: none; touch-action: none;
   }
-  .forces-mswitch__btn.is-on { background: var(--yellow); color: var(--bg); }
-  /* the gear chip — reaches sort/filter from Map mode without leaving it; List mode already
-     shows the same controls inline atop the ranked ledger, so it's redundant there */
-  .forces-mswitch__gear {
-    cursor: none; background: none; border: none; border-inline-start: 1px solid var(--line-yellow);
-    padding: 6px 13px; font-size: 13px; color: var(--ink-dim);
-    transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+  .fmsheet__grip { width: 36px; height: 4px; background: var(--line-yellow); }
+  .fmsheet__header {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 0 16px 12px;
   }
-  .forces-mswitch__gear.is-on { background: var(--yellow); color: var(--bg); }
-  .forces--m-list .forces-mswitch__gear { display: none; }
-  /* MAP: the field fills the screen above the footer (sheet overlays only when a body is tapped) */
-  .forces--m-map .forces-field, .forces--m-map .sheet-embed { bottom: var(--tabbar-h); }
-  /* LIST: hide the field; the ranked index sheet fills the screen (below the toggle row,
-     above the footer) instead of floating content-sized at the bottom */
-  .forces--m-list .sheet-embed, .forces--m-list .forces-field { display: none; }
-  .forces--m-list .pdock__panel { top: 52px; bottom: var(--tabbar-h); max-height: none; }
-  /* let the index surface fill the sheet rather than ending content-short */
-  .forces--m-list .pdock__panel > .panel { min-height: 100%; }
-
-  /* the mobile-inline tools sheet (⚙ tools opened via the gctl__tools button, or the map-mode
-     gear) — replaces the floating desktop overlay, which visually collided with the sheet
-     content beneath it. Un-float ForcesTools and let it fill the sheet in place. */
-  .forces-tools-mobile {
-    min-height: 100%; padding: 18px 18px 22px;
-    background: var(--panel-surface); /* the sheet content must be opaque — this wrapper isn't
-       .panel/.panelb, so it doesn't inherit the shared panel-shell background automatically */
+  .fmsheet__summary {
+    flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--body); font-weight: var(--fw-bold); font-size: 12.5px; letter-spacing: 0.04em; color: var(--light);
   }
-  .forces-tools-mobile__back {
-    cursor: none; background: none; border: none; padding: 0 0 16px;
-    font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--yellow);
+  .fmsheet__filter-btn {
+    flex: none; cursor: none; background: none; border: 1px solid var(--line-yellow);
+    padding: 6px 13px; display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--body); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--yellow);
+    transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
   }
-  .forces-tools-mobile .forcestools {
-    position: static; top: auto; left: auto; right: auto; transform: none; width: 100%;
-    background: none; border: none; box-shadow: none; padding: 0; animation: none;
+  .fmsheet__filter-btn.is-on { background: var(--yellow); color: var(--bg); }
+  .fmsheet__body {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; padding: 0 16px calc(16px + env(safe-area-inset-bottom));
   }
-  /* the breadcrumb sits below the tier chip bar on touch (which itself sits below the top
-     icon/switch row) so nothing stacks on nothing */
-  .forces-state { top: 146px; }
+  /* the ranked list / detail panel render inside the sheet body, not as a standalone .panel —
+     drop the positioning that assumed it was an absolutely-placed desktop side panel */
+  .fmsheet__body > .panel, .fmsheet__body > .panelb {
+    position: static; width: 100%; padding: 0; max-height: none; overflow: visible; background: none;
+    border: none; box-shadow: none; animation: none;
+  }
 }
+@media (prefers-reduced-motion: reduce) { .fmsheet { transition: none; } }
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE FILTER SHEET — the single entry point for sort + tier-focus + bloc +
+   threshold + year + scenario weights. Replaces every standing chip/tab row
+   with one settings-style list the user opens, picks from, and closes.
+   ════════════════════════════════════════════════════════════════ */
+.ffilter-scrim {
+  position: fixed; inset: 0; z-index: 61; cursor: none;
+  background: rgba(6, 3, 15, 0.58); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: scrimIn 0.2s ease-out;
+}
+.ffilter {
+  position: relative; width: 100%; max-height: 92dvh; overflow-y: auto; scrollbar-width: none;
+  background: var(--panel-surface); border-top: 1px solid var(--line-yellow);
+  box-shadow: var(--panel-shadow);
+  display: flex; flex-direction: column;
+  animation: ffilterIn 0.28s var(--ease-out-expo) both;
+}
+.ffilter::-webkit-scrollbar { display: none; }
+@keyframes ffilterIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.ffilter__head {
+  position: sticky; top: 0; z-index: 2; background: var(--panel-surface);
+  display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 14px;
+}
+.ffilter__title { font-family: var(--display); font-size: 20px; font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-title); }
+.ffilter__body { padding: 0 20px 8px; }
+.ffilter__group { margin-bottom: 22px; }
+.ffilter__group-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-bottom: 4px; }
+.ffilter__row {
+  width: 100%; display: flex; align-items: center; gap: 10px; cursor: none;
+  background: none; border: none; border-bottom: 1px solid var(--line-2);
+  padding: 13px 2px; text-align: right;
+  font-family: var(--body); font-size: 14px; color: var(--light);
+  transition: color var(--dur-fast) ease;
+}
+.ffilter__row.is-on { color: var(--yellow); font-weight: 700; }
+.ffilter__row-lbl { flex: 1 1 auto; }
+.ffilter__row-count { flex: none; font-family: var(--latin); font-size: 11px; color: var(--ink-faint); }
+.ffilter__row-check { flex: none; width: 16px; text-align: center; color: var(--yellow); }
+.ffilter__slider { width: 100%; margin-top: 8px; }
+.ffilter__foot {
+  position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); background: var(--panel-surface); border-top: 1px solid var(--line-2);
+}
+.ffilter__reset {
+  flex: 1 1 auto; cursor: none; background: none; border: 1px solid var(--line);
+  padding: 12px 0; font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim);
+}
+.ffilter__apply {
+  flex: 1 1 auto; cursor: none; background: var(--yellow); border: none;
+  padding: 12px 0; font-family: var(--body); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; color: var(--bg);
+}
+@media (prefers-reduced-motion: reduce) { .ffilter-scrim, .ffilter { animation: none; } }
+@media (min-width: 769px) { .ffilter-scrim { display: none; } }
 

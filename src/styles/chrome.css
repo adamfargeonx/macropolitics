@@ -305,13 +305,20 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   }
 }
 @media (max-width: 768px) {
-  /* a full-screen modal (legend / about / evidence share .legend__scrim) owns the screen —
-     hide the persistent chrome + footer tabs underneath it; the modal carries its own close. */
-  body:has(.legend__scrim) .hdr,
-  body:has(.legend__scrim) .unav,
-  body:has(.legend__scrim) .soundtoggle,
-  body:has(.legend__scrim) .tabs,
-  body:has(.legend__scrim) .forces-mswitch { display: none; }
+  /* a full-screen modal (legend / about / evidence share .legend__scrim; the Forces filter
+     sheet uses the same convention via .ffilter-scrim) owns the screen — hide the persistent
+     chrome + footer tabs + the forces sheet underneath it; the modal carries its own close. */
+  body:has(.legend__scrim) .hdr, body:has(.ffilter-scrim) .hdr,
+  body:has(.legend__scrim) .unav, body:has(.ffilter-scrim) .unav,
+  body:has(.legend__scrim) .soundtoggle, body:has(.ffilter-scrim) .soundtoggle,
+  body:has(.legend__scrim) .tabs, body:has(.ffilter-scrim) .tabs,
+  body:has(.ffilter-scrim) .fmsheet { display: none; }
+  /* the Forces sheet at its "full" snap reaches near the very top of the screen — hide the
+     top-chrome icons it would otherwise sit behind (z-index-wise) rather than let them float
+     over its header. Footer nav stays: full is still page content, not a blocking modal. */
+  body:has(.fmsheet--full) .hdr,
+  body:has(.fmsheet--full) .unav,
+  body:has(.fmsheet--full) .soundtoggle { display: none; }
 }
 @media (max-width: 480px) {
   /* header: orbit mark only — drop the wordmark text to fit a 375px bar */

@@ -15,8 +15,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { NODES, AXIS, type Kind } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
-import { type Order } from './forces-model'
-import { sound, isInteractive } from '../sound'
+import { type Order, TIER_ANNOTS } from './forces-model'
+import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
@@ -80,10 +80,6 @@ function powerLayout(): WellBody[] {
 }
 
 const BODIES: WellBody[] = powerLayout()
-
-// Precompute per-tier counts for the annotation
-const TIER_COUNTS: Record<Kind, number> = { great: 0, regional: 0, intermediate: 0, edge: 0, nonstate: 0 }
-for (const b of BODIES) TIER_COUNTS[b.kind]++
 
 // ── ForceField engine class ────────────────────────────────────────────────────
 class GravityWell {
@@ -545,29 +541,16 @@ function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
   ctx.save(); fn(); ctx.restore()
 }
 
-// ── Scroll annotation data ────────────────────────────────────────────────────
-// Each tier stage (1–5) maps to a Hebrew label, body count, and editorial line.
+// ── Scroll annotation easing ───────────────────────────────────────────────────
 const EASING_ENTER: [number, number, number, number] = [0.16, 1, 0.3, 1]   // expo out
 const EASING_EXIT: [number, number, number, number]  = [0.4, 0, 0.6, 1]    // ease-in-out
 
-interface TierAnnot {
-  stage: number
-  label: string
-  editorial: string
-  count: number
-}
-
-const TIER_ANNOTS: TierAnnot[] = [
-  { stage: 1, label: 'כוח-על',          editorial: 'גופים שמחזיקים בכוח המשיכה הגלובלי',         count: TIER_COUNTS.great        },
-  { stage: 2, label: 'כוח אזורי',        editorial: 'גופים שעיצבו את פני הזירה האזורית',           count: TIER_COUNTS.regional     },
-  { stage: 3, label: 'כוח ביניים',       editorial: 'גופים שנעים בין הצירים',                       count: TIER_COUNTS.intermediate },
-  { stage: 4, label: 'כוח קצה',          editorial: 'קטנים בגוף, לא-פרופורציונאליים בהשפעה',        count: TIER_COUNTS.edge         },
-  { stage: 5, label: 'שחקן לא-מדינתי',  editorial: 'כוח המתפשט מעבר לגבולות הלאום',               count: TIER_COUNTS.nonstate     },
-]
-
 // ── Component ────────────────────────────────────────────────────────────────
-export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
+// tierFocus: controlled — 0=all visible, 1–5=tier focus. Set from the mobile filter sheet's
+// tier-focus list (touch) or driven internally by wheel/drag (desktop mouse, see below).
+export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFocus }: {
   grav: Map<string, GravityResult>
+  tierFocus?: number
   orderBy: Order
   selected: string | null
   onSelect: (id: string | null) => void
@@ -629,7 +612,10 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
     }
     stage.addEventListener('wheel', onWheel, { passive: false })
 
-    // ── Touch scroll ─────────────────────────────────────────────────────────
+    // ── Touch scroll — desktop-style mouse/wheel discovery only. On touch, tier focus is a
+    // controlled prop set from the mobile filter sheet's explicit list (see the tierFocus
+    // effect below) — a competing hidden drag gesture on the same canvas would fight it and
+    // desync from what the filter sheet shows as "selected."
     let touchY = 0
     const onTouchStart = (ev: TouchEvent) => { touchY = ev.touches[0].clientY }
     const onTouchMove = (ev: TouchEvent) => {
@@ -639,8 +625,10 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
       well.setScrollTarget(scrollPosRef.current)
       ev.preventDefault()
     }
-    stage.addEventListener('touchstart', onTouchStart, { passive: true })
-    stage.addEventListener('touchmove', onTouchMove, { passive: false })
+    if (!coarse) {
+      stage.addEventListener('touchstart', onTouchStart, { passive: true })
+      stage.addEventListener('touchmove', onTouchMove, { passive: false })
+    }
 
     let resizeTimer = 0
     const onResize = () => { clearTimeout(resizeTimer); resizeTimer = window.setTimeout(() => well.resize(), 120) }
@@ -657,17 +645,22 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
       well.destroy()
       wellRef.current = null
     }
+    // mount-once by design (constructs the canvas engine + its listeners exactly once);
+    // `coarse` is captured from a lazy useState initializer and never changes post-mount,
+    // so it's intentionally excluded rather than a dependency this effect should react to.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
-
-  // explicit tier jump — the same spring-eased dispersion the wheel/drag gesture drives,
-  // just triggered by a tap instead of a gesture a touch user can't discover
-  const goToTier = (stage: number) => {
-    scrollPosRef.current = stage
-    wellRef.current?.setScrollTarget(stage)
-  }
+  // controlled tier jump (touch): the mobile filter sheet's tier-focus list drives the same
+  // spring-eased dispersion the desktop wheel/drag gesture drives, just via a prop instead of
+  // a gesture a touch user has no way to discover on their own.
+  useEffect(() => {
+    if (tierFocus == null) return
+    scrollPosRef.current = tierFocus
+    wellRef.current?.setScrollTarget(tierFocus)
+  }, [tierFocus])
 
   const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0
   const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
@@ -704,27 +697,8 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
         </div>
       )}
 
-      {/* ── Explicit tier chips (touch): the same tier-dispersion the mouse drives by wheel/drag,
-          reachable by a tap instead of a gesture a touch user has no way to discover ────── */}
-      {coarse && (
-        <div className="forces-tierbar" role="tablist" aria-label="שכבת עוצמה" dir="rtl">
-          <button
-            className={`forces-tierbar__chip${scrollStage === 0 ? ' is-on' : ''}`}
-            role="tab" aria-selected={scrollStage === 0}
-            onClick={() => { sound.play('tab'); goToTier(0) }}
-          >הכל</button>
-          {TIER_ANNOTS.map((a) => (
-            <button
-              key={a.stage}
-              className={`forces-tierbar__chip${scrollStage === a.stage ? ' is-on' : ''}`}
-              role="tab" aria-selected={scrollStage === a.stage}
-              onClick={() => { sound.play('tab'); goToTier(a.stage) }}
-            >{a.label}</button>
-          ))}
-        </div>
-      )}
-
-      {/* ── Tier annotation: the editorial beat of the scroll narrative ─── */}
+      {/* ── Tier annotation: the editorial beat of the scroll narrative. On touch this is driven
+          by the tierFocus prop (the filter sheet's tier-focus list); on desktop by wheel/drag. ── */}
       <AnimatePresence mode="wait">
         {activeAnnot && (
           <motion.div

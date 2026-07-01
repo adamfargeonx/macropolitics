@@ -1,6 +1,6 @@
 // Pure model + derived helpers for the Forces page. No React, no JSX — just the constants,
 // derived metrics, and the detail-record builder. (Body placement now lives in ForcesSheet.)
-import { NODES, FORCES, POWER_NOTES, forceScore, AXIS, AXIS_LABEL } from '../data/entities'
+import { NODES, FORCES, POWER_NOTES, forceScore, AXIS, AXIS_LABEL, type Kind } from '../data/entities'
 import { DATA } from '../data/empirical'
 import { type GravityResult } from '../model/gravity'
 import { type EntityDetail } from './Chrome'
@@ -29,6 +29,22 @@ export const INDEX_PREVIEW_N = 8 // index rows before "expand"
 const byId = new Map(NODES.map((n) => [n.id, n]))
 const RANKED = [...NODES].sort((a, b) => b.power - a.power)
 export const RANK_OF = new Map(RANKED.map((n, i) => [n.id, i]))
+
+// ── Tier data — shared between the canvas' scroll-narrative annotation (ForcesSheet) and the
+// mobile filter sheet's tier-focus list (ForcesFilterSheet), so there's one source of truth for
+// the label/editorial/count per tier instead of two copies drifting apart.
+export const TIER_COUNTS: Record<Kind, number> = { great: 0, regional: 0, intermediate: 0, edge: 0, nonstate: 0 }
+for (const n of NODES) TIER_COUNTS[n.kind]++
+
+export interface TierAnnot { stage: number; label: string; editorial: string; count: number }
+
+export const TIER_ANNOTS: TierAnnot[] = [
+  { stage: 1, label: 'כוח-על',          editorial: 'גופים שמחזיקים בכוח המשיכה הגלובלי',         count: TIER_COUNTS.great        },
+  { stage: 2, label: 'כוח אזורי',        editorial: 'גופים שעיצבו את פני הזירה האזורית',           count: TIER_COUNTS.regional     },
+  { stage: 3, label: 'כוח ביניים',       editorial: 'גופים שנעים בין הצירים',                       count: TIER_COUNTS.intermediate },
+  { stage: 4, label: 'כוח קצה',          editorial: 'קטנים בגוף, לא-פרופורציונאליים בהשפעה',        count: TIER_COUNTS.edge         },
+  { stage: 5, label: 'שחקן לא-מדינתי',  editorial: 'כוח המתפשט מעבר לגבולות הלאום',               count: TIER_COUNTS.nonstate     },
+]
 
 export const metricVal = (e: typeof NODES[number], ord: Order, grav: Map<string, GravityResult>) =>
   (ord === 'total' ? (grav.get(e.id)?.power ?? 0) : (FORCES[e.id]?.[ord] ?? 0) * 10)

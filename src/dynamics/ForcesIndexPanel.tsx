@@ -39,6 +39,53 @@ const METRIC_DESC: Record<Order, string> = {
   geo:   'כוח גאו-אסטרטגי — מיקום, משאבים טבעיים, בריתות ועומק השפעה אזורית. מציאות שאי אפשר לקנות ולא ניתן לשנות.',
 }
 
+type RankedListProps = {
+  orderBy: Order
+  filterBloc: Bloc
+  year: Year
+  scenario: boolean
+  grav: Map<string, GravityResult>
+  hovered: string | null
+  setHovered: (fn: (h: string | null) => string | null) => void
+  onHoverId: (id: string) => void
+  onSelect: (id: string) => void
+  ranked: typeof NODES[number][]
+  indexRows: typeof NODES[number][]
+  showAllIndex: boolean
+  setShowAllIndex: (fn: (v: boolean) => boolean) => void
+}
+
+// The ranked ledger itself — shared by the desktop side panel (below) and the mobile sheet
+// (ForcesMobileSheet), so the row markup/behaviour lives in exactly one place.
+export function RankedList(props: RankedListProps) {
+  const { orderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
+  return (
+    <div className="gindex">
+      <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
+      {indexRows.map((e, i) => (
+        <button
+          key={e.id}
+          className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
+          style={{ animationDelay: `${Math.min(0.05 + i * 0.03, 0.9)}s` }}
+          onMouseEnter={() => onHoverId(e.id)}
+          onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
+          onClick={() => onSelect(e.id)}
+        >
+          <span className="gindex__rank">{String(i + 1).padStart(2, '0')}</span>
+          <span className="gindex__name">{e.he}</span>
+          <span className="gindex__bar"><i style={{ width: `${metricVal(e, orderBy, grav)}%` }} /></span>
+          <span className="gindex__score">{(metricVal(e, orderBy, grav) / 10).toFixed(1)}</span>
+        </button>
+      ))}
+      {ranked.length === 0 && <p className="gindex__empty">אין גופים בגוש זה</p>}
+      {ranked.length > INDEX_PREVIEW_N && (
+        <button className="gindex__more" onClick={() => setShowAllIndex((v) => !v)}>
+          {showAllIndex ? '▲ פחות' : `▼ כל הגופים (${ranked.length})`}
+        </button>
+      )}
+    </div>
+  )
+}
 
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
@@ -87,30 +134,11 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
           title="סינון, ציר זמן, תרחיש"
         ><span aria-hidden>⚙</span> כלים</button>
       </div>
-      <div className="gindex">
-        <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
-        {indexRows.map((e, i) => (
-          <button
-            key={e.id}
-            className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
-            style={{ animationDelay: `${Math.min(0.05 + i * 0.03, 0.9)}s` }}
-            onMouseEnter={() => onHoverId(e.id)}
-            onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
-            onClick={() => onSelect(e.id)}
-          >
-            <span className="gindex__rank">{String(i + 1).padStart(2, '0')}</span>
-            <span className="gindex__name">{e.he}</span>
-            <span className="gindex__bar"><i style={{ width: `${metricVal(e, orderBy, grav)}%` }} /></span>
-            <span className="gindex__score">{(metricVal(e, orderBy, grav) / 10).toFixed(1)}</span>
-          </button>
-        ))}
-        {ranked.length === 0 && <p className="gindex__empty">אין גופים בגוש זה</p>}
-        {ranked.length > INDEX_PREVIEW_N && (
-          <button className="gindex__more" onClick={() => setShowAllIndex((v) => !v)}>
-            {showAllIndex ? '▲ פחות' : `▼ כל הגופים (${ranked.length})`}
-          </button>
-        )}
-      </div>
+      <RankedList
+        orderBy={orderBy} filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
+        hovered={hovered} setHovered={setHovered} onHoverId={onHoverId} onSelect={onSelect}
+        ranked={ranked} indexRows={indexRows} showAllIndex={showAllIndex} setShowAllIndex={setShowAllIndex}
+      />
     </aside>
   )
 }

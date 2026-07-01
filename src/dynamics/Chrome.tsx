@@ -28,7 +28,7 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: {
       <div className="pdock__panel">{children}</div>
       <button
         className="pdock__handle"
-        onClick={() => { sound.play('tab'); onHandleClick ? onHandleClick() : setOpen((o) => !o) }}
+        onClick={() => { sound.play('tab'); if (onHandleClick) onHandleClick(); else setOpen((o) => !o) }}
         aria-label={isOpen ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
         aria-expanded={isOpen}
       >
