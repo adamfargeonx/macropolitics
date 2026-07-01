@@ -37,7 +37,11 @@ export function ForcesMobileSheet({
   // passenger of its page-transition zoom/scale. Rendering here instead keeps the sheet a
   // foreground layer that only ever animates via its own height/drag logic.
   const [root, setRoot] = useState<HTMLElement | null>(null)
+  /* eslint-disable react-hooks/set-state-in-effect -- portal-target discovery: #panel-root is a
+     DOM sibling rendered by App.tsx and isn't guaranteed to exist in the real DOM until after this
+     component's own first commit, so finding it necessarily happens a render late. */
   useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // never auto-collapse (selecting → deselecting shouldn't yank the sheet down), only ever
   // bump UP to satisfy a minimum when it's requested (e.g. a body gets selected while peeked).

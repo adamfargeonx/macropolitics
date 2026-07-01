@@ -7,6 +7,7 @@ import type { AxisProvenance } from '../data/empirical'
 import { FORCES_DESCRIPTIONS } from '../data/forces-descriptions'
 import { AUTHORED_RELATIONS, type AuthoredRelation } from '../data/relations'
 import { sound } from '../sound'
+import { ExpandableText } from './ForcesIndexPanel'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
 
@@ -25,7 +26,11 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: {
   // the portal target may not exist yet on the very first render (App.tsx renders it as a
   // sibling) — fall back to an inline render for that one frame, then re-parent once mounted.
   const [root, setRoot] = useState<HTMLElement | null>(null)
+  /* eslint-disable react-hooks/set-state-in-effect -- portal-target discovery: #panel-root is a
+     DOM sibling rendered by App.tsx and isn't guaranteed to exist in the real DOM until after this
+     component's own first commit, so finding it necessarily happens a render late. */
   useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     const t = window.setTimeout(() => setOpen(true), 850)
     return () => window.clearTimeout(t)
@@ -301,11 +306,16 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
 }
 
 // The grading cluster (forces · ציון mode) — power gauge + three fixed-height parameter rows,
-// backing note (if any), and the evidence link. One grouped, scannable unit.
+// backing note (if any), and the evidence link. One grouped, scannable unit. Also carries a short
+// (1–2 line) description snippet — the same general text used by the תיאור/narrative mode — so a
+// user landing on the default tab still gets a taste of the interpretation, with a compact
+// read-more that expands inline instead of forcing a tab switch.
 function ForcesScore({ detail }: { detail: EntityDetail }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const scoreNum = Number(score)
+  const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
+  const general = desc?.general ?? detail.powerNotes?.general
   return (
     <div className="fscore">
       <div className="panelb__scorebox" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
@@ -316,6 +326,14 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
         </div>
         <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
       </div>
+      {general && (
+        <ExpandableText
+          key={detail.id}
+          text={general}
+          className="fscore__desc"
+          textClassName="fscore__desc-text"
+        />
+      )}
       <div className="fparams">
         <ForceParam label="כלכלי" icon="eco" value={detail.forces?.eco} hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" />
         <ForceParam label="צבאי" icon="mil" value={detail.forces?.mil} hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" />

@@ -199,9 +199,16 @@
 .panel {
   position: absolute; top: 88px; right: 44px;
   width: 396px; z-index: var(--z-panel); text-align: right; padding: 28px;
-  max-height: calc(100dvh - 124px); overflow-y: auto; scrollbar-width: none;
+  overflow-y: auto; scrollbar-width: none;
 }
 .panel::-webkit-scrollbar { display: none; }
+/* desktop only: a fixed (not max-) height so every panel — index or detail, short content or
+   long — occupies the SAME footprint across the site; overflow-y above scrolls tall content
+   internally instead of the panel growing. Scoped to desktop via min-width so the mobile
+   override below (position: static, variable-height/static-flow) is completely unaffected. */
+@media (min-width: 769px) {
+  .panel, .panelb { height: calc(100dvh - 124px); }
+}
 .panel__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
 .panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 15px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
 .panel__eq { margin-top: 26px; font-size: 17px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); }
@@ -232,9 +239,11 @@
 /* Sizes to its content — no internal scrollbar (so the rank/title/notes are never clipped). */
 .panelb {
   position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel);
-  text-align: right; overflow: visible; padding: 28px 28px 28px;
+  text-align: right; padding: 28px 28px 28px;
+  overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
+.panelb::-webkit-scrollbar { display: none; }
 /* ── Grouped identity header (forces panel): rank + title on one line, descriptor chips
    right-aligned (RTL leading edge) in a cohesive cluster beneath. ── */
 .phead__line { display: flex; align-items: baseline; gap: 10px; }
@@ -299,6 +308,15 @@
 .fswitch__btn:hover { color: var(--light); }
 .fswitch__btn.is-on { color: var(--bg); background: var(--yellow); }
 .fbody { margin-top: 18px; }
+
+/* ציון mode — a short (1–2 line) description snippet, secondary to the score cluster: same
+   collapsible .panel__desc-* pattern (see forces.css) as the metric description + the תיאור
+   mode, just visually compact here since it's an addition to the score view, not its focus. */
+.fscore__desc { margin-top: 14px; }
+.fscore__desc-text {
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-sm);
+  line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.75;
+}
 
 /* ציון mode — the grading cluster (gauge + three fixed-height parameter rows) */
 .fparams { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }

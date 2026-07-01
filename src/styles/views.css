@@ -330,7 +330,7 @@
   opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
 }
 .home-nav__item:hover .home-nav__sub,
-.home-nav__item--near .home-nav__sub { opacity: 0.85; transform: translate(-50%, 6px); }
+.home-nav__item--near .home-nav__sub { opacity: 1; transform: translate(-50%, 6px); }
 /* hover (or the orbit dot sweeping near) opens the dimension up — colour shift + wider kerning */
 .home-nav__item:hover .home-nav__label,
 .home-nav__item--near .home-nav__label { color: var(--yellow); letter-spacing: 0.12em; }

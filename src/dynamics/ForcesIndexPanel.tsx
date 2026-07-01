@@ -1,12 +1,64 @@
-import { useState, useMemo } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { type Year } from '../data/empirical'
 import { NODES } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { sound } from '../sound'
 import {
-  metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N, passesBloc,
+  metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL, INDEX_PREVIEW_N,
   type Order, type Bloc,
 } from './forces-model'
+
+// ── Read-more text: only show the toggle when there's a CONSIDERABLE amount of extra text to
+// reveal — never for a purely cosmetic few-word difference. Measures the real rendered overflow
+// (collapsed clientHeight vs full scrollHeight) rather than guessing from word/char counts, since
+// word count doesn't map cleanly to rendered line count with RTL Hebrew text. The threshold is
+// expressed in line-heights (derived from the element's computed line-height), not raw pixels or
+// words, so it stays meaningful across font-size contexts.
+const OVERFLOW_LINES_THRESHOLD = 1 // hide the toggle unless collapsing would hide > ~1 extra line
+
+export function ExpandableText({ text, className, textClassName, toggleClassName }: {
+  text: string
+  className?: string
+  textClassName?: string
+  toggleClassName?: string
+}) {
+  // NOTE: callers pass `key={...}` keyed on the entity/metric id, so switching to a new text
+  // remounts this component fresh (open/hasOverflow both reset naturally) rather than needing
+  // an effect to reset state — avoids a setState-in-effect lint violation.
+  const [open, setOpen] = useState(false)
+  const [hasOverflow, setHasOverflow] = useState(false)
+  const ref = useRef<HTMLParagraphElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // measure against the COLLAPSED (clamped) box — scrollHeight is the full unclamped content
+    // height, clientHeight is what's actually visible while clamped. If open, briefly we can't
+    // measure the clamp directly, but clientHeight/scrollHeight remain stable across the toggle
+    // since the clamp is CSS-only (line-clamp), so measuring while collapsed is sufficient; we
+    // just don't re-measure while expanded (the collapsed metrics don't change).
+    if (open) return
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 18
+    const overflowPx = el.scrollHeight - el.clientHeight
+    setHasOverflow(overflowPx > lineHeight * OVERFLOW_LINES_THRESHOLD)
+  }, [text, open])
+
+  return (
+    <div className={`panel__desc-wrap${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
+      <p ref={ref} className={`panel__desc-text${textClassName ? ` ${textClassName}` : ''}`}>
+        {text}
+      </p>
+      {hasOverflow && (
+        <button
+          className={`panel__desc-toggle${toggleClassName ? ` ${toggleClassName}` : ''}`}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? '▲ פחות' : '▼ קרא עוד'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 type ForcesIndexPanelProps = {
   orderBy: Order
@@ -89,19 +141,15 @@ export function RankedList(props: RankedListProps) {
 
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
-  const [descOpen, setDescOpen] = useState(false)
 
   return (
     <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>
-      <div className={`panel__desc-wrap${descOpen ? ' is-open' : ''}`}>
-        <p className="panel__body panel__body--metric panel__desc-text">
-          {METRIC_DESC[orderBy]}
-        </p>
-        <button className="panel__desc-toggle" onClick={() => setDescOpen(o => !o)}>
-          {descOpen ? '▲ פחות' : '▼ קרא עוד'}
-        </button>
-      </div>
+      <ExpandableText
+        key={`desc-${orderBy}`}
+        text={METRIC_DESC[orderBy]}
+        textClassName="panel__body panel__body--metric"
+      />
       {/* unified controls — sort the index + open the tools disclosure */}
       <div className="gctl" role="group" aria-label="מיון וכלים">
         <span className="gctl__lbl">מיון</span>
@@ -109,12 +157,10 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
           <button
             key={o}
             className={`gctl__opt${orderBy === o ? ' is-on' : ''}`}
-            onClick={() => { sound.play('tab'); setOrderBy(o); setDescOpen(false) }}
+            onClick={() => { sound.play('tab'); setOrderBy(o) }}
             aria-pressed={orderBy === o}
-            title={tops[o] ? `#1 ${tops[o]}` : undefined}
           >
             <span>{ORDER_SHORT[o]}</span>
-            {tops[o] && <span className="gctl__opt-top">{tops[o]}</span>}
           </button>
         ))}
         <button

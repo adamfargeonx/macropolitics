@@ -76,7 +76,7 @@ export default function App() {
       return
     }
 
-    let leaveClass = '', enterClass = '', leaveMs = 420, enterMs = 460
+    let leaveClass: string, enterClass: string, leaveMs = 420, enterMs = 460
     if (v === 'home') {
       leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask'; leaveMs = 460; enterMs = 500
     } else {
