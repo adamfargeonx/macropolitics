@@ -132,6 +132,21 @@
   font-family: var(--body); font-size: 11px; letter-spacing: 0.14em;
   color: var(--ink-faint); white-space: nowrap;
 }
+/* ── Tier chip bar (touch) — an explicit, always-visible replacement for the hidden
+   wheel/drag gesture. Horizontally scrollable: the labels don't all fit a phone width,
+   and a scrolling chip row is a familiar mobile pattern (no wrap, no truncation). ── */
+.forces-tierbar {
+  position: absolute; top: 84px; left: 16px; right: 16px; z-index: 6;
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+}
+.forces-tierbar::-webkit-scrollbar { display: none; }
+.forces-tierbar__chip {
+  flex: 0 0 auto; cursor: none; background: rgba(10, 6, 22, 0.82); border: 1px solid var(--line-yellow);
+  padding: 7px 13px; white-space: nowrap;
+  font-family: var(--body); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.forces-tierbar__chip.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
 .sheet-scroll-cta__arrow {
   font-size: 14px; color: var(--yellow); opacity: 0.5;
   animation: scrollArrowBounce 1.8s ease-in-out infinite;
@@ -385,6 +400,15 @@
     transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
   }
   .forces-mswitch__btn.is-on { background: var(--yellow); color: var(--bg); }
+  /* the gear chip — reaches sort/filter from Map mode without leaving it; List mode already
+     shows the same controls inline atop the ranked ledger, so it's redundant there */
+  .forces-mswitch__gear {
+    cursor: none; background: none; border: none; border-inline-start: 1px solid var(--line-yellow);
+    padding: 6px 13px; font-size: 13px; color: var(--ink-dim);
+    transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+  }
+  .forces-mswitch__gear.is-on { background: var(--yellow); color: var(--bg); }
+  .forces--m-list .forces-mswitch__gear { display: none; }
   /* MAP: the field fills the screen above the footer (sheet overlays only when a body is tapped) */
   .forces--m-map .forces-field, .forces--m-map .sheet-embed { bottom: var(--tabbar-h); }
   /* LIST: hide the field; the ranked index sheet fills the screen (below the toggle row,
@@ -393,5 +417,25 @@
   .forces--m-list .pdock__panel { top: 52px; bottom: var(--tabbar-h); max-height: none; }
   /* let the index surface fill the sheet rather than ending content-short */
   .forces--m-list .pdock__panel > .panel { min-height: 100%; }
+
+  /* the mobile-inline tools sheet (⚙ tools opened via the gctl__tools button, or the map-mode
+     gear) — replaces the floating desktop overlay, which visually collided with the sheet
+     content beneath it. Un-float ForcesTools and let it fill the sheet in place. */
+  .forces-tools-mobile {
+    min-height: 100%; padding: 18px 18px 22px;
+    background: var(--panel-surface); /* the sheet content must be opaque — this wrapper isn't
+       .panel/.panelb, so it doesn't inherit the shared panel-shell background automatically */
+  }
+  .forces-tools-mobile__back {
+    cursor: none; background: none; border: none; padding: 0 0 16px;
+    font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--yellow);
+  }
+  .forces-tools-mobile .forcestools {
+    position: static; top: auto; left: auto; right: auto; transform: none; width: 100%;
+    background: none; border: none; box-shadow: none; padding: 0; animation: none;
+  }
+  /* the breadcrumb sits below the tier chip bar on touch (which itself sits below the top
+     icon/switch row) so nothing stacks on nothing */
+  .forces-state { top: 146px; }
 }
 

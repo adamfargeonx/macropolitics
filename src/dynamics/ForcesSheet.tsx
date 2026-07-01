@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { NODES, AXIS, type Kind } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { type Order } from './forces-model'
+import { sound, isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
 const YELLOW = '251,255,0'
@@ -170,9 +171,14 @@ class GravityWell {
     this.container.addEventListener('pointerdown', this.onDown)
   }
 
+  // narrow (phone) field: lift the tap-target floor so the smallest bodies stay reliably
+  // tappable — the packing/radius formula itself is unchanged, only the tappable minimum.
+  private narrow = false
+
   resize = () => {
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
     this.w = this.container.clientWidth; this.h = this.container.clientHeight
+    this.narrow = this.w < 480
     this.canvas.width = this.w * this.dpr
     this.canvas.height = this.h * this.dpr
     this.canvas.style.width = `${this.w}px`
@@ -214,6 +220,9 @@ class GravityWell {
   }
 
   private onMove = (ev: PointerEvent) => {
+    // ignore moves originating on real controls (the tier chip bar lives inside this same
+    // container) — otherwise hovering a button previews whatever body sits behind it
+    if (isInteractive(ev.target)) return
     const r = this.container.getBoundingClientRect()
     this.mouse.x = ev.clientX - r.left
     this.mouse.y = ev.clientY - r.top
@@ -224,6 +233,10 @@ class GravityWell {
     if (this.hoveredIdx !== null) { this.hoveredIdx = null; this.onHover?.(null) }
   }
   private onDown = (ev?: PointerEvent) => {
+    // ignore presses that start on real controls (tier chips) — they're DOM descendants of
+    // this same container, so their pointerdown bubbles here too; without this guard, tapping
+    // a chip also hit-tests and can select whatever body happens to sit behind it
+    if (ev && isInteractive(ev.target)) return
     // harden tap hit-testing: a still touch tap may emit no pointermove first, so resolve the
     // body at the press point now instead of trusting a prior hover.
     if (ev) {
@@ -251,16 +264,22 @@ class GravityWell {
   private hitTest() {
     let best: number | null = null
     let bestD = Infinity
+    const padFloor = this.narrow ? 22 : 18
     for (let i = 0; i < BODIES.length; i++) {
       const d = Math.hypot(this.bodyScreenX[i] - this.mouse.x, this.bodyScreenY[i] - this.mouse.y)
-      const pad = Math.max(this.bodyR(this.mass[i]) + 10, 18)
+      const pad = Math.max(this.bodyR(this.mass[i]) + 10, padFloor)
       if (d < pad && d < bestD) { bestD = d; best = i }
     }
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
   }
 
   private get playSize() { return Math.min(this.w, this.h) * PLAY }
-  private bodyR(power: number) { return radiusFrac(power) * this.playSize }
+  // on a phone, lift the floor so the smallest bodies (edge/nonstate powers) render a bit
+  // larger — reads less like a scatter of specks, easier to tap
+  private bodyR(power: number) {
+    const r = radiusFrac(power) * this.playSize
+    return this.narrow ? Math.max(r, 9) : r
+  }
 
   private bodyToScreen(nx: number, ny: number): [number, number] {
     const padX = this.w * 0.06
@@ -566,6 +585,9 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
   // scrollStage: 0=all visible, 1–5=tier focus
   const [scrollStage, setScrollStage] = useState(0)
   const scrollPosRef = useRef(0)
+  // touch has no hover — a coarse pointer gets tap-appropriate copy and explicit tier
+  // chips instead of the hidden wheel/drag gesture (mouse keeps the scroll narrative as-is)
+  const [coarse] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -640,6 +662,13 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
   useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
 
+  // explicit tier jump — the same spring-eased dispersion the wheel/drag gesture drives,
+  // just triggered by a tap instead of a gesture a touch user can't discover
+  const goToTier = (stage: number) => {
+    scrollPosRef.current = stage
+    wellRef.current?.setScrollTarget(stage)
+  }
+
   const chipScore = chip ? Math.round(grav.get(chip.id)?.power ?? 0) : 0
   const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
 
@@ -660,17 +689,39 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover }: {
         </div>
       )}
 
-      {/* ── Scroll hint (before any scroll) ─────────────────────────────── */}
-      {scrollStage === 0 && (
+      {/* ── Scroll hint (before any scroll) — mouse only; touch gets explicit tier chips below ── */}
+      {scrollStage === 0 && !coarse && (
         <div className="sheet-scroll-cta" aria-hidden>
           <span className="sheet-scroll-cta__arrow">↓</span>
           <span className="sheet-scroll-cta__text">גללו לגלות את היררכיית הכוח</span>
         </div>
       )}
 
-      {/* ── Hover hint (before first interaction) ────────────────────────── */}
+      {/* ── Hint (before first interaction) — copy matches the input: tap vs. hover ────── */}
       {!interacted && scrollStage === 0 && (
-        <div className="sheet-hint" dir="rtl">רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש</div>
+        <div className="sheet-hint" dir="rtl">
+          {coarse ? 'הקישו על גוף לבחירה · הגודל = הכוח' : 'רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש'}
+        </div>
+      )}
+
+      {/* ── Explicit tier chips (touch): the same tier-dispersion the mouse drives by wheel/drag,
+          reachable by a tap instead of a gesture a touch user has no way to discover ────── */}
+      {coarse && (
+        <div className="forces-tierbar" role="tablist" aria-label="שכבת עוצמה" dir="rtl">
+          <button
+            className={`forces-tierbar__chip${scrollStage === 0 ? ' is-on' : ''}`}
+            role="tab" aria-selected={scrollStage === 0}
+            onClick={() => { sound.play('tab'); goToTier(0) }}
+          >הכל</button>
+          {TIER_ANNOTS.map((a) => (
+            <button
+              key={a.stage}
+              className={`forces-tierbar__chip${scrollStage === a.stage ? ' is-on' : ''}`}
+              role="tab" aria-selected={scrollStage === a.stage}
+              onClick={() => { sound.play('tab'); goToTier(a.stage) }}
+            >{a.label}</button>
+          ))}
+        </div>
       )}
 
       {/* ── Tier annotation: the editorial beat of the scroll narrative ─── */}

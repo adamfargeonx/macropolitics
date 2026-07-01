@@ -43,6 +43,9 @@ export default function ForcesView() {
   const [showAllIndex, setShowAllIndex] = useState(false)
   // mobile only: toggle the field (map) vs the ranked index (list) as the primary surface
   const [mobileMode, setMobileMode] = useState<'map' | 'list'>('map')
+  // mobile only: a way to reach sort/filter from Map mode without switching to List —
+  // peeks the same index sheet up over the field, then retracts
+  const [controlsOpen, setControlsOpen] = useState(false)
   const isMobile = useIsMobile()
 
   const weights = useWeights()
@@ -79,14 +82,21 @@ export default function ForcesView() {
     >
       <ForcesSheet grav={grav} orderBy={orderBy} selected={selected} onSelect={setSelected} onHover={setHovered} />
 
-      {/* mobile-only map/list switch — choose the field or the ranked index as the lead surface */}
+      {/* mobile-only map/list switch — choose the field or the ranked index as the lead surface.
+          A third "⚙" chip (map mode only) peeks the same index/sort/filter sheet up over the
+          field without leaving Map — sort and filters stay reachable either way. */}
       <div className="forces-mswitch" role="tablist" aria-label="תצוגת מובייל" onClick={(e) => e.stopPropagation()}>
-        <button role="tab" aria-selected={mobileMode === 'map'} className={`forces-mswitch__btn${mobileMode === 'map' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('map') }}>מפה</button>
-        <button role="tab" aria-selected={mobileMode === 'list'} className={`forces-mswitch__btn${mobileMode === 'list' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('list') }}>רשימה</button>
+        <button role="tab" aria-selected={mobileMode === 'map'} className={`forces-mswitch__btn${mobileMode === 'map' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('map'); setControlsOpen(false) }}>מפה</button>
+        <button role="tab" aria-selected={mobileMode === 'list'} className={`forces-mswitch__btn${mobileMode === 'list' ? ' is-on' : ''}`} onClick={() => { sound.play('tab'); setMobileMode('list'); setControlsOpen(false) }}>רשימה</button>
+        <button
+          className={`forces-mswitch__gear${controlsOpen ? ' is-on' : ''}`}
+          aria-label="מיון וסינון" title="מיון וסינון" aria-pressed={controlsOpen}
+          onClick={() => { sound.play('tab'); setControlsOpen((v) => !v) }}
+        ><span aria-hidden>⚙</span></button>
       </div>
 
       {/* ── Compound state breadcrumb — one-tap reset of all secondary filters ── */}
-      {stateActive && !tools.mounted && (
+      {stateActive && !tools.mounted && !(isMobile && toolsOpen) && (
         <div className="forces-state" dir="rtl">
           {filterBloc !== 'all' && <span className="forces-state__tag">{BLOC_LABEL[filterBloc]}</span>}
           {minScore > 0 && <span className="forces-state__tag">סף≥{minScore}</span>}
@@ -96,8 +106,10 @@ export default function ForcesView() {
         </div>
       )}
 
-      {/* ── Tools disclosure panel: bloc, threshold, year, scenario sandbox ── */}
-      {tools.mounted && (
+      {/* ── Tools disclosure — desktop only: a floating card over the canvas. On mobile the
+          same control renders INLINE inside the sheet instead (see PanelDock below), so it
+          expands in place rather than floating over — and overlapping — the sheet content. ── */}
+      {!isMobile && tools.mounted && (
         <ForcesTools
           filterBloc={filterBloc} setFilterBloc={setFilterBloc}
           minScore={minScore} setMinScore={setMinScore}
@@ -109,11 +121,24 @@ export default function ForcesView() {
       )}
 
       <PanelDock
-        forceOpen={isMobile ? (mobileMode === 'list' || !!selected) : undefined}
-        forceClosed={isMobile && mobileMode === 'map' && !selected}
+        forceOpen={isMobile ? (mobileMode === 'list' || !!selected || controlsOpen || toolsOpen) : undefined}
+        forceClosed={isMobile && mobileMode === 'map' && !selected && !controlsOpen && !toolsOpen}
+        onHandleClick={isMobile ? () => { setControlsOpen(false); setToolsOpen(false) } : undefined}
       >
         {selected ? (
           <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
+        ) : isMobile && toolsOpen ? (
+          <div className="forces-tools-mobile" dir="rtl">
+            <button className="forces-tools-mobile__back" onClick={() => { sound.play('tab'); setToolsOpen(false) }}>‹ חזרה לרשימה</button>
+            <ForcesTools
+              filterBloc={filterBloc} setFilterBloc={setFilterBloc}
+              minScore={minScore} setMinScore={setMinScore}
+              year={year} setYear={(y: Year) => yearStore.set(y)}
+              raw={raw} setRaw={setRaw} normW={normW}
+              scenario={scenario} stateActive={stateActive}
+              onResetAll={resetAll} onClose={() => setToolsOpen(false)}
+            />
+          </div>
         ) : (
           <ForcesIndexPanel
             orderBy={orderBy} setOrderBy={setOrderBy}

@@ -12,7 +12,7 @@ import { Icon, type IconName } from './Icon'
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
 // while collapsed peeks the panel as a preview.
-export function PanelDock({ children, forceOpen, forceClosed }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean }) {
+export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void }) {
   // mounts closed, then slides in after the page transition has landed — the panel
   // arriving a beat late reads as a considered reveal, not a static frame.
   const [open, setOpen] = useState(false)
@@ -28,7 +28,7 @@ export function PanelDock({ children, forceOpen, forceClosed }: { children: Reac
       <div className="pdock__panel">{children}</div>
       <button
         className="pdock__handle"
-        onClick={() => { sound.play('tab'); setOpen((o) => !o) }}
+        onClick={() => { sound.play('tab'); onHandleClick ? onHandleClick() : setOpen((o) => !o) }}
         aria-label={isOpen ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
         aria-expanded={isOpen}
       >
