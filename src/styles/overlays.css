@@ -199,15 +199,29 @@
 .panel {
   position: absolute; top: 88px; right: 44px;
   width: 396px; z-index: var(--z-panel); text-align: right; padding: 28px;
+  display: flex; flex-direction: column;
   overflow-y: auto; scrollbar-width: none;
 }
 .panel::-webkit-scrollbar { display: none; }
 /* desktop only: a fixed (not max-) height so every panel — index or detail, short content or
-   long — occupies the SAME footprint across the site; overflow-y above scrolls tall content
-   internally instead of the panel growing. Scoped to desktop via min-width so the mobile
-   override below (position: static, variable-height/static-flow) is completely unaffected. */
+   long — occupies the SAME footprint across the site. .panel/.panelb are flex columns (see
+   above) and the LAST major content block (the ranked list, the relations list, the score/
+   narrative body, …) grows via flex to fill the remaining height and scrolls INTERNALLY when
+   its own content overflows — so header/controls stay pinned and content actually reaches the
+   panel's bottom edge instead of leaving dead space below it. Generic at the shell level (keyed
+   off DOM order, not a page-specific class) so it applies to every .panel/.panelb consumer
+   (Forces index + detail, Relations default + detail, Dynamics card) with no per-page opt-in —
+   excluding a bare <p>/<button> as the last child (a short closing line or CTA — e.g. the
+   narrative's closing caption or a "set as reference" action) since stretching THOSE to fill the
+   remaining height would drag a border/hit-area down with them rather than reading as a filled
+   list/body. The outer overflow-y:auto above stays as a fallback for that excluded case (and for
+   anything unexpectedly taller than its slot) so nothing is ever clipped either way. */
 @media (min-width: 769px) {
   .panel, .panelb { height: calc(100dvh - 124px); }
+  .panel > :last-child:not(p):not(button), .panelb > :last-child:not(p):not(button) {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none;
+  }
+  .panel > :last-child::-webkit-scrollbar, .panelb > :last-child::-webkit-scrollbar { display: none; }
 }
 .panel__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
 .panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 15px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
@@ -236,10 +250,13 @@
 .panel__rel:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
 .panel__rel:active { transform: scale(0.94); }
 /* ── Side panel — entity detail card ─────────────────────────── */
-/* Sizes to its content — no internal scrollbar (so the rank/title/notes are never clipped). */
+/* Flex column filling its fixed desktop height (see the .panel media query above) — the last
+   growable content block fills the remaining space and scrolls internally; this outer scroll is
+   a fallback so nothing is ever clipped. */
 .panelb {
   position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel);
   text-align: right; padding: 28px 28px 28px;
+  display: flex; flex-direction: column;
   overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
@@ -309,16 +326,11 @@
 .fswitch__btn.is-on { color: var(--bg); background: var(--yellow); }
 .fbody { margin-top: 18px; }
 
-/* ציון mode — a short (1–2 line) description snippet, secondary to the score cluster: same
+/* ציון mode — the grading cluster (gauge + three parameter rows). Each row (.fparam) is icon +
+   label + value + bar, PLUS its own short expandable description (.fparam__desc) — same
    collapsible .panel__desc-* pattern (see forces.css) as the metric description + the תיאור
-   mode, just visually compact here since it's an addition to the score view, not its focus. */
-.fscore__desc { margin-top: 14px; }
-.fscore__desc-text {
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-sm);
-  line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.75;
-}
-
-/* ציון mode — the grading cluster (gauge + three fixed-height parameter rows) */
+   mode, sized to this row's compact density rather than the panel's default text scale. Each
+   row's expand state is independent (a separate ExpandableText instance per axis). */
 .fparams { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 .fparam {
   min-height: 46px; padding: 8px 10px; background: var(--surface-1);
@@ -341,6 +353,14 @@
   animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
 }
 @media (prefers-reduced-motion: reduce) { .fparam__track i { animation: none; } }
+/* per-axis description — rides the row's own gap (7px) instead of the base 14px top margin,
+   compact/secondary relative to the label+value+bar it sits beneath. */
+.fparam__desc { margin-top: 0; }
+.fparam__desc-text {
+  margin-top: 0;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs);
+  line-height: 1.55; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
+}
 /* backing note — borrowed weight from a patron (no single-sided container stroke) */
 .fbacking {
   margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);

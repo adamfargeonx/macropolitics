@@ -17,8 +17,8 @@ export type IconName =
 
 // Each entry is the inner SVG of a 0 0 24 24 viewBox. Stroke is set on the <svg>.
 const PATHS: Record<IconName, React.ReactNode> = {
-  // economic — ascending bars on a baseline (capital / index)
-  eco: (<><path d="M3.5 20.5 H20.5" /><path d="M7 20.5 V14" /><path d="M12 20.5 V9" /><path d="M17 20.5 V4.5" /></>),
+  // economic — a stacked coin cylinder (capital / reserves), reads clearer than a bar chart at small size
+  eco: (<><ellipse cx="12" cy="18" rx="8" ry="2.6" /><ellipse cx="12" cy="13.5" rx="8" ry="2.6" /><ellipse cx="12" cy="9" rx="8" ry="2.6" /><path d="M4 9 V18" /><path d="M20 9 V18" /></>),
   // military — a geometric shield (sharp), no curves
   mil: (<path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z" />),
   // geo-strategic — a globe: circle + meridian + equator
@@ -33,10 +33,10 @@ const PATHS: Record<IconName, React.ReactNode> = {
   relations: (<path d="M12 4 L20.5 19.5 H3.5 Z" />),
   // backing — a borrowed-weight arrow toward the body
   backing: (<><path d="M20 12 H5" /><path d="M11 6 L5 12 L11 18" /></>),
-  // model — three horizontal sliders: the adjustable weight parameters (eco/mil/geo) of the gravity model
-  model: (<><path d="M3 6h4" /><circle cx="9" cy="6" r="2" /><path d="M11 6h10" /><path d="M3 12h9" /><circle cx="14" cy="12" r="2" /><path d="M16 12h5" /><path d="M3 18h13" /><circle cx="18" cy="18" r="2" /><path d="M20 18h1" /></>),
-  // legend — a key (legend is the "key" to reading a map; circle bow + shaft + teeth)
-  legend: (<><circle cx="8" cy="15" r="4" /><path d="M12 15h9" /><path d="M18 12v6" /><path d="M21 12v6" /></>),
+  // model — a circled "i": the universal info glyph for "how this is calculated"
+  model: (<><circle cx="12" cy="12" r="9.5" /><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none" /><path d="M12 11 V17" /></>),
+  // legend — a small key-to-symbols list (swatch + label row, ×3): what a map legend literally is
+  legend: (<><rect x="3" y="4.5" width="4" height="4" /><path d="M10.5 6.5 H20.5" /><rect x="3" y="10" width="4" height="4" /><path d="M10.5 12 H20.5" /><rect x="3" y="15.5" width="4" height="4" /><path d="M10.5 17.5 H20.5" /></>),
   // generic category icons (used in evidence overlay axis heads, pnote labels)
   tier: (<><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></>),
   axis: (<><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></>),

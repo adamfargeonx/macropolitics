@@ -105,7 +105,7 @@
   /* type-system tracking ramp (the 6-style system; see .t-* utilities below) */
   --tracking-display: -0.02em;   /* Display */
   --tracking-title: -0.01em;     /* Title */
-  --tracking-body: 0.06em;       /* Body */
+  --tracking-body: 0.04em;       /* Body */
   --tracking-label: 0.12em;      /* Label */
   --tracking-micro: 0.15em;      /* Micro */
   --tracking-wordmark: 0.468em;  /* Wordmark */

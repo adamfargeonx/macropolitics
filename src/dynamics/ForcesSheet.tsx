@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { NODES, AXIS, type Kind } from '../data/entities'
+import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { type Order, TIER_ANNOTS } from './forces-model'
 import { isInteractive } from '../sound'
@@ -58,29 +58,92 @@ interface WellBody {
 
 const GOLDEN = 2.399963229728653
 
+// ── Extra-regional great powers — drawn just as large (size still = real gravity power), but
+// they are not what this site is about, so the layout below keeps them OFF the visual centre.
+// Everyone else (Iran, Turkey, the Gulf, the Levant, Egypt/Jordan, the non-state actors…) IS the
+// Middle East this field exists to depict, and gets the centred golden-spiral packing instead.
+const EXTERNAL = new Set(['usa', 'russia', 'china', 'europe', 'india', 'pakistan'])
+
+// Collision margin between any two bodies (normalized units). Tighter than the field's old
+// single-list value (0.04) — with the regional cluster and six large external disks now
+// competing for the same 0.01–0.99 box, the looser margin left no legal, in-bounds spot
+// anywhere for the biggest external powers (verified by simulation: USA/China/Russia's
+// searches exhausted the entire box). 0.02 keeps a clean, visible gap between every pair
+// while leaving enough room for both groups to resolve without overlap or fallback.
+const PACK_MARGIN = 0.02
+
 function powerLayout(): WellBody[] {
-  const sorted = [...NODES].sort((a, b) => b.power - a.power)
+  const regional = [...NODES].filter((n) => !EXTERNAL.has(n.id)).sort((a, b) => b.power - a.power)
+  const external = [...NODES].filter((n) => EXTERNAL.has(n.id)).sort((a, b) => b.power - a.power)
   const placed: WellBody[] = []
   const radii: number[] = []
   const cx = 0.5, cy = 0.5
-  for (const n of sorted) {
+
+  const fits = (x: number, y: number, r: number) =>
+    x - r >= 0.01 && x + r <= 0.99 && y - r >= 0.01 && y + r <= 0.99
+  const clear = (x: number, y: number, r: number) => {
+    for (let j = 0; j < placed.length; j++) {
+      if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + PACK_MARGIN) return false
+    }
+    return true
+  }
+  const commit = (n: Entity, r: number, nx: number, ny: number) => {
+    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', kind: n.kind, nx, ny })
+    radii.push(r)
+  }
+  // Farthest a body of radius `r` can sit from centre at angle `theta` and still stay inside
+  // the 0.01–0.99 box (a square, so the diagonals ~45°/135°/225°/315° allow the most room).
+  const boxMaxReach = (theta: number, r: number) => {
+    const half = 0.49 - r
+    return Math.min(half / Math.max(1e-6, Math.abs(Math.cos(theta))), half / Math.max(1e-6, Math.abs(Math.sin(theta))))
+  }
+
+  // ── Pass 1 — extra-regional great powers, placed FIRST while the field is still empty, each
+  // anchored toward a compass point on the rim (four corners for the four biggest, left/right
+  // mid-edge for the two smaller) at the farthest in-bounds distance for that angle. Placing
+  // these large disks before the regional cluster exists is what makes them fit at all: doing
+  // it the other way round (regional packed first, externals squeezed into what's left) was
+  // tried and is geometrically impossible — the regional cluster's natural footprint plus a
+  // ~0.16-radius disk exceeds the box in every direction (confirmed by simulation). If a target
+  // corner is contested, nudge by angle and then by distance until clear. ──
+  const ANCHORS = [45, 135, 225, 315, 0, 180].map((d) => (d * Math.PI) / 180)
+  external.forEach((n, idx) => {
+    const r = radiusFrac(n.power)
+    const baseTheta = ANCHORS[idx % ANCHORS.length]
+    let nx = cx, ny = cy
+    search:
+    for (let shrink = 0; shrink < 40; shrink++) {
+      for (let step = 0; step < 90; step++) {
+        const off = (step % 2 === 0 ? 1 : -1) * Math.ceil(step / 2) * (Math.PI / 90)
+        const theta = baseTheta + off
+        const rad = boxMaxReach(theta, r) - 0.015 - shrink * 0.01
+        if (rad <= 0) continue
+        const x = cx + Math.cos(theta) * rad
+        const y = cy + Math.sin(theta) * rad
+        if (fits(x, y, r) && clear(x, y, r)) { nx = x; ny = y; break search }
+      }
+    }
+    commit(n, r, nx, ny)
+  })
+
+  // ── Pass 2 — the regional cluster (the Middle East itself), packed via the same centred
+  // golden spiral as the original single-group layout, biggest-of-the-region first. The rim is
+  // already claimed, so this naturally fills the guaranteed-open middle — the actual composition
+  // this page is about ends up centred, exactly as intended. ──
+  for (const n of regional) {
     const r = radiusFrac(n.power)
     let nx = cx, ny = cy
-    for (let s = 0; s < 5000; s++) {
+    for (let s = 0; s < 8000; s++) {
       const ang = s * GOLDEN
       const rad = 0.017 * Math.sqrt(s)
       const x = cx + Math.cos(ang) * rad
       const y = cy + Math.sin(ang) * rad
-      if (x - r < 0.01 || x + r > 0.99 || y - r < 0.01 || y + r > 0.99) continue
-      let ok = true
-      for (let j = 0; j < placed.length; j++) {
-        if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + 0.04) { ok = false; break }
-      }
-      if (ok) { nx = x; ny = y; break }
+      if (!fits(x, y, r) || !clear(x, y, r)) continue
+      nx = x; ny = y; break
     }
-    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', kind: n.kind, nx, ny })
-    radii.push(r)
+    commit(n, r, nx, ny)
   }
+
   return placed
 }
 
@@ -408,10 +471,13 @@ class GravityWell {
     const scale = (1 + (bloom - 1) * 0.18) * pulse
     let rr = r * scale * bodyA
     // Hovered/selected body grows to a readable floor so its in-circle gauge is legible
-    // (and so even small states open into a real readout). Eased by hoverProg → smooth grow.
-    if (isFocus) {
+    // (and so even small states open into a real readout). Eased by hoverProg → smooth grow
+    // AND smooth shrink: gated on hoverProg itself (not isFocus), so leaving a body continues
+    // to ease the radius back down in step with the fading glow/signature instead of the size
+    // snapping to its base value the instant focus moves elsewhere while hoverProg is still > 0.
+    if (this.hoverProg[i] > 0.001) {
       const floor = Math.max(48, this.playSize * 0.09) * bodyA
-      if (rr < floor) rr += (floor - rr) * Math.min(1, this.hoverProg[i])
+      if (rr < floor) rr += (floor - rr) * this.hoverProg[i]
     }
 
     // Metric (lens) filter alpha only — the scroll narrative now moves bodies, doesn't dim them
@@ -705,21 +771,37 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
 
-      {/* ── Focus chip: name + score above the hovered/selected body, plus a compact
-          eco/mil/geo breakdown — this replaces the old abstract canvas gauge-rings as the
-          explanation of what the in-body rings mean, since it's real DOM text (no canvas
-          font-fitting) and this tooltip is already the "explain the hover" mechanism ── */}
+      {/* ── Focus chip: explains the hover state itself (a small "בפוקוס" caption ties the
+          yellow ring/glow on the canvas to plain language — otherwise the colour shift alone
+          reads as arbitrary), then name + score, then a compact eco/mil/geo breakdown whose
+          swatches are colour-matched 1:1 to the three concentric arcs drawn inside the hovered
+          body (mil = yellow/accent, eco/geo = the two lighter rings) — so the on-canvas force-
+          signature and this readout visibly describe the same three numbers. Real DOM text (no
+          canvas font-fitting), and this tooltip is already the "explain the hover" mechanism. ── */}
       {chip && (
         <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
+          <span className="sheet-chip__caption">
+            <span className="sheet-chip__caption-dot" aria-hidden />
+            בפוקוס
+          </span>
           <span className="sheet-chip__head">
             <span className="sheet-chip__name">{chip.he}</span>
             <span className="sheet-chip__score">{chipScore}</span>
           </span>
           {chipGrav && (
             <span className="sheet-chip__sig">
-              <span className="sheet-chip__sig-k">כלכלי <b>{Math.round(chipGrav.eco)}</b></span>
-              <span className="sheet-chip__sig-k">צבאי <b>{Math.round(chipGrav.mil)}</b></span>
-              <span className="sheet-chip__sig-k">גאו <b>{Math.round(chipGrav.geo)}</b></span>
+              <span className="sheet-chip__sig-k">
+                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--eco" aria-hidden />
+                כלכלי <b>{Math.round(chipGrav.eco)}</b>
+              </span>
+              <span className="sheet-chip__sig-k">
+                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--mil" aria-hidden />
+                צבאי <b>{Math.round(chipGrav.mil)}</b>
+              </span>
+              <span className="sheet-chip__sig-k">
+                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--geo" aria-hidden />
+                גאו <b>{Math.round(chipGrav.geo)}</b>
+              </span>
             </span>
           )}
         </div>

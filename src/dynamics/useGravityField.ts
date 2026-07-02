@@ -42,7 +42,7 @@ export function useGravityField(
       const r = Math.max(w, h) * (0.42 + Math.random() * 0.55)
       const x = cx + Math.cos(ang) * r, y = cy + Math.sin(ang) * r
       const toC = Math.atan2(cy - y, cx - x)
-      const sp = 0.25 + Math.random() * 0.3
+      const sp = 0.15 + Math.random() * 0.18
       return { x, y, px: x, py: y, vx: Math.cos(toC + 0.5) * sp, vy: Math.sin(toC + 0.5) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
     }
     const resize = () => {
@@ -54,7 +54,7 @@ export function useGravityField(
       // the field is just ambient texture; too many particles compete with the viz
       const count = mode === 'scattered'
         ? Math.min(140, Math.round((w * h) / 10000))
-        : Math.min(440, Math.round((w * h) / 3000))
+        : Math.min(260, Math.round((w * h) / 4800))
       ps = Array.from({ length: count }, (_, idx) => {
         if (mode === 'scattered') return spawn()
         // 85% pre-seeded anywhere in the field, 15% spawn at rim
@@ -62,7 +62,7 @@ export function useGravityField(
           const x = cx + (Math.random() - 0.5) * w * 0.9
           const y = cy + (Math.random() - 0.5) * h * 0.9
           const toC = Math.atan2(cy - y, cx - x)
-          const sp = 0.4 + Math.random() * 0.5
+          const sp = 0.22 + Math.random() * 0.28
           const bx = (Math.random() - 0.5) * 0.5, by = (Math.random() - 0.5) * 0.5
           return { x, y, px: x, py: y, vx: Math.cos(toC + 0.15) * sp, vy: Math.sin(toC + 0.15) * sp, bx, by, b: 0.5 + Math.random() * 0.5 }
         }
@@ -102,8 +102,8 @@ export function useGravityField(
           // ease velocity toward the smooth baseline drift — gentle dispersed motion, no centre pull
           p.vx += (p.bx - p.vx) * 0.02; p.vy += (p.by - p.vy) * 0.02
         } else {
-          const a = Math.min(0.08, 22 / (d2 + 3000))
-          p.vx += (dx / d) * a * d * 0.1; p.vy += (dy / d) * a * d * 0.1
+          const a = Math.min(0.08, 14 / (d2 + 3000))
+          p.vx += (dx / d) * a * d * 0.08; p.vy += (dy / d) * a * d * 0.08
         }
         if (imp && imp.s > 0.02) {
           const ix = p.x - imp.x, iy = p.y - imp.y, id2 = ix * ix + iy * iy
@@ -111,7 +111,7 @@ export function useGravityField(
           const il = Math.sqrt(id2) || 1
           p.vx += (ix / il) * infl * 2.8; p.vy += (iy / il) * infl * 2.8
         }
-        if (!scattered) { p.vx *= 0.98; p.vy *= 0.98 } // inward needs damping; scattered self-regulates
+        if (!scattered) { p.vx *= 0.975; p.vy *= 0.975 } // inward needs damping; scattered self-regulates
         p.px = p.x; p.py = p.y; p.x += p.vx; p.y += p.vy
         const speed = Math.hypot(p.vx, p.vy)
         const near = scattered ? 0 : 1 - Math.min(1, d / (Math.max(w, h) * 0.5))
@@ -132,7 +132,10 @@ export function useGravityField(
           // wrap at the edges → an evenly-dispersed field that never empties or clumps
           if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w
           if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h
-        } else if (d < 11) {
+        } else if (d < 8) {
+          // recycle only once genuinely at the centre (was `d < 11`) — recycling further out was
+          // handing fast, near-centre particles a fresh rim-spawn burst too often, reading as a
+          // constant flicker of new fast streaks rather than a calm field
           Object.assign(p, spawn())
         }
       }

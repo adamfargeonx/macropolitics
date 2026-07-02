@@ -106,23 +106,6 @@ export interface EntityDetail {
   components?: { base: number; intrinsic: number; backing: number; gravity: number; stability: number } // for the methodology drill-down
 }
 
-// One scored parameter row (forces · ציון mode). Number sits IMMEDIATELY beside the
-// category label for fast label→value scanning; the bar is a full-width track beneath.
-// Fixed min-height so all three rows share identical height regardless of label length.
-function ForceParam({ label, value, icon, hint }: { label: string; value?: number; icon: IconName; hint?: string }) {
-  return (
-    <div className="fparam">
-      <div className="fparam__lead">
-        <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
-        {value != null && <span className="fparam__val">{value}</span>}
-      </div>
-      {value != null && (
-        <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
-      )}
-    </div>
-  )
-}
-
 // The evidence link — opens the sources/calculation overlay. A subtle on-brand text link
 // (not a grey box), consistent with the panel's accent language.
 function EvidenceLink({ detail }: { detail: EntityDetail }) {
@@ -305,39 +288,63 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
   )
 }
 
-// The grading cluster (forces · ציון mode) — power gauge + three fixed-height parameter rows,
-// backing note (if any), and the evidence link. One grouped, scannable unit. Also carries a short
-// (1–2 line) description snippet — the same general text used by the תיאור/narrative mode — so a
-// user landing on the default tab still gets a taste of the interpretation, with a compact
-// read-more that expands inline instead of forcing a tab switch.
+// One scored axis row (forces · ציון mode) — icon + label + numeric value + bar, as ForceParam
+// above, PLUS its own short (1–2 line) expandable description sourced from FORCES_DESCRIPTIONS /
+// POWER_NOTES for that axis. A dedicated component (not a ForceParam edit — that one is shared/
+// may be used elsewhere) so each of the three rows gets an INDEPENDENT expand/collapse state.
+function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value?: number; icon: IconName; hint?: string; text?: string }) {
+  return (
+    <div className="fparam">
+      <div className="fparam__lead">
+        <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
+        {value != null && <span className="fparam__val">{value}</span>}
+      </div>
+      {value != null && (
+        <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
+      )}
+      {text && (
+        <ExpandableText
+          text={text}
+          className="fparam__desc"
+          textClassName="fparam__desc-text"
+        />
+      )}
+    </div>
+  )
+}
+
+// The grading cluster (forces · ציון mode) — power gauge + three parameter rows (icon, label,
+// value, bar), each carrying its own short expandable description (per-axis interpretation, drawn
+// from the same FORCES_DESCRIPTIONS/POWER_NOTES source as the תיאור/narrative mode), plus a
+// backing note (if any) and the evidence link. One grouped, scannable unit.
 function ForcesScore({ detail }: { detail: EntityDetail }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const scoreNum = Number(score)
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
-  const general = desc?.general ?? detail.powerNotes?.general
+  const notes = detail.powerNotes
   return (
     <div className="fscore">
       <div className="panelb__scorebox" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
         <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
         <div className="panelb__score-side">
           <span className="panelb__score-lbl">כוח משיכה</span>
-          {detail.rank && detail.total && <span className="panelb__score-rank">מדורגת {detail.rank} מתוך {detail.total}</span>}
         </div>
         <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
       </div>
-      {general && (
-        <ExpandableText
-          key={detail.id}
-          text={general}
-          className="fscore__desc"
-          textClassName="fscore__desc-text"
-        />
-      )}
       <div className="fparams">
-        <ForceParam label="כלכלי" icon="eco" value={detail.forces?.eco} hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" />
-        <ForceParam label="צבאי" icon="mil" value={detail.forces?.mil} hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" />
-        <ForceParam label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo} hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" />
+        <ForceAxisRow
+          key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
+          hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" text={desc?.eco ?? notes?.eco}
+        />
+        <ForceAxisRow
+          key={`${detail.id}-mil`} label="צבאי" icon="mil" value={detail.forces?.mil}
+          hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" text={desc?.mil ?? notes?.mil}
+        />
+        <ForceAxisRow
+          key={`${detail.id}-geo`} label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo}
+          hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" text={desc?.geo ?? notes?.geo}
+        />
       </div>
       {detail.backing && (
         <div className="fbacking">

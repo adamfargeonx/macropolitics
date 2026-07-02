@@ -168,7 +168,12 @@
 .home--closed .home-orbit { animation: orbitBreathe 2.8s var(--ease-in-out-quart) infinite; }
 /* hover the closed core → the ring swells a touch and brightens, signalling it opens */
 .home--core-hover .home-orbit { transform: translate(-50%, -50%) scale(1.24); border-color: rgba(255, 255, 255, 0.9); }
-@keyframes orbitBreathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+/* rest (0%/100%) is full brightness — deliberately identical to the loader's landed ring
+   (opacity 1, same border colour) — then eases down and back. While the loader overlay is up
+   (see the #root:has(.loader) rule below) this animation is paused, so it sits frozen at that
+   exact rest frame; the loader hands off to a ring that is already indistinguishable from what
+   it was just showing, and the breathing resumes seamlessly from there — no brightness pop. */
+@keyframes orbitBreathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 .home-orbit__spin { position: absolute; inset: 0; }
 /* open-state rotation is JS-driven (HomeView) so scrolling can accelerate it — no CSS spin here */
 .home-orbit__dot {
@@ -201,7 +206,9 @@
   animation-play-state: paused;
 }
 .home--open .home-core__dot { opacity: 0; }
-@keyframes coreDotBreath { 0%, 100% { transform: scale(0.85); opacity: 0.85; } 50% { transform: scale(1.1); opacity: 1; } }
+/* rest (0%/100%) = scale(1)/opacity(1) — identical to the loader's landed seed dot — for the same
+   handoff reason as orbitBreathe above. */
+@keyframes coreDotBreath { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.82); opacity: 0.82; } }
 
 /* ── Masked text reveals (tagline + nav slide up from behind a mask — no dissolve) ── */
 .home-tagline, .home-nav__label { overflow: hidden; }
@@ -380,6 +387,20 @@
 }
 .home--open .home-hint { opacity: 0; pointer-events: none; animation: none; }
 @keyframes hintPulse { 0%, 100% { opacity: 0.28; } 50% { opacity: 0.6; } }
+
+/* While the loader overlay is still up (mounted as `.loader` under the shared `#root`), the
+   closed home underneath is already mounted and its idle-breathing loops are already running —
+   entirely hidden behind the opaque loader. Freeze them for that whole span so they hold exactly
+   at their rest frame (now crafted to match the loader's landed ring/dot, see the keyframes
+   above) instead of drifting to an arbitrary, unsynced phase that would "pop" into view the
+   instant the loader fades out. Once the loader unmounts this rule stops matching and the
+   breathing simply resumes from the frozen frame — one continuous piece of motion, not a handoff
+   between two independent systems. */
+#root:has(.loader) .home--closed .home-orbit,
+#root:has(.loader) .home--closed .home-core__dot,
+#root:has(.loader) .home-hint {
+  animation-play-state: paused;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .home-orbit, .home-orbit__spin, .home-core__dot, .home-nav__item, .home-nav__label, .home-hint { animation: none; }
