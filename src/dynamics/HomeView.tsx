@@ -45,6 +45,19 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
     lockRef.current = lockTo == null ? null : { to: lockTo, from: NaN, target: NaN, t0: 0 }
   }, [lockTo])
 
+  // HomeView remounts fresh every time the view switches back to 'home' — so a return from a page
+  // arrives with `open` already true on the very first paint, and CSS transitions can't animate a
+  // property that never had a "before" frame to move from (the ring/wordmark/nav just snap to their
+  // open state instead of playing the reveal). Holding the open-state classes back for two paints
+  // gives the browser a closed frame to transition FROM, so the entrance choreography always plays —
+  // on the very first mount too, harmlessly, since it starts closed either way.
+  const [entered, setEntered] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setEntered(true)))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  const openVisual = open && entered
+
   // the thesis is a permanent part of the landing (closed) state — never dismissed; it gives way
   // only when the visitor enters (the open state).
   const showThesis = intro && !open
@@ -117,7 +130,7 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
   }, [open])
 
   return (
-    <div ref={rootRef} className={`stage home ${open ? 'home--open' : 'home--closed'}${open && orbitHovered ? ' home--orbit-hover' : ''}${!open && orbitHovered ? ' home--core-hover' : ''}${leaving ? ' home--leaving' : ''}`} dir="rtl">
+    <div ref={rootRef} className={`stage home ${openVisual ? 'home--open' : 'home--closed'}${openVisual && orbitHovered ? ' home--orbit-hover' : ''}${!openVisual && orbitHovered ? ' home--core-hover' : ''}${leaving ? ' home--leaving' : ''}`} dir="rtl">
       <div className="home-center" aria-hidden>
         {/* the mask fills the ring: pitch-black core, hover exposes field at 50%. Orbit hover also
             triggers the formula reveal — so we track enter/leave on the mask too. */}

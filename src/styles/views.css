@@ -222,27 +222,44 @@
 .home--open .home-title .letters__ch { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
 
 /* ── Home leaving (home → a page): a three-beat choreographed exit —
-   1) the wordmark dissolves letter-by-letter (fast wave, right-to-left reading order)
-   2) tagline/equation slide away and the nav labels fade+shrink just after
+   1) the wordmark shatters letter-by-letter — alternating characters scale outward/inward with a
+      slight rotation and drift, instead of every glyph collapsing toward the same point, so the
+      motion reads as organic rather than a single mechanical shrink (fast wave, right-to-left
+      reading order via --ci, a "back" ease so it snaps rather than glides)
+   2) tagline/equation retreat back into their entrance mask, and the nav ("section") titles exit
+      through the SAME masked slide they entered by — just reversed — rather than a generic fade
    3) the ring itself zooms into the void (App.tsx then applies .nav-rail--zoom-up)
    All three phases fire together here but with staggered transition-delays, so they READ as
    sequenced even though it's one class toggle — simpler and less brittle than chained timers
    for each visual layer, while still matching the requested order. ── */
 .home--leaving .home-title .letters__ch {
-  transition: transform 0.34s var(--ease-in-out-quart), opacity 0.26s ease, filter 0.34s var(--ease-in-out-quart);
-  transition-delay: calc(var(--ci, 0) * 0.016s);
-  transform: scale(0.5) translateY(-8px); opacity: 0; filter: blur(10px);
+  transition: transform 0.36s var(--ease-out-back), opacity 0.28s ease, filter 0.32s ease;
+  transition-delay: calc(var(--ci, 0) * 0.014s);
+  opacity: 0; filter: blur(9px);
 }
+/* alternating variants so neighbouring letters never move identically — one direction would read
+   as a single push; this reads as a burst */
+.home--leaving .home-title .letters__ch:nth-child(odd) { transform: scale(1.8) translateY(-11px) rotate(-8deg); }
+.home--leaving .home-title .letters__ch:nth-child(even) { transform: scale(0.28) translateY(9px) rotate(7deg); }
+.home--leaving .home-title .letters__ch:nth-child(3n) { transform: scale(1.4) translateX(7px) rotate(5deg); }
+
 .home--leaving .home-tagline > span,
 .home--leaving .home-eq > span {
-  transition: transform 0.28s var(--ease-in-out-quart), opacity 0.22s ease;
-  transition-delay: 0.05s;
-  transform: translateY(-110%); opacity: 0;
+  transition: transform 0.3s var(--ease-out-back), opacity 0.22s ease;
+  transition-delay: 0.04s;
+  transform: translateY(-115%); opacity: 0;
+}
+/* section titles exit the way they entered — sliding back up behind their own overflow mask,
+   each on its own ring-anchored stagger (--bd), not a generic fade+shrink of the whole button */
+.home--leaving .home-nav__label > span {
+  transition: transform 0.34s var(--ease-out-back);
+  transition-delay: calc(0.05s + var(--bd, 0s) * 0.1s);
+  transform: translateY(-115%);
 }
 .home--leaving .home-nav__item {
-  transition: opacity 0.26s ease, transform 0.26s var(--ease-in-out-quart);
-  transition-delay: 0.16s;
-  opacity: 0; transform: scale(0.82);
+  transition: opacity 0.3s ease;
+  transition-delay: calc(0.08s + var(--bd, 0s) * 0.1s);
+  opacity: 0;
 }
 .home--leaving .home-credit,
 .home--leaving .home-hint {
@@ -252,6 +269,7 @@
   .home--leaving .home-title .letters__ch,
   .home--leaving .home-tagline > span,
   .home--leaving .home-eq > span,
+  .home--leaving .home-nav__label > span,
   .home--leaving .home-nav__item,
   .home--leaving .home-credit,
   .home--leaving .home-hint { transition: none; }
