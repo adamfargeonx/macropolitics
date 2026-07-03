@@ -552,7 +552,9 @@
 @keyframes triDraw { to { stroke-dashoffset: 0; } }
 
 /* press feedback */
-.tab:active, .panel__close:active, .soundtoggle:active { transform: scale(0.93); }
+.tab:active, .soundtoggle:active { transform: scale(0.93); }
+/* item 10: the close ✕ is mid-rotation on hover — keep the spin (plus a small press shrink) while pressed */
+.panel__close:active { transform: rotate(90deg) scale(0.9); }
 .home__lens:active { transform: translateY(-1px) scale(0.98); }
 
 @media (prefers-reduced-motion: reduce) {

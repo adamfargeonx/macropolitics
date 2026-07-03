@@ -11,7 +11,9 @@
   background: var(--panel-surface);
   border: var(--panel-border);
   box-shadow: var(--panel-shadow);
-  animation: detailIn 0.24s var(--ease-out-expo);
+  /* item 9: a more dramatic, slightly slower reveal — larger rise + a subtle scale-settle and
+     blur-in on a long expo decel, so the panel reads as a deliberate reveal, not a quick pop. */
+  animation: detailIn 0.46s var(--ease-out-expo);
 }
 /* shared close button — identical inset + size on every panel/modal. Sits at the inline-END
    (RTL: visual left), opposite the right-aligned title, where every panel's close already lived. */
@@ -19,9 +21,11 @@
   position: absolute; top: 8px; inset-inline-end: 8px;
   width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
   background: none; border: none; color: var(--yellow); opacity: 0.6;
-  font-size: 14px; cursor: none; transition: opacity 0.15s ease; z-index: 2;
+  font-size: 14px; cursor: none; z-index: 2;
+  /* item 10: the ✕ spins on hover — a crisp quarter-turn on an expo decel */
+  transition: opacity 0.15s ease, transform 0.3s var(--ease-out-expo);
 }
-.panel__close:hover { opacity: 1; }
+.panel__close:hover { opacity: 1; transform: rotate(90deg); }
 
 /* ── Tooltip — the one tooltip language: DARK text on a YELLOW field.
    Shared by every custom tooltip (panelb__desc, readout, home-nav__sub,
@@ -170,7 +174,8 @@
   display: flex; align-items: center; gap: 16px; padding: 13px 0;
   padding-inline-start: 16px;
 }
-.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: 13.5px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
+/* item 8: legend row copy unified to the primary body size (14px) — was 13.5px */
+.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
 .legend__swatch {
   flex: 0 0 58px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -186,12 +191,13 @@
 .legend__rims i { display: block; width: 14px; height: 14px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
 .legend__hint {
   margin-top: 18px; padding: 12px 14px; font-family: var(--body);
-  font-size: 13px; line-height: 1.45; color: var(--yellow); opacity: 0.92;
+  /* item 8: unified to the primary body size (14px) — was 13px */
+  font-size: var(--text-md); line-height: 1.45; color: var(--yellow); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
 }
 .legend__foot { margin-top: 16px; font-family: var(--body); font-size: 11px; color: var(--light); opacity: 0.60; letter-spacing: 0.08em; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
-  .legend__scrim, .legend, .about, .evid, .panel--detail { animation: none; }
+  .legend__scrim, .legend, .about, .evid, .panel, .panelb, .panel--detail { animation: none; }
 }
 
 /* index (.panel) + detail (.panelb) share ONE frame — same position, width, padding & surface,
@@ -229,8 +235,12 @@
 .panel__note { margin-top: 10px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 14px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
 
 /* Detail panel (a body is selected). Close button comes from the shared shell. */
-.panel--detail { animation: detailIn 0.22s ease-out; }
-@keyframes detailIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.panel--detail { animation: detailIn 0.46s var(--ease-out-expo); }
+@keyframes detailIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(7px); }
+  55%  { filter: blur(0); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
 .panel__meta { margin-top: 20px; display: flex; flex-direction: column; gap: 1px; }
 .panel__row {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -346,7 +356,9 @@
    category row is the same height; compact/secondary relative to the label+value+bar above it. */
 .fparam__desc-text {
   margin-top: 0;
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs);
+  /* item 8: compact descriptions unified to the small body size (12px) — was --text-xs (11px),
+     so panel body copy reads as just two deliberate sizes: 12 (compact) and 14 (full narrative) */
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-sm);
   line-height: 1.55; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -442,7 +454,8 @@
   background: var(--surface-1); border: none; transition: background var(--dur-fast) ease;
 }
 .dcard__tie:hover { background: var(--yellow-06); }
-.dcard__tie-name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: var(--tracking-body); color: var(--white); }
+/* item 8: unified to the primary body size (14px) — was --text-base (13px) */
+.dcard__tie-name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-md); letter-spacing: var(--tracking-body); color: var(--white); }
 /* fused synthesis caption */
 .dcard__caption {
   margin-top: 16px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30);

@@ -59,6 +59,7 @@
 
 /* forces sort/filter pills + threshold slider — rendered inside .gctl (panel) and the tools disclosure */
 .forcesctl__opt {
+  position: relative;
   cursor: none; background: none; border: none; padding: 5px 12px; border-radius: var(--r-pill);
   font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-dim);
   transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
@@ -90,12 +91,14 @@
 .forcestools__lbl--title { font-size: 11px; color: var(--yellow); }
 .forcestools__divider { border: none; border-top: 1px solid var(--line); margin: 6px 0 10px; }
 .forcestools__timenote { color: rgba(251, 255, 0, 0.6) !important; }
+/* item 10: floats — box removed, drawn-line hover (below) */
 .forcestools__reset-all {
-  cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill);
-  margin-top: 8px; padding: 4px 0; width: 100%; font-family: var(--body); font-size: 11px; color: var(--ink-dim);
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  position: relative;
+  cursor: none; background: none; border: none;
+  margin-top: 8px; padding: 5px 0; width: 100%; font-family: var(--body); font-size: 11px; color: var(--ink-dim);
+  transition: color var(--dur-fast) ease;
 }
-.forcestools__reset-all:hover { color: var(--light); border-color: var(--ink-dim); }
+.forcestools__reset-all:hover { color: var(--light); }
 @media (prefers-reduced-motion: reduce) { .forcestools, .forcestools--out { animation: none; } }
 /* below 980px there's no longer room for a side flyout beside the 396px panel — fall back to
    a bottom-anchored, horizontally centred popover instead */
@@ -210,26 +213,45 @@
 }
 /* utility nav is always at full opacity on the home page (rendered inside the stage on home) */
 body:has(.home--closed) .unav { opacity: 0.75; }
+/* item 10: the utility-nav controls float — no boxes. "המודל" stays the prominent one via its
+   yellow ink (not a filled pill); legend rests dim. Both share the drawn-line hover (below). */
 .unav__model {
+  position: relative;
   display: inline-flex; align-items: center; gap: 7px; cursor: none;
   font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
-  color: var(--yellow); background: var(--yellow-06);
-  border: 1px solid var(--yellow-30); border-radius: var(--r-pill); padding: 6px 14px;
-  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+  color: var(--yellow); background: none; border: none; padding: 6px 6px;
+  transition: color var(--dur-fast) ease;
 }
-.unav__model:hover { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
 .unav__icon { font-size: 15px; flex: none; transition: color var(--dur-fast) ease; }
-/* legend trigger — a labelled pill */
+/* legend trigger — floats as bare icon + label */
 .unav__legend {
+  position: relative;
   display: inline-flex; align-items: center; gap: 8px; cursor: none;
   font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
-  color: var(--ink-dim); background: none; border: 1px solid var(--line); border-radius: var(--r-pill);
-  padding: 6px 13px;
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+  color: var(--ink-dim); background: none; border: none; padding: 6px 6px;
+  transition: color var(--dur-fast) ease;
 }
-.unav__legend:hover { color: var(--yellow); border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.05); }
+.unav__legend:hover { color: var(--yellow); }
 .unav__legend:active { transform: scale(0.96); }
-@media (prefers-reduced-motion: reduce) { .unav__dot { animation: none; } }
+
+/* ── item 10: floated-button hover — an actual LINE that draws in, not a fade. A hairline
+   underline (currentColor) scales in from the RTL leading (right) edge on hover. Shared by every
+   floated chrome control so they speak one hover language. Toggle chips (.forcesctl__opt) suppress
+   it while active (.is-on) — the yellow fill already carries that state. ── */
+.unav__model::after, .unav__legend::after,
+.forcesctl__opt::after, .forcestools__reset-all::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 1px; height: 1px;
+  background: currentColor; transform: scaleX(0); transform-origin: right; pointer-events: none;
+  transition: transform 0.42s var(--ease-out-expo);
+}
+.unav__model:hover::after, .unav__legend:hover::after,
+.forcesctl__opt:hover:not(.is-on)::after, .forcestools__reset-all:hover::after { transform: scaleX(1); }
+.forcesctl__opt.is-on::after { content: none; }
+@media (prefers-reduced-motion: reduce) {
+  .unav__dot { animation: none; }
+  .unav__model::after, .unav__legend::after,
+  .forcesctl__opt::after, .forcestools__reset-all::after { transition: none; }
+}
 
 /* about toast — the one-time top-left intro (below the utility cluster) */
 .abtoast {

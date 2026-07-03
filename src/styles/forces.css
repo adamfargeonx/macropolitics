@@ -2,7 +2,8 @@
 .pdock { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-panel); }
 .pdock__panel {
   position: absolute; top: 0; right: 0; bottom: 0; width: 456px;
-  pointer-events: none; transition: transform 0.55s var(--ease-out-expo); will-change: transform;
+  /* item 9: a touch slower + more expressive slide-in for the whole side dock */
+  pointer-events: none; transition: transform 0.66s var(--ease-out-expo); will-change: transform;
 }
 .pdock__panel > * { pointer-events: auto; }
 .pdock--closed .pdock__panel { transform: translateX(100%); }
@@ -231,12 +232,28 @@
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
 .gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; }
 .gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-inline-end: 2px; }
-.gctl__opt { cursor: none; background: none; border: 1px solid var(--line); padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
-.gctl__opt:hover:not(.is-on) { color: var(--light); border-color: var(--ink-dim); }
+/* item 10: sort chips + tools trigger float — the resting box is a TRANSPARENT border (no reflow
+   when the active state re-colours it), so inactive controls read as bare text; the active .is-on
+   chip keeps its yellow fill. Hover draws the shared line (below), not a box. */
+.gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__opt:hover:not(.is-on) { color: var(--light); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
-.gctl__tools { margin-inline-start: auto; cursor: none; background: none; border: 1px solid var(--line); padding: 4px 10px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__tools { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__tools:hover, .gctl__tools.has-state { color: var(--yellow); }
 .gctl__tools.is-on { border-color: var(--yellow-30); color: var(--yellow); background: var(--yellow-06); }
+/* item 10: the shared drawn-line hover — a hairline underline scales in from the RTL leading
+   (right) edge; toggle chips suppress it while active (the fill already carries that state). */
+.gctl__opt::after, .gctl__tools::after, .gindex__more::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: currentColor; transform: scaleX(0); transform-origin: right; pointer-events: none;
+  transition: transform 0.42s var(--ease-out-expo);
+}
+.gctl__opt:hover:not(.is-on)::after, .gctl__tools:hover:not(.is-on)::after,
+.gindex__more:hover::after { transform: scaleX(1); }
+.gctl__opt.is-on::after, .gctl__tools.is-on::after { content: none; }
+@media (prefers-reduced-motion: reduce) {
+  .gctl__opt::after, .gctl__tools::after, .gindex__more::after { transition: none; }
+}
 
 /* per-metric description transitions when filter changes */
 .panel__body--metric { transition: opacity 0.3s ease; }
@@ -290,13 +307,15 @@
 .gindex__score { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--light); opacity: 0.6; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .gindex__row { animation: none; } }
 /* index expand/collapse */
+/* item 10: floats — box removed, drawn-line hover (below) */
 .gindex__more {
-  cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill);
-  margin-top: 10px; padding: 5px 0; width: 100%; font-family: var(--body); font-size: 11px;
+  position: relative;
+  cursor: none; background: none; border: none;
+  margin-top: 10px; padding: 6px 0; width: 100%; font-family: var(--body); font-size: 11px;
   color: var(--ink-dim); letter-spacing: 0.08em;
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  transition: color var(--dur-fast) ease;
 }
-.gindex__more:hover { color: var(--light); border-color: var(--ink-dim); }
+.gindex__more:hover { color: var(--light); }
 /* top-N bodies: names always legible at rest (not just on zoom/hover) */
 .fnode--toplabel .fnode__name { opacity: 0.72; }
 .fnode--toplabel .fnode__score { opacity: 0.5; }
@@ -321,7 +340,8 @@
 .pnote__fill { display: block; height: 100%; background: var(--yellow); transform-origin: right; animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; }
 /* min-width ensures two-digit values (e.g. "10") are never clipped */
 .pnote__val { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--yellow); min-width: 26px; width: auto; text-align: left; flex-shrink: 0; letter-spacing: 0.05em; }
-.pnote__text { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 13px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82; }
+/* item 8: body copy unified to the primary body size (14px) — was 13px, a near-duplicate */
+.pnote__text { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82; }
 /* provenance line — the empirical source behind the axis (the credibility move) */
 .pnote__src { margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10.5px; line-height: 1.4; letter-spacing: 0.154em; color: var(--ink-faint); }
 /* borrowed weight — backing shown relationally (no divider line) */
