@@ -40,6 +40,14 @@ const R_EXP = 1.45
 const radiusFrac = (power: number) =>
   R_MIN_F + Math.pow(Math.max(0, power) / 100, R_EXP) * (R_MAX_F - R_MIN_F)
 
+// ── Page-exit cascade — on the `mp-exit` signal (leaving to home) each body plays its OWN
+// staggered shrink+fade so the field empties body-by-body instead of the whole rail zooming out.
+// EXIT_SPREAD = the window over which bodies BEGIN leaving (count-independent, ranked strong→weak);
+// EXIT_BODY_DUR = how long each individual body takes to vanish. Total ≈ SPREAD + DUR, kept in
+// sync with App.tsx's EXIT_MS and the Relations CSS cascade so all three read consistently.
+const EXIT_SPREAD = 360
+const EXIT_BODY_DUR = 300
+
 // ── Scroll tour — how far un-focused states recede, and how far the focused state is drawn in ──
 const RECEDE_SPREAD = 0.34  // un-focused states push this fraction further out from centre
 const RECEDE_DIM = 0.7      // …and dim by up to this much
@@ -218,6 +226,15 @@ class GravityWell {
   // the shared focus treatment (bloom / yellow fill / ring) do the rest — no spring value needed.
   private scrollFocusIdx = -1
 
+  // ── Page-exit cascade state ─────────────────────────────────────────────────
+  // exiting: once true (playExit), each body's exitProg eases 0→1 (0 = present, 1 = gone) offset by
+  // a per-body delay so they leave in a ranked cascade. Real-time driven (exitStart), independent of
+  // the freeze-adjusted animation clock, so a logo-hover freeze doesn't stall the exit.
+  private exiting = false
+  private exitStart = 0
+  private exitDelay: Float32Array
+  private exitProg: Float32Array
+
   onHover?: (idx: number | null) => void
   onSelect?: (idx: number | null) => void
 
@@ -242,6 +259,8 @@ class GravityWell {
     this.labelHide = new Float32Array(n)
     this.recede = new Float32Array(n)
     this.pull = new Float32Array(n)
+    this.exitDelay = new Float32Array(n)
+    this.exitProg = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -283,6 +302,20 @@ class GravityWell {
   // Set the tour focus (called from the wheel step / mobile tier pick in the component). -1 clears
   // the focus (whole field visible). The recede/pull easing in the frame loop carries the motion.
   setScrollFocus(idx: number) { this.scrollFocusIdx = idx }
+
+  // ── Play the page-exit cascade (leaving to home) ────────────────────────────
+  // Each body leaves individually, offset by a per-body delay spread over EXIT_SPREAD in RANK order
+  // (strongest first → the cascade reads down the power hierarchy). Unfreezes first: the header logo
+  // hover freezes the field, and a frozen frame loop would otherwise never advance the exit.
+  playExit() {
+    if (this.exiting) return
+    this.setFrozen(false)
+    this.exiting = true
+    this.exitStart = performance.now()
+    const order = Array.from({ length: BODIES.length }, (_, i) => i).sort((a, b) => this.mass[b] - this.mass[a])
+    const N = order.length
+    order.forEach((bi, pos) => { this.exitDelay[bi] = (N <= 1 ? 0 : pos / (N - 1)) * EXIT_SPREAD })
+  }
 
   destroy() {
     cancelAnimationFrame(this.raf)
@@ -454,6 +487,14 @@ class GravityWell {
     order.slice(0, TOP_N).forEach((idx) => this.labelSet.add(idx))
     if (focus !== null) this.labelSet.add(focus)
 
+    // ── Page-exit cascade progress (0 = present → 1 = gone), per-body staggered ─
+    if (this.exiting) {
+      const ee = now - this.exitStart
+      for (let i = 0; i < BODIES.length; i++) {
+        this.exitProg[i] = this.reduced ? 1 : Math.max(0, Math.min(1, (ee - this.exitDelay[i]) / EXIT_BODY_DUR))
+      }
+    }
+
     // ── Draw bodies (in-circle name labels fade in with the same intro curve) ───
     this.labelIntro = labelIntro
     for (let i = 0; i < BODIES.length; i++) {
@@ -465,8 +506,13 @@ class GravityWell {
 
   private drawBody(i: number, t: number) {
     const bodyA = this.bodyAppear[i]
+    // Page-exit cascade: shrink (easeIn, accelerating into nothing), fade, and drift slightly up as
+    // this body leaves. exit 1 → fully gone, skip entirely.
+    const exit = this.exiting ? this.exitProg[i] : 0
+    if (exit >= 0.999) return
+    const exitScale = 1 - exit * exit
     const sx = this.bodyScreenX[i]
-    const sy = this.bodyScreenY[i]
+    const sy = this.bodyScreenY[i] - exit * 16
     // A body reads as "the subject" (yellow fill, warm ring, ripple) when hovered, selected, OR the
     // current scroll-tour focus — all three share the exact same focus treatment.
     const isFocus = i === this.hoveredIdx || i === this.selectedIdx || i === this.scrollFocusIdx
@@ -485,6 +531,8 @@ class GravityWell {
       const floor = Math.max(48, this.playSize * 0.09) * bodyA
       if (rr < floor) rr += (floor - rr) * this.hoverProg[i]
     }
+    // fold in the per-body exit shrink last, after any hover-floor grow
+    rr *= exitScale
 
     // Alpha = the lens (metric) filter, dimmed further as this body recedes in the scroll tour so
     // the focused state stands alone. The focused body itself is always fully opaque.
@@ -493,7 +541,7 @@ class GravityWell {
 
     ctx_save_restore(this.ctx, () => {
       const ctx = this.ctx
-      ctx.globalAlpha = bodyA * tAlpha
+      ctx.globalAlpha = bodyA * tAlpha * exitScale
 
       const glowR = rr * (2.0 + (bloom - 1) * 1.1)
       if (glowR > 0) {
@@ -660,8 +708,11 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     }
     const onFreeze = () => well.setFrozen(true)
     const onUnfreeze = () => well.setFrozen(false)
+    // leaving to home → play the per-body exit cascade before App swaps in the homepage
+    const onExit = () => well.playExit()
     window.addEventListener('mp-freeze', onFreeze)
     window.addEventListener('mp-unfreeze', onUnfreeze)
+    window.addEventListener('mp-exit', onExit)
     well.start_()
 
     // ── Wheel scroll: a DISCRETE stepped tour down the ranking, not continuous free-scroll ──────
@@ -730,6 +781,7 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
       window.removeEventListener('resize', onResize)
       window.removeEventListener('mp-freeze', onFreeze)
       window.removeEventListener('mp-unfreeze', onUnfreeze)
+      window.removeEventListener('mp-exit', onExit)
       stage.removeEventListener('wheel', onWheel)
       stage.removeEventListener('touchstart', onTouchStart)
       stage.removeEventListener('touchmove', onTouchMove)

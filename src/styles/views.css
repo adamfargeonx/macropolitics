@@ -68,6 +68,35 @@
 .rnode--dim { opacity: 0.28; }
 .panel__rel-toward { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--yellow); opacity: 0.85; }
 
+/* ── Relations page-exit cascade (leaving to home) — each node shrinks + fades out INDIVIDUALLY,
+   staggered by its per-node delay (driven inline via animationDelay = exitDelay when leaving), so the
+   web empties body-by-body to match the Forces/Dynamics canvas cascades rather than a whole-rail
+   collective zoom-out. A dedicated keyframe animation REPLACES the entrance popIn — a transition here
+   would hard-jump, since popIn's fill:both keeps holding the property. The triangle/constellation
+   scaffold (svg, reference marker, vertex labels) fades together so the field clears cleanly before
+   home blooms in. Per-node duration 300ms + ~360ms stagger spread is kept in sync with App's EXIT_MS. */
+.rel-field--leaving .rnode {
+  animation: rnodeExit 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes rnodeExit {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(0.16); filter: blur(3px); }
+}
+.rel-field--leaving .rel-tri,
+.rel-field--leaving .rel-constellation,
+.rel-field--leaving .rel-ref,
+.rel-field--leaving .rel-vtx {
+  transition: opacity 0.3s ease; opacity: 0; pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rel-field--leaving .rnode { animation: none; opacity: 0; }
+  .rel-field--leaving .rel-tri,
+  .rel-field--leaving .rel-constellation,
+  .rel-field--leaving .rel-ref,
+  .rel-field--leaving .rel-vtx { transition: none; opacity: 0; }
+}
+
 /* ── Relations · constellation (network graph) ─────────────────────── */
 .rel-constellation { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
 .rel-edge {

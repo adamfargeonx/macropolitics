@@ -23,6 +23,12 @@ const CAM_DUR = 600 // ms — camera tween duration (pan + zoom), ease-out-expo
 // fades in that body's labelled orbital children + a "what you're looking at" note; independently,
 // any authored relation whose two bodies drift within a proximity band fades in a caption at their
 // midpoint. Both ease their alpha off geometry so the default frame stays clean.
+// ── Page-exit cascade — on `mp-exit` (leaving to home) each orbiting body plays its OWN staggered
+// shrink+fade so the orrery empties body-by-body rather than the whole rail zooming out. Ranked
+// strong→weak. Kept in sync with App.tsx's EXIT_MS and the Forces/Relations cascades.
+const EXIT_SPREAD = 360 // ms window over which bodies begin leaving
+const EXIT_BODY_DUR = 300 // ms each body takes to vanish
+
 const INSIGHT_ZOOM = 1.7 // zoom at which the focused-body insight layer begins to reveal
 const INSIGHT_FADE = 0.55 // zoom span over which it fades fully in (→ 2.25)
 const PROX_BASE = 128 // proximity caption base threshold (screen px, before the two radii)
@@ -54,7 +60,7 @@ const AXIS_COLOR: Record<string, string> = {
 // `power` is the body's CURRENT (animated) gravity; `powerTarget` is where it's headed. Keeping
 // them separate from `sr` (the per-frame screen radius, which also depends on zoom) lets the score
 // ease between scenarios/years while the radius still recomputes against the live camera each frame.
-interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number }
+interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number; exitDelay: number; exitP: number }
 
 const idIndex = new Map(NODES.map((n, i) => [n.id, i]))
 // Authored relations resolved to node indices + a dominant pole, precomputed once. Drives the
@@ -172,7 +178,7 @@ export class OrbitalField {
     this.ctx = ctx
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power }))
+    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power, exitDelay: 0, exitP: 0 }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -290,6 +296,22 @@ export class OrbitalField {
       const dx = (Math.random() - 0.5) * 0.1, dy = (Math.random() - 0.5) * 0.1
       return { x: Math.random() * this.w, y: Math.random() * this.h, vx: dx, vy: dy, dx, dy, size: 0.6 + Math.random() * 1.3, b: 0.16 + Math.random() * 0.42 }
     })
+  }
+
+  // ── Page-exit cascade state ──
+  private exiting = false
+  private exitStart = 0
+  // Play the per-body exit (leaving to home): each body leaves individually, offset by a per-body
+  // delay spread over EXIT_SPREAD in RANK order (strongest first). Unfreezes first — the header logo
+  // hover freezes the field, and a frozen frame loop would never advance the cascade otherwise.
+  playExit() {
+    if (this.exiting) return
+    this.setFrozen(false)
+    this.exiting = true
+    this.exitStart = performance.now()
+    const order = [...this.nodes].sort((a, b) => b.power - a.power)
+    const N = order.length
+    order.forEach((ns, pos) => { ns.exitDelay = (N <= 1 ? 0 : pos / (N - 1)) * EXIT_SPREAD })
   }
 
   frozen = false
@@ -450,6 +472,11 @@ export class OrbitalField {
     this.drawCenters(intro)
     // orbit-only: no connector links / backing-flow reveal — relations read via orbit + proximity.
     // per-orbit staggered entrance kept from the live sequencing (rings reveal in order).
+    // page-exit cascade (leaving to home): ease each body's exitP toward 1, staggered by rank.
+    if (this.exiting) {
+      const ee = now - this.exitStart
+      for (const ns of this.nodes) ns.exitP = this.reduced ? 1 : clamp01((ee - ns.exitDelay) / EXIT_BODY_DUR)
+    }
     for (let k = 0; k < this.nodes.length; k++) {
       const ri = NODE_RING.get(this.nodes[k].e.id) ?? RINGS.length
       this.nodes[k].appear = clamp01((t - ri * 0.65) / 0.75)
@@ -540,17 +567,22 @@ export class OrbitalField {
   private drawNode(ns: NodeState, t: number) {
     const ctx = this.ctx; const e = ns.e
     const a = easeOutCubic(ns.appear); if (a <= 0) return
+    // page-exit cascade: shrink (easeIn), fade, and drift slightly up as this body leaves; skip once gone
+    const exit = this.exiting ? ns.exitP : 0
+    if (exit >= 0.999) return
+    const exitScale = 1 - exit * exit
+    const sx = ns.sx, sy = ns.sy - exit * 16
     const focus = this.focusId
     const isFocus = e.id === focus
     const inWeb = !focus || isFocus || this.connected.has(e.id)
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.6 + ns.pulse)
-    const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse
+    const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse * exitScale
     const nonstate = e.kind === 'nonstate'
     const axisCol = AXIS_COLOR[AXIS[e.id] ?? 'none']
-    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2)
+    ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2) * exitScale
 
     // soft glow / corona — states only (great powers a touch stronger)
-    if (inWeb && !nonstate) this.glow(ns.sx, ns.sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
+    if (inWeb && !nonstate) this.glow(sx, sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
     // focus pulse rings
     if (isFocus) {
       // single gentle expanding ripple — unified with the Forces hover pulse
@@ -558,19 +590,19 @@ export class OrbitalField {
       const since = (this.now - this.hoverSince) / 1000
       const pp = (since * 0.5) % 1
       ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.32})`; ctx.lineWidth = 1
-      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 8 + pp * 40, 0, TAU); ctx.stroke()
+      ctx.beginPath(); ctx.arc(sx, sy, r + 8 + pp * 40, 0, TAU); ctx.stroke()
     }
 
     if (nonstate && VISUALS.nonStateHollow) {
       // hollow body → reads as a non-state actor; ring carries the bloc colour
       const rr = Math.max(2.6, r)
-      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, rr, 0, TAU); ctx.fillStyle = `rgba(${DARK},0.55)`; ctx.fill()
+      ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.fillStyle = `rgba(${DARK},0.55)`; ctx.fill()
       ctx.strokeStyle = `rgba(${axisCol},${isFocus ? 1 : 0.82})`; ctx.lineWidth = 1.3; ctx.stroke()
     } else {
       // filled state disk
-      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r, 0, TAU); ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
-      if (VISUALS.allegianceRim) { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r, 0, TAU); ctx.strokeStyle = `rgba(${axisCol},${VISUALS.rimAlpha})`; ctx.lineWidth = 1.5; ctx.stroke() }
-      if (e.kind === 'great' && VISUALS.greatCorona) { ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 4, 0, TAU); ctx.strokeStyle = `rgba(${WHITE},0.2)`; ctx.lineWidth = 1; ctx.stroke() }
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
+      if (VISUALS.allegianceRim) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.strokeStyle = `rgba(${axisCol},${VISUALS.rimAlpha})`; ctx.lineWidth = 1.5; ctx.stroke() }
+      if (e.kind === 'great' && VISUALS.greatCorona) { ctx.beginPath(); ctx.arc(sx, sy, r + 4, 0, TAU); ctx.strokeStyle = `rgba(${WHITE},0.2)`; ctx.lineWidth = 1; ctx.stroke() }
     }
     ctx.restore()
   }
@@ -593,7 +625,9 @@ export class OrbitalField {
       if (!forced && minor && !showMinor) hide = true
       if (!hide && !forced) for (const p of placed) { if (Math.abs(x - p.x) < (w + p.w) / 2 - 4 && Math.abs(y - p.y) < (hh + p.h) / 2 - 1) { hide = true; break } }
       const dim = this.focusId && !this.connected.has(ns.e.id) ? 0.14 : 1
-      el.style.opacity = String(hide ? 0 : a * dim)
+      // fade each label out together with its body during the page-exit cascade
+      const exitFade = this.exiting ? 1 - ns.exitP : 1
+      el.style.opacity = String(hide ? 0 : a * dim * exitFade)
       if (!hide) placed.push({ x, y, w, h: hh })
     }
   }

@@ -160,6 +160,15 @@ export default function RelationsView() {
   const [refId, setRefId] = useState('israel')
   const [hovered, setHovered] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
+  // page-exit cascade (leaving to home): on `mp-exit` each .rnode shrinks+fades out individually,
+  // staggered by its per-node --exit-d delay, mirroring the canvas views' body-by-body exit.
+  const [leaving, setLeaving] = useState(false)
+
+  useEffect(() => {
+    const onExit = () => setLeaving(true)
+    window.addEventListener('mp-exit', onExit)
+    return () => window.removeEventListener('mp-exit', onExit)
+  }, [])
 
   useEffect(() => {
     const el = fieldRef.current; if (!el) return
@@ -203,7 +212,7 @@ export default function RelationsView() {
 
   return (
     <div className="stage relations" dir="rtl">
-      <div className={`rel-field${mode === 'constellation' ? ' rel-field--net' : ''}`} ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>
+      <div className={`rel-field${mode === 'constellation' ? ' rel-field--net' : ''}${leaving ? ' rel-field--leaving' : ''}`} ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>
         {mode === 'triangle' && tri && (
           <>
             <svg className="rel-tri" width={size.w} height={size.h}>
@@ -270,6 +279,9 @@ export default function RelationsView() {
               const isPinned = e.id === pinned
               const dim = focusId && !isFocus
               const rim = AXIS_RIM[AXIS[e.id] ?? 'none']
+              // per-node exit delay — spread over ~360ms in index order, count-independent so the
+              // cascade window matches the canvas views' EXIT_SPREAD regardless of node count.
+              const exitDelay = (geo.points.length <= 1 ? 0 : i / (geo.points.length - 1)) * 360
               return (
                 <div
                   key={e.id}
@@ -280,7 +292,7 @@ export default function RelationsView() {
                   aria-label={`${e.he} — ${VERDICT[dominantOf(relation(refId, e.id))]} מול ${refNode.he}`}
                   aria-pressed={e.id === pinned}
                   className={`rnode${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y, animationDelay: `${0.12 + i * 0.04}s` }}
+                  style={{ left: x, top: y, animationDelay: leaving ? `${exitDelay}ms` : `${0.12 + i * 0.04}s` }}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onFocus={() => setHovered(e.id)}

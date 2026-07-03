@@ -68,8 +68,11 @@ export default function DynamicsView() {
     // logo hover → freeze all motion sitewide
     const onFreeze = () => orbital.setFrozen(true)
     const onUnfreeze = () => orbital.setFrozen(false)
+    // leaving to home → play the per-body exit cascade before App swaps in the homepage
+    const onExit = () => orbital.playExit()
     window.addEventListener('mp-freeze', onFreeze)
     window.addEventListener('mp-unfreeze', onUnfreeze)
+    window.addEventListener('mp-exit', onExit)
     // debounce: window resize fires continuously during a drag; one resize at rest is enough
     let t = 0
     const onResize = () => { clearTimeout(t); t = window.setTimeout(() => orbital.resize(), 120) }
@@ -79,6 +82,7 @@ export default function DynamicsView() {
       window.removeEventListener('resize', onResize)
       window.removeEventListener('mp-freeze', onFreeze)
       window.removeEventListener('mp-unfreeze', onUnfreeze)
+      window.removeEventListener('mp-exit', onExit)
       orbital.destroy()
       setEngine(null)
       document.body.classList.remove('cursor-grab')

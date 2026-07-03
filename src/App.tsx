@@ -78,15 +78,32 @@ export default function App() {
       return
     }
 
-    let leaveClass: string, enterClass: string, leaveMs = 420, enterMs = 460
     if (v === 'home') {
-      leaveClass = 'nav-rail--collapse'; enterClass = 'nav-rail--mask'; leaveMs = 460; enterMs = 500
-    } else {
-      const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']
-      const goingLeft = TAB_ORDER.indexOf(v) > TAB_ORDER.indexOf(from)
-      leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
-      enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
+      // Page → home: a STAGGERED per-body exit, not the old whole-rail collective zoom-out.
+      // We signal the live view (Forces field / Relations web / Dynamics orrery) to play its own
+      // cascade — each state/body shrinks + fades out individually, one after another — via the
+      // `mp-exit` window event (mirroring the established `mp-freeze`/`mp-unfreeze` pattern the
+      // engines already listen for). The rail itself holds still (no transform) through the
+      // cascade so the per-body motion reads clearly; only once it has played out do we swap to
+      // home and let it bloom in (nav-rail--mask, the same gentle arrival as before). EXIT_MS is
+      // tuned to match the cascade window in the engines/CSS (SPREAD ~360 + per-body ~300).
+      // NOTE: clicking the header logo fires `mp-freeze` on hover first, so the canvas engines are
+      // frozen at this point — each engine's playExit() unfreezes itself so the cascade can run.
+      const EXIT_MS = 680
+      window.dispatchEvent(new Event('mp-exit'))
+      t.timers.push(window.setTimeout(() => {
+        viewRef.current = v; setView(v); setRail('nav-rail--mask')
+        t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 520))
+      }, EXIT_MS))
+      return
     }
+
+    // page → page: directional slide
+    const TAB_ORDER: View[] = ['forces', 'relations', 'dynamics']
+    const goingLeft = TAB_ORDER.indexOf(v) > TAB_ORDER.indexOf(from)
+    const leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
+    const enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
+    const leaveMs = 420, enterMs = 460
     setRail(leaveClass)
     t.timers.push(window.setTimeout(() => {
       viewRef.current = v; setView(v); setRail(enterClass)
