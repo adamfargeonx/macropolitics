@@ -4,20 +4,22 @@
 // story. Hover/select bloom each body with a gentle, premium-eased glow. setGravities() eases each
 // body's mass toward the active scenario/year so the field re-forms rather than snapping.
 //
-// Scrollytelling layer: touch free-accumulates a virtual scrollProgress (0–5.5); desktop wheel is
-// DISCRETE — each wheel gesture steps exactly one integer tier (0..5) with a cooldown so a single
-// continuous scroll can't blow through several tiers. Either way, spring physics (mass-spring-damper)
-// ease toward the target. At progress 1–5, each tier sweeps into focus while others dim via an
-// exponential alpha falloff. An editorial annotation overlay rides the scroll stage.
+// Scrollytelling layer — a GUIDED TOUR down the power ranking, one state at a time. The desktop
+// wheel is DISCRETE: each gesture steps a focus index through the states sorted by the active metric
+// (step 0 = the whole field, step 1 = the #1 power, step 2 = #2 …), with a cooldown so one continuous
+// scroll can't blow through several states. The focused state reads as THE subject (the same bloom +
+// solid-yellow-fill treatment a hovered/selected body gets) and eases toward centre, while every OTHER
+// state recedes outward and dims. Per-body spring-eased factors (recede/pull) carry the motion. A
+// per-state editorial annotation (rank · score · tier · bloc + a one-line note) rides the focus.
 //
 // Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio handling
 // via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
-import { type Order, TIER_ANNOTS } from './forces-model'
+import { type Order, buildStateAnnot, metricVal } from './forces-model'
 import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -38,12 +40,16 @@ const R_EXP = 1.45
 const radiusFrac = (power: number) =>
   R_MIN_F + Math.pow(Math.max(0, power) / 100, R_EXP) * (R_MAX_F - R_MIN_F)
 
-// ── Scroll narrative — tier stage mapping ────────────────────────────────────
-// progress 0 = all visible  /  1=great  2=regional  3=intermediate  4=edge  5=nonstate
-const TIER_STAGE: Record<Kind, number> = {
-  great: 1, regional: 2, intermediate: 3, edge: 4, nonstate: 5,
+// ── Scroll tour — how far un-focused states recede, and how far the focused state is drawn in ──
+const RECEDE_SPREAD = 0.34  // un-focused states push this fraction further out from centre
+const RECEDE_DIM = 0.7      // …and dim by up to this much
+const CENTER_PULL = 0.32    // the focused state eases this fraction of the way toward centre
+
+// Mobile only: the filter sheet's tier-focus list picks a Kind; map each tier stage (1..5, matching
+// TIER_ANNOTS order) to its Kind so a tier pick focuses that tier's leading (highest-ranked) state.
+const STAGE_KIND: Record<number, Kind> = {
+  1: 'great', 2: 'regional', 3: 'intermediate', 4: 'edge', 5: 'nonstate',
 }
-const TIER_SPREAD = 0.5 // how far out-of-focus tiers disperse outward from centre (scroll narrative)
 
 // ── Body layout ──────────────────────────────────────────────────────────────
 interface WellBody {
@@ -148,6 +154,9 @@ function powerLayout(): WellBody[] {
 }
 
 const BODIES: WellBody[] = powerLayout()
+// id → canvas body index — translates the metric-ranked tour order into canvas indices for the
+// well's scroll focus.
+const BODY_INDEX = new Map(BODIES.map((b, i) => [b.id, i]))
 
 // ── ForceField engine class ────────────────────────────────────────────────────
 class GravityWell {
@@ -171,6 +180,11 @@ class GravityWell {
   private mass: Float32Array
   private massTarget: Float32Array
   private metricAlpha: Float32Array
+  // scroll-tour eased factors: recede = 0 (in place) → 1 (pushed out + dimmed) for every state that
+  // is NOT the current focus; pull = 0 → 1 for the focused state as it eases toward centre. Both are
+  // integrated per-frame (premium spring feel), so focus moving A→B cross-fades the two positions.
+  private recede: Float32Array
+  private pull: Float32Array
   // hoverProg: per-body 0→1 reveal value, eased in the draw loop (NOT a CSS transition).
   // Drives ONLY the grow-to-readable-floor on the hovered/selected body (the fill turns solid
   // yellow immediately via isFocus — no hollowing, no abstract signature any more).
@@ -198,19 +212,14 @@ class GravityWell {
     }
   }
 
-  // ── Scroll narrative spring ───────────────────────────────────────────────
-  // scrollTarget: where wheel/touch wants to go (0–5.5)
-  // scrollProgress: spring-tracked value (same range, smoothed)
-  // scrollVel: current velocity for the spring integrator
-  private scrollTarget = 0
-  private scrollProgress = 0
-  private scrollVel = 0
-  // last discrete stage (0-5) — used to throttle React callback
-  private scrollStage = 0
+  // ── Scroll tour focus ─────────────────────────────────────────────────────
+  // scrollFocusIdx: the canvas body index the tour currently focuses (-1 = whole field, no focus).
+  // Set from the component (wheel step on desktop, tier pick on mobile). The recede/pull easing +
+  // the shared focus treatment (bloom / yellow fill / ring) do the rest — no spring value needed.
+  private scrollFocusIdx = -1
 
   onHover?: (idx: number | null) => void
   onSelect?: (idx: number | null) => void
-  onScrollChange?: (stage: number, progress: number) => void
 
   constructor(canvas: HTMLCanvasElement, container: HTMLElement) {
     this.canvas = canvas
@@ -231,6 +240,8 @@ class GravityWell {
     this.metricAlpha = new Float32Array(n).fill(1)
     this.hoverProg = new Float32Array(n)
     this.labelHide = new Float32Array(n)
+    this.recede = new Float32Array(n)
+    this.pull = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -269,11 +280,9 @@ class GravityWell {
     }
   }
 
-  // Set the narrative scroll target (called from wheel/touch handler in the component).
-  // k=0.09 spring / d=0.78 damping → premium weighted feel, slight overshoot near tiers.
-  setScrollTarget(v: number) { this.scrollTarget = Math.max(0, Math.min(5.5, v)) }
-
-  getScrollProgress() { return this.scrollProgress }
+  // Set the tour focus (called from the wheel step / mobile tier pick in the component). -1 clears
+  // the focus (whole field visible). The recede/pull easing in the frame loop carries the motion.
+  setScrollFocus(idx: number) { this.scrollFocusIdx = idx }
 
   destroy() {
     cancelAnimationFrame(this.raf)
@@ -361,34 +370,31 @@ class GravityWell {
 
     ctx.clearRect(0, 0, this.w, this.h)
 
-    // ── Spring step for scroll narrative ──────────────────────────────────────
-    // Mass-spring-damper: k=0.09, d=0.78 → weighted, delightful, slight overshoot.
-    // reduced-motion: snap directly (no spring)
-    if (this.reduced) {
-      this.scrollProgress = this.scrollTarget
-    } else {
-      const k = 0.09, d = 0.78
-      this.scrollVel = this.scrollVel * d + (this.scrollTarget - this.scrollProgress) * k
-      this.scrollProgress += this.scrollVel
-    }
+    const scrollFocus = this.scrollFocusIdx
+    const tourActive = scrollFocus >= 0
 
-    // Emit stage change (0=all, 1–5=tier) only when discrete stage transitions
-    const newStage = this.scrollProgress < 0.3 ? 0 : Math.min(5, Math.round(this.scrollProgress))
-    if (newStage !== this.scrollStage) {
-      this.scrollStage = newStage
-      this.onScrollChange?.(newStage, this.scrollProgress)
-    }
-
-    // ── Update body screen positions ──────────────────────────────────────────
-    // Scroll narrative: disperse out-of-focus tiers OUTWARD (position, not opacity). The focused
-    // tier holds near the centre; the rest ease toward the periphery as you scroll through stages.
+    // ── Ease the scroll-tour factors, then place bodies ────────────────────────
+    // Every state that is NOT the current tour focus eases its `recede` toward 1 (pushed outward +
+    // dimmed); the focused state eases its `pull` toward 1 (drawn toward centre). reduced-motion snaps.
     const [ccx, ccy] = this.bodyToScreen(0.5, 0.5)
     for (let i = 0; i < BODIES.length; i++) {
+      const isTourFocus = i === scrollFocus
+      const recTarget = tourActive && !isTourFocus ? 1 : 0
+      const pullTarget = isTourFocus ? 1 : 0
+      if (this.reduced) {
+        this.recede[i] = recTarget
+        this.pull[i] = pullTarget
+      } else {
+        this.recede[i] += (recTarget - this.recede[i]) * (recTarget > this.recede[i] ? 0.08 : 0.06)
+        this.pull[i] += (pullTarget - this.pull[i]) * (pullTarget > this.pull[i] ? 0.09 : 0.07)
+      }
+
       let [sx, sy] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
-      const isFocus = i === this.hoveredIdx || i === this.selectedIdx
-      const push = isFocus ? 0 : this.tierPush(BODIES[i].kind)
-      if (push > 0) {
-        const spread = 1 + push * TIER_SPREAD
+      const pull = this.pull[i]
+      if (pull > 0.001) { sx += (ccx - sx) * pull * CENTER_PULL; sy += (ccy - sy) * pull * CENTER_PULL }
+      const rec = this.recede[i]
+      if (rec > 0.001) {
+        const spread = 1 + rec * RECEDE_SPREAD
         sx = ccx + (sx - ccx) * spread
         sy = ccy + (sy - ccy) * spread
       }
@@ -400,7 +406,9 @@ class GravityWell {
     for (let i = 0; i < BODIES.length; i++) {
       const isHov = i === this.hoveredIdx
       const isSel = i === this.selectedIdx
-      const target = isSel ? 2.2 : isHov ? 1.7 : 1.0
+      const isScroll = i === scrollFocus
+      // scroll-focused state reads as the primary subject → full bloom, like a selection
+      const target = (isSel || isScroll) ? 2.2 : isHov ? 1.7 : 1.0
       const rate = this.bloom[i] < target ? 0.1 : 0.07
       this.bloom[i] += (target - this.bloom[i]) * rate
       this.mass[i] += this.reduced ? (this.massTarget[i] - this.mass[i]) : (this.massTarget[i] - this.mass[i]) * 0.12
@@ -412,7 +420,7 @@ class GravityWell {
       // grow-to-readable-floor on hover OR selection (tap) — touch has no hover, so a
       // tapped/selected body must open the same way a hovered one does. (Fill goes solid
       // yellow immediately via isFocus; this only drives the size floor.)
-      const hoverTarget = (isHov || isSel) ? 1 : 0
+      const hoverTarget = (isHov || isSel || isScroll) ? 1 : 0
       if (this.reduced) {
         this.hoverProg[i] = hoverTarget
       } else {
@@ -424,8 +432,8 @@ class GravityWell {
       // The instant ANY body is focused, every OTHER body's name label animates OUT
       // (fade + scale-down + upward drift) rather than merely dropping opacity. A slightly
       // quicker leave than return gives a ~200–300ms motion. reduced-motion: snap.
-      const anyFocus = this.hoveredIdx !== null || this.selectedIdx !== null
-      const hideTarget = (anyFocus && !(isHov || isSel)) ? 1 : 0
+      const anyFocus = this.hoveredIdx !== null || this.selectedIdx !== null || tourActive
+      const hideTarget = (anyFocus && !(isHov || isSel || isScroll)) ? 1 : 0
       if (this.reduced) {
         this.labelHide[i] = hideTarget
       } else {
@@ -438,7 +446,7 @@ class GravityWell {
     // Same "always-legible ledger" set as before (top-N by the live/active metric, plus
     // whichever body is focused) — only the POSITION moved (in-circle instead of below),
     // and the rank NUMBER is gone. fewer labels on a narrow phone field so they don't pile up.
-    const focus = this.selectedIdx ?? this.hoveredIdx
+    const focus = this.selectedIdx ?? this.hoveredIdx ?? (scrollFocus >= 0 ? scrollFocus : null)
     const order = Array.from({ length: BODIES.length }, (_, i) => i)
       .sort((a, b) => this.massTarget[b] - this.massTarget[a])
     const TOP_N = this.narrow ? 5 : 8
@@ -455,24 +463,13 @@ class GravityWell {
     this.raf = requestAnimationFrame(this.frame)
   }
 
-  // Tier PUSH for the scroll narrative — drives a radial dispersion (position), not opacity.
-  // 0 = in focus / scroll idle; →1 = fully dispersed outward. Same falloff shape as before,
-  // inverted: the tier matching scrollProgress stays put, others push toward the periphery.
-  private tierPush(kind: Kind): number {
-    const sp = this.scrollProgress
-    if (sp < 0.2) return 0
-    // sweepT: 0→1 over the first 0.35 units of scroll (smooth engage)
-    const sweepT = Math.min(1, (sp - 0.2) / 0.35)
-    const dist = Math.abs(sp - TIER_STAGE[kind])
-    const focused = Math.max(0.04, Math.exp(-dist * 2.0))
-    return sweepT * (1 - focused)
-  }
-
   private drawBody(i: number, t: number) {
     const bodyA = this.bodyAppear[i]
     const sx = this.bodyScreenX[i]
     const sy = this.bodyScreenY[i]
-    const isFocus = i === this.hoveredIdx || i === this.selectedIdx
+    // A body reads as "the subject" (yellow fill, warm ring, ripple) when hovered, selected, OR the
+    // current scroll-tour focus — all three share the exact same focus treatment.
+    const isFocus = i === this.hoveredIdx || i === this.selectedIdx || i === this.scrollFocusIdx
     const bloom = this.bloom[i]
 
     const r = this.bodyR(this.mass[i])
@@ -489,8 +486,9 @@ class GravityWell {
       if (rr < floor) rr += (floor - rr) * this.hoverProg[i]
     }
 
-    // Metric (lens) filter alpha only — the scroll narrative now moves bodies, doesn't dim them
-    const tAlpha = isFocus ? 1.0 : this.metricAlpha[i]
+    // Alpha = the lens (metric) filter, dimmed further as this body recedes in the scroll tour so
+    // the focused state stands alone. The focused body itself is always fully opaque.
+    const tAlpha = isFocus ? 1.0 : this.metricAlpha[i] * (1 - this.recede[i] * RECEDE_DIM)
     const glowCol = isFocus ? YELLOW : LIGHT
 
     ctx_save_restore(this.ctx, () => {
@@ -607,12 +605,36 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
 
   const [chip, setChip] = useState<{ id: string; he: string; x: number; y: number } | null>(null)
   const [interacted, setInteracted] = useState(false)
-  // scrollStage: 0=all visible, 1–5=tier focus
-  const [scrollStage, setScrollStage] = useState(0)
-  const scrollPosRef = useRef(0)
-  // touch has no hover — a coarse pointer gets tap-appropriate copy and explicit tier
-  // chips instead of the hidden wheel/drag gesture (mouse keeps the scroll narrative as-is)
+  // The tour step: 0 = the whole field (no focus); 1..N = the Nth-ranked state (by the active metric)
+  // is the tour's current subject. TOUR_MAX = every state, so the tour reads the full hierarchy.
+  // Two input sources feed it: the desktop wheel/drag (wheelStep) and — on mobile — the filter
+  // sheet's tier pick (tierFocus, derived to tierStep below). tourStep picks whichever is active.
+  const TOUR_MAX = BODIES.length
+  const [wheelStep, setWheelStep] = useState(0)
+  const wheelStepRef = useRef(0)
+  // touch has no hover — a coarse pointer gets tap-appropriate copy instead of the hidden wheel
+  // gesture (mouse keeps the scroll tour as-is)
   const [coarse] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
+
+  // States ranked by the active metric (highest power first) — the tour order. rankedIds drives the
+  // per-state annotation; rankedIndices maps each rank to its canvas body index for the well focus.
+  const rankedIds = useMemo(
+    () => [...NODES].sort((a, b) => metricVal(b, orderBy, grav) - metricVal(a, orderBy, grav)).map((n) => n.id),
+    [orderBy, grav],
+  )
+  const rankedIndices = useMemo(() => rankedIds.map((id) => BODY_INDEX.get(id) ?? -1), [rankedIds])
+
+  // Mobile tier pick → a tour step: focus the LEADING (highest-ranked) state of the picked tier, so
+  // the tour surfaces a meaningful subject + its annotation. Pure derivation (no effect/setState),
+  // so no cascading renders. tierFocus is undefined on desktop; 0 clears the focus on mobile.
+  const tierStep = useMemo(() => {
+    if (!tierFocus) return 0
+    const kind = STAGE_KIND[tierFocus]
+    const pos = kind ? rankedIndices.findIndex((ci) => ci >= 0 && BODIES[ci].kind === kind) : -1
+    return pos < 0 ? 0 : pos + 1
+  }, [tierFocus, rankedIndices])
+  // The effective tour step: the mobile prop wins when present, else the desktop wheel/drag state.
+  const tourStep = tierFocus != null ? tierStep : wheelStep
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -636,20 +658,26 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
       setInteracted(true)
       placeChip(idx)
     }
-    well.onScrollChange = (stage) => setScrollStage(stage)
     const onFreeze = () => well.setFrozen(true)
     const onUnfreeze = () => well.setFrozen(false)
     window.addEventListener('mp-freeze', onFreeze)
     window.addEventListener('mp-unfreeze', onUnfreeze)
     well.start_()
 
-    // ── Wheel scroll: DISCRETE stepped tiers, not continuous free-scroll ─────────────
-    // Each deliberate wheel "gesture" advances/retreats exactly one integer tier
-    // (0..5). A small accumulator absorbs light trackpad ticks below THRESHOLD so a
-    // single feather-touch doesn't fire a step; once THRESHOLD is crossed the step
-    // fires immediately and a COOLDOWN blocks further steps so one continuous scroll
-    // gesture can't blow through several tiers at once. setScrollTarget()/the spring-
-    // eased dispersion in GravityWell is untouched — only how it's driven changes.
+    // ── Wheel scroll: a DISCRETE stepped tour down the ranking, not continuous free-scroll ──────
+    // Each deliberate wheel "gesture" advances/retreats the focus by exactly ONE state (0..TOUR_MAX).
+    // A small accumulator absorbs light trackpad ticks below THRESHOLD so a single feather-touch
+    // doesn't fire a step; once THRESHOLD is crossed the step fires immediately and a COOLDOWN blocks
+    // further steps so one continuous scroll can't blow through several states. stepTour() only moves
+    // tourStep — the well focus + annotation are synced from the tourStep effect below (always using
+    // the freshest ranking, so a metric change re-targets the same rank slot).
+    const stepTour = (dir: number) => {
+      const next = Math.max(0, Math.min(TOUR_MAX, wheelStepRef.current + dir))
+      if (next === wheelStepRef.current) return
+      wheelStepRef.current = next
+      setWheelStep(next)
+      setInteracted(true)
+    }
     const WHEEL_THRESHOLD = 48
     const WHEEL_COOLDOWN_MS = 620
     let wheelAccum = 0
@@ -666,23 +694,26 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
       const dir = Math.sign(wheelAccum)
       wheelAccum = 0
       wheelCooldownUntil = now + WHEEL_COOLDOWN_MS
-      const next = Math.max(0, Math.min(5, Math.round(scrollPosRef.current) + dir))
-      scrollPosRef.current = next
-      well.setScrollTarget(next)
+      stepTour(dir)
     }
     stage.addEventListener('wheel', onWheel, { passive: false })
 
-    // ── Touch scroll — desktop-style mouse/wheel discovery only. On touch, tier focus is a
-    // controlled prop set from the mobile filter sheet's explicit list (see the tierFocus
-    // effect below) — a competing hidden drag gesture on the same canvas would fight it and
-    // desync from what the filter sheet shows as "selected."
+    // ── Touch drag → the same discrete stepping (hybrid mouse+touch devices only). Coarse-only
+    // touch devices drive the focus from the mobile filter sheet's tier list (tierFocus prop) — a
+    // competing hidden drag gesture would fight it — so the drag listeners attach only when !coarse.
+    const TOUCH_STEP_PX = 60
     let touchY = 0
-    const onTouchStart = (ev: TouchEvent) => { touchY = ev.touches[0].clientY }
+    let touchAccum = 0
+    const onTouchStart = (ev: TouchEvent) => { touchY = ev.touches[0].clientY; touchAccum = 0 }
     const onTouchMove = (ev: TouchEvent) => {
       const dy = touchY - ev.touches[0].clientY
       touchY = ev.touches[0].clientY
-      scrollPosRef.current = Math.max(0, Math.min(5.5, scrollPosRef.current + dy * 0.011))
-      well.setScrollTarget(scrollPosRef.current)
+      touchAccum += dy
+      while (Math.abs(touchAccum) >= TOUCH_STEP_PX) {
+        const dir = Math.sign(touchAccum)
+        touchAccum -= dir * TOUCH_STEP_PX
+        stepTour(dir)
+      }
       ev.preventDefault()
     }
     if (!coarse) {
@@ -713,14 +744,13 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
 
   useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
-  // controlled tier jump (touch): the mobile filter sheet's tier-focus list drives the same
-  // spring-eased dispersion the desktop wheel/drag gesture drives, just via a prop instead of
-  // a gesture a touch user has no way to discover on their own.
+  // Sync the canvas focus to the effective tour step (updating an external system — the well —
+  // with the latest React state). Runs on tourStep AND rankedIndices (metric change), so switching
+  // the sort lens keeps the tour on the SAME rank slot, now pointing at whichever state holds it.
   useEffect(() => {
-    if (tierFocus == null) return
-    scrollPosRef.current = tierFocus
-    wellRef.current?.setScrollTarget(tierFocus)
-  }, [tierFocus])
+    const idx = tourStep > 0 ? (rankedIndices[tourStep - 1] ?? -1) : -1
+    wellRef.current?.setScrollFocus(idx)
+  }, [tourStep, rankedIndices])
 
   const chipGrav = chip ? grav.get(chip.id) : undefined
   const chipScore = Math.round(chipGrav?.power ?? 0)
@@ -733,7 +763,10 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         { k: 'גאו', v: chipGrav.geo },
       ]
     : []
-  const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
+  // The current tour subject's annotation: rank · score · tier · bloc + a one-line positional note.
+  const activeAnnot = tourStep > 0
+    ? buildStateAnnot(rankedIds[tourStep - 1], tourStep, rankedIds.length, grav)
+    : null
 
   return (
     <div className="sheet-embed" ref={stageRef} dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -770,27 +803,29 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         </div>
       )}
 
-      {/* ── Scroll hint (before any scroll) — mouse only; touch gets explicit tier chips below ── */}
-      {scrollStage === 0 && !coarse && (
+      {/* ── Scroll CTA (before the tour begins) — mouse only; coarse touch drives focus from the
+          mobile filter sheet's tier list, so it gets no wheel hint ── */}
+      {tourStep === 0 && !coarse && (
         <div className="sheet-scroll-cta" aria-hidden>
           <span className="sheet-scroll-cta__arrow">↓</span>
-          <span className="sheet-scroll-cta__text">גללו לגלות את היררכיית הכוח</span>
+          <span className="sheet-scroll-cta__text">גללו כדי לפגוש כל כוח בתורו</span>
         </div>
       )}
 
       {/* ── Hint (before first interaction) — copy matches the input: tap vs. hover ────── */}
-      {!interacted && scrollStage === 0 && (
+      {!interacted && tourStep === 0 && (
         <div className="sheet-hint" dir="rtl">
           {coarse ? 'הקישו על גוף לבחירה · הגודל = הכוח' : 'רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש'}
         </div>
       )}
 
-      {/* ── Tier annotation: the editorial beat of the scroll narrative. On touch this is driven
-          by the tierFocus prop (the filter sheet's tier-focus list); on desktop by wheel/drag. ── */}
+      {/* ── State-tour annotation: the editorial beat as the tour meets each power in turn. A meta
+          row (rank · score), the state name, its tier · bloc, the one-line positional note, and a
+          compact "N / total" progress readout. Keyed by state id so it re-animates on each step. ── */}
       <AnimatePresence mode="wait">
         {activeAnnot && (
           <motion.div
-            key={activeAnnot.stage}
+            key={activeAnnot.id}
             className="forces-annot"
             dir="rtl"
             initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }}
@@ -803,30 +838,34 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0, transition: { delay: 0.08, duration: 0.4, ease: EASING_ENTER } }}
             >
-              {activeAnnot.count}
+              <span className="forces-annot__rank" dir="ltr">#{activeAnnot.rank}</span>
+              <span className="forces-annot__score" dir="ltr">{activeAnnot.score}/10</span>
             </motion.div>
             <motion.h2
               className="forces-annot__label"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0, transition: { delay: 0.0, duration: 0.5, ease: EASING_ENTER } }}
             >
-              {activeAnnot.label}
+              {activeAnnot.he}
             </motion.h2>
-            <motion.p
-              className="forces-annot__editorial"
+            <motion.div
+              className="forces-annot__meta"
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.18, duration: 0.45, ease: EASING_ENTER } }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 0.12, duration: 0.45, ease: EASING_ENTER } }}
             >
-              {activeAnnot.editorial}
-            </motion.p>
-            {/* Scroll progress pips */}
-            <div className="forces-annot__pips">
-              {TIER_ANNOTS.map(a => (
-                <span
-                  key={a.stage}
-                  className={`forces-annot__pip${a.stage === activeAnnot.stage ? ' forces-annot__pip--on' : ''}`}
-                />
-              ))}
+              {activeAnnot.tier} · {activeAnnot.bloc}
+            </motion.div>
+            {activeAnnot.note && (
+              <motion.p
+                className="forces-annot__editorial"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.45, ease: EASING_ENTER } }}
+              >
+                {activeAnnot.note}
+              </motion.p>
+            )}
+            <div className="forces-annot__progress" dir="ltr" aria-hidden>
+              {activeAnnot.rank} / {activeAnnot.total}
             </div>
           </motion.div>
         )}

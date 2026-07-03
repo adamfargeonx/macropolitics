@@ -176,11 +176,34 @@ function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number 
 // DYNAMICS card (dynamics view only) — a dedicated COMPACT layout fusing forces × relations,
 // sized to fit the first fold with no vertical scroll. Replaces the verbose forces stack here.
 // Compact header · power fingerprint (forces) · 2–3 defining ties (relations) · fused caption.
+// The three power axes explained — icon + Hebrew label + one-line meaning. Revealed when the
+// fingerprint is expanded, so the icons/bars stop being opaque marks (Task 13). Wording kept
+// consistent with the forces-view axis hints.
+const AXIS_KEY: { k: 'eco' | 'mil' | 'geo'; label: string; desc: string }[] = [
+  { k: 'eco', label: 'כלכלי', desc: 'תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה' },
+  { k: 'mil', label: 'צבאי', desc: 'הוצאות ביטחון, יכולות וכוח אש' },
+  { k: 'geo', label: 'גאו-אסטרטגי', desc: 'מיקום, בריתות והשפעה אזורית' },
+]
+
 function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
   const heById = useMemo(() => new Map(NODES.map((n) => [n.id, n.he])), [])
   const id = detail.id
   const f = detail.forces
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+  // expandable fingerprint → reveals what each axis icon/bar measures. Per-body (resets on reselect).
+  const [showKey, setShowKey] = useState(false)
+  const [lastId, setLastId] = useState(id)
+  if (id !== lastId) { setLastId(id); setShowKey(false) }
+  // orbital context — the orrery's own meaning: what it orbits, what orbits it, or (failing both)
+  // the bodies it shares a ring with. This is the information the forces view does not have.
+  const orbit = useMemo(() => {
+    const e = id ? NODES.find((n) => n.id === id) : undefined
+    const satellites = detail.satellites?.map((s) => s.he) ?? []
+    const siblings = e
+      ? NODES.filter((n) => n.id !== id && n.parent === e.parent && n.R === e.R).map((n) => n.he)
+      : []
+    return { satellites, siblings }
+  }, [id, detail.satellites])
   // the two tight descriptor chips (tier + axis) — disposition is dropped to stay compact
   const chips: { icon: IconName; text: string }[] = [
     { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier },
@@ -219,7 +242,12 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
         </div>
       </header>
       {f && (
-        <div className="dcard__fingerprint" data-hint="טביעת הכוח — שלושת מרכיבי העוצמה וכוח המשיכה הכולל">
+        <button
+          className={`dcard__fingerprint${showKey ? ' is-open' : ''}`}
+          onClick={() => { sound.play('tab'); setShowKey((v) => !v) }}
+          aria-expanded={showKey}
+          aria-label={showKey ? 'הסתרת פירוש הסמלים' : 'מה מודדים הסמלים?'}
+        >
           <div className="dcard__bars">
             {(['eco', 'mil', 'geo'] as const).map((k) => (
               <div key={k} className="dcard__bar">
@@ -232,6 +260,42 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
           <div className="dcard__score">
             <b>{score}</b><span>כוח משיכה</span>
           </div>
+          <span className="dcard__fp-cue" aria-hidden>{showKey ? '▲ פירוש הסמלים' : '▾ מה מודדים הסמלים?'}</span>
+        </button>
+      )}
+      {f && showKey && (
+        <div className="dcard__axkey">
+          {AXIS_KEY.map((ax) => (
+            <div key={ax.k} className="dcard__axkey-row">
+              <Icon name={ax.k} className="dcard__axkey-icon" />
+              <span className="dcard__axkey-l">{ax.label}</span>
+              <span className="dcard__axkey-v">{f[ax.k]}</span>
+              <p className="dcard__axkey-d">{ax.desc}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
+        <div className="dcard__orbit">
+          <span className="dcard__orbit-h">מיקום מסלולי</span>
+          {detail.parentHe && (
+            <div className="dcard__orbit-row">
+              <span className="dcard__orbit-k">במסלול סביב</span>
+              <span className="dcard__orbit-v">{detail.parentHe}</span>
+            </div>
+          )}
+          {orbit.satellites.length > 0 && (
+            <div className="dcard__orbit-row">
+              <span className="dcard__orbit-k">גופים במסלולה</span>
+              <span className="dcard__orbit-v">{orbit.satellites.join(' · ')}</span>
+            </div>
+          )}
+          {!detail.parentHe && orbit.satellites.length === 0 && orbit.siblings.length > 0 && (
+            <div className="dcard__orbit-row">
+              <span className="dcard__orbit-k">משתפת מסלול עם</span>
+              <span className="dcard__orbit-v">{orbit.siblings.join(' · ')}</span>
+            </div>
+          )}
         </div>
       )}
       {top.length > 0 && (

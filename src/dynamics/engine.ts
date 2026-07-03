@@ -3,7 +3,8 @@
 // World space ≈ original px; a camera (zoom default 1.4, pan) maps world → screen.
 // The particle starfield lives in SCREEN space (interactive background, unaffected by camera).
 
-import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, powerSize, type Entity } from '../data/entities'
+import { NODES, LINKS, ANCHORS, RINGS, AXES, AXIS, POWER_NOTES, powerSize, type Entity } from '../data/entities'
+import { AUTHORED_RELATIONS } from '../data/relations'
 import { isInteractive } from '../sound'
 
 const YELLOW = '251,255,0'
@@ -16,6 +17,18 @@ const TAU = Math.PI * 2
 const DEFAULT_ZOOM = 0.85 // the default framed view
 const FOCUS_ZOOM = 1.35 // gentle zoom-in when a body is selected
 const CAM_DUR = 600 // ms — camera tween duration (pan + zoom), ease-out-expo
+
+// ── Depth / drill-down layer (Tasks 14 + 15) ──
+// One coherent "insight" system: when the camera pushes past INSIGHT_ZOOM onto a focused body it
+// fades in that body's labelled orbital children + a "what you're looking at" note; independently,
+// any authored relation whose two bodies drift within a proximity band fades in a caption at their
+// midpoint. Both ease their alpha off geometry so the default frame stays clean.
+const INSIGHT_ZOOM = 1.7 // zoom at which the focused-body insight layer begins to reveal
+const INSIGHT_FADE = 0.55 // zoom span over which it fades fully in (→ 2.25)
+const PROX_BASE = 128 // proximity caption base threshold (screen px, before the two radii)
+const PROX_FADE = 78 // caption eases fully in over the last PROX_FADE px of approach
+const POLE_HE: Record<'t' | 'f' | 'h', string> = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
+const POLE_COL: Record<'t' | 'f' | 'h', string> = { t: '214,120,96', f: '150,150,160', h: YELLOW }
 
 // ── Tunable visual config (set a flag false / value 0 to revert that piece) ──
 // Relations & dynamics are conveyed through orbital placement and proximity ONLY —
@@ -44,6 +57,21 @@ const AXIS_COLOR: Record<string, string> = {
 interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number }
 
 const idIndex = new Map(NODES.map((n, i) => [n.id, i]))
+// Authored relations resolved to node indices + a dominant pole, precomputed once. Drives the
+// proximity captions (Task 15): each frame we test screen distance and fade a caption at the midpoint.
+const AUTH_PAIRS = AUTHORED_RELATIONS
+  .filter((r) => idIndex.has(r.pair[0]) && idIndex.has(r.pair[1]))
+  // drop parent↔child pairs (e.g. iran↔hezbollah, saudi↔uae): a satellite is PERMANENTLY beside its
+  // hub, so its caption would sit static in a dense cluster. Keep only independent bodies whose orbits
+  // genuinely drift them together — the "iran drifts close to turkey" reveal the feature is about.
+  .filter((r) => {
+    const a = NODES[idIndex.get(r.pair[0])!], b = NODES[idIndex.get(r.pair[1])!]
+    return a.parent !== b.id && b.parent !== a.id
+  })
+  .map((r) => {
+    const dom: 't' | 'f' | 'h' = r.t >= r.f && r.t >= r.h ? 't' : r.f >= r.h ? 'f' : 'h'
+    return { ia: idIndex.get(r.pair[0])!, ib: idIndex.get(r.pair[1])!, aId: r.pair[0], bId: r.pair[1], dom, why: r.why }
+  })
 const neighbors = (() => {
   const m = new Map<string, Set<string>>(NODES.map((n) => [n.id, new Set<string>()]))
   for (const [a, b] of LINKS) { m.get(a)?.add(b); m.get(b)?.add(a) }
@@ -79,6 +107,20 @@ const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t))
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v)
 const clamp01 = (t: number) => clamp(t, 0, 1)
 
+// Greedy word-wrap for canvas Hebrew captions — splits on spaces to fit within maxW.
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let cur = ''
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w
+    if (cur && ctx.measureText(test).width > maxW) { lines.push(cur); cur = w }
+    else cur = test
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
 export class OrbitalField {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
@@ -108,6 +150,9 @@ export class OrbitalField {
   private pinch: { dist: number; zoom: number } | null = null
   private hovered: string | null = null
   private selected: string | null = null
+  // ids the canvas insight layer is currently labelling — updateLabels() hides their DOM label so
+  // the drilled-in canvas name is the single source (no double labels while zoomed in).
+  private insightChildren = new Set<string>()
   private hoverSince = 0
   private connected = new Set<string>()
   private start = 0; private raf = 0; private now = 0
@@ -220,10 +265,12 @@ export class OrbitalField {
       const idx = idIndex.get(this.focusedBody)
       if (idx != null && (!this.cam || this.cam.toZoom === FOCUS_ZOOM)) {
         const ns = this.nodes[idx]
-        const s = this.viewScale * FOCUS_ZOOM
+        // keep the body centred at the CURRENT zoom — so wheel-zooming into a focused body (the
+        // drill-down of Task 14) is honoured instead of being snapped back to FOCUS_ZOOM each frame.
+        const s = this.viewScale * this.zoom
         const targetPan = { x: -ns.wx * s, y: -ns.wy * s }
         if (this.cam) { this.cam.toPan = targetPan }
-        else { this.zoom = FOCUS_ZOOM; this.pan.x += (targetPan.x - this.pan.x) * 0.12; this.pan.y += (targetPan.y - this.pan.y) * 0.12 }
+        else { this.pan.x += (targetPan.x - this.pan.x) * 0.12; this.pan.y += (targetPan.y - this.pan.y) * 0.12 }
       }
     }
     if (!this.cam) return
@@ -408,6 +455,7 @@ export class OrbitalField {
       this.nodes[k].appear = clamp01((t - ri * 0.65) / 0.75)
       this.drawNode(this.nodes[k], t)
     }
+    this.drawDepthLayer() // insight labels + proximity captions — populates insightChildren for updateLabels
     this.updateLabels()
     this.raf = requestAnimationFrame(this.frame)
   }
@@ -532,6 +580,8 @@ export class OrbitalField {
     const showMinor = !VISUALS.zoomGatedLabels || this.zoom >= VISUALS.labelGate
     for (const ns of this.labelOrder) {
       const el = this.labels.get(ns.e.id); if (!el) continue
+      // the drill-in canvas layer is labelling this body — suppress its DOM label to avoid doubling
+      if (this.insightChildren.has(ns.e.id)) { el.style.opacity = '0'; continue }
       const a = easeOutCubic(ns.appear)
       const x = ns.sx, y = ns.sy + ns.sr * a + 12
       el.style.transform = `translate(-50%,-50%) translate(${x}px, ${y}px)`
@@ -546,5 +596,104 @@ export class OrbitalField {
       el.style.opacity = String(hide ? 0 : a * dim)
       if (!hide) placed.push({ x, y, w, h: hh })
     }
+  }
+
+  // ── Depth / drill-down layer ─────────────────────────────────────────────────
+  // Task 14: once zoomed past INSIGHT_ZOOM onto a focused body, label its orbital children (even the
+  // ones the normal zoom-gate would hide) and fade in a "what you're looking at" note.
+  // Task 15: fade in a relation caption at the midpoint of any authored pair drifting close on screen.
+  private drawDepthLayer() {
+    this.insightChildren.clear()
+    const focus = this.focusedBody
+    const insightAlpha = focus ? clamp01((this.zoom - INSIGHT_ZOOM) / INSIGHT_FADE) : 0
+    if (focus && insightAlpha > 0.01) {
+      const fi = idIndex.get(focus)
+      if (fi != null) {
+        const ctx = this.ctx
+        ctx.save(); ctx.textAlign = 'center'; ctx.direction = 'rtl'
+        // label the focused body's orbital children
+        for (const ns of this.nodes) {
+          if (ns.e.parent !== focus) continue
+          const a = easeOutCubic(ns.appear); if (a <= 0) continue
+          this.insightChildren.add(ns.e.id)
+          const al = insightAlpha * a
+          const fs = ns.e.kind === 'nonstate' ? 11 : 12
+          ctx.font = `600 ${fs}px 'Tel Aviv Brutalist', sans-serif`
+          const top = ns.sy + ns.sr * a + 2
+          const ly = ns.sy + ns.sr * a + 13
+          ctx.strokeStyle = `rgba(${YELLOW},${0.22 * al})`; ctx.lineWidth = 1
+          ctx.beginPath(); ctx.moveTo(ns.sx, top); ctx.lineTo(ns.sx, ly - fs + 2); ctx.stroke()
+          ctx.fillStyle = `rgba(${YELLOW},${0.92 * al})`
+          ctx.fillText(ns.e.he, ns.sx, ly)
+        }
+        // "what you're looking at" note, above the focused body
+        const note = POWER_NOTES[focus]?.general
+        if (note) this.drawAnnotation(this.nodes[fi], note, insightAlpha)
+        ctx.restore()
+      }
+    }
+    // proximity captions and the insight layer are two facets of one depth system: they hand off, so
+    // deep-zoom reads as pure insight (children + note) and moderate/default framing shows drift
+    // captions — never both piled on the focused body at once.
+    this.drawProximity(1 - insightAlpha)
+  }
+
+  // Short interpretive note stacked above the focused body — the reward for drilling in.
+  private drawAnnotation(fns: NodeState, text: string, alpha: number) {
+    const ctx = this.ctx
+    const fs = 12.5
+    ctx.font = `400 ${fs}px 'Tel Aviv Brutalist', sans-serif`
+    const maxW = Math.min(248, this.fieldW * 0.62)
+    const lines = wrapText(ctx, text, maxW)
+    const lh = fs * 1.5
+    const x = fns.sx
+    let y = fns.sy - fns.sr - 20 - (lines.length - 1) * lh
+    for (const line of lines) {
+      ctx.fillStyle = `rgba(${LIGHT},${0.85 * alpha})`
+      ctx.fillText(line, x, y)
+      y += lh
+    }
+  }
+
+  // Proximity relation captions (Task 15). When a body is focused only its own relations qualify;
+  // otherwise the single globally-closest related pair shows — so the default frame stays calm.
+  private drawProximity(gain: number) {
+    if (gain <= 0.02) return
+    const focus = this.focusId
+    type Cand = { dom: 't' | 'f' | 'h'; why: string; mx: number; my: number; alpha: number; d: number }
+    const cands: Cand[] = []
+    for (const p of AUTH_PAIRS) {
+      if (focus && focus !== p.aId && focus !== p.bId) continue
+      const na = this.nodes[p.ia], nb = this.nodes[p.ib]
+      if (easeOutCubic(na.appear) < 0.6 || easeOutCubic(nb.appear) < 0.6) continue
+      const d = Math.hypot(na.sx - nb.sx, na.sy - nb.sy)
+      const thresh = PROX_BASE + na.sr + nb.sr
+      if (d > thresh) continue
+      const alpha = clamp01((thresh - d) / PROX_FADE) * gain
+      if (alpha <= 0.02) continue
+      cands.push({ dom: p.dom, why: p.why, mx: (na.sx + nb.sx) / 2, my: (na.sy + nb.sy) / 2, alpha, d })
+    }
+    if (!cands.length) return
+    cands.sort((a, b) => a.d - b.d)
+    // only the single closest drifting pair — one caption keeps the field calm and never stacks text,
+    // whether ambient (nothing focused) or reading a focused body's own relations.
+    const max = 1
+    const ctx = this.ctx
+    ctx.save(); ctx.textAlign = 'center'; ctx.direction = 'rtl'
+    for (let i = 0; i < Math.min(max, cands.length); i++) {
+      const c = cands[i]
+      ctx.font = "700 11px 'Tel Aviv Brutalist', sans-serif"
+      ctx.fillStyle = `rgba(${POLE_COL[c.dom]},${0.95 * c.alpha})`
+      ctx.fillText(POLE_HE[c.dom], c.mx, c.my - 9)
+      ctx.font = "400 12px 'Tel Aviv Brutalist', sans-serif"
+      const lines = wrapText(ctx, c.why, Math.min(232, this.fieldW * 0.56))
+      let y = c.my + 8
+      for (const line of lines) {
+        ctx.fillStyle = `rgba(${LIGHT},${0.86 * c.alpha})`
+        ctx.fillText(line, c.mx, y)
+        y += 12 * 1.42
+      }
+    }
+    ctx.restore()
   }
 }

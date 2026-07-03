@@ -50,6 +50,38 @@ export const metricVal = (e: typeof NODES[number], ord: Order, grav: Map<string,
   (ord === 'total' ? (grav.get(e.id)?.power ?? 0) : (FORCES[e.id]?.[ord] ?? 0) * 10)
 export const passesBloc = (id: string, bloc: Bloc) => bloc === 'all' || (AXIS[id] ?? 'none') === bloc
 
+// ── State-by-state scroll tour — one annotation per focused state (replaces the tier-dispersion
+// narrative). For the focused state we surface its live rank, score (power/10), Hebrew tier, bloc
+// and the authored one-line positional note (POWER_NOTES[id].general, graceful fallback). Rendered
+// in the same .forces-annot overlay slot the tier narrative used. ──
+export interface StateAnnot {
+  id: string
+  he: string
+  rank: number   // 1-based, by the active metric
+  total: number
+  score: string  // "8.4" — power / 10, one decimal
+  tier: string   // Hebrew tier (entity.tier)
+  bloc: string   // Hebrew bloc/axis label
+  note: string   // one-line positional note (may be empty)
+}
+
+export function buildStateAnnot(
+  id: string, rank: number, total: number, grav: Map<string, GravityResult>,
+): StateAnnot | null {
+  const e = byId.get(id); if (!e) return null
+  const power = grav.get(id)?.power ?? e.power
+  return {
+    id,
+    he: e.he,
+    rank,
+    total,
+    score: (power / 10).toFixed(1),
+    tier: e.tier,
+    bloc: AXIS_LABEL[AXIS[id] ?? 'none'],
+    note: POWER_NOTES[id]?.general ?? '',
+  }
+}
+
 export function buildForceDetail(id: string | null, grav: Map<string, GravityResult>): EntityDetail | null {
   if (!id) return null
   const e = byId.get(id); if (!e) return null
