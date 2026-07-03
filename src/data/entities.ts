@@ -36,9 +36,14 @@ export const RINGS: { around: string; r: number; he?: string; dash?: boolean }[]
   { around: 'C', r: 440 }, // main ring
   { around: 'C', r: 210, he: 'אזור הדמדומים', dash: true }, // twilight / neutral inner
   { around: 'C', r: 760 }, // outer ring
-  { around: 'usa', r: 240 }, // western system bound
+  { around: 'usa', r: 120 }, // US inner orbit — Israel
+  { around: 'usa', r: 180 }, // US mid orbit — Egypt / Jordan
+  { around: 'usa', r: 240 }, // western system bound — Saudi / SDF
+  { around: 'saudi', r: 60 }, // Gulf inner — UAE / Bahrain
   { around: 'saudi', r: 100, he: 'טבעת המפרץ' }, // Gulf
+  { around: 'iran', r: 100 }, // Iran inner orbit — Hezbollah / Yemen
   { around: 'iran', r: 160, he: 'טבעת האש' }, // Fire
+  { around: 'iran', r: 225 }, // Iran outer proxies — Hamas / PIJ
 ]
 
 export const AXES = [

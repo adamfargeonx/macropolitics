@@ -162,12 +162,15 @@
 .home-orbit {
   position: absolute; top: 0; left: 0; transform: translate(-50%, -50%);
   width: 76px; height: 76px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 50%;
-  transition: width 0.95s var(--ease-out-expo), height 0.95s var(--ease-out-expo), border-color 0.8s ease, transform 0.6s var(--ease-out-expo);
+  transition: width 0.95s var(--ease-out-expo), height 0.95s var(--ease-out-expo), border-color 0.8s ease, box-shadow 0.5s ease, transform 0.6s var(--ease-out-expo);
 }
 .home--open .home-orbit { width: var(--ring-d); height: var(--ring-d); border-color: rgba(255, 255, 255, 0.18); }
 .home--closed .home-orbit { animation: orbitBreathe 2.8s var(--ease-in-out-quart) infinite; }
-/* hover the closed core → the ring swells a touch and brightens, signalling it opens */
-.home--core-hover .home-orbit { transform: translate(-50%, -50%) scale(1.24); border-color: rgba(255, 255, 255, 0.9); }
+/* hover the closed core → the ring brightens and lights up (no size change), signalling it opens */
+.home--core-hover .home-orbit {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 26px rgba(251, 255, 0, 0.26), 0 0 9px rgba(251, 255, 0, 0.18);
+}
 /* rest (0%/100%) is full brightness — deliberately identical to the loader's landed ring
    (opacity 1, same border colour) — then eases down and back. While the loader overlay is up
    (see the #root:has(.loader) rule below) this animation is paused, so it sits frozen at that
@@ -200,10 +203,13 @@
   transition: opacity 0.4s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 .home--closed .home-core__dot { animation: coreDotBreath 2.8s var(--ease-in-out-quart) infinite; }
+/* hover the closed core → the dot LIGHTS UP (glow bloom + yellow tint), no size change. The
+   breathing is removed (not merely paused) so the dot settles at its true size and reads as
+   igniting rather than growing or freezing mid-breath. */
 .home--closed .home-core:hover .home-core__dot {
-  background: var(--yellow); transform: scale(1.35);
-  box-shadow: 0 0 18px rgba(251, 255, 0, 0.55), 0 0 5px rgba(251, 255, 0, 0.9);
-  animation-play-state: paused;
+  background: var(--yellow); transform: none;
+  box-shadow: 0 0 30px rgba(251, 255, 0, 0.7), 0 0 12px rgba(251, 255, 0, 0.95), 0 0 52px rgba(251, 255, 0, 0.4);
+  animation: none;
 }
 .home--open .home-core__dot { opacity: 0; }
 /* rest (0%/100%) = scale(1)/opacity(1) — identical to the loader's landed seed dot — for the same
@@ -240,8 +246,8 @@
    sequenced even though it's one class toggle — simpler and less brittle than chained timers
    for each visual layer, while still matching the requested order. ── */
 .home--leaving .home-title .letters__ch {
-  transition: transform 0.36s var(--ease-out-back), opacity 0.28s ease, filter 0.32s ease;
-  transition-delay: calc(var(--ci, 0) * 0.014s);
+  transition: transform 0.44s var(--ease-out-back), opacity 0.34s ease, filter 0.38s ease;
+  transition-delay: calc(var(--ci, 0) * 0.017s);
   opacity: 0; filter: blur(9px);
 }
 /* alternating variants so neighbouring letters never move identically — one direction would read
@@ -250,27 +256,37 @@
 .home--leaving .home-title .letters__ch:nth-child(even) { transform: scale(0.28) translateY(9px) rotate(7deg); }
 .home--leaving .home-title .letters__ch:nth-child(3n) { transform: scale(1.4) translateX(7px) rotate(5deg); }
 
-.home--leaving .home-tagline > span,
-.home--leaving .home-eq > span {
-  transition: transform 0.3s var(--ease-out-back), opacity 0.22s ease;
-  transition-delay: 0.04s;
+/* tagline sits at TOP-centre and is visible (translateY(0)) when open → it retreats UP into the
+   mask it entered by. */
+.home--leaving .home-tagline > span {
+  transition: transform 0.36s var(--ease-out-back), opacity 0.26s ease;
+  transition-delay: 0.05s;
   transform: translateY(-115%); opacity: 0;
+}
+/* the equation sits BELOW centre and (unless orbit-hovered) is hidden at translateY(110%). It must
+   retreat the SAME way it reveals — back DOWN out of its mask — NEVER sweep up through 0, which
+   would flash the formula across the centre mid-exit. Hidden → no motion; revealed → slides back
+   down. */
+.home--leaving .home-eq > span {
+  transition: transform 0.36s var(--ease-out-back), opacity 0.26s ease;
+  transition-delay: 0.05s;
+  transform: translateY(110%); opacity: 0;
 }
 /* section titles exit the way they entered — sliding back up behind their own overflow mask,
    each on its own ring-anchored stagger (--bd), not a generic fade+shrink of the whole button */
 .home--leaving .home-nav__label > span {
-  transition: transform 0.34s var(--ease-out-back);
-  transition-delay: calc(0.05s + var(--bd, 0s) * 0.1s);
+  transition: transform 0.41s var(--ease-out-back);
+  transition-delay: calc(0.06s + var(--bd, 0s) * 0.12s);
   transform: translateY(-115%);
 }
 .home--leaving .home-nav__item {
-  transition: opacity 0.3s ease;
-  transition-delay: calc(0.08s + var(--bd, 0s) * 0.1s);
+  transition: opacity 0.36s ease;
+  transition-delay: calc(0.1s + var(--bd, 0s) * 0.12s);
   opacity: 0;
 }
 .home--leaving .home-credit,
 .home--leaving .home-hint {
-  transition: opacity 0.2s ease; transition-delay: 0.1s; opacity: 0;
+  transition: opacity 0.24s ease; transition-delay: 0.12s; opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .home--leaving .home-title .letters__ch,
@@ -443,12 +459,12 @@
 /* ── Page transitions — zoom / bloom / collapse / mask ── */
 .nav-rail { position: fixed; inset: 0; transform-origin: 50% 50%; will-change: transform, opacity; }
 
-.nav-rail--zoom-up { animation: railZoomUp 0.52s var(--ease-in-out-quart) both; }
+.nav-rail--zoom-up { animation: railZoomUp 0.62s var(--ease-in-out-quart) both; }
 @keyframes railZoomUp {
   from { transform: scale(1); opacity: 1; filter: blur(0); }
   to   { transform: scale(6); opacity: 0; filter: blur(6px); }
 }
-.nav-rail--bloom { animation: railBloom 0.48s var(--ease-out-expo) both; }
+.nav-rail--bloom { animation: railBloom 0.58s var(--ease-out-expo) both; }
 @keyframes railBloom {
   from { transform: scale(0.16); opacity: 0; clip-path: circle(0% at 50% 50%); }
   45%  { opacity: 1; }

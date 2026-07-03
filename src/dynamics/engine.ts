@@ -505,8 +505,12 @@ export class OrbitalField {
     if (inWeb && !nonstate) this.glow(ns.sx, ns.sy, r * (isFocus ? 2.4 : e.kind === 'great' ? 2.0 : 1.55), e.kind === 'great' ? 0.12 : 0.07)
     // focus pulse rings
     if (isFocus) {
+      // single gentle expanding ripple — unified with the Forces hover pulse
+      // (ForcesSheet: t*0.5 speed, 0.32 opacity, r+8+pp*40), not the old fast/intense double.
       const since = (this.now - this.hoverSince) / 1000
-      for (let k = 0; k < 2; k++) { const pp = (since * 0.9 + k * 0.5) % 1; ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.5})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 6 + pp * 42, 0, TAU); ctx.stroke() }
+      const pp = (since * 0.5) % 1
+      ctx.strokeStyle = `rgba(${YELLOW},${(1 - pp) * 0.32})`; ctx.lineWidth = 1
+      ctx.beginPath(); ctx.arc(ns.sx, ns.sy, r + 8 + pp * 40, 0, TAU); ctx.stroke()
     }
 
     if (nonstate && VISUALS.nonStateHollow) {

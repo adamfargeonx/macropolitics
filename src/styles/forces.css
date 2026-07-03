@@ -116,10 +116,17 @@
 .sheet-chip__head { display: flex; align-items: baseline; gap: 8px; }
 .sheet-chip__name { font-family: var(--display); font-size: 14px; font-weight: 400; color: var(--tooltip-fg); letter-spacing: var(--tracking-title); }
 .sheet-chip__score { font-family: var(--latin); font-size: var(--text-lg); font-weight: 700; color: var(--tooltip-fg); opacity: 0.78; direction: ltr; }
-/* compact eco/mil/geo breakdown row — the literal explanation of the in-body gauge rings */
-.sheet-chip__sig { display: flex; gap: 9px; padding-top: 2px; border-top: 1px solid rgba(6, 3, 15, 0.16); margin-top: 1px; }
-.sheet-chip__sig-k { font-family: var(--body); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; color: var(--tooltip-fg); opacity: 0.68; }
-.sheet-chip__sig-k b { font-family: var(--latin); font-weight: 700; opacity: 1; margin-inline-start: 3px; }
+/* labelled eco/mil/geo readout — the single, unambiguous explanation of the focused body:
+   Hebrew label · tiny 0–10 bar · value, one row each. */
+.sheet-chip__axes {
+  display: flex; flex-direction: column; gap: 5px; min-width: 152px;
+  padding-top: 6px; margin-top: 5px; border-top: 1px solid rgba(6, 3, 15, 0.16);
+}
+.sheet-chip__axis { display: grid; grid-template-columns: 34px 1fr 16px; align-items: center; gap: 8px; }
+.sheet-chip__axis-k { font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--tooltip-fg); opacity: 0.72; text-align: right; }
+.sheet-chip__axis-bar { height: 4px; background: rgba(6, 3, 15, 0.16); }
+.sheet-chip__axis-bar i { display: block; height: 100%; background: var(--yellow); }
+.sheet-chip__axis-v { font-family: var(--latin); font-size: 11px; font-weight: 700; color: var(--tooltip-fg); direction: ltr; text-align: left; }
 .sheet-hint {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
   font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--ink-faint);
@@ -478,37 +485,18 @@
 @media (prefers-reduced-motion: reduce) { .ffilter-scrim, .ffilter { animation: none; } }
 @media (min-width: 769px) { .ffilter-scrim { display: none; } }
 
-/* ── Forces hover-clarity additions ──────────────────────────────────────────────
-   The hover chip (.sheet-chip) was a plain yellow/dark-text tooltip with no explanation of
-   *why* the body turns yellow, and its eco/mil/geo readout had no visual link to the three
-   concentric arcs drawn inside the hovered body (ForcesSheet.tsx drawSignature()). Restyled
-   here as a small dark readout — matching the canvas's own dark-field/light-yellow-stroke
-   language — with (1) a "בפוקוס" caption that names the hover state explicitly, and (2) a
-   colour-matched swatch dot per stat (mil = accent yellow, eco/geo = the two lighter rings,
-   exact same colours/weights as drawSignature's ring list) so the tooltip visibly reads as
-   the same data as the in-body arcs, not a disconnected label. These are new declarations for
-   an EXISTING selector — later same-specificity CSS wins per property, so this overrides only
-   the specific properties named below and leaves every other .sheet-chip rule above intact. */
+/* ── Forces hover-clarity — a small dark readout matching the canvas's own dark-field /
+   light-yellow language. Now that the in-circle abstract graph is gone, this tooltip is the
+   SOLE readout: name + total power, then three clearly labelled eco/mil/geo rows. These are new
+   declarations for an EXISTING selector — later same-specificity CSS wins per property, so this
+   overrides only the properties named below and leaves every other .sheet-chip rule intact. */
 .sheet-chip {
   background: rgba(10, 6, 22, 0.94);
   color: var(--light);
   animation: fadeIn 0.15s ease both;
 }
-.sheet-chip__name, .sheet-chip__score, .sheet-chip__sig-k { color: var(--light); }
-.sheet-chip__sig { border-top-color: rgba(244, 242, 236, 0.18); }
-.sheet-chip__caption {
-  display: flex; align-items: center; gap: 5px;
-  font-family: var(--body); font-weight: 700; font-size: 9px; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--yellow); opacity: 0.92;
-}
-.sheet-chip__caption-dot {
-  width: 6px; height: 6px; flex: none; background: var(--yellow);
-  box-shadow: 0 0 6px rgba(251, 255, 0, 0.75);
-}
-.sheet-chip__sig-k { display: inline-flex; align-items: center; gap: 4px; }
-.sheet-chip__sig-dot { width: 6px; height: 6px; flex: none; border: 1px solid rgba(244, 242, 236, 0.55); }
-.sheet-chip__sig-dot--eco { background: rgba(244, 242, 236, 0.55); }
-.sheet-chip__sig-dot--mil { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 4px rgba(251, 255, 0, 0.7); }
-.sheet-chip__sig-dot--geo { background: rgba(244, 242, 236, 0.28); }
+.sheet-chip__name, .sheet-chip__score, .sheet-chip__axis-k, .sheet-chip__axis-v { color: var(--light); }
+.sheet-chip__axes { border-top-color: rgba(244, 242, 236, 0.18); }
+.sheet-chip__axis-bar { background: rgba(244, 242, 236, 0.16); }
 @media (prefers-reduced-motion: reduce) { .sheet-chip { animation: none; } }
 

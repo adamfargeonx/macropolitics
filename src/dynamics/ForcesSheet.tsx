@@ -172,12 +172,13 @@ class GravityWell {
   private massTarget: Float32Array
   private metricAlpha: Float32Array
   // hoverProg: per-body 0→1 reveal value, eased in the draw loop (NOT a CSS transition).
-  // Drives the fill fade-out + force-signature bloom on the hovered body only.
+  // Drives ONLY the grow-to-readable-floor on the hovered/selected body (the fill turns solid
+  // yellow immediately via isFocus — no hollowing, no abstract signature any more).
   private hoverProg: Float32Array
-  // Live eco/mil/geo (each 0–10) per body — the at-a-glance force signature around the hovered ring.
-  private eco: Float32Array
-  private mil: Float32Array
-  private geo: Float32Array
+  // labelHide: per-body 0 (shown) → 1 (hidden), eased in the draw loop — when ANY body is
+  // focused, every OTHER body's name label animates OUT (scale-down + drift + fade), not a plain
+  // opacity cut. Same per-frame eased pattern as hoverProg, just driving the label instead.
+  private labelHide: Float32Array
   // shared fade-in curve for in-circle name labels (set once per frame, read per body)
   private labelIntro = 0
   // indices that carry an on-canvas name label this frame (top-N by active metric + focus)
@@ -229,9 +230,7 @@ class GravityWell {
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.metricAlpha = new Float32Array(n).fill(1)
     this.hoverProg = new Float32Array(n)
-    this.eco = new Float32Array(n)
-    this.mil = new Float32Array(n)
-    this.geo = new Float32Array(n)
+    this.labelHide = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -267,10 +266,6 @@ class GravityWell {
       this.massTarget[i] = metric
       // size carries the story; alpha is a gentle assist so weak-in-this-lens bodies recede
       this.metricAlpha[i] = order === 'total' ? 1 : Math.max(0.45, metric / 100)
-      // Keep the live sub-metrics (each 0–10) for the hover force-signature.
-      this.eco[i] = g?.eco ?? 0
-      this.mil[i] = g?.mil ?? 0
-      this.geo[i] = g?.geo ?? 0
     }
   }
 
@@ -414,14 +409,28 @@ class GravityWell {
       // Expo-out feel: a per-frame lerp toward the hover state. Asymmetric rates —
       // a touch quicker in than out — land the ~280–360ms "fast then settle" curve.
       // reduced-motion: snap to the end state (no tween).
-      // reveal the in-circle gauge + grow on hover OR selection (tap) — touch has no hover,
-      // so a tapped/selected body must open its readout the same way a hovered one does
+      // grow-to-readable-floor on hover OR selection (tap) — touch has no hover, so a
+      // tapped/selected body must open the same way a hovered one does. (Fill goes solid
+      // yellow immediately via isFocus; this only drives the size floor.)
       const hoverTarget = (isHov || isSel) ? 1 : 0
       if (this.reduced) {
         this.hoverProg[i] = hoverTarget
       } else {
         const hrate = hoverTarget > this.hoverProg[i] ? 0.09 : 0.07
         this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
+      }
+
+      // ── Label hide progress (0→1) ─────────────────────────────────────────
+      // The instant ANY body is focused, every OTHER body's name label animates OUT
+      // (fade + scale-down + upward drift) rather than merely dropping opacity. A slightly
+      // quicker leave than return gives a ~200–300ms motion. reduced-motion: snap.
+      const anyFocus = this.hoveredIdx !== null || this.selectedIdx !== null
+      const hideTarget = (anyFocus && !(isHov || isSel)) ? 1 : 0
+      if (this.reduced) {
+        this.labelHide[i] = hideTarget
+      } else {
+        const lrate = hideTarget > this.labelHide[i] ? 0.2 : 0.16
+        this.labelHide[i] += (hideTarget - this.labelHide[i]) * lrate
       }
     }
 
@@ -505,42 +514,30 @@ class GravityWell {
         ctx.beginPath(); ctx.arc(sx, sy, rr + 8 + pp * 40, 0, TAU); ctx.stroke()
       }
 
-      // hp = eased hover reveal (0 idle → 1 fully hovered). The body fill fades to nothing
-      // so the hovered body reads as a hollow, outlined ring.
-      const hp = this.hoverProg[i]
-
+      // Solid disk. The hovered/selected body fills SOLID YELLOW (the accent = "this is the
+      // subject"); every other body keeps the near-white fill. No hollowing, no in-circle graph.
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
-      if (hp < 0.999) {
-        ctx.save()
-        ctx.globalAlpha = bodyA * tAlpha * (1 - hp)
-        ctx.fillStyle = `rgb(${LIGHT})`; ctx.fill()
-        ctx.restore()
-      }
+      ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
+      ctx.fill()
 
-      // In-circle name label — sits ON the light fill, so it fades out together with the fill
-      // as the body hollows out on hover (no floating dark text over an empty ring). Only the
-      // "ledger" set (top-N by active metric + whatever's focused) attempts a label.
-      if (hp < 0.999 && this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha * (1 - hp))
+      // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
+      // "ledger" set (top-N by active metric + whatever's focused) attempts a label; the focused
+      // body keeps its own, while every other label animates out (labelHide) once focus begins.
+      if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha, this.labelHide[i])
 
-      // Ring stroke: warms to yellow as the body hollows out (the rim becomes the subject).
+      // Ring stroke: the focused body's rim warms to yellow; others stay a faint light.
       const ringCol = isFocus ? YELLOW : LIGHT
       const ringA = isFocus ? 0.92 : 0.3
       ctx.strokeStyle = `rgba(${ringCol},${ringA})`
-      ctx.lineWidth = 1.5 + hp * 0.5; ctx.stroke()
-
-      // ── Force signature ──────────────────────────────────────────────────
-      // Around the hollowed rim, bloom three concentric arc-ticks — eco / mil / geo —
-      // whose arc LENGTH ∝ each sub-metric (0–10). A quick visual fingerprint of the
-      // state's composition, distinct from the side-panel's quantitative bars.
-      if (hp > 0.01) this.drawSignature(sx, sy, rr, i, hp, bodyA * tAlpha)
+      ctx.lineWidth = 1.5; ctx.stroke()
     })
   }
 
   // In-circle name label — the state name centred INSIDE the body, like a real map/bubble-chart
   // label, instead of floating text below it. Font scales to the body radius; if the name still
   // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim.
-  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number) {
-    if (alpha <= 0.01) return
+  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number, hide: number) {
+    if (alpha <= 0.01 || hide > 0.995) return
     const b = BODIES[i]
     const ctx = this.ctx
     const MIN_PX = 9
@@ -560,46 +557,13 @@ class GravityWell {
       width = ctx.measureText(b.he).width
     }
     if (width > maxWidth || rr < 16) { ctx.restore(); return }
-    ctx.globalAlpha = alpha * this.labelIntro
+    // Animate OUT: fade, shrink and drift upward as `hide` eases 0→1 (motion, not a plain fade).
+    ctx.globalAlpha = alpha * this.labelIntro * (1 - hide)
+    ctx.translate(sx, sy - hide * rr * 0.45)
+    const s = 1 - hide * 0.4
+    ctx.scale(s, s)
     ctx.fillStyle = `rgb(${DARK})`
-    ctx.fillText(b.he, sx, sy)
-    ctx.restore()
-  }
-
-  // The force-signature gauge — a clean set of three CONCENTRIC value-rings drawn fully INSIDE
-  // the hovered/hollow circle (clipped to the rim, never spilling onto neighbours). Each ring is
-  // a faint full-circle track plus a value arc whose sweep ∝ its metric / 10 (a full lap = 10).
-  // mil = YELLOW (the accent), eco & geo = LIGHT at stepped opacity, so the three read as one
-  // contained radial fingerprint — distinct from the side-panel's linear bars.
-  private drawSignature(sx: number, sy: number, rr: number, i: number, hp: number, baseAlpha: number) {
-    const ctx = this.ctx
-    if (rr < 15) return // too small to read a gauge — skip rather than draw a smear
-    const START = -Math.PI / 2 // 12 o'clock
-    // [metric 0–10, radius as a fraction of rr, colour, peak opacity]
-    const rings: [number, number, string, number][] = [
-      [this.eco[i], 0.82, LIGHT,  0.55],
-      [this.mil[i], 0.60, YELLOW, 0.95],
-      [this.geo[i], 0.38, LIGHT,  0.42],
-    ]
-    ctx.save()
-    // clip to the circle so the gauge stays contained inside the rim
-    ctx.beginPath(); ctx.arc(sx, sy, rr - 0.5, 0, TAU); ctx.clip()
-    ctx.lineCap = 'round'
-    ctx.lineWidth = Math.max(2, rr * 0.07)
-    for (const [metric, rf, col, peak] of rings) {
-      const radius = rr * rf
-      if (radius < 2) continue
-      // faint full-circle track
-      ctx.globalAlpha = baseAlpha * hp * 0.13
-      ctx.strokeStyle = `rgb(${col})`
-      ctx.beginPath(); ctx.arc(sx, sy, radius, 0, TAU); ctx.stroke()
-      // value arc — a full lap = 10
-      const frac = Math.max(0, Math.min(1, metric / 10))
-      if (frac > 0) {
-        ctx.globalAlpha = baseAlpha * peak * hp
-        ctx.beginPath(); ctx.arc(sx, sy, radius, START, START + frac * TAU * hp); ctx.stroke()
-      }
-    }
+    ctx.fillText(b.he, 0, 0)
     ctx.restore()
   }
 
@@ -760,6 +724,15 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
 
   const chipGrav = chip ? grav.get(chip.id) : undefined
   const chipScore = Math.round(chipGrav?.power ?? 0)
+  // labeled 0–10 axis rows for the tooltip — the single, unambiguous readout now that the
+  // in-circle abstract graph is gone. Each row: Hebrew label · tiny bar · value.
+  const chipAxes: { k: string; v: number }[] = chipGrav
+    ? [
+        { k: 'כלכלי', v: chipGrav.eco },
+        { k: 'צבאי', v: chipGrav.mil },
+        { k: 'גאו', v: chipGrav.geo },
+      ]
+    : []
   const activeAnnot = TIER_ANNOTS.find(a => a.stage === scrollStage) ?? null
 
   return (
@@ -771,37 +744,27 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
 
-      {/* ── Focus chip: explains the hover state itself (a small "בפוקוס" caption ties the
-          yellow ring/glow on the canvas to plain language — otherwise the colour shift alone
-          reads as arbitrary), then name + score, then a compact eco/mil/geo breakdown whose
-          swatches are colour-matched 1:1 to the three concentric arcs drawn inside the hovered
-          body (mil = yellow/accent, eco/geo = the two lighter rings) — so the on-canvas force-
-          signature and this readout visibly describe the same three numbers. Real DOM text (no
-          canvas font-fitting), and this tooltip is already the "explain the hover" mechanism. ── */}
+      {/* ── Focus chip: the SINGLE, self-explanatory readout for the focused body now that the
+          in-circle abstract graph is gone. Name + total גירה (power) score, then three clearly
+          LABELLED eco/mil/geo rows — Hebrew label · tiny 0–10 bar · value — so it is unambiguous
+          what each number is. Real DOM text (no canvas font-fitting). ── */}
       {chip && (
         <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
-          <span className="sheet-chip__caption">
-            <span className="sheet-chip__caption-dot" aria-hidden />
-            בפוקוס
-          </span>
           <span className="sheet-chip__head">
             <span className="sheet-chip__name">{chip.he}</span>
             <span className="sheet-chip__score">{chipScore}</span>
           </span>
-          {chipGrav && (
-            <span className="sheet-chip__sig">
-              <span className="sheet-chip__sig-k">
-                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--eco" aria-hidden />
-                כלכלי <b>{Math.round(chipGrav.eco)}</b>
-              </span>
-              <span className="sheet-chip__sig-k">
-                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--mil" aria-hidden />
-                צבאי <b>{Math.round(chipGrav.mil)}</b>
-              </span>
-              <span className="sheet-chip__sig-k">
-                <span className="sheet-chip__sig-dot sheet-chip__sig-dot--geo" aria-hidden />
-                גאו <b>{Math.round(chipGrav.geo)}</b>
-              </span>
+          {chipAxes.length > 0 && (
+            <span className="sheet-chip__axes">
+              {chipAxes.map((a) => (
+                <span key={a.k} className="sheet-chip__axis">
+                  <span className="sheet-chip__axis-k">{a.k}</span>
+                  <span className="sheet-chip__axis-bar">
+                    <i style={{ width: `${Math.max(0, Math.min(10, a.v)) * 10}%` }} />
+                  </span>
+                  <span className="sheet-chip__axis-v">{Math.round(a.v)}</span>
+                </span>
+              ))}
             </span>
           )}
         </div>

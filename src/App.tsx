@@ -62,17 +62,19 @@ export default function App() {
     setNavTarget(v)
 
     if (from === 'home') {
-      // Three beats: (1) wordmark exits letter-by-letter + nav labels fade (~560ms, driven by
-      // `home--leaving`), (2) the ring zooms into the void (~440ms), (3) the page blooms in.
+      // Three beats: (1) wordmark exits letter-by-letter + nav labels fade (~680ms, driven by
+      // `home--leaving`), (2) the ring zooms into the void (~530ms), (3) the page blooms in.
+      // NOTE: `home--leaving` is held on THROUGH the zoom (cleared only at setView, when HomeView
+      // unmounts) — releasing it earlier while HomeView is still mounted in its open state would
+      // re-arm the wordmark's entrance-reveal on the already-shattered letters, flashing them back.
       setHomeLeaving(true)
       t.timers.push(window.setTimeout(() => {
-        setHomeLeaving(false)
         setRail('nav-rail--zoom-up')
         t.timers.push(window.setTimeout(() => {
-          viewRef.current = v; setView(v); setRail('nav-rail--bloom')
-          t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 480))
-        }, 440))
-      }, 560))
+          viewRef.current = v; setView(v); setRail('nav-rail--bloom'); setHomeLeaving(false)
+          t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 580))
+        }, 530))
+      }, 680))
       return
     }
 

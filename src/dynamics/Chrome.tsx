@@ -7,7 +7,6 @@ import type { AxisProvenance } from '../data/empirical'
 import { FORCES_DESCRIPTIONS } from '../data/forces-descriptions'
 import { AUTHORED_RELATIONS, type AuthoredRelation } from '../data/relations'
 import { sound } from '../sound'
-import { ExpandableText } from './ForcesIndexPanel'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
 
@@ -71,6 +70,10 @@ export function Header({ onHome }: { onHome?: () => void }) {
       >
         <span className="hdr__orbit" aria-hidden><span className="hdr__orbit-spin"><i className="hdr__orbit-dot" /></span></span>
         <span className="hdr__wm">מאקרופוליטיקה</span>
+        {/* the thesis tagline — hidden until logo hover, then it "writes" itself in to the logo's
+            inline-start (visually left, RTL) via a right-to-left clip wipe. Absolutely positioned
+            so it never pushes the wordmark. */}
+        <span className="hdr__tagline" aria-hidden>תורת היחסות של המזרח התיכון</span>
       </button>
     </header>
   )
@@ -288,10 +291,22 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
   )
 }
 
-// One scored axis row (forces · ציון mode) — icon + label + numeric value + bar, as ForceParam
-// above, PLUS its own short (1–2 line) expandable description sourced from FORCES_DESCRIPTIONS /
-// POWER_NOTES for that axis. A dedicated component (not a ForceParam edit — that one is shared/
-// may be used elsewhere) so each of the three rows gets an INDEPENDENT expand/collapse state.
+// Fixed character budget every axis description is truncated to, so all three category rows
+// occupy a consistent, uniform bounding box — no per-row expand. Chosen (~110 chars) so the
+// longest states (e.g. USA) land at ~2 lines while shorter states show in full; the single
+// "תיאור מלא" button below reveals the complete narrative for everyone.
+const AXIS_DESC_MAX = 110
+function truncateAxis(t?: string): string | undefined {
+  if (!t) return undefined
+  if (t.length <= AXIS_DESC_MAX) return t
+  const cut = t.slice(0, AXIS_DESC_MAX)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > 70 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+}
+
+// One scored axis row — icon + label + numeric value + bar + a fixed-length (truncated, no
+// read-more) description. Every row is the same height so the three read as a uniform set; the
+// full text lives behind the single "תיאור מלא" drill-down.
 function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value?: number; icon: IconName; hint?: string; text?: string }) {
   return (
     <div className="fparam">
@@ -302,35 +317,29 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
       {value != null && (
         <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
       )}
-      {text && (
-        <ExpandableText
-          text={text}
-          className="fparam__desc"
-          textClassName="fparam__desc-text"
-        />
-      )}
+      {text && <p className="fparam__desc-text">{truncateAxis(text)}</p>}
     </div>
   )
 }
 
-// The grading cluster (forces · ציון mode) — power gauge + three parameter rows (icon, label,
-// value, bar), each carrying its own short expandable description (per-axis interpretation, drawn
-// from the same FORCES_DESCRIPTIONS/POWER_NOTES source as the תיאור/narrative mode), plus a
-// backing note (if any) and the evidence link. One grouped, scannable unit.
+// The grading cluster — a PRIMARY headline score (large numeral, no gauge bar so it doesn't
+// read as a fourth category bar) followed by the three SUPPORTING eco/mil/geo category rows,
+// each with a fixed-length description, plus a backing note (if any) and the evidence link.
 function ForcesScore({ detail }: { detail: EntityDetail }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
-  const scoreNum = Number(score)
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
   const notes = detail.powerNotes
   return (
     <div className="fscore">
-      <div className="panelb__scorebox" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
-        <div className="panelb__score"><b>{score}</b><span>{unit}</span></div>
-        <div className="panelb__score-side">
-          <span className="panelb__score-lbl">כוח משיכה</span>
-        </div>
-        <span className="panelb__gauge"><i style={{ width: `${Number.isFinite(scoreNum) ? scoreNum * 10 : detail.power}%` }} /></span>
+      <div className="fscore__headline" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
+        <span className="fscore__num"><b>{score}</b><span className="fscore__unit">{unit}</span></span>
+        <span className="fscore__meta">
+          <span className="fscore__lbl">כוח משיכה</span>
+          {detail.rank != null && (
+            <span className="fscore__rank">#{detail.rank}{detail.total != null ? ` · ${detail.total}` : ''}</span>
+          )}
+        </span>
       </div>
       <div className="fparams">
         <ForceAxisRow
@@ -358,29 +367,35 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
   )
 }
 
-// FORCES detail panel (forces view) — grouped header + a segmented switch (ציון / תיאור)
-// that toggles the body between the grading cluster and the narrative. Default = ציון.
+// FORCES detail panel (forces view) — grouped header, the score/category cluster shown directly
+// (no tab chrome, no restated section titles), and a single small "תיאור מלא" button that opens
+// the complete narrative inline as a drill-down.
 function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
-  const [mode, setMode] = useState<'score' | 'desc'>('score')
-  // a fresh selection always lands on ציון — the switch is per-body, not sticky.
+  const [showFull, setShowFull] = useState(false)
+  // a fresh selection collapses the drill-down — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
-  if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
-  const pick = (m: 'score' | 'desc') => { if (m !== mode) { sound.play('tab'); setMode(m) } }
+  if (detail.id !== lastId) { setLastId(detail.id); setShowFull(false) }
+  const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
   return (
     // stopPropagation: ForcesView's outer .stage has an onClick that deselects the current body
     // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
-    // the panel — the ציון/תיאור switch, the evidence link, relation chips — bubbles up and
-    // immediately deselects too, which is why the description tab looked like it "did nothing":
-    // setMode('desc') fired, then the bubbled setSelected(null) reverted the whole panel closed.
+    // the panel — the full-description button, the evidence link, relation chips — bubbles up and
+    // immediately deselects too, reverting the whole panel closed.
     <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
-      <div className="fswitch" role="tablist" aria-label="תצוגת הכוח">
-        <button className={`fswitch__btn${mode === 'score' ? ' is-on' : ''}`} role="tab" aria-selected={mode === 'score'} onClick={() => pick('score')}>ציון</button>
-        <button className={`fswitch__btn${mode === 'desc' ? ' is-on' : ''}`} role="tab" aria-selected={mode === 'desc'} onClick={() => pick('desc')}>תיאור</button>
-      </div>
       <div className="fbody">
-        {mode === 'score' ? <ForcesScore detail={detail} /> : <ForcesNarrative detail={detail} />}
+        <ForcesScore detail={detail} />
+        {hasNarrative && (
+          <button
+            className={`ffull-btn${showFull ? ' is-open' : ''}`}
+            onClick={() => { sound.play('tab'); setShowFull((v) => !v) }}
+            aria-expanded={showFull}
+          >
+            {showFull ? 'סגירת התיאור המלא' : 'תיאור מלא'} <span aria-hidden>{showFull ? '▲' : '↗'}</span>
+          </button>
+        )}
+        {showFull && <ForcesNarrative detail={detail} />}
       </div>
       {detail.relations.length > 0 && (
         <div className="panel__rels">

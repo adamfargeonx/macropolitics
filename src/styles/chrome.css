@@ -147,7 +147,7 @@
 }
 @keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
 .readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-bold); font-size: 15px; letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
-.readout__g { font-family: var(--body); font-weight: 700; font-size: 12px; color: var(--tooltip-fg); opacity: 0.75; }
+.readout__g { font-family: var(--body); font-weight: 700; font-size: 11px; color: var(--tooltip-fg); opacity: 0.75; }
 .readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: 11px; letter-spacing: 0.094em; opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
 
@@ -159,12 +159,29 @@
   transition: opacity var(--dur-base) ease;
 }
 .hdr__logo {
+  position: relative; /* anchor for the absolutely-positioned hover tagline */
   display: inline-flex; align-items: center; gap: 11px;
   color: var(--white); font-family: var(--display); font-weight: var(--fw-light);
   background: none; border: none; cursor: none; padding: 0;
   transition: color var(--dur-fast) ease;
 }
 .hdr__wm { font-size: var(--text-lg); letter-spacing: 0.3em; padding-inline-start: 0.3em; transition: transform var(--dur-base) var(--ease-out-expo); }
+/* thesis tagline — revealed only on logo hover. It sits to the logo's inline-start (visually left
+   in this RTL bar) and "writes" itself in via a right-to-left clip wipe (Hebrew reading order),
+   so it reads as being penned rather than fading. Absolutely positioned → never shifts the logo. */
+.hdr__tagline {
+  position: absolute; right: 100%; top: 50%; margin-right: 14px;
+  transform: translateY(-50%);
+  white-space: nowrap; pointer-events: none;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: 0.12em; color: var(--yellow);
+  /* start fully clipped from the left → only the right edge (where the first Hebrew glyph is) is
+     retained; hover unclips leftwards, revealing the line as if written. */
+  clip-path: inset(0 0 0 100%);
+  opacity: 0;
+  transition: clip-path 0.66s var(--ease-out-expo), opacity 0.3s ease;
+}
+.hdr__logo:hover .hdr__tagline { clip-path: inset(0 0 0 0); opacity: 1; }
 /* mini orbit — a small echo of the home ring; a dot circles it, faster on hover */
 .hdr__orbit {
   position: relative; flex: none; width: 19px; height: 19px;
@@ -184,7 +201,7 @@
 .hdr__logo:hover .hdr__orbit-dot { top: 50%; transform: translate(-50%, -50%); }
 .hdr__logo:hover .hdr__wm { transform: translateX(2px); }
 .hdr__logo:active .hdr__orbit { transform: scale(0.92); }
-@media (prefers-reduced-motion: reduce) { .hdr__orbit-spin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .hdr__orbit-spin { animation: none; } .hdr__tagline { transition: none; } }
 /* utility cluster — top-left: prominent "המודל" pill + crisp info (legend) icon */
 .unav {
   position: fixed; top: var(--sp-6); left: var(--sp-8); z-index: var(--z-persistent);
@@ -331,6 +348,8 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 @media (max-width: 480px) {
   /* header: orbit mark only — drop the wordmark text to fit a 375px bar */
   .hdr__wm { display: none; }
+  /* the hover tagline is a desktop affordance — drop it on the narrow bar (and touch has no hover) */
+  .hdr__tagline { display: none; }
   /* utility nav: icon-only pills (font-size:0 hides the bare label text node;
      the icon carries its own explicit size) */
   .unav__model, .unav__legend { font-size: 0; gap: 0; padding: 8px 10px; }
