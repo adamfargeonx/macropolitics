@@ -29,7 +29,7 @@
 
 /* ── Tooltip — the one tooltip language: DARK text on a YELLOW field.
    Shared by every custom tooltip (panelb__desc, readout, home-nav__sub,
-   sheet-chip, and the data-hint pattern below). NOT for button hover. ── */
+   and the data-hint pattern below). NOT for button hover. ── */
 .tooltip,
 [data-hint]:hover::after,
 [data-hint]:active::after {
@@ -258,13 +258,13 @@
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 7px 0;
 }
-.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: 12px; color: var(--yellow); opacity: 0.55; letter-spacing: 0.112em; }
-.panel__row-v { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--white); }
+.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.112em; }
+.panel__row-v { font-family: var(--display); font-size: var(--text-lg); font-weight: 700; color: var(--white); }
 .panel__rels { margin-top: 20px; }
 .panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
-  font-size: 12px; color: var(--yellow); padding: 4px 9px;
+  font-size: var(--text-sm); color: var(--yellow); padding: 4px 9px;
   border: 1px solid rgba(251, 255, 0, 0.3); white-space: nowrap;
   background: none; cursor: none; font-family: var(--display);
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
@@ -290,16 +290,24 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
   color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
 }
-/* ── rank badge tooltip — flips below ───────────────────────────────────────────────────────────
+/* ── rank badge tooltip — flips below, into the gap before the score headline ───────────────────
    Same shape of bug already fixed for the descriptor chips and axis labels (forces.css): the rank
    sits at the very TOP of the panel, hard against the panel's own clip edge (.panelb's
    overflow-y:auto) / the chrome above the panel — an above-anchored tooltip has nowhere to render
-   without being cropped or overlapping content it shouldn't. Below has the whole rest of the
-   header + score cluster to land on instead. Higher-specificity override of the shared [data-hint]
-   rule (only for the rank badge), not a change to the shared rule. */
+   without being cropped (measured: it would start ~9px above .panelb's own top edge, inside its
+   clipped scroll region). Below is the only viable direction, but the panel's content is packed
+   tightly enough that there's no single generous gap to drop into — .phead__descriptors sits
+   ~41–75px below (1 vs 2-line wrap), and .fscore__headline (the "7.2" primary numeral) starts
+   right after THAT, only ~26px past the descriptors row. Rather than chase an ever-deeper offset
+   that just relocates the overlap onto later content, this hint is kept short (single clause, not
+   two joined by an em-dash) + rendered `nowrap`, and the box's own padding trimmed — together that
+   keeps its total height under the 26px gap between the descriptor row and the headline, so it
+   drops cleanly into real empty space instead of covering primary content either way. Higher-
+   specificity override of the shared [data-hint] rule (only for the rank badge). */
 .phead__rank[data-hint]:hover::after,
 .phead__rank[data-hint]:active::after {
-  bottom: auto; top: calc(100% + 10px);
+  bottom: auto; top: calc(100% + 41px);
+  padding: 4px 10px; white-space: nowrap; min-width: 0;
 }
 .phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
@@ -327,10 +335,15 @@
 /* headline tooltip — same bug, same fix: only ~26px separates the descriptor-chip row above from
    the headline, far less than an above-anchored tooltip needs — it would land on/overlap the
    chips above. Flips below onto the headline's own supporting content instead. Higher-specificity
-   override, not a change to the shared [data-hint] rule. */
+   override, not a change to the shared [data-hint] rule.
+   NOTE: a plain `+10px` only cleared the headline's own row — .fscore__gen sits directly beneath
+   it and, even 3-line-clamped, still measures ~69–83px including its top margin, so a small
+   offset let the tooltip land ON the general description instead of past it. +92px clears the
+   clamped (max 3-line) height with room to spare — the clamp is what makes this bound reliable
+   across every state's text, short or long. */
 .fscore__headline[data-hint]:hover::after,
 .fscore__headline[data-hint]:active::after {
-  bottom: auto; top: calc(100% + 10px);
+  bottom: auto; top: calc(100% + 92px);
 }
 .fscore__num { display: inline-flex; align-items: baseline; gap: 5px; }
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }

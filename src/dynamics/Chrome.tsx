@@ -347,7 +347,7 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
   return (
     <header className="phead">
       <div className="phead__line">
-        {detail.rank && <span className="phead__rank" data-hint="הדירוג בכוח המשיכה — מקומו של הגוף בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
+        {detail.rank && <span className="phead__rank" data-hint="דירוג בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
         <h1 className="phead__title">{detail.he}</h1>
       </div>
       <div className="phead__descriptors">

@@ -11,7 +11,7 @@
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  font-family: var(--display); font-size: 20px; font-weight: var(--fw-bold);
+  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-title); color: var(--yellow);
   opacity: 0.78; white-space: nowrap; text-align: center;
 }
@@ -27,7 +27,7 @@
 /* relationship why-line — the editorial beat of the panel */
 .panel__why {
   margin-top: 12px; padding: 10px 12px;
-  font-family: var(--body); font-size: 14px; line-height: 1.7; letter-spacing: var(--tracking-body);
+  font-family: var(--body); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body);
   color: var(--light); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
   animation: textRise 0.6s 0.06s var(--ease-out-expo) both;
@@ -36,7 +36,7 @@
 .panel__setref {
   margin-top: 18px; width: 100%; text-align: right;
   background: none; border: 1px solid rgba(251, 255, 0, 0.3); padding: 10px 13px;
-  font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+  font-family: var(--display); font-size: var(--text-base); font-weight: 700; letter-spacing: 0.02em;
   color: var(--yellow); cursor: none;
   transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
@@ -51,7 +51,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 .rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px var(--yellow-50); }
-.rel-ref__name { font-size: 14px; font-weight: 500; color: var(--yellow); }
+.rel-ref__name { font-size: var(--text-md); font-weight: 500; color: var(--yellow); }
 .rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--white); opacity: 0.5; letter-spacing: 0.14em; }
 .rnode {
   position: absolute; transform: translate(-50%, -50%); z-index: 3;
@@ -62,11 +62,11 @@
   border-radius: 50%; background: var(--light); border: 1.5px solid;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.rnode__name { font-size: 11px; font-weight: 400; color: var(--white); white-space: nowrap; }
+.rnode__name { font-size: var(--text-xs); font-weight: 400; color: var(--white); white-space: nowrap; }
 .rnode--hover { z-index: 5; }
 .rnode--hover .rnode__disk { transform: scale(1.15); box-shadow: 0 0 22px rgba(251, 255, 0, 0.3); }
 .rnode--dim { opacity: 0.28; }
-.panel__rel-toward { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--yellow); opacity: 0.85; }
+.panel__rel-toward { margin-top: 8px; font-size: var(--text-md); font-weight: 700; color: var(--yellow); opacity: 0.85; }
 
 /* ── Relations page-exit cascade (leaving to home) — each node shrinks + fades out INDIVIDUALLY,
    staggered by its per-node delay (driven inline via animationDelay = exitDelay when leaving), so the
@@ -132,7 +132,7 @@
 }
 .rel-modeswitch__btn {
   flex: 1; padding: 7px 10px; background: none; border: none; cursor: none;
-  font-family: var(--display); font-size: 13px; font-weight: var(--fw-bold); letter-spacing: var(--tracking-title);
+  font-family: var(--display); font-size: var(--text-base); font-weight: var(--fw-bold); letter-spacing: var(--tracking-title);
   color: var(--ink-dim);
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
@@ -422,7 +422,7 @@
 /* credit micro-line (open state, bottom-right; the toggle sits at the corner) */
 .home-credit {
   position: absolute; bottom: var(--sp-6); left: var(--sp-8); z-index: var(--z-content);
-  font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-faint);
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--ink-faint);
   opacity: 0; transition: opacity 0.6s ease 0.8s; pointer-events: none;
 }
 .home--open .home-credit { opacity: 1; }
@@ -630,7 +630,7 @@
 
   /* RELATIONS: smaller vertex labels + node names so the (now smaller) triangle reads cleanly
      and labels stop overhanging the field edges */
-  .rel-vtx { font-size: 15px; }
+  .rel-vtx { font-size: var(--text-lg); }
   .rel-vtx i { font-size: 8px; }
   .rnode__name { font-size: 10px; }
 }
