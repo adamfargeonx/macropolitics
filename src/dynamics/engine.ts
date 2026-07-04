@@ -301,6 +301,15 @@ export class OrbitalField {
   // ── Page-exit cascade state ──
   private exiting = false
   private exitStart = 0
+  // Structural rings (+ their axis/ring labels in drawCenters) fade out over the SAME cascade
+  // window the bodies use (spread + one body's travel time), so by the time App.tsx swaps to
+  // home the canvas has fully emptied — no lingering ring lines or orphaned label text (Task 6).
+  // Reduced-motion drops them instantly, matching the per-body exitP behaviour below.
+  private ringExitAlpha(): number {
+    if (!this.exiting) return 1
+    if (this.reduced) return 0
+    return 1 - clamp01((this.now - this.exitStart) / (EXIT_SPREAD + EXIT_BODY_DUR))
+  }
   // Play the per-body exit (leaving to home): each body leaves individually, offset by a per-body
   // delay spread over EXIT_SPREAD in RANK order (strongest first). Unfreezes first — the header logo
   // hover freezes the field, and a frozen frame loop would never advance the cascade otherwise.
@@ -515,6 +524,8 @@ export class OrbitalField {
   // structural rings — each ring fades in as a full circle (no arc-drawing); staggered by index.
   // Ring i appears 0.2s before its node group (i * 0.65) so the stage is set before actors arrive.
   private drawOrbits(t: number) {
+    const ringFade = this.ringExitAlpha()
+    if (ringFade <= 0.001) return
     const ctx = this.ctx
     const s = this.viewScale * this.zoom
     for (let ri = 0; ri < RINGS.length; ri++) {
@@ -526,7 +537,7 @@ export class OrbitalField {
       const dim = this.focusId && !lit
       const base = ring.he ? 0.3 : 0.16
       ctx.beginPath(); ctx.arc(c.x, c.y, ring.r * s, 0, TAU)
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * ringIntro})`
+      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * ringIntro * ringFade})`
       ctx.lineWidth = 1
       if (ring.dash) ctx.setLineDash([2, 7])
       ctx.stroke(); ctx.setLineDash([])
@@ -534,15 +545,17 @@ export class OrbitalField {
   }
 
   private drawCenters(intro: number) {
+    const ringFade = this.ringExitAlpha()
+    if (ringFade <= 0.001) return
     const ctx = this.ctx
     const s = this.viewScale * this.zoom
     ctx.save(); ctx.textAlign = 'center'
-    // axis labels near their hub
+    // axis labels near their hub — fade with the rings (Task 6) so no orphaned text outlives them
     ctx.font = "700 14px 'Tel Aviv Brutalist', sans-serif"
     for (const ax of AXES) {
       const hub = this.world.get(ax.around); if (!hub) continue
       const c = this.toScreen(hub.x, hub.y)
-      ctx.fillStyle = `rgba(${WHITE},${0.42 * intro})`
+      ctx.fillStyle = `rgba(${WHITE},${0.42 * intro * ringFade})`
       ctx.fillText(ax.he, c.x, c.y + ax.dy * 175 * s)
     }
     // named ring labels
@@ -551,7 +564,7 @@ export class OrbitalField {
       if (!ring.he) continue
       const anc = this.world.get(ring.around); if (!anc) continue
       const c = this.toScreen(anc.x, anc.y)
-      ctx.fillStyle = `rgba(${YELLOW},${0.4 * intro})`
+      ctx.fillStyle = `rgba(${YELLOW},${0.4 * intro * ringFade})`
       ctx.fillText(ring.he, c.x, c.y + ring.r * s + 14)
     }
     ctx.restore()

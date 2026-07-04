@@ -134,26 +134,6 @@
   white-space: nowrap; animation: fadeIn 1.2s 1.5s both;
 }
 
-/* ── Scroll CTA — nudges user to scroll, fades once scrolling begins ── */
-.sheet-scroll-cta {
-  position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
-  z-index: 5; pointer-events: none;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  animation: fadeIn 1.2s 3.5s both;
-}
-.sheet-scroll-cta__text {
-  font-family: var(--body); font-size: 11px; letter-spacing: 0.14em;
-  color: var(--ink-faint); white-space: nowrap;
-}
-.sheet-scroll-cta__arrow {
-  font-size: 14px; color: var(--yellow); opacity: 0.5;
-  animation: scrollArrowBounce 1.8s ease-in-out infinite;
-}
-@keyframes scrollArrowBounce {
-  0%, 100% { transform: translateY(0);    opacity: 0.4; }
-  50%       { transform: translateY(5px); opacity: 0.9; }
-}
-
 /* ── State-tour annotation — the editorial beat as the tour meets each power in turn ─── */
 /* Positioned on the left side, vertically centred; floats above the canvas */
 .forces-annot {
@@ -198,9 +178,6 @@
   .forces-annot { left: 16px; max-width: 168px; }
   .forces-annot__label { font-size: 20px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .sheet-scroll-cta__arrow { animation: none; }
-}
 .fnode {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 5px;
@@ -240,26 +217,13 @@
 .gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-inline-end: 2px; }
 /* item 10: sort chips + tools trigger float — the resting box is a TRANSPARENT border (no reflow
    when the active state re-colours it), so inactive controls read as bare text; the active .is-on
-   chip keeps its yellow fill. Hover draws the shared line (below), not a box. */
+   chip keeps its yellow fill. item 5b: hover is a direct color swap (below), not a drawn line. */
 .gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__opt:hover:not(.is-on) { color: var(--light); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
 .gctl__tools { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__tools:hover, .gctl__tools.has-state { color: var(--yellow); }
 .gctl__tools.is-on { border-color: var(--yellow-30); color: var(--yellow); background: var(--yellow-06); }
-/* item 10: the shared drawn-line hover — a hairline underline scales in from the RTL leading
-   (right) edge; toggle chips suppress it while active (the fill already carries that state). */
-.gctl__opt::after, .gctl__tools::after, .gindex__more::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-  background: currentColor; transform: scaleX(0); transform-origin: right; pointer-events: none;
-  transition: transform 0.42s var(--ease-out-expo);
-}
-.gctl__opt:hover:not(.is-on)::after, .gctl__tools:hover:not(.is-on)::after,
-.gindex__more:hover::after { transform: scaleX(1); }
-.gctl__opt.is-on::after, .gctl__tools.is-on::after { content: none; }
-@media (prefers-reduced-motion: reduce) {
-  .gctl__opt::after, .gctl__tools::after, .gindex__more::after { transition: none; }
-}
 
 /* per-metric description transitions when filter changes */
 .panel__body--metric { transition: opacity 0.3s ease; }
@@ -313,7 +277,7 @@
 .gindex__score { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--light); opacity: 0.6; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .gindex__row { animation: none; } }
 /* index expand/collapse */
-/* item 10: floats — box removed, drawn-line hover (below) */
+/* item 10: floats — box removed. item 5b: hover is a direct color swap (below). */
 .gindex__more {
   position: relative;
   cursor: none; background: none; border: none;
@@ -512,10 +476,10 @@
 @media (min-width: 769px) { .ffilter-scrim { display: none; } }
 
 /* ── Forces hover-clarity — a small dark readout matching the canvas's own dark-field /
-   light-yellow language. Now that the in-circle abstract graph is gone, this tooltip is the
-   SOLE readout: name + total power, then three clearly labelled eco/mil/geo rows. These are new
-   declarations for an EXISTING selector — later same-specificity CSS wins per property, so this
-   overrides only the properties named below and leaves every other .sheet-chip rule intact. */
+   light-yellow language. A supplementary EXACT-value readout alongside the in-circle graph:
+   name + total power, then three clearly labelled eco/mil/geo rows. These are new declarations
+   for an EXISTING selector — later same-specificity CSS wins per property, so this overrides
+   only the properties named below and leaves every other .sheet-chip rule intact. */
 .sheet-chip {
   background: rgba(10, 6, 22, 0.94);
   color: var(--light);
@@ -525,4 +489,75 @@
 .sheet-chip__axes { border-top-color: rgba(244, 242, 236, 0.18); }
 .sheet-chip__axis-bar { background: rgba(244, 242, 236, 0.16); }
 @media (prefers-reduced-motion: reduce) { .sheet-chip { animation: none; } }
+
+/* ── Forces panel — general description (score view) ─────────────────────────────────────────
+   The single overall description, re-added above the eco/mil/geo breakdown so the score view
+   opens with a brief summary read before the per-axis detail. Visually distinct from the
+   breakdown rows beneath it (plain lead paragraph, no background/track — the .fparam rows are
+   the "data" register, this is the "read"). .fscore lives in overlays.css; this is a NEW class
+   (no clash), added here since forces.css owns this file's edits to the Forces panel. */
+.fscore__gen {
+  margin-top: 14px;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md);
+  line-height: 1.65; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82;
+}
+
+/* ── Forces panel — sentence-aware axis descriptions ──────────────────────────────────────────
+   truncateAxis() (Chrome.tsx) now cuts at a real sentence/clause boundary instead of a raw
+   character count, so the returned string is ALREADY a bounded, complete thought — no ellipsis
+   needed in the normal case. The old 2-line CSS clamp existed to match the old FIXED character
+   budget; keeping it would silently re-clip (and reintroduce the exact "unfinished" look this
+   fixes) whenever a real sentence runs a little long. New declarations for an EXISTING selector
+   (.fparam__desc-text, defined in overlays.css) — later same-specificity CSS wins per property,
+   so this only touches display/clamp/overflow and leaves font/colour/spacing there intact. */
+.fparam__desc-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* ── Forces panel — full-description button moved to the panel FOOTER (last element, after the
+   relations section) and now SWITCHES the panel body (score ⇄ narrative) instead of appending
+   inline below itself. A hairline top rule reads as a footer action, separate from whatever
+   content sits above it (score cluster or narrative, depending on the button's own state). New
+   declarations for an EXISTING class (.ffull-btn, in overlays.css) via the modifier below. */
+.ffull-btn--foot {
+  margin-top: 18px; padding: 14px 0 0; width: 100%;
+  border: none; border-top: 1px solid var(--line-yellow);
+  justify-content: center;
+}
+.ffull-btn--foot:hover { background: none; }
+
+/* ── Forces panel header — descriptor-chip tooltips open BELOW instead of above ────────────────
+   Root-cause of the remaining tooltip-overlap: the shared [data-hint] tooltip (overlays.css) is
+   anchored ABOVE its trigger by design, but .phead__descriptors sits only 12px below the title/
+   rank line — less than ANY real tooltip box needs (even a single short line + padding runs
+   ~28–35px tall). Measured via getComputedStyle: no amount of widening the tooltip's own
+   clearance/width (done in the owned overlays.css block) can clear that 12px gap — the box is
+   simply bigger than the gap, full stop. Pushing the chip row further from the title doesn't fix
+   it either (tried and measured): the tooltip is TIED to the chip's position while the title is
+   fixed, so moving the chip down moves the tooltip down too, deeper into the title, not clear of
+   it — it would take a ~78px gap to fully escape, which breaks the "cohesive cluster beneath the
+   title" the header is designed around. The one direction with real open room is DOWN — below the
+   descriptor row is the score cluster's headline (a bigger, useful gap) — so descriptor-chip
+   tooltips specifically are flipped to open below. Higher-specificity override of the shared
+   [data-hint] rule (only for chips inside .phead__descriptors), not a change to the shared rule. */
+.phead__descriptors .panelb__desc[data-hint]:hover::after,
+.phead__descriptors .panelb__desc[data-hint]:active::after {
+  bottom: auto; top: calc(100% + 10px);
+}
+
+/* ── Forces panel — axis-row label tooltips ALSO flip below ────────────────────────────────────
+   Same shape of bug, same fix, different list: .fparams stacks three ~90–110px-tall rows (label +
+   value + bar + description) only 10px apart (.fparams gap). A tooltip anchored ABOVE a row's own
+   label reaches up through that 10px gap and straight into the PREVIOUS row's description text —
+   confirmed by measuring: it landed inside the row-above's own box, not merely near it. Flipping
+   below lands the tooltip over the SAME row's own bar/description (its own content, briefly
+   covered while reading the hint for that very label — an ordinary, expected trade, not the
+   "obscures a DIFFERENT row" bug) instead of a sibling's. Higher-specificity override, not a
+   change to the shared [data-hint] rule. */
+.fparams .fparam__label[data-hint]:hover::after,
+.fparams .fparam__label[data-hint]:active::after {
+  bottom: auto; top: calc(100% + 10px);
+}
 

@@ -334,7 +334,7 @@ const DISPO_ICON: Record<string, IconName> = {
 // in a cohesive cluster beneath the title. Used by the forces detail panel.
 function PanelHeader({ detail }: { detail: EntityDetail }) {
   const descriptors: { icon: IconName; text: string; hint: string }[] = [
-    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף (כוח-על, אזורי, ביניים או קצה)' },
+    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף' },
     { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel, hint: 'שיוך — הגוש הגאו-פוליטי שאליו נוטה הגוף' },
     ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo, hint: 'עמדה — האוריינטציה האסטרטגית של הגוף' }] : []),
   ]
@@ -355,17 +355,50 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
   )
 }
 
-// Fixed character budget every axis description is truncated to, so all three category rows
-// occupy a consistent, uniform bounding box — no per-row expand. Chosen (~110 chars) so the
-// longest states (e.g. USA) land at ~2 lines while shorter states show in full; the single
-// "תיאור מלא" button below reveals the complete narrative for everyone.
-const AXIS_DESC_MAX = 110
+// Character budget every axis description is truncated toward — SENTENCE-aware, not a raw cut.
+// The real FORCES_DESCRIPTIONS axis texts run ~170–250 chars (checked against all 29 authored
+// states), so the old fixed 110-char cut always landed mid-sentence — every row read as an
+// "unfinished" fragment, which is exactly what users flagged. truncateAxis() now looks for a
+// genuine sentence/clause boundary (a period, '!', '?', or a stand-alone " — " clause break) at
+// or a little past the budget, and cuts THERE instead — so a truncated row is always a complete
+// thought, never a fragment. Only falls back to a raw word-boundary + ellipsis cut when no such
+// boundary exists within reach (verified: 0-of-87 real axis rows need the fallback).
+const AXIS_DESC_MAX = 150   // primary character budget
+const AXIS_DESC_MIN = 60    // ignore a break this early — too short to read as a real thought
+                            // (e.g. a short clause right before an em-dash)
+const AXIS_DESC_EXT = 60    // if nothing breaks within budget, look this much further before
+                            // giving up on a clean boundary and falling back to an ellipsis cut
+
+// Every index right after a sentence-ending punctuation mark, or right BEFORE a standalone
+// " — " clause dash (cutting before the dash — rather than after it — avoids a truncated line
+// trailing off on a bare dash with nothing following it).
+function sentenceBreaks(t: string): number[] {
+  const breaks: number[] = []
+  const punct = /[.!?]/g
+  let m: RegExpExecArray | null
+  while ((m = punct.exec(t))) breaks.push(m.index + 1)
+  const dash = /\s—\s/g
+  while ((m = dash.exec(t))) breaks.push(m.index)
+  return breaks.sort((a, b) => a - b)
+}
+// Normalize a cut to read as a closed sentence — add a period if the natural break (e.g. an
+// em-dash clause) didn't already end on terminal punctuation.
+function closeSentence(s: string): string {
+  const trimmed = s.trim()
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`
+}
 function truncateAxis(t?: string): string | undefined {
   if (!t) return undefined
   if (t.length <= AXIS_DESC_MAX) return t
+  const breaks = sentenceBreaks(t).filter((b) => b >= AXIS_DESC_MIN)
+  const within = breaks.filter((b) => b <= AXIS_DESC_MAX)
+  // prefer the LATEST break at/before budget (keep as much complete content as fits); failing
+  // that, the nearest break a little past budget — still a whole thought, just a touch longer.
+  const chosen = within.length > 0 ? within[within.length - 1] : breaks.find((b) => b <= AXIS_DESC_MAX + AXIS_DESC_EXT)
+  if (chosen) return closeSentence(t.slice(0, chosen))
   const cut = t.slice(0, AXIS_DESC_MAX)
   const lastSpace = cut.lastIndexOf(' ')
-  return `${(lastSpace > 70 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+  return `${(lastSpace > 60 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
 }
 
 // One scored axis row — icon + label + numeric value + bar + a fixed-length (truncated, no
@@ -387,13 +420,17 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
 }
 
 // The grading cluster — a PRIMARY headline score (large numeral, no gauge bar so it doesn't
-// read as a fourth category bar) followed by the three SUPPORTING eco/mil/geo category rows,
-// each with a fixed-length description, plus a backing note (if any) and the evidence link.
+// read as a fourth category bar), a brief GENERAL summary paragraph (the single overall read,
+// distinct from the per-axis breakdown beneath it), then the three SUPPORTING eco/mil/geo
+// category rows, each with a sentence-complete description, plus a backing note (if any) and
+// the evidence link. The same `general` text opens ForcesNarrative too (the fuller read) — that's
+// intentional: a brief intro here, the same line reprised as the narrative's opening there.
 function ForcesScore({ detail }: { detail: EntityDetail }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
   const notes = detail.powerNotes
+  const general = desc?.general ?? notes?.general
   return (
     <div className="fscore">
       <div className="fscore__headline" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
@@ -405,6 +442,7 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
           )}
         </span>
       </div>
+      {general && <p className="fscore__gen">{general}</p>}
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
@@ -431,14 +469,16 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
   )
 }
 
-// FORCES detail panel (forces view) — grouped header, the score/category cluster shown directly
-// (no tab chrome, no restated section titles), and a single small "תיאור מלא" button that opens
-// the complete narrative inline as a drill-down.
+// FORCES detail panel (forces view) — grouped header, then ONE of two full-panel-body states:
+// the score/category cluster (default) OR the complete narrative — toggled by a single button
+// pinned at the actual BOTTOM of the panel (after the relations section), whose label names
+// which way it switches. This REPLACES the previous "append the narrative inline below the
+// button" behaviour: the button now SWITCHES the panel's content area, it doesn't grow it.
 function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
-  const [showFull, setShowFull] = useState(false)
-  // a fresh selection collapses the drill-down — it's per-body, not sticky.
+  const [mode, setMode] = useState<'score' | 'full'>('score')
+  // a fresh selection resets to the score view — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
-  if (detail.id !== lastId) { setLastId(detail.id); setShowFull(false) }
+  if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
   const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
   return (
     // stopPropagation: ForcesView's outer .stage has an onClick that deselects the current body
@@ -449,17 +489,7 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
       <div className="fbody">
-        <ForcesScore detail={detail} />
-        {hasNarrative && (
-          <button
-            className={`ffull-btn${showFull ? ' is-open' : ''}`}
-            onClick={() => { sound.play('tab'); setShowFull((v) => !v) }}
-            aria-expanded={showFull}
-          >
-            {showFull ? 'סגירת התיאור המלא' : 'תיאור מלא'} <span aria-hidden>{showFull ? '▲' : '↗'}</span>
-          </button>
-        )}
-        {showFull && <ForcesNarrative detail={detail} />}
+        {mode === 'score' ? <ForcesScore detail={detail} /> : <ForcesNarrative detail={detail} />}
       </div>
       {detail.relations.length > 0 && (
         <div className="panel__rels">
@@ -470,6 +500,15 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
             ))}
           </div>
         </div>
+      )}
+      {hasNarrative && (
+        <button
+          className={`ffull-btn ffull-btn--foot${mode === 'full' ? ' is-open' : ''}`}
+          onClick={() => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }}
+          aria-expanded={mode === 'full'}
+        >
+          {mode === 'score' ? <>תיאור מלא <span aria-hidden>↗</span></> : <>בחזרה לציון <span aria-hidden>←</span></>}
+        </button>
       )}
     </aside>
   )

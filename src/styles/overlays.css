@@ -37,15 +37,27 @@
   border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 /* generic data-hint tooltip — anchored above the element, RTL-aware.
-   :active makes it reachable on touch (press-and-hold) where there is no hover. */
+   :active makes it reachable on touch (press-and-hold) where there is no hover.
+   FIX (measured, not just eyeballed): a small trigger (a wrapped descriptor chip, a rank badge)
+   can sit only 6–12px below a sibling row (e.g. .phead__descriptors's flex-wrap gap). Two things
+   compounded the overlap this caused: (1) only 7px of clearance above the trigger — far less than
+   a 2–3 line box's own height; (2) the box's WIDTH was silently shrink-to-fit against the tiny
+   TRIGGER itself (an absolutely-positioned box with only one inset set takes its available width
+   from its own containing block — here the small chip/badge, not the wider panel), so `max-width`
+   never actually bound it and text wrapped to 3 narrow lines instead of 1–2 — verified via
+   getComputedStyle(el,'::after').width reporting the min-width floor on every trigger regardless
+   of hint length. `min-width` IS what was binding, so raising THAT (rather than max-width) is
+   what actually widens the box. Fixed by: a real clearance (7px → 18px) AND a wider effective
+   floor (140px → 224px, well past the small triggers' own footprint) so most hints resolve to
+   1–2 short lines instead of 3, cutting typical box height enough to clear the row above. */
 [data-hint] { position: relative; }
 [data-hint]:hover::after,
 [data-hint]:active::after {
   content: attr(data-hint);
-  position: absolute; bottom: calc(100% + 7px); inset-inline-start: 0; z-index: 200;
-  min-width: 160px; max-width: 240px; padding: 7px 10px;
+  position: absolute; bottom: calc(100% + 18px); inset-inline-start: 0; z-index: 200;
+  min-width: 224px; max-width: 260px; padding: 7px 10px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px;
-  line-height: 1.5; letter-spacing: 0.04em;
+  line-height: 1.48; letter-spacing: 0.04em;
   white-space: normal; text-align: right; pointer-events: none;
 }
 

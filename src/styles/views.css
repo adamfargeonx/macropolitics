@@ -353,8 +353,12 @@
 .home-eq > span { display: inline-block; transform: translateY(110%); transition: transform 0.7s var(--ease-out-expo); }
 /* formula reveals only on orbit hover — a discovery moment, not automatic */
 .home--orbit-hover .home-eq > span { transform: translateY(0); transition-delay: 0.05s; }
-/* orbit contracts slightly on hover — gravitational pull inward */
-.home--orbit-hover .home-orbit { transform: translate(-50%, -50%) scale(0.92); }
+/* orbit brightens + glows on hover — consistent with the closed-state core hover (border
+   brightening + box-shadow bloom), never a scale/contract */
+.home--orbit-hover .home-orbit {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 34px rgba(251, 255, 0, 0.3), 0 0 12px rgba(251, 255, 0, 0.22);
+}
 @media (prefers-reduced-motion: reduce) { .home-eq > span { transition: none; transform: none; } }
 
 /* nav anchored around the ring; subtly breathing, mask-revealed */
@@ -524,6 +528,19 @@
 @media (prefers-reduced-motion: reduce) {
   .nav-rail--zoom-up, .nav-rail--bloom, .nav-rail--collapse, .nav-rail--mask,
   .nav-rail--out-right, .nav-rail--out-left, .nav-rail--in-left, .nav-rail--in-right { animation: none; }
+}
+
+/* ── Page → home exit: fade the chrome + side-panel content OUT over the same window the canvas
+   cascade uses (App.tsx's EXIT_MS), so neither hard-cuts the instant the DOM swaps to home. Both
+   sit outside .nav-rail (chrome + the panel-root portal target), so without this they held full
+   brightness the whole cascade and then vanished in a single frame — the actual "crazy jump",
+   verified via captured video, not the ring/canvas motion itself. ── */
+.chrome-exit { transition: opacity 0.4s ease; }
+.chrome-exit--out { opacity: 0; transition: opacity 0.56s ease; pointer-events: none; }
+.panel-root { transition: opacity 0.4s ease; }
+.panel-root--exiting { opacity: 0; transition: opacity 0.56s ease; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .chrome-exit, .chrome-exit--out, .panel-root, .panel-root--exiting { transition: none; }
 }
 
 /* text reveal — a clip-mask rise applied sitewide (the editorial reveal, no dissolve) */

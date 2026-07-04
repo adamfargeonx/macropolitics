@@ -8,9 +8,12 @@
 // wheel is DISCRETE: each gesture steps a focus index through the states sorted by the active metric
 // (step 0 = the whole field, step 1 = the #1 power, step 2 = #2 …), with a cooldown so one continuous
 // scroll can't blow through several states. The focused state reads as THE subject (the same bloom +
-// solid-yellow-fill treatment a hovered/selected body gets) and eases toward centre, while every OTHER
-// state recedes outward and dims. Per-body spring-eased factors (recede/pull) carry the motion. A
-// per-state editorial annotation (rank · score · tier · bloc + a one-line note) rides the focus.
+// solid-yellow-fill treatment a hovered/selected body gets); a real CAMERA (pan + zoom, mirroring
+// engine.ts's OrbitalField) eases so that state's true position lands at the canvas centre — the
+// FIELD moves, not the body — while every other state simply rides along at its true relative
+// position (naturally drifting outward as the camera zooms in) and dims. A per-state editorial
+// annotation (rank · score · tier · bloc + a one-line note) rides the focus. Escape or a click on
+// empty canvas exits the tour and eases the camera back to the default identity frame.
 //
 // Architecture mirrors engine.ts: a class drives requestAnimationFrame with devicePixelRatio handling
 // via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
@@ -48,10 +51,16 @@ const radiusFrac = (power: number) =>
 const EXIT_SPREAD = 360
 const EXIT_BODY_DUR = 300
 
-// ── Scroll tour — how far un-focused states recede, and how far the focused state is drawn in ──
-const RECEDE_SPREAD = 0.34  // un-focused states push this fraction further out from centre
-const RECEDE_DIM = 0.7      // …and dim by up to this much
-const CENTER_PULL = 0.32    // the focused state eases this fraction of the way toward centre
+// ── Scroll tour — how far un-focused states dim (a lens effect; POSITION is now the camera's job,
+// not a per-body hack — see the pan/zoom camera below) ──
+const RECEDE_DIM = 0.7
+
+// ── Scroll-tour CAMERA — pan + zoom, mirroring engine.ts's OrbitalField camera exactly: bodies keep
+// their true layout position; the camera eases so the focused body's position lands at canvas centre.
+// A gentle push-in (not a dramatic close-up) so the rest of the field stays legibly in frame.
+const CAM_FOCUS_ZOOM = 1.22
+const CAM_DUR = 700 // ms — camera pan/zoom tween duration, expo-out (matches engine.ts's CAM_DUR feel)
+const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t))
 
 // Mobile only: the filter sheet's tier-focus list picks a Kind; map each tier stage (1..5, matching
 // TIER_ANNOTS order) to its Kind so a tier pick focuses that tier's leading (highest-ranked) state.
@@ -188,23 +197,32 @@ class GravityWell {
   private mass: Float32Array
   private massTarget: Float32Array
   private metricAlpha: Float32Array
-  // scroll-tour eased factors: recede = 0 (in place) → 1 (pushed out + dimmed) for every state that
-  // is NOT the current focus; pull = 0 → 1 for the focused state as it eases toward centre. Both are
-  // integrated per-frame (premium spring feel), so focus moving A→B cross-fades the two positions.
+  // live 0–10 eco/mil/geo axis scores per body — feeds the in-circle axis graph on the focused
+  // body (setField() populates these from the same `grav` map the component already has).
+  private axisEco: Float32Array
+  private axisMil: Float32Array
+  private axisGeo: Float32Array
+  // scroll-tour recede: 0 (in place) → 1 for every state that is NOT the current focus — a LENS
+  // effect only now (dims via RECEDE_DIM in the draw loop). Position/centring is the camera's job
+  // (see camPan/camZoom below), not a per-body pull hack.
   private recede: Float32Array
-  private pull: Float32Array
   // hoverProg: per-body 0→1 reveal value, eased in the draw loop (NOT a CSS transition).
   // Drives ONLY the grow-to-readable-floor on the hovered/selected body (the fill turns solid
   // yellow immediately via isFocus — no hollowing, no abstract signature any more).
   private hoverProg: Float32Array
-  // labelHide: per-body 0 (shown) → 1 (hidden), eased in the draw loop — when ANY body is
-  // focused, every OTHER body's name label animates OUT (scale-down + drift + fade), not a plain
-  // opacity cut. Same per-frame eased pattern as hoverProg, just driving the label instead.
-  private labelHide: Float32Array
   // shared fade-in curve for in-circle name labels (set once per frame, read per body)
   private labelIntro = 0
   // indices that carry an on-canvas name label this frame (top-N by active metric + focus)
   private labelSet = new Set<number>()
+
+  // ── Scroll-tour camera (pan + zoom) — mirrors engine.ts's OrbitalField camera. Bodies are laid
+  // out at fixed (nx,ny) positions; camPan/camZoom is a SEPARATE transform applied on top when
+  // projecting to screen, so centring the focused body moves the FRAME, never the body's own
+  // world position. `cam` is the in-flight tween (null once settled).
+  private camZoom = 1
+  private camPan = { x: 0, y: 0 }
+  private cam: { fromZoom: number; toZoom: number; fromPan: { x: number; y: number }; toPan: { x: number; y: number }; t0: number; dur: number } | null = null
+  onTourExit?: () => void
 
   frozen = false
   private frozenAt = 0
@@ -255,10 +273,11 @@ class GravityWell {
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.metricAlpha = new Float32Array(n).fill(1)
+    this.axisEco = new Float32Array(n)
+    this.axisMil = new Float32Array(n)
+    this.axisGeo = new Float32Array(n)
     this.hoverProg = new Float32Array(n)
-    this.labelHide = new Float32Array(n)
     this.recede = new Float32Array(n)
-    this.pull = new Float32Array(n)
     this.exitDelay = new Float32Array(n)
     this.exitProg = new Float32Array(n)
 
@@ -281,6 +300,13 @@ class GravityWell {
     this.canvas.style.width = `${this.w}px`
     this.canvas.style.height = `${this.h}px`
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+    // the canvas centre + every body's base screen position depend on w/h — if a tour focus is
+    // active, snap (no animation) the camera to the recomputed target rather than let it drift
+    // from stale geometry until the next focus change re-tweens it.
+    if (this.scrollFocusIdx >= 0) {
+      const t = this.cameraTargetFor(this.scrollFocusIdx)
+      this.camZoom = t.zoom; this.camPan = t.pan; this.cam = null
+    }
   }
 
   start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
@@ -296,12 +322,55 @@ class GravityWell {
       this.massTarget[i] = metric
       // size carries the story; alpha is a gentle assist so weak-in-this-lens bodies recede
       this.metricAlpha[i] = order === 'total' ? 1 : Math.max(0.45, metric / 100)
+      this.axisEco[i] = g?.eco ?? 0
+      this.axisMil[i] = g?.mil ?? 0
+      this.axisGeo[i] = g?.geo ?? 0
     }
   }
 
   // Set the tour focus (called from the wheel step / mobile tier pick in the component). -1 clears
-  // the focus (whole field visible). The recede/pull easing in the frame loop carries the motion.
-  setScrollFocus(idx: number) { this.scrollFocusIdx = idx }
+  // the focus (whole field visible). Eases the CAMERA (pan+zoom) toward centring the focused body —
+  // bodies themselves never move; the recede easing in the frame loop still drives the dim-lens.
+  setScrollFocus(idx: number) {
+    if (idx === this.scrollFocusIdx) return
+    this.scrollFocusIdx = idx
+    const t = this.cameraTargetFor(idx)
+    this.tweenCamera(t.zoom, t.pan)
+  }
+
+  // Whole-field screen position a body would sit at with NO camera applied — the camera transform
+  // (camPan/camZoom, applied in the frame loop) is a separate layer on top of this base layout.
+  private cameraTargetFor(idx: number): { zoom: number; pan: { x: number; y: number } } {
+    const [ccx, ccy] = this.bodyToScreen(0.5, 0.5)
+    if (idx < 0 || !BODIES[idx]) return { zoom: 1, pan: { x: 0, y: 0 } }
+    const [rawX, rawY] = this.bodyToScreen(BODIES[idx].nx, BODIES[idx].ny)
+    const z = CAM_FOCUS_ZOOM
+    return { zoom: z, pan: { x: -(rawX - ccx) * z, y: -(rawY - ccy) * z } }
+  }
+
+  // Start a smooth pan+zoom tween toward a target camera state (expo-out, ~700ms) — same shape as
+  // engine.ts's OrbitalField.tweenCamera.
+  private tweenCamera(toZoom: number, toPan: { x: number; y: number }) {
+    this.cam = {
+      fromZoom: this.camZoom, toZoom,
+      fromPan: { x: this.camPan.x, y: this.camPan.y }, toPan,
+      t0: performance.now(), dur: this.reduced ? 0 : CAM_DUR,
+    }
+  }
+
+  // Advance the in-flight camera tween, if any.
+  private stepCamera(now: number) {
+    if (!this.cam) return
+    const c = this.cam
+    const k = c.dur <= 0 ? 1 : Math.max(0, Math.min(1, (now - c.t0) / c.dur))
+    const e = easeOutExpo(k)
+    this.camZoom = c.fromZoom + (c.toZoom - c.fromZoom) * e
+    this.camPan.x = c.fromPan.x + (c.toPan.x - c.fromPan.x) * e
+    this.camPan.y = c.fromPan.y + (c.toPan.y - c.fromPan.y) * e
+    if (k >= 1) this.cam = null
+  }
+
+  isTourActive(): boolean { return this.scrollFocusIdx >= 0 }
 
   // ── Play the page-exit cascade (leaving to home) ────────────────────────────
   // Each body leaves individually, offset by a per-body delay spread over EXIT_SPREAD in RANK order
@@ -354,9 +423,15 @@ class GravityWell {
       const next = this.selectedIdx === this.hoveredIdx ? null : this.hoveredIdx
       this.selectedIdx = next
       this.onSelect?.(next)
-    } else if (this.selectedIdx !== null) {
-      this.selectedIdx = null
-      this.onSelect?.(null)
+    } else {
+      if (this.selectedIdx !== null) {
+        this.selectedIdx = null
+        this.onSelect?.(null)
+      }
+      // click/tap on EMPTY canvas space (no body hit) while the scroll tour has an active focus →
+      // exit the tour (the component clears the focus index; the resulting setScrollFocus(-1)
+      // eases the camera back to the default frame).
+      if (this.scrollFocusIdx >= 0) this.onTourExit?.()
     }
     // touch has no pointerleave — clear the transient hover so no stale chip sticks to a
     // non-selected body (the selected body's chip/gauge is driven by selectedIdx now)
@@ -372,7 +447,9 @@ class GravityWell {
     const padFloor = this.narrow ? 22 : 18
     for (let i = 0; i < BODIES.length; i++) {
       const d = Math.hypot(this.bodyScreenX[i] - this.mouse.x, this.bodyScreenY[i] - this.mouse.y)
-      const pad = Math.max(this.bodyR(this.mass[i]) + 10, padFloor)
+      // pad scales with the camera zoom so hit-testing matches what's actually drawn on screen
+      // while the tour camera is pushed in on a focused body.
+      const pad = Math.max(this.bodyR(this.mass[i]) * this.camZoom + 10, padFloor)
       if (d < pad && d < bestD) { bestD = d; best = i }
     }
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
@@ -406,34 +483,31 @@ class GravityWell {
     const scrollFocus = this.scrollFocusIdx
     const tourActive = scrollFocus >= 0
 
-    // ── Ease the scroll-tour factors, then place bodies ────────────────────────
-    // Every state that is NOT the current tour focus eases its `recede` toward 1 (pushed outward +
-    // dimmed); the focused state eases its `pull` toward 1 (drawn toward centre). reduced-motion snaps.
+    // Advance the camera tween (pan+zoom), THEN project every body's true base position through
+    // it — this is what makes the tour "the camera moves, not the body": every body (including the
+    // focused one) keeps its real (nx,ny)-derived layout position; camPan/camZoom is one shared
+    // transform applied uniformly, so un-focused bodies drift outward as a natural side-effect of
+    // the camera pushing in on the focused one, exactly like a real lens.
+    this.stepCamera(now)
     const [ccx, ccy] = this.bodyToScreen(0.5, 0.5)
     for (let i = 0; i < BODIES.length; i++) {
       const isTourFocus = i === scrollFocus
       const recTarget = tourActive && !isTourFocus ? 1 : 0
-      const pullTarget = isTourFocus ? 1 : 0
       if (this.reduced) {
         this.recede[i] = recTarget
-        this.pull[i] = pullTarget
       } else {
         this.recede[i] += (recTarget - this.recede[i]) * (recTarget > this.recede[i] ? 0.08 : 0.06)
-        this.pull[i] += (pullTarget - this.pull[i]) * (pullTarget > this.pull[i] ? 0.09 : 0.07)
       }
 
-      let [sx, sy] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
-      const pull = this.pull[i]
-      if (pull > 0.001) { sx += (ccx - sx) * pull * CENTER_PULL; sy += (ccy - sy) * pull * CENTER_PULL }
-      const rec = this.recede[i]
-      if (rec > 0.001) {
-        const spread = 1 + rec * RECEDE_SPREAD
-        sx = ccx + (sx - ccx) * spread
-        sy = ccy + (sy - ccy) * spread
-      }
-      this.bodyScreenX[i] = sx
-      this.bodyScreenY[i] = sy
+      const [rawX, rawY] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
+      this.bodyScreenX[i] = ccx + this.camPan.x + (rawX - ccx) * this.camZoom
+      this.bodyScreenY[i] = ccy + this.camPan.y + (rawY - ccy) * this.camZoom
     }
+    // Re-resolve hover against the JUST-updated positions — while the tour camera is panning/
+    // zooming, bodies drift under a mouse that hasn't itself moved; without this a stale hover
+    // can keep pointing at whatever body happened to be under the cursor before the camera moved
+    // it away, showing two "focused" bodies at once (the tour's real focus + a stale hover ghost).
+    if (this.mouse.x > -9000) this.hitTest()
 
     // ── Ease focus bloom + live mass ──────────────────────────────────────────
     for (let i = 0; i < BODIES.length; i++) {
@@ -459,19 +533,6 @@ class GravityWell {
       } else {
         const hrate = hoverTarget > this.hoverProg[i] ? 0.09 : 0.07
         this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
-      }
-
-      // ── Label hide progress (0→1) ─────────────────────────────────────────
-      // The instant ANY body is focused, every OTHER body's name label animates OUT
-      // (fade + scale-down + upward drift) rather than merely dropping opacity. A slightly
-      // quicker leave than return gives a ~200–300ms motion. reduced-motion: snap.
-      const anyFocus = this.hoveredIdx !== null || this.selectedIdx !== null || tourActive
-      const hideTarget = (anyFocus && !(isHov || isSel || isScroll)) ? 1 : 0
-      if (this.reduced) {
-        this.labelHide[i] = hideTarget
-      } else {
-        const lrate = hideTarget > this.labelHide[i] ? 0.2 : 0.16
-        this.labelHide[i] += (hideTarget - this.labelHide[i]) * lrate
       }
     }
 
@@ -533,6 +594,9 @@ class GravityWell {
     }
     // fold in the per-body exit shrink last, after any hover-floor grow
     rr *= exitScale
+    // the tour camera's zoom scales apparent size too (a real lens push-in enlarges everything it
+    // frames, not just position) — applied uniformly so every body stays proportionally consistent
+    rr *= this.camZoom
 
     // Alpha = the lens (metric) filter, dimmed further as this body recedes in the scroll tour so
     // the focused state stands alone. The focused body itself is always fully opaque.
@@ -560,16 +624,20 @@ class GravityWell {
         ctx.beginPath(); ctx.arc(sx, sy, rr + 8 + pp * 40, 0, TAU); ctx.stroke()
       }
 
-      // Solid disk. The hovered/selected body fills SOLID YELLOW (the accent = "this is the
-      // subject"); every other body keeps the near-white fill. No hollowing, no in-circle graph.
+      // Solid disk. The hovered/selected/tour-focused body fills SOLID YELLOW (the accent = "this
+      // is the subject"); every other body keeps the near-white fill.
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
       ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
       ctx.fill()
 
+      // In-circle axis graph — ONLY on the focused (solid yellow) body: three concentric value-
+      // arcs in dark ink, legible on the yellow fill exactly like the name label below.
+      if (isFocus) this.drawAxisGraph(sx, sy, rr, i, bodyA * tAlpha)
+
       // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
-      // "ledger" set (top-N by active metric + whatever's focused) attempts a label; the focused
-      // body keeps its own, while every other label animates out (labelHide) once focus begins.
-      if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha, this.labelHide[i])
+      // "ledger" set (top-N by active metric + whatever's focused) attempts a label. Every body's
+      // OWN label stays visible regardless of what else is hovered/focused (no hover-hide hack).
+      if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha)
 
       // Ring stroke: the focused body's rim warms to yellow; others stay a faint light.
       const ringCol = isFocus ? YELLOW : LIGHT
@@ -581,9 +649,10 @@ class GravityWell {
 
   // In-circle name label — the state name centred INSIDE the body, like a real map/bubble-chart
   // label, instead of floating text below it. Font scales to the body radius; if the name still
-  // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim.
-  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number, hide: number) {
-    if (alpha <= 0.01 || hide > 0.995) return
+  // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim. Always
+  // shown (subject to its own fade-in intro) regardless of which body is hovered/focused elsewhere.
+  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number) {
+    if (alpha <= 0.01) return
     const b = BODIES[i]
     const ctx = this.ctx
     const MIN_PX = 9
@@ -603,13 +672,78 @@ class GravityWell {
       width = ctx.measureText(b.he).width
     }
     if (width > maxWidth || rr < 16) { ctx.restore(); return }
-    // Animate OUT: fade, shrink and drift upward as `hide` eases 0→1 (motion, not a plain fade).
-    ctx.globalAlpha = alpha * this.labelIntro * (1 - hide)
-    ctx.translate(sx, sy - hide * rr * 0.45)
-    const s = 1 - hide * 0.4
-    ctx.scale(s, s)
+    ctx.globalAlpha = alpha * this.labelIntro
     ctx.fillStyle = `rgb(${DARK})`
-    ctx.fillText(b.he, 0, 0)
+    ctx.fillText(b.he, sx, sy)
+    ctx.restore()
+  }
+
+  // ── In-circle axis graph (Task: "bring back the inner circular graphs, but clear this time") ──
+  // Three concentric value-arcs — eco (outer) · mil (middle) · geo (inner), each 0–10 — drawn in
+  // dark ink on top of the focused body's solid yellow fill (same legibility trick as the name
+  // label). Designed to be self-evidently readable WITHOUT the tooltip:
+  //   · a faint full-circle TRACK marks each ring's 0–10 range;
+  //   · the VALUE ARC sweeps clockwise from 12 o'clock, so more sweep = more score, at a glance;
+  //   · a tiny fixed one-letter tick (כ/צ/ג) sits just outside each ring's own 12-o'clock start —
+  //     baked-in legend that ties a specific ring to a specific axis, not a floating key elsewhere;
+  //   · a small dot marks the arc's live tip, with the exact numeral sitting just OUTSIDE the ring
+  //     at that same angle (not on top of the stroke itself — an earlier pass drew the numeral
+  //     right on the arc's rounded tip and it visually fused into an unreadable blob; sitting
+  //     clear of the ring reads as a clean value flag instead).
+  // Skipped below a legibility floor (rr), same spirit as the name label's own gate.
+  private drawAxisGraph(sx: number, sy: number, rr: number, i: number, alpha: number) {
+    if (rr < 34 || alpha <= 0.01) return
+    const ctx = this.ctx
+    const AX: { v: number; k: string }[] = [
+      { v: this.axisEco[i], k: 'כ' },
+      { v: this.axisMil[i], k: 'צ' },
+      { v: this.axisGeo[i], k: 'ג' },
+    ]
+    const FRACS = [0.72, 0.55, 0.38]
+    ctx.save()
+    ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.clip()
+    const tickFont = Math.max(7, Math.min(11, rr * 0.13))
+    const numFont = Math.max(8, Math.min(12, rr * 0.13))
+    const start = -Math.PI / 2
+    AX.forEach((ax, k) => {
+      const ringR = rr * FRACS[k]
+      const lw = Math.max(1.2, Math.min(3, rr * 0.045))
+      const frac = Math.max(0, Math.min(1, ax.v / 10))
+      const end = start + frac * TAU
+      // track — the ring's full 0–10 range, faint
+      ctx.strokeStyle = `rgba(${DARK},${0.16 * alpha})`
+      ctx.lineWidth = lw
+      ctx.beginPath(); ctx.arc(sx, sy, ringR, 0, TAU); ctx.stroke()
+      // value arc — sweeps clockwise from 12 o'clock. Flat (butt) caps — a clean line whose tip
+      // doesn't balloon into a blob the numeral would otherwise have to sit on top of.
+      if (frac > 0.003) {
+        ctx.strokeStyle = `rgba(${DARK},${0.88 * alpha})`
+        ctx.lineWidth = lw
+        ctx.lineCap = 'butt'
+        ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
+        // small tip dot — a clear "you are here" marker at the arc's live end
+        ctx.fillStyle = `rgba(${DARK},${0.92 * alpha})`
+        ctx.beginPath(); ctx.arc(sx + Math.cos(end) * ringR, sy + Math.sin(end) * ringR, lw * 0.62, 0, TAU); ctx.fill()
+      }
+      // fixed one-letter tick — baked-in "which ring is which axis" legend
+      if (rr >= 40) {
+        ctx.font = `700 ${tickFont}px 'Tel Aviv Brutalist', sans-serif`
+        ctx.fillStyle = `rgba(${DARK},${0.72 * alpha})`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.fillText(ax.k, sx, sy - ringR - tickFont * 0.9)
+      }
+      // live numeral — just OUTSIDE the ring at the arc's tip angle, clear of the stroke/dot.
+      // Skipped for a near-zero value (its tip sits right at the tick's own position).
+      if (rr >= 50 && frac > 0.05) {
+        const numR = ringR + lw + numFont * 0.62
+        const nx = sx + Math.cos(end) * numR
+        const ny = sy + Math.sin(end) * numR
+        ctx.font = `700 ${numFont}px 'Tel Aviv Brutalist', sans-serif`
+        ctx.fillStyle = `rgba(${DARK},${0.95 * alpha})`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.fillText(String(Math.round(ax.v)), nx, ny)
+      }
+    })
     ctx.restore()
   }
 
@@ -617,7 +751,7 @@ class GravityWell {
   getBodyScreenPos(idx: number): { x: number; y: number } {
     return { x: this.bodyScreenX[idx] ?? 0, y: this.bodyScreenY[idx] ?? 0 }
   }
-  getBodyR(idx: number): number { return this.bodyR(this.mass[idx] ?? 0) }
+  getBodyR(idx: number): number { return this.bodyR(this.mass[idx] ?? 0) * this.camZoom }
   getSelectedIdx(): number | null { return this.selectedIdx }
   selectById(id: string | null) {
     this.selectedIdx = id == null ? null : (BODIES.findIndex((b) => b.id === id) ?? -1)
@@ -713,6 +847,28 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     window.addEventListener('mp-freeze', onFreeze)
     window.addEventListener('mp-unfreeze', onUnfreeze)
     window.addEventListener('mp-exit', onExit)
+
+    // ── Escape from the tour ─────────────────────────────────────────────────────────────────
+    // exitTour(): the one place that clears the tour step back to 0 (wellRef's setScrollFocus(-1)
+    // effect then eases the camera back to the default identity frame — see the tourStep effect
+    // below). Shared by both exits: clicking empty canvas (well.onTourExit, wired below) and Escape.
+    const exitTour = () => {
+      if (wheelStepRef.current === 0) return
+      wheelStepRef.current = 0
+      setWheelStep(0)
+    }
+    well.onTourExit = exitTour
+    // Escape is ALSO handled at the App level (closes to the homepage) — App.tsx's listener is a
+    // plain bubble-phase `window.addEventListener('keydown', …)`. Registering ours with capture:true
+    // means ours runs FIRST; when a tour focus is active we stopPropagation so only the tour exits
+    // (App's handler never sees the event). When no tour is active we do nothing and let it bubble
+    // through to App as normal (Escape → home still works everywhere else).
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape' || !well.isTourActive()) return
+      ev.stopPropagation()
+      exitTour()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
     well.start_()
 
     // ── Wheel scroll: a DISCRETE stepped tour down the ranking, not continuous free-scroll ──────
@@ -782,6 +938,7 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
       window.removeEventListener('mp-freeze', onFreeze)
       window.removeEventListener('mp-unfreeze', onUnfreeze)
       window.removeEventListener('mp-exit', onExit)
+      window.removeEventListener('keydown', onKeyDown, true)
       stage.removeEventListener('wheel', onWheel)
       stage.removeEventListener('touchstart', onTouchStart)
       stage.removeEventListener('touchmove', onTouchMove)
@@ -806,8 +963,9 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
 
   const chipGrav = chip ? grav.get(chip.id) : undefined
   const chipScore = Math.round(chipGrav?.power ?? 0)
-  // labeled 0–10 axis rows for the tooltip — the single, unambiguous readout now that the
-  // in-circle abstract graph is gone. Each row: Hebrew label · tiny bar · value.
+  // labeled 0–10 axis rows for the tooltip — a supplementary, exact-value readout alongside the
+  // in-circle graph (which carries the same eco/mil/geo read visually on the body itself).
+  // Each row: Hebrew label · tiny bar · value.
   const chipAxes: { k: string; v: number }[] = chipGrav
     ? [
         { k: 'כלכלי', v: chipGrav.eco },
@@ -829,10 +987,10 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
 
-      {/* ── Focus chip: the SINGLE, self-explanatory readout for the focused body now that the
-          in-circle abstract graph is gone. Name + total גירה (power) score, then three clearly
-          LABELLED eco/mil/geo rows — Hebrew label · tiny 0–10 bar · value — so it is unambiguous
-          what each number is. Real DOM text (no canvas font-fitting). ── */}
+      {/* ── Focus chip: a supplementary exact-value readout alongside the in-circle graph. Name +
+          total גירה (power) score, then three clearly LABELLED eco/mil/geo rows — Hebrew label ·
+          tiny 0–10 bar · value — so the precise numbers are always one glance away, in real DOM
+          text (no canvas font-fitting), even though the graph itself is already self-explanatory. ── */}
       {chip && (
         <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
           <span className="sheet-chip__head">
@@ -852,15 +1010,6 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
               ))}
             </span>
           )}
-        </div>
-      )}
-
-      {/* ── Scroll CTA (before the tour begins) — mouse only; coarse touch drives focus from the
-          mobile filter sheet's tier list, so it gets no wheel hint ── */}
-      {tourStep === 0 && !coarse && (
-        <div className="sheet-scroll-cta" aria-hidden>
-          <span className="sheet-scroll-cta__arrow">↓</span>
-          <span className="sheet-scroll-cta__text">גללו כדי לפגוש כל כוח בתורו</span>
         </div>
       )}
 
