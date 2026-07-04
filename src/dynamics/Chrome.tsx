@@ -242,42 +242,48 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
         </div>
       </header>
       {f && (
-        <button
-          className={`dcard__fingerprint${showKey ? ' is-open' : ''}`}
-          onClick={() => { sound.play('tab'); setShowKey((v) => !v) }}
-          aria-expanded={showKey}
-          aria-label={showKey ? 'הסתרת פירוש הסמלים' : 'מה מודדים הסמלים?'}
-        >
-          <div className="dcard__bars">
-            {(['eco', 'mil', 'geo'] as const).map((k) => (
-              <div key={k} className="dcard__bar">
-                <Icon name={k} className="dcard__bar-icon" />
-                <span className="dcard__bar-track"><i style={{ width: `${f[k] * 10}%` }} /></span>
-                <span className="dcard__bar-v">{f[k]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="dcard__score">
-            <b>{score}</b><span>כוח משיכה</span>
-          </div>
-          <span className="dcard__fp-cue" aria-hidden>{showKey ? '▲ פירוש הסמלים' : '▾ מה מודדים הסמלים?'}</span>
-        </button>
-      )}
-      {f && showKey && (
-        <div className="dcard__axkey">
-          {AXIS_KEY.map((ax) => (
-            <div key={ax.k} className="dcard__axkey-row">
-              <Icon name={ax.k} className="dcard__axkey-icon" />
-              <span className="dcard__axkey-l">{ax.label}</span>
-              <span className="dcard__axkey-v">{f[ax.k]}</span>
-              <p className="dcard__axkey-d">{ax.desc}</p>
+        // The toggle button (bars + score) and the revealed axis key are ONE group — a single
+        // shared surface (.dcard__power owns the background/border) so they read as one bounded
+        // container, not two stacked boxes. is-open lives on the wrapper so the group's border
+        // stays highlighted while expanded, not just on hover.
+        <div className={`dcard__power${showKey ? ' is-open' : ''}`}>
+          <button
+            className="dcard__fingerprint"
+            onClick={() => { sound.play('tab'); setShowKey((v) => !v) }}
+            aria-expanded={showKey}
+            aria-label={showKey ? 'הסתרת פירוש הסמלים' : 'מה מודדים הסמלים?'}
+          >
+            <div className="dcard__bars">
+              {(['eco', 'mil', 'geo'] as const).map((k) => (
+                <div key={k} className="dcard__bar">
+                  <Icon name={k} className="dcard__bar-icon" />
+                  <span className="dcard__bar-track"><i style={{ width: `${f[k] * 10}%` }} /></span>
+                  <span className="dcard__bar-v">{f[k]}</span>
+                </div>
+              ))}
             </div>
-          ))}
+            <div className="dcard__score">
+              <b>{score}</b><span>כוח משיכה</span>
+            </div>
+            <span className="dcard__fp-cue" aria-hidden>{showKey ? '▲ פירוש הסמלים' : '▾ מה מודדים הסמלים?'}</span>
+          </button>
+          {showKey && (
+            <div className="dcard__axkey">
+              {AXIS_KEY.map((ax) => (
+                <div key={ax.k} className="dcard__axkey-row">
+                  <Icon name={ax.k} className="dcard__axkey-icon" />
+                  <span className="dcard__axkey-l">{ax.label}</span>
+                  <span className="dcard__axkey-v">{f[ax.k]}</span>
+                  <p className="dcard__axkey-d">{ax.desc}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
         <div className="dcard__orbit">
-          <span className="dcard__orbit-h">מיקום מסלולי</span>
+          <span className="dcard__orbit-h"><Icon name="orbit" className="dcard__orbit-icon" />מיקום מסלולי</span>
           {detail.parentHe && (
             <div className="dcard__orbit-row">
               <span className="dcard__orbit-k">במסלול סביב</span>
@@ -300,7 +306,7 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       )}
       {top.length > 0 && (
         <div className="dcard__ties">
-          <span className="dcard__ties-h">קשרים מגדירים</span>
+          <span className="dcard__ties-h"><Icon name="relations" className="dcard__ties-icon" />קשרים מגדירים</span>
           {top.map(({ other, dom }) => (
             <button key={other} className="dcard__tie" onClick={() => onRelSelect?.(other)}>
               <span className="dcard__tie-name">{heById.get(other) ?? other}</span>

@@ -33,6 +33,12 @@ const INSIGHT_ZOOM = 1.7 // zoom at which the focused-body insight layer begins 
 const INSIGHT_FADE = 0.55 // zoom span over which it fades fully in (→ 2.25)
 const PROX_BASE = 128 // proximity caption base threshold (screen px, before the two radii)
 const PROX_FADE = 78 // caption eases fully in over the last PROX_FADE px of approach
+// Proximity captions are a reward for drilling in/zooming — never an ambient always-on feature —
+// so they're ALSO gated on the live zoom level (see drawDepthLayer), independent of whether a body
+// happens to be individually focused. Below PROX_ZOOM_GATE (just above DEFAULT_ZOOM) they're fully
+// shut; they fade open over the following PROX_ZOOM_FADE of zoom.
+const PROX_ZOOM_GATE = 1.05
+const PROX_ZOOM_FADE = 0.45 // → fully open by zoom 1.5
 const POLE_HE: Record<'t' | 'f' | 'h', string> = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
 const POLE_COL: Record<'t' | 'f' | 'h', string> = { t: '214,120,96', f: '150,150,160', h: YELLOW }
 
@@ -134,6 +140,10 @@ export class OrbitalField {
   private labelOrder: NodeState[]
   private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
   private placedBuf: { x: number; y: number; w: number; h: number }[] = [] // reused scratch for label de-collision
+  // per-authored-pair eased alpha for the proximity caption (Task 15) — lerped toward its target
+  // each frame, the same idiom as ForcesSheet's `bloom`/`hoverProg` Float32Arrays, so the caption
+  // always fades in/out rather than snapping to a directly-computed value.
+  private proxAlpha = new Float32Array(AUTH_PAIRS.length)
   private world = new Map<string, { x: number; y: number }>()
   // camera — pan + wheel adjust the framed system; selecting a body eases the camera to centre it
   zoom = DEFAULT_ZOOM
@@ -681,8 +691,11 @@ export class OrbitalField {
     }
     // proximity captions and the insight layer are two facets of one depth system: they hand off, so
     // deep-zoom reads as pure insight (children + note) and moderate/default framing shows drift
-    // captions — never both piled on the focused body at once.
-    this.drawProximity(1 - insightAlpha)
+    // captions — never both piled on the focused body at once. On top of that handoff, captions are
+    // ALSO gated on the live zoom level itself (zoomGain) — a reward for drilling in/zooming, never
+    // an ambient feature of the default framed view, whether or not a body happens to be focused.
+    const zoomGain = clamp01((this.zoom - PROX_ZOOM_GATE) / PROX_ZOOM_FADE)
+    this.drawProximity((1 - insightAlpha) * zoomGain)
   }
 
   // Short interpretive note stacked above the focused body — the reward for drilling in.
@@ -704,42 +717,63 @@ export class OrbitalField {
 
   // Proximity relation captions (Task 15). When a body is focused only its own relations qualify;
   // otherwise the single globally-closest related pair shows — so the default frame stays calm.
+  // `gain` already folds in the zoom-gate + insight handoff (drawDepthLayer), so this only ever
+  // reads "hot" once the user has actually drilled in. Rendered as a small, de-emphasized sidenote —
+  // Futurism (the body face), not the display face — so it never competes with body-name labels.
   private drawProximity(gain: number) {
-    if (gain <= 0.02) return
     const focus = this.focusId
     type Cand = { dom: 't' | 'f' | 'h'; why: string; mx: number; my: number; alpha: number; d: number }
     const cands: Cand[] = []
-    for (const p of AUTH_PAIRS) {
-      if (focus && focus !== p.aId && focus !== p.bId) continue
+    for (let i = 0; i < AUTH_PAIRS.length; i++) {
+      const p = AUTH_PAIRS[i]
       const na = this.nodes[p.ia], nb = this.nodes[p.ib]
-      if (easeOutCubic(na.appear) < 0.6 || easeOutCubic(nb.appear) < 0.6) continue
-      const d = Math.hypot(na.sx - nb.sx, na.sy - nb.sy)
-      const thresh = PROX_BASE + na.sr + nb.sr
-      if (d > thresh) continue
-      const alpha = clamp01((thresh - d) / PROX_FADE) * gain
+      let target = 0
+      let d = Infinity
+      if (gain > 0.001 && (!focus || focus === p.aId || focus === p.bId)
+        && easeOutCubic(na.appear) >= 0.6 && easeOutCubic(nb.appear) >= 0.6) {
+        d = Math.hypot(na.sx - nb.sx, na.sy - nb.sy)
+        const thresh = PROX_BASE + na.sr + nb.sr
+        if (d <= thresh) target = clamp01((thresh - d) / PROX_FADE) * gain
+      }
+      // ease toward the target every frame (never read directly) — appearance/disappearance is
+      // always a visible fade, even as the zoom-gate opens/shuts or the closest pair changes; same
+      // asymmetric grow/shrink idiom as ForcesSheet's bloom/hoverProg (grow snappier, shrink slower).
+      const rate = target > this.proxAlpha[i] ? 0.1 : 0.07
+      this.proxAlpha[i] += (target - this.proxAlpha[i]) * rate
+      const alpha = this.proxAlpha[i]
       if (alpha <= 0.02) continue
       cands.push({ dom: p.dom, why: p.why, mx: (na.sx + nb.sx) / 2, my: (na.sy + nb.sy) / 2, alpha, d })
     }
     if (!cands.length) return
-    cands.sort((a, b) => a.d - b.d)
     // only the single closest drifting pair — one caption keeps the field calm and never stacks text,
     // whether ambient (nothing focused) or reading a focused body's own relations.
-    const max = 1
+    cands.sort((a, b) => a.d - b.d)
+    const c = cands[0]
     const ctx = this.ctx
+    const poleFs = 10, descFs = 11 // small + secondary — a sidenote, not primary information
+    const maxW = Math.min(232, this.fieldW * 0.56)
+    const lineH = descFs * 1.42
+    ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+    const lines = wrapText(ctx, c.why, maxW)
+    // rough total vertical extent (pole label + gap + wrapped description), centred on the pair's
+    // midpoint — used only for a lightweight de-collision check below, not exact glyph metrics.
+    const boxH = poleFs + 17 + lines.length * lineH
+    // de-collision against this frame's already-placed body-name labels (updateLabels' scratch
+    // buffer — one frame stale, imperceptible at this drift speed): nudge up once, else skip this
+    // frame entirely rather than fight for the pixel — this is a nice-to-have aside, not primary info.
+    const fits = (my: number) => !this.placedBuf.some((p) => Math.abs(c.mx - p.x) < (maxW + p.w) / 2 - 4 && Math.abs(my - p.y) < (boxH + p.h) / 2 - 1)
+    let my = c.my
+    if (!fits(my)) { my -= 28; if (!fits(my)) return }
     ctx.save(); ctx.textAlign = 'center'; ctx.direction = 'rtl'
-    for (let i = 0; i < Math.min(max, cands.length); i++) {
-      const c = cands[i]
-      ctx.font = "700 11px 'Tel Aviv Brutalist', sans-serif"
-      ctx.fillStyle = `rgba(${POLE_COL[c.dom]},${0.95 * c.alpha})`
-      ctx.fillText(POLE_HE[c.dom], c.mx, c.my - 9)
-      ctx.font = "400 12px 'Tel Aviv Brutalist', sans-serif"
-      const lines = wrapText(ctx, c.why, Math.min(232, this.fieldW * 0.56))
-      let y = c.my + 8
-      for (const line of lines) {
-        ctx.fillStyle = `rgba(${LIGHT},${0.86 * c.alpha})`
-        ctx.fillText(line, c.mx, y)
-        y += 12 * 1.42
-      }
+    ctx.font = `700 ${poleFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+    ctx.fillStyle = `rgba(${POLE_COL[c.dom]},${0.8 * c.alpha})`
+    ctx.fillText(POLE_HE[c.dom], c.mx, my - 9)
+    ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+    let y = my + 8
+    for (const line of lines) {
+      ctx.fillStyle = `rgba(${LIGHT},${0.7 * c.alpha})`
+      ctx.fillText(line, c.mx, y)
+      y += lineH
     }
     ctx.restore()
   }

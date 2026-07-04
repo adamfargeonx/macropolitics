@@ -433,8 +433,8 @@ class GravityWell {
       // eases the camera back to the default frame).
       if (this.scrollFocusIdx >= 0) this.onTourExit?.()
     }
-    // touch has no pointerleave — clear the transient hover so no stale chip sticks to a
-    // non-selected body (the selected body's chip/gauge is driven by selectedIdx now)
+    // touch has no pointerleave — clear the transient hover so no stale hover treatment sticks to
+    // a non-selected body (the selected body's own focus fill/graph is driven by selectedIdx now)
     if (ev?.pointerType === 'touch') {
       this.mouse.x = -9999; this.mouse.y = -9999
       if (this.hoveredIdx !== null) { this.hoveredIdx = null; this.onHover?.(null) }
@@ -630,9 +630,12 @@ class GravityWell {
       ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
       ctx.fill()
 
-      // In-circle axis graph — ONLY on the focused (solid yellow) body: three concentric value-
-      // arcs in dark ink, legible on the yellow fill exactly like the name label below.
-      if (isFocus) this.drawAxisGraph(sx, sy, rr, i, bodyA * tAlpha)
+      // In-circle axis graph — reveals on the focused (solid yellow) body: three concentric value-
+      // arcs in dark ink, legible on the yellow fill exactly like the name label below. Gated on
+      // hoverProg (the same eased 0→1 value that grows the body's radius) rather than the hard
+      // isFocus boolean, so it sweeps/fades in and back out smoothly instead of popping instantly —
+      // hoverProg already accounts for all three focus conditions (hover, select, tour-focus).
+      if (this.hoverProg[i] > 0.001) this.drawAxisGraph(sx, sy, rr, i, bodyA * tAlpha, this.hoverProg[i])
 
       // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
       // "ledger" set (top-N by active metric + whatever's focused) attempts a label. Every body's
@@ -691,8 +694,13 @@ class GravityWell {
   //     right on the arc's rounded tip and it visually fused into an unreadable blob; sitting
   //     clear of the ring reads as a clean value flag instead).
   // Skipped below a legibility floor (rr), same spirit as the name label's own gate.
-  private drawAxisGraph(sx: number, sy: number, rr: number, i: number, alpha: number) {
-    if (rr < 34 || alpha <= 0.01) return
+  // `prog` (0→1) is the body's eased hoverProg — the SAME value that eases the radius to its
+  // hover floor — so the graph reveals in lockstep with the grow/shrink instead of on the hard
+  // isFocus gate. It drives two things at once: (1) the whole graph's alpha, so it fades in/out,
+  // and (2) each ring's live fraction, so the value arcs visibly SWEEP from nothing up to their
+  // true reading as focus arrives, and sweep back down symmetrically on the way out.
+  private drawAxisGraph(sx: number, sy: number, rr: number, i: number, alpha: number, prog: number) {
+    if (rr < 34 || alpha <= 0.01 || prog <= 0.001) return
     const ctx = this.ctx
     const AX: { v: number; k: string }[] = [
       { v: this.axisEco[i], k: 'כ' },
@@ -700,6 +708,7 @@ class GravityWell {
       { v: this.axisGeo[i], k: 'ג' },
     ]
     const FRACS = [0.72, 0.55, 0.38]
+    const a = alpha * prog
     ctx.save()
     ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.clip()
     const tickFont = Math.max(7, Math.min(11, rr * 0.13))
@@ -708,27 +717,30 @@ class GravityWell {
     AX.forEach((ax, k) => {
       const ringR = rr * FRACS[k]
       const lw = Math.max(1.2, Math.min(3, rr * 0.045))
-      const frac = Math.max(0, Math.min(1, ax.v / 10))
+      // sweep-in: the live fraction itself scales by `prog`, so the value arc sweeps from zero
+      // up to its true reading as the reveal eases in (and sweeps back to zero on the way out) —
+      // an intentional animated reveal, not just a fade.
+      const frac = Math.max(0, Math.min(1, ax.v / 10)) * prog
       const end = start + frac * TAU
-      // track — the ring's full 0–10 range, faint
-      ctx.strokeStyle = `rgba(${DARK},${0.16 * alpha})`
+      // track — the ring's full 0–10 range, faint (fades in/out with the same reveal)
+      ctx.strokeStyle = `rgba(${DARK},${0.16 * a})`
       ctx.lineWidth = lw
       ctx.beginPath(); ctx.arc(sx, sy, ringR, 0, TAU); ctx.stroke()
       // value arc — sweeps clockwise from 12 o'clock. Flat (butt) caps — a clean line whose tip
       // doesn't balloon into a blob the numeral would otherwise have to sit on top of.
       if (frac > 0.003) {
-        ctx.strokeStyle = `rgba(${DARK},${0.88 * alpha})`
+        ctx.strokeStyle = `rgba(${DARK},${0.88 * a})`
         ctx.lineWidth = lw
         ctx.lineCap = 'butt'
         ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
         // small tip dot — a clear "you are here" marker at the arc's live end
-        ctx.fillStyle = `rgba(${DARK},${0.92 * alpha})`
+        ctx.fillStyle = `rgba(${DARK},${0.92 * a})`
         ctx.beginPath(); ctx.arc(sx + Math.cos(end) * ringR, sy + Math.sin(end) * ringR, lw * 0.62, 0, TAU); ctx.fill()
       }
       // fixed one-letter tick — baked-in "which ring is which axis" legend
       if (rr >= 40) {
         ctx.font = `700 ${tickFont}px 'Tel Aviv Brutalist', sans-serif`
-        ctx.fillStyle = `rgba(${DARK},${0.72 * alpha})`
+        ctx.fillStyle = `rgba(${DARK},${0.72 * a})`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.fillText(ax.k, sx, sy - ringR - tickFont * 0.9)
       }
@@ -739,7 +751,7 @@ class GravityWell {
         const nx = sx + Math.cos(end) * numR
         const ny = sy + Math.sin(end) * numR
         ctx.font = `700 ${numFont}px 'Tel Aviv Brutalist', sans-serif`
-        ctx.fillStyle = `rgba(${DARK},${0.95 * alpha})`
+        ctx.fillStyle = `rgba(${DARK},${0.95 * a})`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.fillText(String(Math.round(ax.v)), nx, ny)
       }
@@ -748,11 +760,6 @@ class GravityWell {
   }
 
   getBodyAt(idx: number): WellBody | null { return BODIES[idx] ?? null }
-  getBodyScreenPos(idx: number): { x: number; y: number } {
-    return { x: this.bodyScreenX[idx] ?? 0, y: this.bodyScreenY[idx] ?? 0 }
-  }
-  getBodyR(idx: number): number { return this.bodyR(this.mass[idx] ?? 0) * this.camZoom }
-  getSelectedIdx(): number | null { return this.selectedIdx }
   selectById(id: string | null) {
     this.selectedIdx = id == null ? null : (BODIES.findIndex((b) => b.id === id) ?? -1)
     if (this.selectedIdx === -1) this.selectedIdx = null
@@ -785,7 +792,6 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
   const onSelectRef = useRef(onSelect)
   useEffect(() => { onHoverRef.current = onHover; onSelectRef.current = onSelect })
 
-  const [chip, setChip] = useState<{ id: string; he: string; x: number; y: number } | null>(null)
   const [interacted, setInteracted] = useState(false)
   // The tour step: 0 = the whole field (no focus); 1..N = the Nth-ranked state (by the active metric)
   // is the tour's current subject. TOUR_MAX = every state, so the tour reads the full hierarchy.
@@ -826,19 +832,12 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     const well = new GravityWell(canvas, stage)
     wellRef.current = well
 
-    const placeChip = (idx: number | null) => {
-      if (idx == null) { setChip(null); return }
-      const b = BODIES[idx]; const p = well.getBodyScreenPos(idx)
-      setChip({ id: b.id, he: b.he, x: p.x, y: p.y - well.getBodyR(idx) - 16 })
-    }
     well.onHover = (idx) => {
       onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
-      if (well.getSelectedIdx() == null) placeChip(idx)
     }
     well.onSelect = (idx) => {
       onSelectRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
       setInteracted(true)
-      placeChip(idx)
     }
     const onFreeze = () => well.setFrozen(true)
     const onUnfreeze = () => well.setFrozen(false)
@@ -961,18 +960,6 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     wellRef.current?.setScrollFocus(idx)
   }, [tourStep, rankedIndices])
 
-  const chipGrav = chip ? grav.get(chip.id) : undefined
-  const chipScore = Math.round(chipGrav?.power ?? 0)
-  // labeled 0–10 axis rows for the tooltip — a supplementary, exact-value readout alongside the
-  // in-circle graph (which carries the same eco/mil/geo read visually on the body itself).
-  // Each row: Hebrew label · tiny bar · value.
-  const chipAxes: { k: string; v: number }[] = chipGrav
-    ? [
-        { k: 'כלכלי', v: chipGrav.eco },
-        { k: 'צבאי', v: chipGrav.mil },
-        { k: 'גאו', v: chipGrav.geo },
-      ]
-    : []
   // The current tour subject's annotation: rank · score · tier · bloc + a one-line positional note.
   const activeAnnot = tourStep > 0
     ? buildStateAnnot(rankedIds[tourStep - 1], tourStep, rankedIds.length, grav)
@@ -986,32 +973,6 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         role="img"
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
-
-      {/* ── Focus chip: a supplementary exact-value readout alongside the in-circle graph. Name +
-          total גירה (power) score, then three clearly LABELLED eco/mil/geo rows — Hebrew label ·
-          tiny 0–10 bar · value — so the precise numbers are always one glance away, in real DOM
-          text (no canvas font-fitting), even though the graph itself is already self-explanatory. ── */}
-      {chip && (
-        <div className="sheet-chip" style={{ left: chip.x, top: chip.y }} aria-live="polite">
-          <span className="sheet-chip__head">
-            <span className="sheet-chip__name">{chip.he}</span>
-            <span className="sheet-chip__score">{chipScore}</span>
-          </span>
-          {chipAxes.length > 0 && (
-            <span className="sheet-chip__axes">
-              {chipAxes.map((a) => (
-                <span key={a.k} className="sheet-chip__axis">
-                  <span className="sheet-chip__axis-k">{a.k}</span>
-                  <span className="sheet-chip__axis-bar">
-                    <i style={{ width: `${Math.max(0, Math.min(10, a.v)) * 10}%` }} />
-                  </span>
-                  <span className="sheet-chip__axis-v">{Math.round(a.v)}</span>
-                </span>
-              ))}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* ── Hint (before first interaction) — copy matches the input: tap vs. hover ────── */}
       {!interacted && tourStep === 0 && (

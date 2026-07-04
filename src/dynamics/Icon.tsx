@@ -65,10 +65,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
   'axis-none': (<><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>),
 
   // ── Per-value dispo icons ─────────────────────────────────────────────────────
-  // אגרסיבית: lightning bolt (attack, aggression)
-  'dispo-agg': (<polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />),
-  // אסרטיבית: double chevron right (assertive forward motion)
-  'dispo-assert': (<><path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" /></>),
+  // אגרסיבית: crossed blades (confrontation) — previously a lightning bolt, which read as
+  // "energy" rather than "confrontational/aggressive"; two crossing blades with hilt guards
+  // + pommel dots reads unambiguously as conflict, still pure straight-line geometry.
+  'dispo-agg': (<>
+    <path d="M5 19 L19 5" /><path d="M19 19 L5 5" />
+    <path d="M6 15 L9 18" /><path d="M15 18 L18 15" />
+    <circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none" />
+  </>),
+  // אסרטיבית: an upright arrow planted on a firm base (a stake driven in — a confident,
+  // grounded stance) — previously a double chevron, which read as "fast-forward/next" (a
+  // media-transport glyph) rather than an assertive posture.
+  'dispo-assert': (<><path d="M12 19 V5" /><path d="M7 10 L12 5 L17 10" /><path d="M7 19 H17" /></>),
   // זהירה: eye (watchful, cautious)
   'dispo-caut': (<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>),
 }

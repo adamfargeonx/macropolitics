@@ -89,7 +89,7 @@
 /* the calculation — numbers right-aligned in a monospace-ish column */
 .evid__calc { display: flex; flex-direction: column; gap: 9px; }
 .evid__step { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.evid__step-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: 12.5px; letter-spacing: 0.112em; color: var(--light); opacity: 0.8; white-space: nowrap; }
+.evid__step-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: 0.112em; color: var(--light); opacity: 0.8; white-space: nowrap; }
 .evid__math { font-family: var(--latin); font-size: 13px; letter-spacing: 0.05em; color: var(--light); opacity: 0.7; direction: ltr; text-align: left; }
 .evid__math b { color: var(--white); opacity: 1; font-weight: 700; }
 .evid__step--total { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line-yellow); }
@@ -103,15 +103,15 @@
 .evid__src-axis { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--white); }
 .evid__src-icon { color: var(--yellow); opacity: 0.85; }
 .evid__src-score { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--yellow); }
-.evid__badge { margin-inline-start: auto; font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; letter-spacing: 0.084em; padding: 2px 6px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
+.evid__badge { margin-inline-start: auto; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; padding: 2px 6px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
 .evid__badge--sourced { color: var(--ok); border-color: var(--ok-border); }
 .evid__badge--estimate { color: var(--yellow); border-color: var(--yellow-30); }
 .evid__badge--judgment { color: var(--ink-dim); }
 .evid__badge--no-data { color: var(--warn); border-color: var(--warn-border); }
-.evid__figure { margin-top: 9px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 11.5px; line-height: 1.55; letter-spacing: 0.084em; color: var(--light); opacity: 0.85; }
+.evid__figure { margin-top: 9px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); line-height: 1.55; letter-spacing: 0.084em; color: var(--light); opacity: 0.85; }
 .evid__src--flag .evid__figure { color: var(--yellow); opacity: 0.95; }
-.evid__note { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; line-height: 1.5; letter-spacing: 0.098em; color: var(--ink-faint); }
-.evid__link { display: inline-block; margin-top: 8px; font-family: var(--body); font-size: 10px; letter-spacing: 0.07em; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
+.evid__note { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: 1.5; letter-spacing: 0.098em; color: var(--ink-faint); }
+.evid__link { display: inline-block; margin-top: 8px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.07em; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
 .evid__link:hover { color: var(--yellow); }
 /* sourced 2020→2025 trend (a real temporal datapoint) */
 .evid__trend { margin-top: 9px; padding: 7px 9px; background: rgba(251, 255, 0, 0.04); }
@@ -120,11 +120,11 @@
 .evid__trend-pct { font-size: 11px; }
 .evid__trend-pct--up { color: var(--ok); }
 .evid__trend-pct--down { color: var(--warn); }
-.evid__trend-years { font-family: var(--body); font-size: 9.5px; font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--ink-faint); }
-.evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; letter-spacing: 0.084em; color: var(--ink-faint); }
+.evid__trend-years { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--ink-faint); }
+.evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--ink-faint); }
 /* unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one set of styles */
 .evid__comp { margin-top: 10px; padding: 9px 10px; background: rgba(251, 255, 0, 0.03); }
-.evid__comp-lbl { display: block; font-family: var(--body); font-size: 9.5px; font-weight: var(--fw-bold); letter-spacing: 0.084em; color: var(--ink-dim); margin-bottom: 8px; }
+.evid__comp-lbl { display: block; font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.084em; color: var(--ink-dim); margin-bottom: 8px; }
 .evid__comp-grid { display: flex; flex-direction: column; gap: 5px; }
 /* item 8: every parameter is a consistent bar row — [status][label][bar][value] on common axes,
    so sourced and assessed parameters read uniformly and the evidence layer is complete. */
@@ -134,17 +134,17 @@
 .evid__comp-status--estimate { color: var(--yellow); opacity: 0.85; }
 .evid__comp-status--judgment { color: var(--ink-dim); }
 .evid__comp-status--no-data { color: var(--warn); }
-.evid__comp-k { min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; letter-spacing: 0.084em; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.evid__comp-k { min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .evid__comp-bar { min-width: 16px; height: 4px; background: var(--line-2); overflow: hidden; }
 .evid__comp-bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.7; }
-.evid__comp-v { text-align: end; font-family: var(--latin); font-size: 10px; font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--light); }
+.evid__comp-v { text-align: end; font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--light); }
 .evid__comp-row--miss .evid__comp-k, .evid__comp-row--miss .evid__comp-v { color: var(--ink-faint); }
 .evid__comp-row--miss .evid__comp-bar i { opacity: 0.3; }
-.evid__comp-judgment { display: block; margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; line-height: 1.5; letter-spacing: 0.084em; color: var(--ink-faint); opacity: 0.75; }
+.evid__comp-judgment { display: block; margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: 1.5; letter-spacing: 0.084em; color: var(--ink-faint); opacity: 0.75; }
 @media (max-width: 720px) { .evid__sources { grid-template-columns: 1fr; } }
 
 .evid__flags { margin-top: 18px; padding: 12px 14px; background: var(--warn-bg); border-inline-start: 2px solid var(--warn-border); }
-.evid__flags p { font-family: var(--body); font-size: 11.5px; line-height: 1.55; letter-spacing: 0.02em; color: var(--warn); }
+.evid__flags p { font-family: var(--body); font-size: var(--text-sm); line-height: 1.55; letter-spacing: 0.02em; color: var(--warn); }
 .evid__flags p + p { margin-top: 6px; }
 .evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.07em; color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) { .evid { animation: none; } }
@@ -261,7 +261,7 @@
 .panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: 12px; color: var(--yellow); opacity: 0.55; letter-spacing: 0.112em; }
 .panel__row-v { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--white); }
 .panel__rels { margin-top: 20px; }
-.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: 12px; color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
+.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
   font-size: 12px; color: var(--yellow); padding: 4px 9px;
@@ -290,6 +290,17 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
   color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
 }
+/* ── rank badge tooltip — flips below ───────────────────────────────────────────────────────────
+   Same shape of bug already fixed for the descriptor chips and axis labels (forces.css): the rank
+   sits at the very TOP of the panel, hard against the panel's own clip edge (.panelb's
+   overflow-y:auto) / the chrome above the panel — an above-anchored tooltip has nowhere to render
+   without being cropped or overlapping content it shouldn't. Below has the whole rest of the
+   header + score cluster to land on instead. Higher-specificity override of the shared [data-hint]
+   rule (only for the rank badge), not a change to the shared rule. */
+.phead__rank[data-hint]:hover::after,
+.phead__rank[data-hint]:active::after {
+  bottom: auto; top: calc(100% + 10px);
+}
 .phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
@@ -312,6 +323,14 @@
   display: flex; align-items: baseline; gap: 14px;
   margin-top: 22px; padding-bottom: 16px;
   border-bottom: 1px solid var(--line-yellow);
+}
+/* headline tooltip — same bug, same fix: only ~26px separates the descriptor-chip row above from
+   the headline, far less than an above-anchored tooltip needs — it would land on/overlap the
+   chips above. Flips below onto the headline's own supporting content instead. Higher-specificity
+   override, not a change to the shared [data-hint] rule. */
+.fscore__headline[data-hint]:hover::after,
+.fscore__headline[data-hint]:active::after {
+  bottom: auto; top: calc(100% + 10px);
 }
 .fscore__num { display: inline-flex; align-items: baseline; gap: 5px; }
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
@@ -338,6 +357,17 @@
    supporting category rows, and a single "תיאור מלא" drill-down button.
    ════════════════════════════════════════════════════════════════ */
 .fbody { margin-top: 4px; }
+
+/* general/overview paragraph — the single overall read, ahead of the eco/mil/geo breakdown.
+   Capped to 3 lines here in the DEFAULT score view so a long summary can't blow out the compact
+   card; the SAME text is shown in full, unclamped, in ForcesNarrative (.fnarr__gen, same token/
+   family/color) behind the "תיאור מלא" button — this is the teaser, that's the complete read. */
+.fscore__gen {
+  margin-top: 14px;
+  font-family: var(--body); font-size: var(--text-md);
+  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
 
 /* the three supporting category rows (icon, label, value, bar) + a fixed-length, truncated
    description (no per-row read-more). Every row is the same height so they read as a uniform set;
@@ -408,11 +438,14 @@
   font-family: var(--body); font-size: var(--text-md);
   line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
 }
-.fnarr__axis { margin-top: 14px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30); }
+/* NOTE: no left-stroke accent — that decorative border-inline-start pattern is retired sitewide
+   (see .dcard__orbit/.dcard__caption below for the same removal). The yellow label beneath
+   (.fnarr__axis-l) carries the section marker on its own now. */
+.fnarr__axis { margin-top: 14px; }
 .fnarr__axis-l {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.85;
+  letter-spacing: var(--tracking-label); color: var(--yellow); opacity: 0.85;
 }
 .fnarr__axis-icon { color: var(--yellow); opacity: 0.8; font-size: 12px; }
 .fnarr__axis-t {
@@ -431,7 +464,10 @@
   color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
 }
 .dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1; }
-.dcard__chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+/* chips — flush to the RTL leading (right) edge, same reasoning as .phead__descriptors above:
+   the flex main-axis runs right→left in this RTL layout, so main-START is the RIGHT edge;
+   `flex-end` packed them toward main-END = the LEFT edge instead. `flex-start` hugs the right. */
+.dcard__chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
 .dcard__chip {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
@@ -439,40 +475,54 @@
   border: 1px solid var(--line); padding: 3px 9px;
 }
 .dcard__chip-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
-/* power fingerprint — three compact bars + overall score numeral, one tight cluster.
-   Now a button: click reveals the axis key (what each icon/bar measures). */
-.dcard__fingerprint {
-  position: relative; width: 100%; margin-top: 18px;
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
-  padding: 12px 14px 22px; background: var(--surface-1); border: 1px solid var(--line-2);
-  text-align: start; font: inherit; color: inherit; cursor: none;
-  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+/* power fingerprint + axis key — ONE shared surface (.dcard__power owns the single background/
+   border) so the toggle button and its revealed breakdown read as one bounded group, not two
+   stacked boxes. is-open persists the highlighted border while expanded (not just on :hover). */
+.dcard__power {
+  margin-top: 16px; background: var(--surface-1); border: 1px solid var(--line-2);
+  transition: border-color var(--dur-fast) ease;
 }
-.dcard__fingerprint:hover { border-color: var(--yellow-30); background: var(--yellow-06); }
+.dcard__power:hover, .dcard__power.is-open { border-color: var(--yellow-30); }
+/* three compact bars + overall score numeral, one tight cluster. A button: click reveals the
+   axis key (what each icon/bar measures). Surface/border now live on the wrapper above. */
+.dcard__fingerprint {
+  position: relative; width: 100%;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  padding: 12px 14px 22px; background: none; border: none;
+  text-align: start; font: inherit; color: inherit; cursor: none;
+  transition: background var(--dur-fast) ease;
+}
+.dcard__fingerprint:hover { background: var(--yellow-06); }
 .dcard__fp-cue {
   position: absolute; bottom: 6px; inset-inline-start: 12px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px;
   letter-spacing: var(--tracking-label); color: var(--yellow); opacity: 0.6;
 }
 .dcard__fingerprint:hover .dcard__fp-cue { opacity: 0.9; }
-/* axis key — revealed on expand: icon · label · value · one-line meaning */
+/* axis key — revealed on expand: icon · label · value · one-line meaning. Flows directly beneath
+   the fingerprint inside the SAME surface; a thin hairline (not a colored accent) separates it
+   from the button above instead of its own competing background/border. */
 .dcard__axkey {
-  margin-top: 8px; display: flex; flex-direction: column; gap: 9px;
-  padding: 12px 14px; background: var(--surface-1); border: 1px solid var(--line-2);
+  padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 9px;
+  border-top: 1px solid var(--line);
   animation: dcardReveal 0.32s var(--ease-out-expo) both;
 }
 .dcard__axkey-row { display: grid; grid-template-columns: auto auto auto 1fr; gap: 4px 9px; align-items: baseline; }
 .dcard__axkey-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; align-self: center; }
 .dcard__axkey-l { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--white); white-space: nowrap; }
 .dcard__axkey-v { font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--yellow); }
-.dcard__axkey-d { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
-/* orbital context — the orrery's unique meaning: what it orbits / what orbits it */
+/* item: description text unified with the forces panel's equivalent axis description
+   (.fparam__desc-text) — both the "compact secondary description" tier, same token (was --text-xs). */
+.dcard__axkey-d { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-sm); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+/* orbital context — the orrery's unique meaning: what it orbits / what orbits it.
+   NOTE: no left-stroke accent — retired sitewide (see .dcard__caption below); the yellow
+   .dcard__orbit-h label + icon is the section marker now. */
 .dcard__orbit {
   margin-top: 16px; display: flex; flex-direction: column; gap: 8px;
   padding: 12px 14px; background: var(--surface-1);
-  border-inline-start: 2px solid var(--yellow-30);
 }
-.dcard__orbit-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__orbit-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__orbit-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 .dcard__orbit-row { display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline; }
 .dcard__orbit-k { flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-faint); }
 .dcard__orbit-v { font-family: var(--body); font-size: var(--text-md); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--light); }
@@ -493,7 +543,8 @@
 @media (prefers-reduced-motion: reduce) { .dcard__bar-track i { animation: none; } }
 /* defining ties — 2–3 sharpest authored relations, each a clickable re-centre row */
 .dcard__ties { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
-.dcard__ties-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__ties-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__ties-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 .dcard__tie {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   min-height: 38px; padding: 0 10px; text-align: start; cursor: none;
@@ -502,9 +553,10 @@
 .dcard__tie:hover { background: var(--yellow-06); }
 /* item 8: unified to the primary body size (14px) — was --text-base (13px) */
 .dcard__tie-name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-md); letter-spacing: var(--tracking-body); color: var(--white); }
-/* fused synthesis caption */
+/* fused synthesis caption — NOTE: no left-stroke accent, retired sitewide (see .dcard__orbit
+   above and .fnarr__axis in the forces block); typographic weight alone carries this closing line */
 .dcard__caption {
-  margin-top: 16px; padding-inline-start: 12px; border-inline-start: 2px solid var(--yellow-30);
+  margin-top: 16px;
   font-family: var(--body); font-size: var(--text-sm); line-height: 1.6;
   letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.9;
 }

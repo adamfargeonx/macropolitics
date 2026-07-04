@@ -17,7 +17,7 @@
 }
 .rel-vtx i {
   font-style: normal; font-family: var(--body); font-weight: var(--fw-bold);
-  font-size: 10px; letter-spacing: 0.084em; color: var(--light); opacity: 0.45;
+  font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--light); opacity: 0.45;
 }
 .rel-guides line { transition: stroke-opacity 0.25s ease; }
 @media (prefers-reduced-motion: reduce) { .rel-guides line { transition: none; } }
@@ -52,7 +52,7 @@
 }
 .rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px var(--yellow-50); }
 .rel-ref__name { font-size: 14px; font-weight: 500; color: var(--yellow); }
-.rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; color: var(--white); opacity: 0.5; letter-spacing: 0.14em; }
+.rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--white); opacity: 0.5; letter-spacing: 0.14em; }
 .rnode {
   position: absolute; transform: translate(-50%, -50%); z-index: 3;
   display: flex; flex-direction: column; align-items: center; gap: 4px;

@@ -107,27 +107,6 @@
 .forces-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
 /* warped-sheet reading — occupies the same field area as the constellation (respects the rail) */
 .sheet-embed { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
-/* sheet hover/select readout — sits right above the focused body */
-/* sheet hover/select readout — a tooltip: dark text on the yellow field */
-.sheet-chip {
-  position: absolute; transform: translate(-50%, -100%); z-index: 6; pointer-events: none;
-  display: flex; flex-direction: column; gap: 3px; white-space: nowrap;
-  background: var(--tooltip-bg); border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); padding: 5px 10px 6px;
-}
-.sheet-chip__head { display: flex; align-items: baseline; gap: 8px; }
-.sheet-chip__name { font-family: var(--display); font-size: 14px; font-weight: 400; color: var(--tooltip-fg); letter-spacing: var(--tracking-title); }
-.sheet-chip__score { font-family: var(--latin); font-size: var(--text-lg); font-weight: 700; color: var(--tooltip-fg); opacity: 0.78; direction: ltr; }
-/* labelled eco/mil/geo readout — the single, unambiguous explanation of the focused body:
-   Hebrew label · tiny 0–10 bar · value, one row each. */
-.sheet-chip__axes {
-  display: flex; flex-direction: column; gap: 5px; min-width: 152px;
-  padding-top: 6px; margin-top: 5px; border-top: 1px solid rgba(6, 3, 15, 0.16);
-}
-.sheet-chip__axis { display: grid; grid-template-columns: 34px 1fr 16px; align-items: center; gap: 8px; }
-.sheet-chip__axis-k { font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--tooltip-fg); opacity: 0.72; text-align: right; }
-.sheet-chip__axis-bar { height: 4px; background: rgba(6, 3, 15, 0.16); }
-.sheet-chip__axis-bar i { display: block; height: 100%; background: var(--yellow); }
-.sheet-chip__axis-v { font-family: var(--latin); font-size: 11px; font-weight: 700; color: var(--tooltip-fg); direction: ltr; text-align: left; }
 .sheet-hint {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
   font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--ink-faint);
@@ -474,21 +453,6 @@
 }
 @media (prefers-reduced-motion: reduce) { .ffilter-scrim, .ffilter { animation: none; } }
 @media (min-width: 769px) { .ffilter-scrim { display: none; } }
-
-/* ── Forces hover-clarity — a small dark readout matching the canvas's own dark-field /
-   light-yellow language. A supplementary EXACT-value readout alongside the in-circle graph:
-   name + total power, then three clearly labelled eco/mil/geo rows. These are new declarations
-   for an EXISTING selector — later same-specificity CSS wins per property, so this overrides
-   only the properties named below and leaves every other .sheet-chip rule intact. */
-.sheet-chip {
-  background: rgba(10, 6, 22, 0.94);
-  color: var(--light);
-  animation: fadeIn 0.15s ease both;
-}
-.sheet-chip__name, .sheet-chip__score, .sheet-chip__axis-k, .sheet-chip__axis-v { color: var(--light); }
-.sheet-chip__axes { border-top-color: rgba(244, 242, 236, 0.18); }
-.sheet-chip__axis-bar { background: rgba(244, 242, 236, 0.16); }
-@media (prefers-reduced-motion: reduce) { .sheet-chip { animation: none; } }
 
 /* ── Forces panel — general description (score view) ─────────────────────────────────────────
    The single overall description, re-added above the eco/mil/geo breakdown so the score view
