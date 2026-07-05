@@ -17,7 +17,7 @@
 }
 .rel-vtx i {
   font-style: normal; font-family: var(--body); font-weight: var(--fw-bold);
-  font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--light); opacity: 0.45;
+  font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.45;
 }
 .rel-guides line { transition: stroke-opacity 0.25s ease; }
 @media (prefers-reduced-motion: reduce) { .rel-guides line { transition: none; } }
@@ -27,7 +27,7 @@
 /* relationship why-line — the editorial beat of the panel */
 .panel__why {
   margin-top: 12px; padding: 10px 12px;
-  font-family: var(--body); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body);
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body);
   color: var(--light); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
   animation: textRise 0.6s 0.06s var(--ease-out-expo) both;
@@ -52,7 +52,7 @@
 }
 .rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px var(--yellow-50); }
 .rel-ref__name { font-size: var(--text-md); font-weight: 500; color: var(--yellow); }
-.rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--white); opacity: 0.5; letter-spacing: 0.14em; }
+.rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--white); opacity: 0.5; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 .rnode {
   position: absolute; transform: translate(-50%, -50%); z-index: 3;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -113,7 +113,7 @@
 /* constellation panel: hover hint + edge-colour legend */
 .rel-hint {
   margin-top: 14px; padding: 9px 12px;
-  font-family: var(--body); font-size: var(--text-sm); line-height: 1.6; letter-spacing: var(--tracking-body);
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body);
   color: var(--light); opacity: 0.9;
   background: var(--yellow-06);
 }
@@ -123,7 +123,7 @@
 .rel-legend__swatch--tension { background: var(--warn); }
 .rel-legend__swatch--friction { background: var(--yellow); }
 .rel-legend__swatch--harmony { background: var(--ok); }
-.rel-legend__lbl { font-family: var(--body); font-size: var(--text-sm); font-weight: var(--fw-bold); color: var(--light); letter-spacing: 0.06em; }
+.rel-legend__lbl { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); color: var(--light); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 
 /* mode toggle — sits atop the panel; a sliding pair like the bottom tabs */
 .rel-modeswitch {
@@ -156,7 +156,7 @@
 /* ── Relations drill-down — clearer hierarchy: kicker · name · verdict · why · bars ── */
 .rel-detail__kicker {
   display: block; margin-bottom: 4px; font-family: var(--body); font-size: var(--text-xs);
-  letter-spacing: 0.1em; color: var(--ink-dim); animation: textRise 0.6s var(--ease-out-expo) both;
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); animation: textRise 0.6s var(--ease-out-expo) both;
 }
 .rel-detail__verdict {
   margin-top: 6px; font-family: var(--display); font-size: var(--text-lg); font-weight: 700; letter-spacing: 0.02em;
@@ -341,14 +341,14 @@
 .home-tagline {
   position: absolute; top: var(--sp-6); left: 50%; transform: translateX(-50%);
   z-index: var(--z-content); white-space: nowrap; pointer-events: none;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-lg);
-  letter-spacing: var(--tracking-wide); color: var(--yellow);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow);
 }
 /* the equation — the project's thesis, whispered under the wordmark */
 .home-eq {
   position: absolute; top: calc(50% + clamp(30px, 4vw, 56px)); left: 50%; transform: translateX(-50%);
   z-index: var(--z-content); white-space: nowrap; pointer-events: none; overflow: hidden;
-  font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.14em; color: var(--ink-dim);
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
 }
 .home-eq > span { display: inline-block; transform: translateY(110%); transition: transform 0.7s var(--ease-out-expo); }
 /* formula reveals only on orbit hover — a discovery moment, not automatic */
@@ -377,7 +377,7 @@
 .home-intro__l2 {
   margin: 0; color: var(--ink-dim);
   font-family: var(--body); font-weight: var(--fw-regular);
-  font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body);
+  font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body);
   text-wrap: balance;
 }
 .home-intro__l2 + .home-intro__l2 { margin-top: 5px; }
@@ -398,7 +398,7 @@
 /* the brief explainer, revealed fluidly on hover — a tooltip: dark text on the yellow field */
 .home-nav__sub {
   position: absolute; top: 100%; left: 50%; transform: translate(-50%, 2px); white-space: nowrap;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.06em;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--tooltip-fg); background: var(--tooltip-bg); padding: 4px 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
@@ -422,7 +422,7 @@
 /* credit micro-line (open state, bottom-right; the toggle sits at the corner) */
 .home-credit {
   position: absolute; bottom: var(--sp-6); left: var(--sp-8); z-index: var(--z-content);
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--ink-faint);
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
   opacity: 0; transition: opacity 0.6s ease 0.8s; pointer-events: none;
 }
 .home--open .home-credit { opacity: 1; }
@@ -430,8 +430,8 @@
 /* hint (closed state only) */
 .home-hint {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, calc(-50% + 76px));
-  z-index: var(--z-content); font-family: var(--body); font-size: var(--text-sm);
-  letter-spacing: var(--tracking-wider); color: var(--ink-dim);
+  z-index: var(--z-content); font-family: var(--body); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
   transition: opacity 0.4s ease; animation: hintPulse 2.8s ease-in-out infinite;
 }
 .home--open .home-hint { opacity: 0; pointer-events: none; animation: none; }

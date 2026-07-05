@@ -24,7 +24,7 @@
 .pdock__chev { width: 16px; height: 16px; transition: transform var(--dur-base) var(--ease-out-expo); }
 .pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
-.pdock__handle-lbl { writing-mode: vertical-rl; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; opacity: 0.78; }
+.pdock__handle-lbl { writing-mode: vertical-rl; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.78; }
 @media (max-width: 900px) { .pdock__panel { width: 340px; } }
 /* ── 768px: side dock becomes a bottom sheet ──────────────────── */
 /* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
@@ -109,7 +109,7 @@
 .sheet-embed { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
 .sheet-hint {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--ink-faint);
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
   white-space: nowrap; animation: fadeIn 1.2s 1.5s both;
 }
 
@@ -141,11 +141,11 @@
 }
 /* tier · bloc row */
 .forces-annot__meta {
-  font-family: var(--body); font-size: 11px; font-weight: var(--fw-bold); letter-spacing: 0.1em;
+  font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--light); opacity: 0.62;
 }
 .forces-annot__editorial {
-  font-family: var(--body); font-size: 12px; line-height: 1.62; letter-spacing: 0.11em;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
   color: var(--ink-faint); margin: 2px 0 0;
 }
 /* compact "N / total" progress readout (replaces the 5 tier pips — 29 states is too many dots) */
@@ -186,21 +186,21 @@
 /* force breakdown bars (panel) */
 .panel__forces { margin-top: 24px; display: flex; flex-direction: column; gap: 13px; }
 .fbar { display: flex; align-items: center; gap: 10px; }
-.fbar__k { font-family: var(--body); font-weight: var(--fw-bold); font-size: 12px; color: var(--yellow); opacity: 0.7; width: 86px; text-align: right; letter-spacing: var(--tracking-label); }
+.fbar__k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.7; width: 86px; text-align: right; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); }
 .fbar__track { flex: 1; height: 4px; background: rgba(251, 255, 0, 0.12); }
 .fbar__fill { display: block; height: 100%; background: var(--yellow); animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; transform-origin: right; }
 .fbar__v { font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--white); width: 18px; letter-spacing: 0.08em; }
 
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
 .gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; }
-.gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-inline-end: 2px; }
+.gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-inline-end: 2px; }
 /* item 10: sort chips + tools trigger float — the resting box is a TRANSPARENT border (no reflow
    when the active state re-colours it), so inactive controls read as bare text; the active .is-on
    chip keeps its yellow fill. item 5b: hover is a direct color swap (below), not a drawn line. */
-.gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__opt:hover:not(.is-on) { color: var(--light); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
-.gctl__tools { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: 11px; letter-spacing: 0.06em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+.gctl__tools { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__tools:hover, .gctl__tools.has-state { color: var(--yellow); }
 .gctl__tools.is-on { border-color: var(--yellow-30); color: var(--yellow); background: var(--yellow-06); }
 
@@ -217,7 +217,7 @@
 .panel__desc-wrap.is-open .panel__desc-text { display: block; -webkit-line-clamp: unset; }
 .panel__desc-toggle {
   cursor: none; background: none; border: none; padding: 0;
-  font-family: var(--body); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--ink-dim); margin-top: 4px;
   transition: color var(--dur-fast) ease;
 }
@@ -225,7 +225,7 @@
 
 /* gravity index — the ranked ledger (forces default panel) */
 .gindex { margin-top: 34px; display: flex; flex-direction: column; }
-.gindex__h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-label); padding-bottom: 8px; }
+.gindex__h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); padding-bottom: 8px; }
 /* item 7: name column is minmax(0,1fr) so a long label (e.g. גאו-אסטרטגי) can't widen the column
    and shove the bar/score off-axis; bar + score are FIXED so every row's bar starts/ends alike. */
 .gindex__row {
@@ -260,8 +260,8 @@
 .gindex__more {
   position: relative;
   cursor: none; background: none; border: none;
-  margin-top: 10px; padding: 6px 0; width: 100%; font-family: var(--body); font-size: 11px;
-  color: var(--ink-dim); letter-spacing: 0.08em;
+  margin-top: 10px; padding: 6px 0; width: 100%; font-family: var(--body); font-size: var(--text-xs);
+  color: var(--ink-dim); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   transition: color var(--dur-fast) ease;
 }
 .gindex__more:hover { color: var(--light); }
@@ -276,29 +276,29 @@
 .pnotes__h { font-size: 12px; color: var(--yellow); opacity: 0.55; letter-spacing: 0.16em; }
 /* כללי — plain introductory text: no container, no accent line, reads as a lead paragraph */
 .pnotes__intro {
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: 14px; line-height: 1.7; letter-spacing: var(--tracking-body);
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body);
   color: var(--light); opacity: 0.9;
 }
 .pnote { margin-top: 28px; }
 .pnote__head { display: flex; align-items: center; gap: 9px; }
 /* item 7: FIXED label width → the eco/mil/geo tracks all start on a common axis regardless of
    label length (גאו-אסטרטגי no longer pushes its bar in). flex:none holds the width. */
-.pnote__label { font-family: var(--body); font-size: 13px; font-weight: var(--fw-bold); color: var(--white); letter-spacing: var(--tracking-label); flex: none; width: 108px; display: inline-flex; align-items: center; gap: 6px; }
+.pnote__label { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); color: var(--white); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); flex: none; width: 108px; display: inline-flex; align-items: center; gap: 6px; }
 .pnote__icon { color: var(--yellow); opacity: 0.8; font-size: 14px; }
 .pnote__track { flex: 1; height: 3px; background: rgba(251, 255, 0, 0.12); }
 .pnote__fill { display: block; height: 100%; background: var(--yellow); transform-origin: right; animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; }
 /* min-width ensures two-digit values (e.g. "10") are never clipped */
 .pnote__val { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--yellow); min-width: 26px; width: auto; text-align: left; flex-shrink: 0; letter-spacing: 0.05em; }
 /* item 8: body copy unified to the primary body size (14px) — was 13px, a near-duplicate */
-.pnote__text { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82; }
+.pnote__text { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82; }
 /* provenance line — the empirical source behind the axis (the credibility move) */
-.pnote__src { margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10.5px; line-height: 1.4; letter-spacing: 0.154em; color: var(--ink-faint); }
+.pnote__src { margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 /* borrowed weight — backing shown relationally (no divider line) */
 .pnote--backing { margin-top: 22px; }
 /* backing has no track to align with → let its (longer) label size to content */
 .pnote--backing .pnote__label { width: auto; }
 .pnote--backing .pnote__label, .pnote--backing .pnote__val { color: var(--yellow); }
-.panelb__src { grid-column: 2; margin-top: 3px; font-family: var(--body); font-size: 10px; letter-spacing: 0.07em; color: var(--ink-faint); }
+.panelb__src { grid-column: 2; margin-top: 3px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint); }
 .panelb__note--backing { margin-top: 20px; }
 .panelb__note--backing .panelb__note-k { color: var(--yellow); }
 
@@ -377,12 +377,12 @@
   }
   .fmsheet__summary {
     flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-family: var(--body); font-weight: var(--fw-bold); font-size: 12.5px; letter-spacing: 0.04em; color: var(--light);
+    font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light);
   }
   .fmsheet__filter-btn {
     flex: none; cursor: none; background: none; border: 1px solid var(--line-yellow);
     padding: 6px 13px; display: inline-flex; align-items: center; gap: 5px;
-    font-family: var(--body); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--yellow);
+    font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow);
     transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
   }
   .fmsheet__filter-btn.is-on { background: var(--yellow); color: var(--bg); }
@@ -426,12 +426,12 @@
 .ffilter__title { font-family: var(--display); font-size: 20px; font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-title); }
 .ffilter__body { padding: 0 20px 8px; }
 .ffilter__group { margin-bottom: 22px; }
-.ffilter__group-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px; letter-spacing: var(--tracking-label); color: var(--ink-dim); margin-bottom: 4px; }
+.ffilter__group-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-bottom: 4px; }
 .ffilter__row {
   width: 100%; display: flex; align-items: center; gap: 10px; cursor: none;
   background: none; border: none; border-bottom: 1px solid var(--line-2);
   padding: 13px 2px; text-align: right;
-  font-family: var(--body); font-size: 14px; color: var(--light);
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); color: var(--light);
   transition: color var(--dur-fast) ease;
 }
 .ffilter__row.is-on { color: var(--yellow); font-weight: 700; }
@@ -445,11 +445,11 @@
 }
 .ffilter__reset {
   flex: 1 1 auto; cursor: none; background: none; border: 1px solid var(--line);
-  padding: 12px 0; font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim);
+  padding: 12px 0; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
 }
 .ffilter__apply {
   flex: 1 1 auto; cursor: none; background: var(--yellow); border: none;
-  padding: 12px 0; font-family: var(--body); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; color: var(--bg);
+  padding: 12px 0; font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--bg);
 }
 @media (prefers-reduced-motion: reduce) { .ffilter-scrim, .ffilter { animation: none; } }
 @media (min-width: 769px) { .ffilter-scrim { display: none; } }
@@ -462,8 +462,8 @@
    (no clash), added here since forces.css owns this file's edits to the Forces panel. */
 .fscore__gen {
   margin-top: 14px;
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md);
-  line-height: 1.65; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82;
 }
 
 /* ── Forces panel — sentence-aware axis descriptions ──────────────────────────────────────────

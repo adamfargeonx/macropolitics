@@ -60,7 +60,7 @@
 .forcesctl__opt {
   position: relative;
   cursor: none; background: none; border: none; padding: 5px 12px; border-radius: var(--r-pill);
-  font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.03em; color: var(--ink-dim);
+  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
   transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
 }
 .forcesctl__opt:hover { color: var(--light); }
@@ -69,7 +69,7 @@
 .forcesctl__slider { -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 0; background: var(--line-yellow); cursor: none; }
 .forcesctl__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--yellow); cursor: none; box-shadow: 0 0 8px rgba(251, 255, 0, 0.4); }
 .forcesctl__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
-.gindex__empty { margin-top: 14px; font-family: var(--body); font-size: var(--text-sm); color: var(--ink-dim); letter-spacing: 0.04em; }
+.gindex__empty { margin-top: 14px; font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 /* Tools disclosure panel — bloc filter + threshold + year + scenario sandbox, all in one.
    Docked as a flyout just to the left of the side panel (RTL: the panel sits at right:44px,
    width:396px — this opens flush against its left edge), so it reads as anchored to the ⚙ כלים
@@ -86,7 +86,7 @@
 .forcestools__row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .forcestools__row--slider { display: grid; grid-template-columns: 40px 1fr 40px; gap: 10px; }
 .forcestools__row--head { justify-content: space-between; margin-bottom: 8px; }
-.forcestools__lbl { font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; color: var(--ink-dim); white-space: nowrap; padding-inline-end: 4px; }
+.forcestools__lbl { font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); white-space: nowrap; padding-inline-end: 4px; }
 .forcestools__lbl--title { font-size: var(--text-xs); color: var(--yellow); }
 .forcestools__divider { border: none; border-top: 1px solid var(--line); margin: 6px 0 10px; }
 .forcestools__timenote { color: rgba(251, 255, 0, 0.6) !important; }
@@ -96,7 +96,7 @@
 .forcestools__reset-all {
   position: relative;
   cursor: none; background: none; border: none;
-  margin-top: 8px; padding: 5px 0; width: 100%; font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim);
+  margin-top: 8px; padding: 5px 0; width: 100%; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); color: var(--ink-dim);
   transition: color var(--dur-fast) ease;
 }
 .forcestools__reset-all:hover { color: var(--light); }
@@ -107,16 +107,16 @@
 /* Sandbox component styles (shared, now rendered inside .forcestools) */
 /* item 7 typography audit: reset-button label was 10.5px, a near-duplicate of the 10px used by
    .forcestools__reset-all/.forces-state__reset for the same "small reset button" role — unified to 10px. */
-.sandbox__reset { cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 10px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+.sandbox__reset { cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 10px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
 .sandbox__reset:hover { color: var(--light); border-color: var(--ink-dim); }
-.sandbox__k { font-family: var(--body); font-size: var(--text-sm); font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--light); }
+.sandbox__k { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); }
 .sandbox__slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; border-radius: 0; background: var(--line-yellow); cursor: none; }
 .sandbox__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--yellow); cursor: none; box-shadow: 0 0 8px rgba(251, 255, 0, 0.4); }
 .sandbox__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
 .sandbox__v { font-family: var(--latin); font-size: var(--text-sm); font-weight: 700; color: var(--yellow); text-align: left; direction: ltr; }
 /* item 7: hint caption was 10.5px, a near-duplicate of the --text-xs (11px) caption role used
    elsewhere (.forces-hint, .about__foot) — re-pointed to the token. */
-.sandbox__hint { margin-top: 6px; font-family: var(--body); font-size: var(--text-xs); line-height: 1.5; letter-spacing: 0.02em; color: var(--ink-faint); }
+.sandbox__hint { margin-top: 6px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 
 /* Compound state breadcrumb — visible below forcesctl when secondary filters are active */
 .forces-state {
@@ -124,20 +124,20 @@
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: center;
 }
 .forces-state__tag {
-  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.06em;
+  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--yellow); background: var(--yellow-08); border: 1px solid rgba(251, 255, 0, 0.2);
   border-radius: var(--r-pill); padding: 2px 8px;
 }
 .forces-state__reset {
   cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill);
-  padding: 2px 10px; font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim);
+  padding: 2px 10px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); color: var(--ink-dim);
   transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .forces-state__reset:hover { color: var(--light); border-color: var(--ink-dim); }
 /* Interaction hint — floats at bottom-centre; fades in after 2.5s, gone once a body is selected */
 .forces-hint {
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 5;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--ink-faint);
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
   pointer-events: none; white-space: nowrap; animation: fadeIn 1.2s 2.5s both;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -155,8 +155,8 @@
 }
 @keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
 .readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-bold); font-size: var(--text-lg); letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
-.readout__g { font-family: var(--body); font-weight: 700; font-size: var(--text-xs); color: var(--tooltip-fg); opacity: 0.75; }
-.readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: var(--text-xs); letter-spacing: 0.094em; opacity: 0.85; }
+.readout__g { font-family: var(--body); font-weight: 700; font-size: var(--text-xs); line-height: var(--leading-loose); color: var(--tooltip-fg); opacity: 0.75; }
+.readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
 
 /* Chrome ──────────────────────────────────────────────────── */
@@ -182,7 +182,7 @@
   transform: translateY(-50%);
   white-space: nowrap; pointer-events: none;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: 0.12em; color: var(--yellow);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow);
   /* start fully clipped from the left → only the right edge (where the first Hebrew glyph is) is
      retained; hover unclips leftwards, revealing the line as if written. */
   clip-path: inset(0 0 0 100%);
@@ -224,7 +224,7 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .unav__model {
   position: relative;
   display: inline-flex; align-items: center; gap: 7px; cursor: none;
-  font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
+  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--yellow); background: none; border: none; padding: 6px 6px;
   transition: color var(--dur-fast) ease;
 }
@@ -234,7 +234,7 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .unav__legend {
   position: relative;
   display: inline-flex; align-items: center; gap: 8px; cursor: none;
-  font-family: var(--body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em;
+  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--ink-dim); background: none; border: none; padding: 6px 6px;
   transition: color var(--dur-fast) ease;
 }
@@ -262,9 +262,9 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .abtoast__bar { flex: none; width: 3px; background: var(--yellow); }
 .abtoast__body { padding: 14px 16px; }
 .abtoast__title { font-family: var(--display); font-weight: 900; font-size: var(--text-md); color: var(--yellow); letter-spacing: 0.02em; }
-.abtoast__text { margin-top: 7px; font-family: var(--body); font-size: var(--text-base); line-height: 1.5; letter-spacing: 0.04em; color: var(--light); opacity: 0.85; }
+.abtoast__text { margin-top: 7px; font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.85; }
 /* item 7: was 11.5px, a near-duplicate of the --text-xs (11px) label/link role — re-pointed. */
-.abtoast__more { margin-top: 10px; background: none; border: none; cursor: none; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.06em; color: var(--yellow); opacity: 0.8; transition: opacity var(--dur-fast) ease; }
+.abtoast__more { margin-top: 10px; background: none; border: none; cursor: none; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.8; transition: opacity var(--dur-fast) ease; }
 .abtoast__more:hover { opacity: 1; }
 .abtoast__close { position: absolute; top: 6px; left: 9px; background: none; border: none; color: var(--ink-dim); font-size: var(--text-sm); cursor: none; transition: color var(--dur-fast) ease; }
 .abtoast__close:hover { color: var(--yellow); }
@@ -289,9 +289,9 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 /* typography sweep: was 27px, a 1px stray off the 26px used by its two shared-panel-family
    siblings (.evid__title, .legend__title — same big yellow overlay-title role) — matched to them. */
 .about__title { font-family: var(--display); font-size: 26px; font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
-.about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: 0.08em; color: var(--light); opacity: 0.55; }
+.about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
 @media (prefers-reduced-motion: reduce) { .about__mark-spin { animation: none; } }
-.about__lede { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-lg); line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
+.about__lede { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
 /* the equation — a focal block. item 9: horizontal container rules dropped in favour of the
    language's vertical accent + the radial glow that already makes it a focal block. */
 .about__eq {
@@ -300,7 +300,7 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 }
 .about__eq-term { font-size: var(--text-2xl); font-weight: 700; letter-spacing: -0.01em; color: var(--white); }
 .about__eq-term:first-child { color: var(--yellow); }
-.about__eq-op { font-family: var(--body); font-size: var(--text-xl); color: var(--yellow); opacity: 0.7; }
+.about__eq-op { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.7; }
 .about__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 /* each lens as a small card — even box border (no single-sided top stroke), index, subtle hover lift */
 .about__col {
@@ -311,15 +311,15 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .about__col:hover { border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
 .about__col-n { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: 0.1em; }
 .about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin: 4px 0 7px; }
-.about__col p { font-family: var(--body); font-size: var(--text-base); line-height: 1.62; letter-spacing: 0.04em; color: var(--light); opacity: 0.78; }
+.about__col p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
 .about__honesty {
   margin-top: 22px; padding: 12px 14px; font-family: var(--body);
-  font-size: var(--text-base); line-height: 1.5; letter-spacing: 0.04em; color: var(--yellow); opacity: 0.85;
+  font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--yellow); opacity: 0.85;
   background: rgba(251, 255, 0, 0.05);
 }
 .about__foot {
   margin-top: 18px; display: flex; justify-content: space-between;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--light); opacity: 0.60;
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.60;
 }
 @media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .about { animation: none; } }

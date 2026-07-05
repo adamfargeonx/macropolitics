@@ -56,8 +56,8 @@
   content: attr(data-hint);
   position: absolute; bottom: calc(100% + 18px); inset-inline-start: 0; z-index: 200;
   min-width: 224px; max-width: 260px; padding: 7px 10px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: 11px;
-  line-height: 1.48; letter-spacing: 0.04em;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
   white-space: normal; text-align: right; pointer-events: none;
 }
 
@@ -72,30 +72,30 @@
 .evid::-webkit-scrollbar { display: none; }
 .evid__head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; flex-wrap: wrap; }
 .evid__title { font-family: var(--display); font-size: 26px; font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); }
-.evid__score { font-family: var(--body); font-size: var(--text-sm); letter-spacing: 0.09em; color: var(--light); opacity: 0.6; }
+.evid__score { font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.6; }
 /* tabs */
 .evid__tabs { display: flex; border-bottom: 1px solid var(--line-yellow); margin-bottom: 18px; }
 .evid__tab {
   display: inline-flex; align-items: center; gap: 7px; cursor: none; background: none; border: none;
-  padding: 9px 16px; margin-bottom: -1px; font-family: var(--body); font-size: 13px; font-weight: 700;
-  letter-spacing: 0.08em; color: var(--ink-dim); border-bottom: 2px solid transparent;
+  padding: 9px 16px; margin-bottom: -1px; font-family: var(--body); font-size: var(--text-xs); font-weight: 700;
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); border-bottom: 2px solid transparent;
   transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .evid__tab:hover { color: var(--light); }
 .evid__tab.is-on { color: var(--yellow); border-bottom-color: var(--yellow); }
 .evid__tab-icon { opacity: 0.85; }
 .evid__calc-tab { max-width: 560px; }
-.evid__formula { font-family: var(--body); font-size: 12px; letter-spacing: 0.07em; color: var(--ink-dim); margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-2); }
+.evid__formula { font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-2); }
 /* the calculation — numbers right-aligned in a monospace-ish column */
 .evid__calc { display: flex; flex-direction: column; gap: 9px; }
 .evid__step { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.evid__step-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: 0.112em; color: var(--light); opacity: 0.8; white-space: nowrap; }
+.evid__step-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.8; white-space: nowrap; }
 .evid__math { font-family: var(--latin); font-size: 13px; letter-spacing: 0.05em; color: var(--light); opacity: 0.7; direction: ltr; text-align: left; }
 .evid__math b { color: var(--white); opacity: 1; font-weight: 700; }
 .evid__step--total { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line-yellow); }
 .evid__step--total .evid__step-k { color: var(--yellow); opacity: 1; font-weight: 700; }
 .evid__step--total .evid__math b { color: var(--yellow); }
-.evid__weights { margin-top: 13px; font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.07em; color: var(--ink-faint); }
+.evid__weights { margin-top: 13px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 /* sources — three axes side by side (one per column); the panel reads wide, not deep */
 .evid__sources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: start; }
 .evid__src { padding: 0; }
@@ -103,15 +103,15 @@
 .evid__src-axis { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--white); }
 .evid__src-icon { color: var(--yellow); opacity: 0.85; }
 .evid__src-score { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--yellow); }
-.evid__badge { margin-inline-start: auto; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; padding: 2px 6px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
+.evid__badge { margin-inline-start: auto; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); padding: 2px 6px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
 .evid__badge--sourced { color: var(--ok); border-color: var(--ok-border); }
 .evid__badge--estimate { color: var(--yellow); border-color: var(--yellow-30); }
 .evid__badge--judgment { color: var(--ink-dim); }
 .evid__badge--no-data { color: var(--warn); border-color: var(--warn-border); }
-.evid__figure { margin-top: 9px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); line-height: 1.55; letter-spacing: 0.084em; color: var(--light); opacity: 0.85; }
+.evid__figure { margin-top: 9px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.85; }
 .evid__src--flag .evid__figure { color: var(--yellow); opacity: 0.95; }
-.evid__note { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: 1.5; letter-spacing: 0.098em; color: var(--ink-faint); }
-.evid__link { display: inline-block; margin-top: 8px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: 0.07em; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
+.evid__note { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
+.evid__link { display: inline-block; margin-top: 8px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
 .evid__link:hover { color: var(--yellow); }
 /* sourced 2020→2025 trend (a real temporal datapoint) */
 .evid__trend { margin-top: 9px; padding: 7px 9px; background: rgba(251, 255, 0, 0.04); }
@@ -120,11 +120,11 @@
 .evid__trend-pct { font-size: 11px; }
 .evid__trend-pct--up { color: var(--ok); }
 .evid__trend-pct--down { color: var(--warn); }
-.evid__trend-years { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--ink-faint); }
-.evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--ink-faint); }
+.evid__trend-years { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint); }
+.evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint); }
 /* unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one set of styles */
 .evid__comp { margin-top: 10px; padding: 9px 10px; background: rgba(251, 255, 0, 0.03); }
-.evid__comp-lbl { display: block; font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.084em; color: var(--ink-dim); margin-bottom: 8px; }
+.evid__comp-lbl { display: block; font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); margin-bottom: 8px; }
 .evid__comp-grid { display: flex; flex-direction: column; gap: 5px; }
 /* item 8: every parameter is a consistent bar row — [status][label][bar][value] on common axes,
    so sourced and assessed parameters read uniformly and the evidence layer is complete. */
@@ -134,19 +134,19 @@
 .evid__comp-status--estimate { color: var(--yellow); opacity: 0.85; }
 .evid__comp-status--judgment { color: var(--ink-dim); }
 .evid__comp-status--no-data { color: var(--warn); }
-.evid__comp-k { min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.084em; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.evid__comp-k { min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .evid__comp-bar { min-width: 16px; height: 4px; background: var(--line-2); overflow: hidden; }
 .evid__comp-bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.7; }
 .evid__comp-v { text-align: end; font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; color: var(--light); }
 .evid__comp-row--miss .evid__comp-k, .evid__comp-row--miss .evid__comp-v { color: var(--ink-faint); }
 .evid__comp-row--miss .evid__comp-bar i { opacity: 0.3; }
-.evid__comp-judgment { display: block; margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: 1.5; letter-spacing: 0.084em; color: var(--ink-faint); opacity: 0.75; }
+.evid__comp-judgment { display: block; margin-top: 7px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); opacity: 0.75; }
 @media (max-width: 720px) { .evid__sources { grid-template-columns: 1fr; } }
 
 .evid__flags { margin-top: 18px; padding: 12px 14px; background: var(--warn-bg); border-inline-start: 2px solid var(--warn-border); }
-.evid__flags p { font-family: var(--body); font-size: var(--text-sm); line-height: 1.55; letter-spacing: 0.02em; color: var(--warn); }
+.evid__flags p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--warn); }
 .evid__flags p + p { margin-top: 6px; }
-.evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: 11px; line-height: 1.5; letter-spacing: 0.07em; color: var(--ink-faint); }
+.evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) { .evid { animation: none; } }
 
 /* Legend overlay (the visual-language key, opened by ⓘ) */
@@ -179,15 +179,15 @@
   /* item 10: container line removed — harmonized to the accent-bar language */
 }
 .legend__title { font-family: var(--display); font-size: 26px; font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
-.legend__sub { font-family: var(--body); font-size: 12px; letter-spacing: 0.10em; color: var(--light); opacity: 0.5; }
+.legend__sub { font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.5; }
 .legend__rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 /* item 10: row dividers removed — each row carries the language's vertical accent instead */
 .legend__row {
   display: flex; align-items: center; gap: 16px; padding: 13px 0;
   padding-inline-start: 16px;
 }
-/* item 8: legend row copy unified to the primary body size (14px) — was 13.5px */
-.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md); line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
+/* item 8: legend row copy unified to the primary body size (13px) */
+.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
 .legend__swatch {
   flex: 0 0 58px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -203,11 +203,11 @@
 .legend__rims i { display: block; width: 14px; height: 14px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
 .legend__hint {
   margin-top: 18px; padding: 12px 14px; font-family: var(--body);
-  /* item 8: unified to the primary body size (14px) — was 13px */
-  font-size: var(--text-md); line-height: 1.45; color: var(--yellow); opacity: 0.92;
+  /* item 8: unified to the primary body size (13px) */
+  font-size: var(--text-base); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
 }
-.legend__foot { margin-top: 16px; font-family: var(--body); font-size: 11px; color: var(--light); opacity: 0.60; letter-spacing: 0.08em; text-align: center; }
+.legend__foot { margin-top: 16px; font-family: var(--body); font-size: var(--text-xs); color: var(--light); opacity: 0.60; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim, .legend, .about, .evid, .panel, .panelb, .panel--detail { animation: none; }
 }
@@ -242,9 +242,9 @@
   .panel > :last-child::-webkit-scrollbar, .panelb > :last-child::-webkit-scrollbar { display: none; }
 }
 .panel__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
-.panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 15px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
+.panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
 .panel__eq { margin-top: 26px; font-size: 17px; font-weight: 900; letter-spacing: -0.01em; color: var(--yellow); }
-.panel__note { margin-top: 10px; font-family: var(--body); font-weight: var(--fw-regular); font-size: 14px; line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
+.panel__note { margin-top: 10px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
 
 /* Detail panel (a body is selected). Close button comes from the shared shell. */
 .panel--detail { animation: detailIn 0.46s var(--ease-out-expo); }
@@ -258,10 +258,10 @@
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 7px 0;
 }
-.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.112em; }
+.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 .panel__row-v { font-family: var(--display); font-size: var(--text-lg); font-weight: 700; color: var(--white); }
 .panel__rels { margin-top: 20px; }
-.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
+.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
   font-size: var(--text-sm); color: var(--yellow); padding: 4px 9px;
@@ -299,7 +299,7 @@
 .panelb__desc {
   position: relative;
   display: inline-flex; align-items: center; gap: 5px; cursor: none;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.154em; color: var(--ink-dim);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
   border: 1px solid var(--line); padding: 4px 10px;
   transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
@@ -315,7 +315,7 @@
 .phead__hint {
   margin-top: 10px; min-height: 1.5em;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.72;
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.72;
 }
 /* ── Headline score — the PRIMARY reading. Deliberately NOT a gauge/bar (no track), so it can't
    be mistaken for a fourth category bar. An oversized numeral + label/rank, set off from the
@@ -330,7 +330,7 @@
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
 .fscore__unit { font-family: var(--display); font-size: var(--text-md); color: var(--ink-dim); }
 .fscore__meta { display: flex; flex-direction: column; gap: 3px; }
-.fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.1em; color: var(--light); opacity: 0.85; }
+.fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.85; }
 .fscore__rank { font-family: var(--latin); font-weight: 700; font-size: var(--text-xs); letter-spacing: 0.1em; color: var(--yellow); opacity: 0.6; direction: ltr; text-align: right; }
 @keyframes gaugeGrow { from { transform: scaleX(0); } }
 .panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
@@ -340,7 +340,7 @@
 /* shared pole chip — reused by the dynamics ties (and any relation pole indicator) */
 .panelb__chip {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); padding: 2px 7px; white-space: nowrap;
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); padding: 2px 7px; white-space: nowrap;
 }
 .panelb__chip--t { color: var(--warn); background: var(--warn-bg); }
 .panelb__chip--f { color: var(--yellow); background: var(--yellow-08); }
@@ -358,8 +358,8 @@
    ForcesNarrative (.fnarr__gen, same token/family/colour) behind the "תיאור מלא" button. */
 .fscore__gen {
   margin-top: 14px;
-  font-family: var(--body); font-size: var(--text-md);
-  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+  font-family: var(--body); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim);
 }
 
 /* the three supporting category rows (icon, label, value, bar) + a fixed-length, truncated
@@ -374,7 +374,7 @@
 .fparam__label {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9;
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9;
 }
 .fparam__icon { color: var(--yellow); opacity: 0.85; font-size: 13px; flex-shrink: 0; }
 .fparam__val {
@@ -389,18 +389,18 @@
 @media (prefers-reduced-motion: reduce) { .fparam__track i { animation: none; } }
 /* per-axis description — the brief FIRST SENTENCE (see firstSentence() in Chrome.tsx): a complete
    thought, no clamp, no ellipsis. Same PROSE size as the general read above (the panel's body copy
-   is one size, 14px; labels/captions are the other, 11px — two Futurism sizes, full stop). */
+   is one size, 13px; labels/captions are the other, 11px — two Futurism sizes, full stop). */
 .fparam__desc-text {
   margin-top: 0;
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md);
-  line-height: 1.55; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
 }
 /* the single full-description drill-down trigger — a small on-brand text button, not a box */
 .ffull-btn {
   margin-top: 14px; display: inline-flex; align-items: center; gap: 5px; cursor: none;
   background: none; border: 1px solid var(--line-yellow); padding: 6px 12px;
   font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
-  color: var(--yellow); opacity: 0.82;
+  line-height: var(--leading-loose); color: var(--yellow); opacity: 0.82;
   transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 .ffull-btn:hover { background: var(--yellow-06); opacity: 1; }
@@ -412,22 +412,22 @@
   margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px;
 }
-.fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9; }
+.fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9; }
 .fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
-.fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+.fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 /* evidence link — subtle underlined text link, NOT a grey box */
 .fevidence {
   margin-top: 18px; display: inline-flex; align-items: center; gap: 4px; cursor: none;
   background: none; border: none; border-bottom: 1px solid var(--yellow-30); padding: 0 0 1px;
   font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
-  color: var(--yellow); opacity: 0.6; transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  line-height: var(--leading-loose); color: var(--yellow); opacity: 0.6; transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .fevidence:hover { opacity: 1; border-bottom-color: var(--yellow); }
 
 /* תיאור mode — the narrative (general read + three axis blocks), shown flat */
 .fnarr__gen {
-  font-family: var(--body); font-size: var(--text-md);
-  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+  font-family: var(--body); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim);
 }
 /* NOTE: no left-stroke accent — that decorative border-inline-start pattern is retired sitewide
    (see .dcard__orbit/.dcard__caption below for the same removal). The yellow label beneath
@@ -436,12 +436,12 @@
 .fnarr__axis-l {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); color: var(--yellow); opacity: 0.85;
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.85;
 }
 .fnarr__axis-icon { color: var(--yellow); opacity: 0.8; font-size: 12px; }
 .fnarr__axis-t {
-  margin-top: 6px; font-family: var(--body); font-size: var(--text-md);
-  line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
+  margin-top: 6px; font-family: var(--body); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -462,7 +462,7 @@
 .dcard__chip {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); color: var(--ink-dim);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim);
   border: 1px solid var(--line); padding: 3px 9px;
 }
 .dcard__chip-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
@@ -475,9 +475,9 @@
 }
 .dcard__pstrip-score { display: inline-flex; align-items: baseline; gap: 5px; flex: none; }
 .dcard__pstrip-score b { font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
-.dcard__pstrip-score span { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-dim); }
+.dcard__pstrip-score span { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); }
 .dcard__pstrip-axes { display: flex; gap: 12px; margin-inline-start: auto; }
-.dcard__pstrip-ax { display: inline-flex; align-items: center; gap: 4px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-dim); }
+.dcard__pstrip-ax { display: inline-flex; align-items: center; gap: 4px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); }
 .dcard__pstrip-ax b { font-family: var(--display); font-weight: 700; color: var(--white); }
 .dcard__pstrip-icon { color: var(--yellow); opacity: 0.7; font-size: 12px; flex-shrink: 0; }
 /* orbital context — the orrery's unique meaning: what it orbits / what orbits it.
@@ -487,19 +487,19 @@
   margin-top: 16px; display: flex; flex-direction: column; gap: 8px;
   padding: 12px 14px; background: var(--surface-1);
 }
-.dcard__orbit-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__orbit-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.55; }
 .dcard__orbit-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 .dcard__orbit-row { display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline; }
-.dcard__orbit-k { flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-faint); }
-.dcard__orbit-v { font-family: var(--body); font-size: var(--text-md); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--light); }
+.dcard__orbit-k { flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint); }
+.dcard__orbit-v { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); }
 /* ── CENTREPIECE: defining ties — each with its tension/friction/harmony makeup + a one-line why.
    The dynamics-specific payload the forces panel can't give; fills the card with distinct info. ── */
 .dcard__rels { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-.dcard__sec-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__sec-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.55; }
 .dcard__sec-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 /* legend: which segment colour is which pole */
 .dcard__rels-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -3px; }
-.dcard__rels-key-i { display: inline-flex; align-items: center; gap: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-faint); }
+.dcard__rels-key-i { display: inline-flex; align-items: center; gap: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint); }
 .dcard__rels-key-i i { width: 9px; height: 9px; flex: none; }
 /* one relation — a clickable re-centre row */
 .drel {
@@ -509,8 +509,8 @@
 }
 .drel:hover { background: var(--yellow-06); }
 .drel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.drel__name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-md); letter-spacing: var(--tracking-body); color: var(--white); }
-.drel__pole { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); }
+.drel__name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--white); }
+.drel__pole { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); }
 .drel__pole--t { color: var(--warn); }
 .drel__pole--f { color: var(--yellow); }
 .drel__pole--h { color: var(--ok); }
@@ -520,12 +520,12 @@
 .drel__seg--t { background: var(--warn); }
 .drel__seg--f { background: var(--yellow); }
 .drel__seg--h { background: var(--ok); }
-.drel__why { display: block; font-family: var(--body); font-size: var(--text-xs); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+.drel__why { display: block; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 /* fused synthesis caption — NOTE: no left-stroke accent, retired sitewide (see .dcard__orbit
    above and .fnarr__axis in the forces block); typographic weight alone carries this closing line */
 .dcard__caption {
   margin-top: 16px;
-  font-family: var(--body); font-size: var(--text-xs); line-height: 1.6;
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
   letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.85;
 }
 
