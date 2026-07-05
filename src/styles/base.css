@@ -99,12 +99,38 @@
   --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
   --text-lg: 15px; --text-xl: 17px; --text-2xl: 20px; --text-3xl: 30px;
   /* Display-tier sizes for oversized panel/score titles */
-  --text-4xl: 32px;   /* panelb__title, evid__title-region */
+  --text-4xl: 32px;   /* legacy — being retired in favor of --text-3xl for panel-hero titles */
+  --text-title: 26px; /* Tel Aviv overlay-title tier: evid__title, legend__title, about__title */
   --display-md: 46px; /* panelb__score hero numeral */
   --tracking-tight: -0.01em; --tracking-wide: 0.08em; --tracking-wider: 0.18em;
   /* type-system tracking ramp (the 6-style system; see .t-* utilities below) */
   --tracking-display: -0.02em;   /* Display */
   --tracking-title: -0.01em;     /* Title */
+  /* ── Tel Aviv Brutalist (--display) canonical rule — role-based ramp, not a single flat size like
+     Futurism's, because this face genuinely does more distinct jobs (wordmark, hero numeral, panel
+     titles, overlay titles, section titles, control labels, small badges, value displays) — forcing
+     one universal size across all of those would be wrong, not simpler. What IS enforced: every role
+     resolves to exactly ONE size and ONE tracking token, no stray one-off em/px values:
+       · Wordmark (the brand lockup, home + header) — untouched, its own clamp()/--tracking-wordmark,
+         not part of this consolidation (there is exactly one of each, no drift possible).
+       · Hero numeral — --display-md (46px), --tracking-display. Single use, no drift.
+       · Panel/entity hero title (the name atop a detail panel: phead/panel/dcard __title) —
+         --text-3xl (30px), --tracking-display. (--text-4xl retired from this role — was a lone 32px
+         outlier against two already-30px siblings.)
+       · Overlay title (evid/legend/about __title) — --text-title (26px), --tracking-display.
+       · Prominent secondary title (equation lines, filter-sheet titles, big constellation node
+         names) — --text-2xl (20px), --tracking-title.
+       · Control/tab label (the persistent bottom nav tabs) — --text-lg (15px), --tracking-numeral.
+       · Small badge/rank/numeral (inline rank digits, compact list-row scores) — --text-xs (11px),
+         --tracking-numeral.
+       · Value/name display (a tooltip's name, a row's value, a toast's title) — --text-lg (15px),
+         --tracking-title.
+     --tracking-numeral (new, below) replaces the small-badge tier's previous stray soup of
+     0.02em/0.05em/0.06em/0.08em/0.10em — those were the same "too many sizes/formats" drift as
+     Futurism's, just in tracking instead of size. EXCEPTIONS, deliberately left alone: any letter-
+     spacing that's the REST half of a two-state hover/interactive animation (e.g. home-nav__label's
+     0.02em→0.12em spread-on-hover) — that's a designed effect, not drift. */
+  --tracking-numeral: 0.06em;
   /* ── Futurism (--body) canonical rule — ONE size ramp, ONE tracking, ONE leading, sitewide.
      Every Futurism-family text element is either --text-xs (11px, small/caption: labels, hints,
      chips, meta, timestamps) or --text-base (13px, body: paragraphs, names, values) — no other
@@ -167,12 +193,12 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 /* 2 · Display — panel/overlay titles */
 .t-display {
   font-family: var(--display); font-weight: var(--fw-black);
-  font-size: 26px; letter-spacing: var(--tracking-display);
+  font-size: var(--text-title); letter-spacing: var(--tracking-display);
 }
 /* 3 · Title — section subtitles, vertex/chip names */
 .t-title {
   font-family: var(--display); font-weight: var(--fw-bold);
-  font-size: 20px; letter-spacing: var(--tracking-title);
+  font-size: var(--text-2xl); letter-spacing: var(--tracking-title);
 }
 /* 4 · Body — all narrative copy. The 13px Futurism body-text size. */
 .t-body {
