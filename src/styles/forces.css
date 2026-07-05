@@ -431,7 +431,7 @@
   width: 100%; display: flex; align-items: center; gap: 10px; cursor: none;
   background: none; border: none; border-bottom: 1px solid var(--line-2);
   padding: 13px 2px; text-align: right;
-  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); color: var(--light);
+  font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light);
   transition: color var(--dur-fast) ease;
 }
 .ffilter__row.is-on { color: var(--yellow); font-weight: 700; }

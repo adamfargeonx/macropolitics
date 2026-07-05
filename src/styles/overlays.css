@@ -204,7 +204,7 @@
 .legend__hint {
   margin-top: 18px; padding: 12px 14px; font-family: var(--body);
   /* item 8: unified to the primary body size (13px) */
-  font-size: var(--text-base); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
+  font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
 }
 .legend__foot { margin-top: 16px; font-family: var(--body); font-size: var(--text-xs); color: var(--light); opacity: 0.60; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); text-align: center; }
