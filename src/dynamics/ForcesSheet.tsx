@@ -607,7 +607,12 @@ class GravityWell {
       const ctx = this.ctx
       ctx.globalAlpha = bodyA * tAlpha * exitScale
 
-      const glowR = rr * (2.0 + (bloom - 1) * 1.1)
+      // Cap the glow radius to the nearest canvas edge. A radial gradient reaches alpha 0 exactly
+      // at its outer radius, so keeping that radius inside the canvas guarantees the glow has faded
+      // to fully transparent BEFORE it meets the boundary — no more hard straight-line clip when a
+      // bloomed body (hover/select/tour-focus) sits against the top/left/bottom/right edge.
+      const edgeDist = Math.min(sx, sy, this.w - sx, this.h - sy)
+      const glowR = Math.min(rr * (2.0 + (bloom - 1) * 1.1), edgeDist)
       if (glowR > 0) {
         const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
         grd.addColorStop(0, `rgba(${glowCol},${0.1 + (bloom - 1) * 0.14})`)

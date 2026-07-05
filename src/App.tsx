@@ -102,7 +102,9 @@ export default function App() {
       setHomeExiting(true)
       t.timers.push(window.setTimeout(() => {
         viewRef.current = v; setView(v); setRail('nav-rail--mask'); setHomeExiting(false)
-        t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 520))
+        // wait out the full railMask tween (0.66s) before clearing the class, so it isn't pulled
+        // mid-motion (which would snap the rail off its transform before it has settled to scale 1)
+        t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 700))
       }, EXIT_MS))
       return
     }

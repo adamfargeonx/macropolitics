@@ -20,9 +20,12 @@ const CAM_DUR = 600 // ms — camera tween duration (pan + zoom), ease-out-expo
 
 // ── Depth / drill-down layer (Tasks 14 + 15) ──
 // One coherent "insight" system: when the camera pushes past INSIGHT_ZOOM onto a focused body it
-// fades in that body's labelled orbital children + a "what you're looking at" note; independently,
-// any authored relation whose two bodies drift within a proximity band fades in a caption at their
-// midpoint. Both ease their alpha off geometry so the default frame stays clean.
+// fades in that body's labelled orbital children + a "what you're looking at" note AND its 1–2
+// strongest authored relations as small sidenote captions placed beside the partner bodies — the
+// "dynamic ties" reward for drilling into a body. All fade their alpha off the same insight zoom
+// gate so the default frame stays clean. (An earlier drift-proximity caption mechanic was removed:
+// it gated on zoom-IN *and* on-screen closeness, but zooming in pushes bodies apart on screen, so
+// the two conditions were mutually exclusive and it never fired.)
 // ── Page-exit cascade — on `mp-exit` (leaving to home) each orbiting body plays its OWN staggered
 // shrink+fade so the orrery empties body-by-body rather than the whole rail zooming out. Ranked
 // strong→weak. Kept in sync with App.tsx's EXIT_MS and the Forces/Relations cascades.
@@ -31,14 +34,6 @@ const EXIT_BODY_DUR = 300 // ms each body takes to vanish
 
 const INSIGHT_ZOOM = 1.7 // zoom at which the focused-body insight layer begins to reveal
 const INSIGHT_FADE = 0.55 // zoom span over which it fades fully in (→ 2.25)
-const PROX_BASE = 128 // proximity caption base threshold (screen px, before the two radii)
-const PROX_FADE = 78 // caption eases fully in over the last PROX_FADE px of approach
-// Proximity captions are a reward for drilling in/zooming — never an ambient always-on feature —
-// so they're ALSO gated on the live zoom level (see drawDepthLayer), independent of whether a body
-// happens to be individually focused. Below PROX_ZOOM_GATE (just above DEFAULT_ZOOM) they're fully
-// shut; they fade open over the following PROX_ZOOM_FADE of zoom.
-const PROX_ZOOM_GATE = 1.05
-const PROX_ZOOM_FADE = 0.45 // → fully open by zoom 1.5
 const POLE_HE: Record<'t' | 'f' | 'h', string> = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
 const POLE_COL: Record<'t' | 'f' | 'h', string> = { t: '214,120,96', f: '150,150,160', h: YELLOW }
 
@@ -69,21 +64,27 @@ const AXIS_COLOR: Record<string, string> = {
 interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number; exitDelay: number; exitP: number }
 
 const idIndex = new Map(NODES.map((n, i) => [n.id, i]))
-// Authored relations resolved to node indices + a dominant pole, precomputed once. Drives the
-// proximity captions (Task 15): each frame we test screen distance and fade a caption at the midpoint.
-const AUTH_PAIRS = AUTHORED_RELATIONS
-  .filter((r) => idIndex.has(r.pair[0]) && idIndex.has(r.pair[1]))
-  // drop parent↔child pairs (e.g. iran↔hezbollah, saudi↔uae): a satellite is PERMANENTLY beside its
-  // hub, so its caption would sit static in a dense cluster. Keep only independent bodies whose orbits
-  // genuinely drift them together — the "iran drifts close to turkey" reveal the feature is about.
-  .filter((r) => {
-    const a = NODES[idIndex.get(r.pair[0])!], b = NODES[idIndex.get(r.pair[1])!]
-    return a.parent !== b.id && b.parent !== a.id
-  })
-  .map((r) => {
+// Authored relations indexed BY BODY, precomputed once. Drives the drill-down relation sidenotes
+// ("dynamic ties", Task 15): when a body is focused and the camera is zoomed in, we look up that
+// body's relations, rank by dominant-pole strength, and caption its 1–2 strongest beside the
+// partner. Each entry: the partner's node index, the dominant pole, its `why` line, and the pole
+// strength used for ranking. Both directions of every authored pair are registered.
+const RELATIONS_BY_BODY = (() => {
+  const m = new Map<string, { ib: number; dom: 't' | 'f' | 'h'; why: string; strength: number }[]>()
+  for (const r of AUTHORED_RELATIONS) {
+    if (!idIndex.has(r.pair[0]) || !idIndex.has(r.pair[1])) continue
     const dom: 't' | 'f' | 'h' = r.t >= r.f && r.t >= r.h ? 't' : r.f >= r.h ? 'f' : 'h'
-    return { ia: idIndex.get(r.pair[0])!, ib: idIndex.get(r.pair[1])!, aId: r.pair[0], bId: r.pair[1], dom, why: r.why }
-  })
+    const strength = Math.max(r.t, r.f, r.h)
+    const push = (self: string, other: string) => {
+      const arr = m.get(self) ?? []
+      arr.push({ ib: idIndex.get(other)!, dom, why: r.why, strength })
+      m.set(self, arr)
+    }
+    push(r.pair[0], r.pair[1]); push(r.pair[1], r.pair[0])
+  }
+  for (const arr of m.values()) arr.sort((a, b) => b.strength - a.strength)
+  return m
+})()
 const neighbors = (() => {
   const m = new Map<string, Set<string>>(NODES.map((n) => [n.id, new Set<string>()]))
   for (const [a, b] of LINKS) { m.get(a)?.add(b); m.get(b)?.add(a) }
@@ -140,10 +141,6 @@ export class OrbitalField {
   private labelOrder: NodeState[]
   private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
   private placedBuf: { x: number; y: number; w: number; h: number }[] = [] // reused scratch for label de-collision
-  // per-authored-pair eased alpha for the proximity caption (Task 15) — lerped toward its target
-  // each frame, the same idiom as ForcesSheet's `bloom`/`hoverProg` Float32Arrays, so the caption
-  // always fades in/out rather than snapping to a directly-computed value.
-  private proxAlpha = new Float32Array(AUTH_PAIRS.length)
   private world = new Map<string, { x: number; y: number }>()
   // camera — pan + wheel adjust the framed system; selecting a body eases the camera to centre it
   zoom = DEFAULT_ZOOM
@@ -582,9 +579,14 @@ export class OrbitalField {
 
   private glow(x: number, y: number, radius: number, alpha: number) {
     const ctx = this.ctx
-    const grd = ctx.createRadialGradient(x, y, 0, x, y, radius)
+    // Cap the glow radius to the nearest canvas edge. A radial gradient reaches alpha 0 exactly at
+    // its outer radius, so keeping that radius inside the canvas means the glow fully fades before
+    // the boundary — no hard straight-line clip when a bloomed body sits near an edge.
+    const rad = Math.min(radius, x, y, this.w - x, this.h - y)
+    if (rad <= 0) return
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, rad)
     grd.addColorStop(0, `rgba(${WHITE},${alpha})`); grd.addColorStop(1, `rgba(${WHITE},0)`)
-    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x, y, radius, 0, TAU); ctx.fill()
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x, y, rad, 0, TAU); ctx.fill()
   }
 
   private drawNode(ns: NodeState, t: number) {
@@ -687,15 +689,12 @@ export class OrbitalField {
         const note = POWER_NOTES[focus]?.general
         if (note) this.drawAnnotation(this.nodes[fi], note, insightAlpha)
         ctx.restore()
+        // dynamic ties — the focused body's 1–2 strongest authored relations, captioned beside the
+        // partner bodies. Same insight zoom gate as the children/note, so drilling in reliably reveals
+        // them (the old drift-proximity path never fired — see the header comment).
+        this.drawRelationTies(focus, insightAlpha)
       }
     }
-    // proximity captions and the insight layer are two facets of one depth system: they hand off, so
-    // deep-zoom reads as pure insight (children + note) and moderate/default framing shows drift
-    // captions — never both piled on the focused body at once. On top of that handoff, captions are
-    // ALSO gated on the live zoom level itself (zoomGain) — a reward for drilling in/zooming, never
-    // an ambient feature of the default framed view, whether or not a body happens to be focused.
-    const zoomGain = clamp01((this.zoom - PROX_ZOOM_GATE) / PROX_ZOOM_FADE)
-    this.drawProximity((1 - insightAlpha) * zoomGain)
   }
 
   // Short interpretive note stacked above the focused body — the reward for drilling in.
@@ -715,65 +714,65 @@ export class OrbitalField {
     }
   }
 
-  // Proximity relation captions (Task 15). When a body is focused only its own relations qualify;
-  // otherwise the single globally-closest related pair shows — so the default frame stays calm.
-  // `gain` already folds in the zoom-gate + insight handoff (drawDepthLayer), so this only ever
-  // reads "hot" once the user has actually drilled in. Rendered as a small, de-emphasized sidenote —
-  // Futurism (the body face), not the display face — so it never competes with body-name labels.
-  private drawProximity(gain: number) {
-    const focus = this.focusId
-    type Cand = { dom: 't' | 'f' | 'h'; why: string; mx: number; my: number; alpha: number; d: number }
-    const cands: Cand[] = []
-    for (let i = 0; i < AUTH_PAIRS.length; i++) {
-      const p = AUTH_PAIRS[i]
-      const na = this.nodes[p.ia], nb = this.nodes[p.ib]
-      let target = 0
-      let d = Infinity
-      if (gain > 0.001 && (!focus || focus === p.aId || focus === p.bId)
-        && easeOutCubic(na.appear) >= 0.6 && easeOutCubic(nb.appear) >= 0.6) {
-        d = Math.hypot(na.sx - nb.sx, na.sy - nb.sy)
-        const thresh = PROX_BASE + na.sr + nb.sr
-        if (d <= thresh) target = clamp01((thresh - d) / PROX_FADE) * gain
-      }
-      // ease toward the target every frame (never read directly) — appearance/disappearance is
-      // always a visible fade, even as the zoom-gate opens/shuts or the closest pair changes; same
-      // asymmetric grow/shrink idiom as ForcesSheet's bloom/hoverProg (grow snappier, shrink slower).
-      const rate = target > this.proxAlpha[i] ? 0.1 : 0.07
-      this.proxAlpha[i] += (target - this.proxAlpha[i]) * rate
-      const alpha = this.proxAlpha[i]
-      if (alpha <= 0.02) continue
-      cands.push({ dom: p.dom, why: p.why, mx: (na.sx + nb.sx) / 2, my: (na.sy + nb.sy) / 2, alpha, d })
-    }
-    if (!cands.length) return
-    // only the single closest drifting pair — one caption keeps the field calm and never stacks text,
-    // whether ambient (nothing focused) or reading a focused body's own relations.
-    cands.sort((a, b) => a.d - b.d)
-    const c = cands[0]
+  // Dynamic ties (Task 15, redesigned). The focused body's 1–2 strongest authored relations, drawn
+  // as small de-emphasized sidenotes beside the PARTNER body so each reads "this is your relationship
+  // with X". `alpha` is the insight zoom gate (drawDepthLayer), so ties only appear once the user has
+  // drilled in on a body — a reliable reward, not the old contradictory zoom-vs-proximity gate that
+  // never fired. Futurism (the body face), not the display face, so they never rival the name labels.
+  private drawRelationTies(focus: string, alpha: number) {
+    const rels = RELATIONS_BY_BODY.get(focus)
+    if (!rels || !rels.length) return
     const ctx = this.ctx
-    const poleFs = 10, descFs = 11 // small + secondary — a sidenote, not primary information
-    const maxW = Math.min(232, this.fieldW * 0.56)
-    const lineH = descFs * 1.42
-    ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
-    const lines = wrapText(ctx, c.why, maxW)
-    // rough total vertical extent (pole label + gap + wrapped description), centred on the pair's
-    // midpoint — used only for a lightweight de-collision check below, not exact glyph metrics.
-    const boxH = poleFs + 17 + lines.length * lineH
-    // de-collision against this frame's already-placed body-name labels (updateLabels' scratch
-    // buffer — one frame stale, imperceptible at this drift speed): nudge up once, else skip this
-    // frame entirely rather than fight for the pixel — this is a nice-to-have aside, not primary info.
-    const fits = (my: number) => !this.placedBuf.some((p) => Math.abs(c.mx - p.x) < (maxW + p.w) / 2 - 4 && Math.abs(my - p.y) < (boxH + p.h) / 2 - 1)
-    let my = c.my
-    if (!fits(my)) { my -= 28; if (!fits(my)) return }
+    const pad = 14
+    const headFs = 11.5, descFs = 10.5
+    const maxW = Math.min(196, this.fieldW * 0.5)
+    const lineH = descFs * 1.4
+    // captions placed this call — the second tie de-collides against the first as well as against
+    // last frame's body-name labels (placedBuf, one frame stale — imperceptible at this drift speed).
+    const localPlaced: { x: number; y: number; w: number; h: number }[] = []
+    // keep captions inside the VISIBLE field: on wide screens the right gutter is reserved for the
+    // DOM readout panel, so a partner that drifts under the panel would otherwise hide its caption.
+    const loX = pad + maxW / 2
+    const hiX = Math.max(loX, this.fieldW - pad - maxW / 2)
     ctx.save(); ctx.textAlign = 'center'; ctx.direction = 'rtl'
-    ctx.font = `700 ${poleFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
-    ctx.fillStyle = `rgba(${POLE_COL[c.dom]},${0.8 * c.alpha})`
-    ctx.fillText(POLE_HE[c.dom], c.mx, my - 9)
-    ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
-    let y = my + 8
-    for (const line of lines) {
-      ctx.fillStyle = `rgba(${LIGHT},${0.7 * c.alpha})`
-      ctx.fillText(line, c.mx, y)
-      y += lineH
+    for (const rel of rels.slice(0, 2)) {
+      const nb = this.nodes[rel.ib]
+      if (easeOutCubic(nb.appear) < 0.4) continue
+      ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+      const lines = wrapText(ctx, rel.why, maxW)
+      const boxH = headFs + 14 + lines.length * lineH
+      // Anchor BESIDE the partner body (above it on the dark sky by default, below if it sits near
+      // the top edge) rather than on top of it — the near-white body fill would otherwise swallow the
+      // light `why` text. Clamped into the visible field so it stays legible and never hides behind
+      // the panel, while still sitting in the partner's direction — reading as "your relationship with X".
+      const ax = clamp(nb.sx, loX, hiX)
+      const gap = 10
+      const above = nb.sy - nb.sr - gap - boxH
+      let topY = above >= pad ? above : nb.sy + nb.sr + gap + 16
+      topY = clamp(topY, pad, this.h - pad - boxH)
+      const collides = (ty: number) => {
+        const cyy = ty + boxH / 2
+        const hit = (p: { x: number; y: number; w: number; h: number }) =>
+          Math.abs(ax - p.x) < (maxW + p.w) / 2 - 4 && Math.abs(cyy - p.y) < (boxH + p.h) / 2 - 1
+        return this.placedBuf.some(hit) || localPlaced.some(hit)
+      }
+      // nudge up to twice to dodge a label, else skip — a sidenote never fights for the pixel
+      let tries = 0
+      while (collides(topY) && tries < 2) { topY = Math.max(pad, topY - (boxH + 8)); tries++ }
+      if (collides(topY)) continue
+      // heading — pole word + partner name, coloured by the dominant pole ("מתח עם איראן")
+      ctx.font = `700 ${headFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+      ctx.fillStyle = `rgba(${POLE_COL[rel.dom]},${0.9 * alpha})`
+      ctx.fillText(`${POLE_HE[rel.dom]} עם ${nb.e.he}`, ax, topY + headFs)
+      // why — dim, small, wrapped
+      ctx.font = `400 ${descFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
+      let y = topY + headFs + 14
+      for (const line of lines) {
+        ctx.fillStyle = `rgba(${LIGHT},${0.62 * alpha})`
+        ctx.fillText(line, ax, y)
+        y += lineH
+      }
+      localPlaced.push({ x: ax, y: topY + boxH / 2, w: maxW, h: boxH })
     }
     ctx.restore()
   }

@@ -173,27 +173,32 @@ function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number 
   return best
 }
 
-// DYNAMICS card (dynamics view only) — a dedicated COMPACT layout fusing forces × relations,
-// sized to fit the first fold with no vertical scroll. Replaces the verbose forces stack here.
-// Compact header · power fingerprint (forces) · 2–3 defining ties (relations) · fused caption.
-// The three power axes explained — icon + Hebrew label + one-line meaning. Revealed when the
-// fingerprint is expanded, so the icons/bars stop being opaque marks (Task 13). Wording kept
-// consistent with the forces-view axis hints.
-const AXIS_KEY: { k: 'eco' | 'mil' | 'geo'; label: string; desc: string }[] = [
-  { k: 'eco', label: 'כלכלי', desc: 'תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה' },
-  { k: 'mil', label: 'צבאי', desc: 'הוצאות ביטחון, יכולות וכוח אש' },
-  { k: 'geo', label: 'גאו-אסטרטגי', desc: 'מיקום, בריתות והשפעה אזורית' },
-]
+// DYNAMICS card (dynamics view only) — RELATIONSHIP-FIRST. The forces panel already owns the deep
+// power read; the dynamics view is about a body's place in the web of ties the orrery draws, so
+// THAT is the story here: a tight header + a one-line power strip for context, then the centrepiece
+// — each defining tie shown with its tension/friction/harmony makeup (one split bar) and a one-line
+// why — then orbital position and a synthesis line. No duplication of the forces score breakdown.
+const AXIS_SHORT: Record<'eco' | 'mil' | 'geo', string> = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
+
+// One relation's tension·friction·harmony makeup as a single 100%-wide split bar (t/f/h are already
+// normalized to sum ≈ 1). Reads at a glance as "mostly harmony", "mostly tension", a even mix, etc.
+function RelationBar({ rel }: { rel: AuthoredRelation }) {
+  const total = rel.t + rel.f + rel.h || 1
+  const pc = (v: number) => `${(v / total) * 100}%`
+  return (
+    <span className="drel__bar" aria-hidden>
+      <i className="drel__seg drel__seg--t" style={{ width: pc(rel.t) }} />
+      <i className="drel__seg drel__seg--f" style={{ width: pc(rel.f) }} />
+      <i className="drel__seg drel__seg--h" style={{ width: pc(rel.h) }} />
+    </span>
+  )
+}
 
 function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
   const heById = useMemo(() => new Map(NODES.map((n) => [n.id, n.he])), [])
   const id = detail.id
   const f = detail.forces
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
-  // expandable fingerprint → reveals what each axis icon/bar measures. Per-body (resets on reselect).
-  const [showKey, setShowKey] = useState(false)
-  const [lastId, setLastId] = useState(id)
-  if (id !== lastId) { setLastId(id); setShowKey(false) }
   // orbital context — the orrery's own meaning: what it orbits, what orbits it, or (failing both)
   // the bodies it shares a ring with. This is the information the forces view does not have.
   const orbit = useMemo(() => {
@@ -209,15 +214,15 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
     { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier },
     { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel },
   ]
-  // the 2–3 sharpest authored relations — most defining ties first (by dominant-pole strength)
-  const top = useMemo(() => {
+  // CENTREPIECE — the sharpest defining ties, strongest dominant-pole first (up to 5).
+  const rels = useMemo(() => {
     if (!id) return []
     return relationsFor(id)
       .map((r) => ({ ...r, dom: dominantPole(r.rel) }))
       .sort((a, b) => b.dom.v - a.dom.v)
-      .slice(0, 3)
+      .slice(0, 5)
   }, [id])
-  // fused caption: strongest axis + top-tension partner + top-harmony partner
+  // closing synthesis: strongest axis + top-tension partner + top-harmony partner
   const axisName = f
     ? (['eco', 'mil', 'geo'] as const).map((k) => ({ k, v: f[k] })).reduce((m, x) => (x.v > m.v ? x : m)).k
     : null
@@ -241,46 +246,46 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
           ))}
         </div>
       </header>
+
+      {/* compact power strip — score + eco/mil/geo on one tidy line. Context, not the focus (the
+          forces panel owns the deep breakdown); here it just situates the body's raw weight. */}
       {f && (
-        // The toggle button (bars + score) and the revealed axis key are ONE group — a single
-        // shared surface (.dcard__power owns the background/border) so they read as one bounded
-        // container, not two stacked boxes. is-open lives on the wrapper so the group's border
-        // stays highlighted while expanded, not just on hover.
-        <div className={`dcard__power${showKey ? ' is-open' : ''}`}>
-          <button
-            className="dcard__fingerprint"
-            onClick={() => { sound.play('tab'); setShowKey((v) => !v) }}
-            aria-expanded={showKey}
-            aria-label={showKey ? 'הסתרת פירוש הסמלים' : 'מה מודדים הסמלים?'}
-          >
-            <div className="dcard__bars">
-              {(['eco', 'mil', 'geo'] as const).map((k) => (
-                <div key={k} className="dcard__bar">
-                  <Icon name={k} className="dcard__bar-icon" />
-                  <span className="dcard__bar-track"><i style={{ width: `${f[k] * 10}%` }} /></span>
-                  <span className="dcard__bar-v">{f[k]}</span>
-                </div>
-              ))}
-            </div>
-            <div className="dcard__score">
-              <b>{score}</b><span>כוח משיכה</span>
-            </div>
-            <span className="dcard__fp-cue" aria-hidden>{showKey ? '▲ פירוש הסמלים' : '▾ מה מודדים הסמלים?'}</span>
-          </button>
-          {showKey && (
-            <div className="dcard__axkey">
-              {AXIS_KEY.map((ax) => (
-                <div key={ax.k} className="dcard__axkey-row">
-                  <Icon name={ax.k} className="dcard__axkey-icon" />
-                  <span className="dcard__axkey-l">{ax.label}</span>
-                  <span className="dcard__axkey-v">{f[ax.k]}</span>
-                  <p className="dcard__axkey-d">{ax.desc}</p>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="dcard__pstrip">
+          <span className="dcard__pstrip-score"><b>{score}</b><span>כוח משיכה</span></span>
+          <span className="dcard__pstrip-axes">
+            {(['eco', 'mil', 'geo'] as const).map((k) => (
+              <span key={k} className="dcard__pstrip-ax">
+                <Icon name={k} className="dcard__pstrip-icon" /><b>{f[k]}</b>{AXIS_SHORT[k]}
+              </span>
+            ))}
+          </span>
         </div>
       )}
+
+      {/* CENTREPIECE — defining ties, each with its tension/friction/harmony makeup + a one-line why.
+          This is the dynamics-specific value the forces panel can't show. Each row re-centres. */}
+      {rels.length > 0 && (
+        <section className="dcard__rels">
+          <span className="dcard__sec-h"><Icon name="relations" className="dcard__sec-icon" />קשרים מגדירים</span>
+          <span className="dcard__rels-key" aria-hidden>
+            <span className="dcard__rels-key-i"><i className="drel__seg--t" />מתח</span>
+            <span className="dcard__rels-key-i"><i className="drel__seg--f" />חיכוך</span>
+            <span className="dcard__rels-key-i"><i className="drel__seg--h" />הרמוניה</span>
+          </span>
+          {rels.map(({ other, rel, dom }) => (
+            <button key={other} className="drel" onClick={() => onRelSelect?.(other)}>
+              <span className="drel__head">
+                <span className="drel__name">{heById.get(other) ?? other}</span>
+                <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
+              </span>
+              <RelationBar rel={rel} />
+              <span className="drel__why">{rel.why}</span>
+            </button>
+          ))}
+        </section>
+      )}
+
+      {/* orbital position — the orrery-specific context (secondary) */}
       {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
         <div className="dcard__orbit">
           <span className="dcard__orbit-h"><Icon name="orbit" className="dcard__orbit-icon" />מיקום מסלולי</span>
@@ -302,17 +307,6 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
               <span className="dcard__orbit-v">{orbit.siblings.join(' · ')}</span>
             </div>
           )}
-        </div>
-      )}
-      {top.length > 0 && (
-        <div className="dcard__ties">
-          <span className="dcard__ties-h"><Icon name="relations" className="dcard__ties-icon" />קשרים מגדירים</span>
-          {top.map(({ other, dom }) => (
-            <button key={other} className="dcard__tie" onClick={() => onRelSelect?.(other)}>
-              <span className="dcard__tie-name">{heById.get(other) ?? other}</span>
-              <span className={`panelb__chip ${POLE[dom.key].cls}`}>{POLE[dom.key].he}</span>
-            </button>
-          ))}
         </div>
       )}
       {caption && <p className="dcard__caption">{caption}</p>}
@@ -338,78 +332,55 @@ const DISPO_ICON: Record<string, IconName> = {
 
 // Shared identity header — rank + title, with descriptor chips right-aligned (RTL leading edge)
 // in a cohesive cluster beneath the title. Used by the forces detail panel.
+// Hover explanations are shown in a RESERVED caption line inside the header — NOT a floating
+// ::after tooltip. The panel is an overflow scroll container (overflow-x:hidden), so a floating
+// tooltip anchored to a chip near the panel's left edge is physically clipped by the panel box no
+// matter how it's positioned — an in-flow caption inside the panel can never clip. (Reproduced:
+// the disposition chip's tooltip ran off the panel's left edge.)
 function PanelHeader({ detail }: { detail: EntityDetail }) {
+  const [hint, setHint] = useState<string | null>(null)
   const descriptors: { icon: IconName; text: string; hint: string }[] = [
     { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף' },
     { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel, hint: 'שיוך — הגוש הגאו-פוליטי שאליו נוטה הגוף' },
     ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo, hint: 'עמדה — האוריינטציה האסטרטגית של הגוף' }] : []),
   ]
+  const rankHint = 'הדירוג בכוח המשיכה — מקומו בטבלת העוצמה'
+  const bind = (h: string) => ({
+    tabIndex: 0,
+    onMouseEnter: () => setHint(h), onMouseLeave: () => setHint(null),
+    onFocus: () => setHint(h), onBlur: () => setHint(null),
+  })
   return (
     <header className="phead">
       <div className="phead__line">
-        {detail.rank && <span className="phead__rank" data-hint="דירוג בטבלת העוצמה">{String(detail.rank).padStart(2, '0')}</span>}
+        {detail.rank && <span className="phead__rank" {...bind(rankHint)}>{String(detail.rank).padStart(2, '0')}</span>}
         <h1 className="phead__title">{detail.he}</h1>
       </div>
       <div className="phead__descriptors">
         {descriptors.map((d) => (
-          <span key={d.text} className="panelb__desc" data-hint={d.hint}>
+          <span key={d.text} className="panelb__desc" {...bind(d.hint)}>
             <Icon name={d.icon} className="panelb__desc-icon" />{d.text}
           </span>
         ))}
       </div>
+      <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
     </header>
   )
 }
 
-// Character budget every axis description is truncated toward — SENTENCE-aware, not a raw cut.
-// The real FORCES_DESCRIPTIONS axis texts run ~170–250 chars (checked against all 29 authored
-// states), so the old fixed 110-char cut always landed mid-sentence — every row read as an
-// "unfinished" fragment, which is exactly what users flagged. truncateAxis() now looks for a
-// genuine sentence/clause boundary (a period, '!', '?', or a stand-alone " — " clause break) at
-// or a little past the budget, and cuts THERE instead — so a truncated row is always a complete
-// thought, never a fragment. Only falls back to a raw word-boundary + ellipsis cut when no such
-// boundary exists within reach (verified: 0-of-87 real axis rows need the fallback).
-const AXIS_DESC_MAX = 150   // primary character budget
-const AXIS_DESC_MIN = 60    // ignore a break this early — too short to read as a real thought
-                            // (e.g. a short clause right before an em-dash)
-const AXIS_DESC_EXT = 60    // if nothing breaks within budget, look this much further before
-                            // giving up on a clean boundary and falling back to an ellipsis cut
-
-// Every index right after a sentence-ending punctuation mark, or right BEFORE a standalone
-// " — " clause dash (cutting before the dash — rather than after it — avoids a truncated line
-// trailing off on a bare dash with nothing following it).
-function sentenceBreaks(t: string): number[] {
-  const breaks: number[] = []
-  const punct = /[.!?]/g
-  let m: RegExpExecArray | null
-  while ((m = punct.exec(t))) breaks.push(m.index + 1)
-  const dash = /\s—\s/g
-  while ((m = dash.exec(t))) breaks.push(m.index)
-  return breaks.sort((a, b) => a - b)
-}
-// Normalize a cut to read as a closed sentence — add a period if the natural break (e.g. an
-// em-dash clause) didn't already end on terminal punctuation.
-function closeSentence(s: string): string {
-  const trimmed = s.trim()
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`
-}
-function truncateAxis(t?: string): string | undefined {
+// The score view shows a BRIEF, COMPLETE description — just the first sentence — never a mid-thought
+// cut trailing off in an ellipsis (users flagged the "…"). The first sentence is always a whole
+// thought ending on its own punctuation; the full multi-sentence text lives behind "תיאור מלא".
+// No character budget, no line-clamp, no ellipsis — so a row can never read as unfinished.
+function firstSentence(t?: string): string | undefined {
   if (!t) return undefined
-  if (t.length <= AXIS_DESC_MAX) return t
-  const breaks = sentenceBreaks(t).filter((b) => b >= AXIS_DESC_MIN)
-  const within = breaks.filter((b) => b <= AXIS_DESC_MAX)
-  // prefer the LATEST break at/before budget (keep as much complete content as fits); failing
-  // that, the nearest break a little past budget — still a whole thought, just a touch longer.
-  const chosen = within.length > 0 ? within[within.length - 1] : breaks.find((b) => b <= AXIS_DESC_MAX + AXIS_DESC_EXT)
-  if (chosen) return closeSentence(t.slice(0, chosen))
-  const cut = t.slice(0, AXIS_DESC_MAX)
-  const lastSpace = cut.lastIndexOf(' ')
-  return `${(lastSpace > 60 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+  const trimmed = t.trim()
+  const m = trimmed.match(/^[\s\S]*?[.!?](?=\s|$)/)
+  return (m ? m[0] : trimmed).trim()
 }
 
-// One scored axis row — icon + label + numeric value + bar + a fixed-length (truncated, no
-// read-more) description. Every row is the same height so the three read as a uniform set; the
-// full text lives behind the single "תיאור מלא" drill-down.
+// One scored axis row — icon + label + numeric value + bar + a brief first-sentence description.
+// The full text lives behind the single "תיאור מלא" drill-down.
 function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value?: number; icon: IconName; hint?: string; text?: string }) {
   return (
     <div className="fparam">
@@ -420,7 +391,7 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
       {value != null && (
         <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
       )}
-      {text && <p className="fparam__desc-text">{truncateAxis(text)}</p>}
+      {text && <p className="fparam__desc-text">{firstSentence(text)}</p>}
     </div>
   )
 }
@@ -439,7 +410,7 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
   const general = desc?.general ?? notes?.general
   return (
     <div className="fscore">
-      <div className="fscore__headline" data-hint="כוח משיכה — המשקל הפוליטי הכולל: שקלול הכוח הכלכלי, הצבאי והגאו-אסטרטגי">
+      <div className="fscore__headline">
         <span className="fscore__num"><b>{score}</b><span className="fscore__unit">{unit}</span></span>
         <span className="fscore__meta">
           <span className="fscore__lbl">כוח משיכה</span>
@@ -448,7 +419,7 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
           )}
         </span>
       </div>
-      {general && <p className="fscore__gen">{general}</p>}
+      {general && <p className="fscore__gen">{firstSentence(general)}</p>}
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}

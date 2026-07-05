@@ -508,11 +508,30 @@
   from { transform: scale(1); opacity: 1; filter: blur(0); }
   to   { transform: scale(0.04); opacity: 0; filter: blur(3px); }
 }
-.nav-rail--mask { animation: railMask 0.62s var(--ease-out-expo) both; }
+/* Page → home arrival. The whole rail (freshly-mounted HomeView + its large open ring) blooms in
+   by scaling down to rest. Two things keep this CALM rather than the old violent rush-then-snap:
+   (1) a SMALL scale range (1.55 → 1, not 5 → 1) so there's no huge zoom to collapse, and
+   (2) --ease-in-out-quart — a gentle, symmetric ease with NO overshoot and NO heavy front-loading
+   (the old --ease-out-expo dumped ~80% of a scale-5 range in the first ~20% of the tween, which is
+   exactly what read as the aggressive jump). The ring now grows monotonically into its final size.
+   Duration 0.66s; App.tsx's cleanup timeout (700ms) waits out the full tween so the class isn't
+   pulled mid-motion. Blur softens the first frames only, resolving well before the settle. */
+.nav-rail--mask { animation: railMask 0.66s var(--ease-in-out-quart) both; }
 @keyframes railMask {
-  from { transform: scale(5); opacity: 0; filter: blur(6px); }
-  38%  { opacity: 1; filter: blur(0); }
+  from { transform: scale(1.55); opacity: 0; filter: blur(5px); }
+  30%  { opacity: 1; filter: blur(0); }
   to   { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+/* The home ring must NOT also run its own width/height tween during this arrival: the rail's
+   uniform scale already animates the ring's apparent size, and the orbit's 0.95s width transition
+   (used for the interactive open/close toggle) OUTLASTS the 0.66s mask — leaving the ring still
+   resizing after the bloom settles (the secondary resize). Pin the ring to its open size with no
+   transition for the mask's lifetime so exactly ONE motion plays. Scoped to .nav-rail--mask, so the
+   interactive open/close on the home screen (which runs with NO rail class) still animates normally. */
+.nav-rail--mask .home-orbit {
+  transition: none;
+  width: var(--ring-d); height: var(--ring-d);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 /* page → page: directional slide */

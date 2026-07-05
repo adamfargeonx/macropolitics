@@ -261,7 +261,7 @@
 .panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.112em; }
 .panel__row-v { font-family: var(--display); font-size: var(--text-lg); font-weight: 700; color: var(--white); }
 .panel__rels { margin-top: 20px; }
-.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
+.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: 0.168em; }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
   font-size: var(--text-sm); color: var(--yellow); padding: 4px 9px;
@@ -290,25 +290,6 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-sm);
   color: var(--yellow); opacity: 0.55; letter-spacing: 0.084em;
 }
-/* ── rank badge tooltip — flips below, into the gap before the score headline ───────────────────
-   Same shape of bug already fixed for the descriptor chips and axis labels (forces.css): the rank
-   sits at the very TOP of the panel, hard against the panel's own clip edge (.panelb's
-   overflow-y:auto) / the chrome above the panel — an above-anchored tooltip has nowhere to render
-   without being cropped (measured: it would start ~9px above .panelb's own top edge, inside its
-   clipped scroll region). Below is the only viable direction, but the panel's content is packed
-   tightly enough that there's no single generous gap to drop into — .phead__descriptors sits
-   ~41–75px below (1 vs 2-line wrap), and .fscore__headline (the "7.2" primary numeral) starts
-   right after THAT, only ~26px past the descriptors row. Rather than chase an ever-deeper offset
-   that just relocates the overlap onto later content, this hint is kept short (single clause, not
-   two joined by an em-dash) + rendered `nowrap`, and the box's own padding trimmed — together that
-   keeps its total height under the 26px gap between the descriptor row and the headline, so it
-   drops cleanly into real empty space instead of covering primary content either way. Higher-
-   specificity override of the shared [data-hint] rule (only for the rank badge). */
-.phead__rank[data-hint]:hover::after,
-.phead__rank[data-hint]:active::after {
-  bottom: auto; top: calc(100% + 41px);
-  padding: 4px 10px; white-space: nowrap; min-width: 0;
-}
 .phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
@@ -317,39 +298,39 @@
 .phead__descriptors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: flex-start; }
 .panelb__desc {
   position: relative;
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 5px; cursor: none;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.154em; color: var(--ink-dim);
   border: 1px solid var(--line); padding: 4px 10px;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
-/* tooltip on hover — uses the shared dark-on-yellow [data-hint] language (see top of file) */
+.panelb__desc:hover, .panelb__desc:focus-visible { color: var(--light); border-color: var(--ink-dim); outline: none; }
+.phead__rank { cursor: none; transition: opacity var(--dur-fast) ease; }
+.phead__rank:hover, .phead__rank:focus-visible { opacity: 0.9; outline: none; }
 .panelb__desc-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
+/* hover-explanation caption — a reserved IN-FLOW line, not a floating ::after tooltip. The panel is
+   an overflow scroll container (overflow-x:hidden), so a chip's floating tooltip near the panel's
+   left edge is physically clipped by the panel box (reproduced: the disposition chip's tooltip ran
+   off the left edge). Routing the hint to a caption inside the panel can never clip. Reserved height
+   keeps the layout from shifting; blank when nothing is hovered. */
+.phead__hint {
+  margin-top: 10px; min-height: 1.5em;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.72;
+}
 /* ── Headline score — the PRIMARY reading. Deliberately NOT a gauge/bar (no track), so it can't
    be mistaken for a fourth category bar. An oversized numeral + label/rank, set off from the
    supporting eco/mil/geo bars beneath by a hairline divider → clear [headline]→[categories]
    hierarchy. ── */
 .fscore__headline {
   display: flex; align-items: baseline; gap: 14px;
-  margin-top: 22px; padding-bottom: 16px;
+  margin-top: 18px; padding-bottom: 16px;
   border-bottom: 1px solid var(--line-yellow);
-}
-/* headline tooltip — same bug, same fix: only ~26px separates the descriptor-chip row above from
-   the headline, far less than an above-anchored tooltip needs — it would land on/overlap the
-   chips above. Flips below onto the headline's own supporting content instead. Higher-specificity
-   override, not a change to the shared [data-hint] rule.
-   NOTE: a plain `+10px` only cleared the headline's own row — .fscore__gen sits directly beneath
-   it and, even 3-line-clamped, still measures ~69–83px including its top margin, so a small
-   offset let the tooltip land ON the general description instead of past it. +92px clears the
-   clamped (max 3-line) height with room to spare — the clamp is what makes this bound reliable
-   across every state's text, short or long. */
-.fscore__headline[data-hint]:hover::after,
-.fscore__headline[data-hint]:active::after {
-  bottom: auto; top: calc(100% + 92px);
 }
 .fscore__num { display: inline-flex; align-items: baseline; gap: 5px; }
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
 .fscore__unit { font-family: var(--display); font-size: var(--text-md); color: var(--ink-dim); }
 .fscore__meta { display: flex; flex-direction: column; gap: 3px; }
-.fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); letter-spacing: 0.1em; color: var(--light); opacity: 0.85; }
+.fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.1em; color: var(--light); opacity: 0.85; }
 .fscore__rank { font-family: var(--latin); font-weight: 700; font-size: var(--text-xs); letter-spacing: 0.1em; color: var(--yellow); opacity: 0.6; direction: ltr; text-align: right; }
 @keyframes gaugeGrow { from { transform: scaleX(0); } }
 .panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
@@ -371,15 +352,14 @@
    ════════════════════════════════════════════════════════════════ */
 .fbody { margin-top: 4px; }
 
-/* general/overview paragraph — the single overall read, ahead of the eco/mil/geo breakdown.
-   Capped to 3 lines here in the DEFAULT score view so a long summary can't blow out the compact
-   card; the SAME text is shown in full, unclamped, in ForcesNarrative (.fnarr__gen, same token/
-   family/color) behind the "תיאור מלא" button — this is the teaser, that's the complete read. */
+/* general/overview paragraph — the single overall read, ahead of the eco/mil/geo breakdown. Shows
+   just the FIRST SENTENCE (see firstSentence() in Chrome.tsx): a brief, COMPLETE thought — no
+   line-clamp, so it can never trail off in a "…". The full multi-sentence read lives unclamped in
+   ForcesNarrative (.fnarr__gen, same token/family/colour) behind the "תיאור מלא" button. */
 .fscore__gen {
   margin-top: 14px;
   font-family: var(--body); font-size: var(--text-md);
   line-height: 1.7; letter-spacing: var(--tracking-body); color: var(--ink-dim);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
 }
 
 /* the three supporting category rows (icon, label, value, bar) + a fixed-length, truncated
@@ -393,7 +373,7 @@
 .fparam__lead { display: flex; align-items: baseline; gap: 8px; }
 .fparam__label {
   display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9;
 }
 .fparam__icon { color: var(--yellow); opacity: 0.85; font-size: 13px; flex-shrink: 0; }
@@ -407,15 +387,13 @@
   animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
 }
 @media (prefers-reduced-motion: reduce) { .fparam__track i { animation: none; } }
-/* per-axis description — fixed-length (JS-truncated) + clamped to a uniform 2-line box so every
-   category row is the same height; compact/secondary relative to the label+value+bar above it. */
+/* per-axis description — the brief FIRST SENTENCE (see firstSentence() in Chrome.tsx): a complete
+   thought, no clamp, no ellipsis. Same PROSE size as the general read above (the panel's body copy
+   is one size, 14px; labels/captions are the other, 11px — two Futurism sizes, full stop). */
 .fparam__desc-text {
   margin-top: 0;
-  /* item 8: compact descriptions unified to the small body size (12px) — was --text-xs (11px),
-     so panel body copy reads as just two deliberate sizes: 12 (compact) and 14 (full narrative) */
-  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-sm);
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-md);
   line-height: 1.55; letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* the single full-description drill-down trigger — a small on-brand text button, not a box */
 .ffull-btn {
@@ -434,9 +412,9 @@
   margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px;
 }
-.fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9; }
+.fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--light); opacity: 0.9; }
 .fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
-.fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-sm); line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+.fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: 1.6; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 /* evidence link — subtle underlined text link, NOT a grey box */
 .fevidence {
   margin-top: 18px; display: inline-flex; align-items: center; gap: 4px; cursor: none;
@@ -488,45 +466,20 @@
   border: 1px solid var(--line); padding: 3px 9px;
 }
 .dcard__chip-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
-/* power fingerprint + axis key — ONE shared surface (.dcard__power owns the single background/
-   border) so the toggle button and its revealed breakdown read as one bounded group, not two
-   stacked boxes. is-open persists the highlighted border while expanded (not just on :hover). */
-.dcard__power {
-  margin-top: 16px; background: var(--surface-1); border: 1px solid var(--line-2);
-  transition: border-color var(--dur-fast) ease;
+/* compact power strip — score numeral + eco/mil/geo values on ONE line. Context only (the forces
+   panel owns the deep breakdown); deliberately de-emphasized vs the relations centrepiece below,
+   so the dynamics card doesn't just re-run the forces card. */
+.dcard__pstrip {
+  margin-top: 16px; padding: 10px 14px; background: var(--surface-1);
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
 }
-.dcard__power:hover, .dcard__power.is-open { border-color: var(--yellow-30); }
-/* three compact bars + overall score numeral, one tight cluster. A button: click reveals the
-   axis key (what each icon/bar measures). Surface/border now live on the wrapper above. */
-.dcard__fingerprint {
-  position: relative; width: 100%;
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
-  padding: 12px 14px 22px; background: none; border: none;
-  text-align: start; font: inherit; color: inherit; cursor: none;
-  transition: background var(--dur-fast) ease;
-}
-.dcard__fingerprint:hover { background: var(--yellow-06); }
-.dcard__fp-cue {
-  position: absolute; bottom: 6px; inset-inline-start: 12px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px;
-  letter-spacing: var(--tracking-label); color: var(--yellow); opacity: 0.6;
-}
-.dcard__fingerprint:hover .dcard__fp-cue { opacity: 0.9; }
-/* axis key — revealed on expand: icon · label · value · one-line meaning. Flows directly beneath
-   the fingerprint inside the SAME surface; a thin hairline (not a colored accent) separates it
-   from the button above instead of its own competing background/border. */
-.dcard__axkey {
-  padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 9px;
-  border-top: 1px solid var(--line);
-  animation: dcardReveal 0.32s var(--ease-out-expo) both;
-}
-.dcard__axkey-row { display: grid; grid-template-columns: auto auto auto 1fr; gap: 4px 9px; align-items: baseline; }
-.dcard__axkey-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; align-self: center; }
-.dcard__axkey-l { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--white); white-space: nowrap; }
-.dcard__axkey-v { font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--yellow); }
-/* item: description text unified with the forces panel's equivalent axis description
-   (.fparam__desc-text) — both the "compact secondary description" tier, same token (was --text-xs). */
-.dcard__axkey-d { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-sm); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
+.dcard__pstrip-score { display: inline-flex; align-items: baseline; gap: 5px; flex: none; }
+.dcard__pstrip-score b { font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
+.dcard__pstrip-score span { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-dim); }
+.dcard__pstrip-axes { display: flex; gap: 12px; margin-inline-start: auto; }
+.dcard__pstrip-ax { display: inline-flex; align-items: center; gap: 4px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-dim); }
+.dcard__pstrip-ax b { font-family: var(--display); font-weight: 700; color: var(--white); }
+.dcard__pstrip-icon { color: var(--yellow); opacity: 0.7; font-size: 12px; flex-shrink: 0; }
 /* orbital context — the orrery's unique meaning: what it orbits / what orbits it.
    NOTE: no left-stroke accent — retired sitewide (see .dcard__caption below); the yellow
    .dcard__orbit-h label + icon is the section marker now. */
@@ -539,39 +492,41 @@
 .dcard__orbit-row { display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline; }
 .dcard__orbit-k { flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-faint); }
 .dcard__orbit-v { font-family: var(--body); font-size: var(--text-md); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--light); }
-@keyframes dcardReveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .dcard__axkey { animation: none; } }
-.dcard__bars { display: flex; flex-direction: column; gap: 6px; }
-.dcard__bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
-.dcard__bar-icon { color: var(--yellow); opacity: 0.85; font-size: 13px; }
-.dcard__bar-track { height: 4px; background: var(--line-2); overflow: hidden; }
-.dcard__bar-track i {
-  display: block; height: 100%; background: var(--yellow);
-  animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
+/* ── CENTREPIECE: defining ties — each with its tension/friction/harmony makeup + a one-line why.
+   The dynamics-specific payload the forces panel can't give; fills the card with distinct info. ── */
+.dcard__rels { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.dcard__sec-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
+.dcard__sec-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
+/* legend: which segment colour is which pole */
+.dcard__rels-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -3px; }
+.dcard__rels-key-i { display: inline-flex; align-items: center; gap: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--ink-faint); }
+.dcard__rels-key-i i { width: 9px; height: 9px; flex: none; }
+/* one relation — a clickable re-centre row */
+.drel {
+  display: block; width: 100%; text-align: start; cursor: none;
+  padding: 9px 11px; background: var(--surface-1); border: none;
+  transition: background var(--dur-fast) ease;
 }
-.dcard__bar-v { font-family: var(--display); font-weight: 700; font-size: var(--text-sm); color: var(--white); min-width: 14px; text-align: end; }
-.dcard__score { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.dcard__score b { font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-3xl); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.9; }
-.dcard__score span { font-family: var(--body); font-weight: var(--fw-bold); font-size: 9.5px; letter-spacing: var(--tracking-label); color: var(--ink-dim); }
-@media (prefers-reduced-motion: reduce) { .dcard__bar-track i { animation: none; } }
-/* defining ties — 2–3 sharpest authored relations, each a clickable re-centre row */
-.dcard__ties { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
-.dcard__ties-h { display: inline-flex; align-items: center; gap: 6px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: 0.168em; color: var(--yellow); opacity: 0.55; }
-.dcard__ties-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
-.dcard__tie {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  min-height: 38px; padding: 0 10px; text-align: start; cursor: none;
-  background: var(--surface-1); border: none; transition: background var(--dur-fast) ease;
-}
-.dcard__tie:hover { background: var(--yellow-06); }
-/* item 8: unified to the primary body size (14px) — was --text-base (13px) */
-.dcard__tie-name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-md); letter-spacing: var(--tracking-body); color: var(--white); }
+.drel:hover { background: var(--yellow-06); }
+.drel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.drel__name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-md); letter-spacing: var(--tracking-body); color: var(--white); }
+.drel__pole { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); }
+.drel__pole--t { color: var(--warn); }
+.drel__pole--f { color: var(--yellow); }
+.drel__pole--h { color: var(--ok); }
+/* the split makeup bar — tension | friction | harmony, widths = the (normalized) t/f/h weights */
+.drel__bar { display: flex; height: 5px; margin: 7px 0 6px; overflow: hidden; }
+.drel__seg { display: block; height: 100%; }
+.drel__seg--t { background: var(--warn); }
+.drel__seg--f { background: var(--yellow); }
+.drel__seg--h { background: var(--ok); }
+.drel__why { display: block; font-family: var(--body); font-size: var(--text-xs); line-height: 1.5; letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 /* fused synthesis caption — NOTE: no left-stroke accent, retired sitewide (see .dcard__orbit
    above and .fnarr__axis in the forces block); typographic weight alone carries this closing line */
 .dcard__caption {
   margin-top: 16px;
-  font-family: var(--body); font-size: var(--text-sm); line-height: 1.6;
-  letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.9;
+  font-family: var(--body); font-size: var(--text-xs); line-height: 1.6;
+  letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.85;
 }
 
 /* ════════════════════════════════════════════════════════════════
