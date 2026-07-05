@@ -105,10 +105,22 @@
   /* type-system tracking ramp (the 6-style system; see .t-* utilities below) */
   --tracking-display: -0.02em;   /* Display */
   --tracking-title: -0.01em;     /* Title */
-  --tracking-body: 0.04em;       /* Body */
-  --tracking-label: 0.12em;      /* Label */
-  --tracking-micro: 0.15em;      /* Micro */
-  --tracking-wordmark: 0.468em;  /* Wordmark */
+  /* ── Futurism (--body) canonical rule — ONE size ramp, ONE tracking, ONE leading, sitewide.
+     Every Futurism-family text element is either --text-xs (11px, small/caption: labels, hints,
+     chips, meta, timestamps) or --text-base (13px, body: paragraphs, names, values) — no other
+     size. Tracking is a flat, loose 1px regardless of size or role (NOT em-relative — em would
+     make 11px text read tighter than 13px text for the "same" tracking; a flat px keeps it
+     visually uniform). Leading is 140% of the element's own font-size everywhere. The Body/Label/
+     Micro tiers below all resolve to this single tracking/leading pair — they used to each carry
+     their own (0.04em/0.12em/0.15em / no shared leading), which is exactly the "too many
+     sizes/formats" drift that kept recurring. Tel Aviv Brutalist (--display) is a separate,
+     not-yet-addressed pass — --tracking-display/--tracking-title above are untouched. */
+  --tracking-loose: 1px;
+  --leading-loose: 1.4;
+  --tracking-body: var(--tracking-loose);    /* Body */
+  --tracking-label: var(--tracking-loose);   /* Label */
+  --tracking-micro: var(--tracking-loose);   /* Micro */
+  --tracking-wordmark: 0.468em;  /* Wordmark (display face) */
 
   /* ── Space (4px base) ────────────────────────────────────── */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
@@ -162,20 +174,21 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   font-family: var(--display); font-weight: var(--fw-bold);
   font-size: 20px; letter-spacing: var(--tracking-title);
 }
-/* 4 · Body — all narrative copy */
+/* 4 · Body — all narrative copy. The 13px Futurism body-text size. */
 .t-body {
   font-family: var(--body); font-weight: var(--fw-regular);
-  font-size: 14px; letter-spacing: var(--tracking-body); line-height: 1.7;
+  font-size: var(--text-base); letter-spacing: var(--tracking-body); line-height: var(--leading-loose);
 }
-/* 5 · Label — metric/axis/control labels */
+/* 5 · Label — metric/axis/control labels. The 11px Futurism small/caption size. */
 .t-label {
   font-family: var(--body); font-weight: var(--fw-bold);
-  font-size: 12px; letter-spacing: var(--tracking-label);
+  font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
 }
-/* 6 · Micro — badges, footnotes, counts */
+/* 6 · Micro — badges, footnotes, counts. Same small/caption size as Label — this project has only
+   two Futurism sizes, not three; Micro's distinction from Label is weight/usage, not size. */
 .t-micro {
   font-family: var(--body); font-weight: var(--fw-bold);
-  font-size: 10px; letter-spacing: var(--tracking-micro);
+  font-size: var(--text-xs); letter-spacing: var(--tracking-micro); line-height: var(--leading-loose);
 }
 
 html, body, #root { height: 100%; }
