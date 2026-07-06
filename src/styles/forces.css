@@ -70,8 +70,8 @@
   animation: tabsExpand 0.6s 0.35s var(--ease-out-expo) both;
 }
 .tab {
-  position: relative; z-index: 1; padding: 9px 22px; font-size: 16px; font-weight: 700; font-family: var(--display);
-  color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: 0.06em;
+  position: relative; z-index: 1; padding: 9px 22px; font-size: var(--text-lg); font-weight: 700; font-family: var(--display);
+  color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: var(--tracking-numeral);
   transition: color 0.42s var(--ease-out-expo), transform 0.18s ease;
 }
 .tab:hover:not(.tab--active) { color: var(--white); }
@@ -96,7 +96,7 @@
     background: rgba(8, 4, 18, 0.97); z-index: var(--z-persistent);
   }
   .tab {
-    flex: 1 1 0; padding: 0; font-size: 15px;
+    flex: 1 1 0; padding: 0; font-size: var(--text-lg);
     display: flex; align-items: center; justify-content: center;
   }
   .tabs__marker { top: 0; bottom: 0; }
@@ -127,11 +127,11 @@
   display: flex; flex-direction: row-reverse; align-items: baseline; justify-content: flex-end; gap: 8px;
 }
 .forces-annot__rank {
-  font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+  font-family: var(--display); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-numeral);
   color: var(--yellow);
 }
 .forces-annot__score {
-  font-family: var(--latin); font-size: 11px; font-weight: var(--fw-bold); letter-spacing: var(--tracking-micro);
+  font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-micro);
   color: var(--yellow); opacity: 0.66;
 }
 .forces-annot__label {
@@ -150,8 +150,8 @@
 }
 /* compact "N / total" progress readout (replaces the 5 tier pips — 29 states is too many dots) */
 .forces-annot__progress {
-  margin-top: 10px; font-family: var(--latin); font-size: 10px; font-weight: var(--fw-bold);
-  letter-spacing: 0.14em; color: var(--yellow); opacity: 0.5;
+  margin-top: 10px; font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.5;
 }
 @media (max-width: 768px) {
   .forces-annot { left: 16px; max-width: 168px; }
@@ -170,7 +170,7 @@
 /* names hidden by default (a clean constellation); revealed by zoom-gate, hover or proximity.
    transition-delay scales with --rk so names cascade in most-important → least-important. */
 .fnode__name { font-size: 12px; font-weight: 400; color: var(--white); white-space: nowrap; opacity: 0; letter-spacing: 0.08em; transition: opacity 0.45s ease, color 0.2s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
-.fnode__score { font-family: var(--display); font-weight: 700; font-size: 11px; color: var(--yellow); opacity: 0; margin-top: -2px; letter-spacing: 0.06em; transition: opacity 0.45s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
+.fnode__score { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); color: var(--yellow); opacity: 0; margin-top: -2px; letter-spacing: var(--tracking-numeral); transition: opacity 0.45s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
 .forces--names .fnode__name { opacity: 0.92; }
 .forces--names .fnode__score { opacity: 0.7; }
 .forces--clean .fnode__name, .forces--clean .fnode__score { opacity: 0 !important; transition-delay: 0s; }
@@ -189,7 +189,7 @@
 .fbar__k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.7; width: 86px; text-align: right; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); }
 .fbar__track { flex: 1; height: 4px; background: rgba(251, 255, 0, 0.12); }
 .fbar__fill { display: block; height: 100%; background: var(--yellow); animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; transform-origin: right; }
-.fbar__v { font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--white); width: 18px; letter-spacing: 0.08em; }
+.fbar__v { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--white); width: 18px; letter-spacing: var(--tracking-numeral); }
 
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
 .gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; }
@@ -247,13 +247,13 @@
 .gindex__row:nth-child(10) { animation-delay: 0.36s; }
 .gindex__row:nth-child(n+11) { animation-delay: 0.40s; }
 .gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); transform: translateX(-4px); }
-.gindex__rank { font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: 0.10em; color: var(--yellow); opacity: 0.3; }
+.gindex__rank { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.3; }
 .gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }
 .gindex__row--ns .gindex__name { font-weight: 400; opacity: 0.72; }
 .gindex__bar { height: 3px; background: rgba(255, 255, 255, 0.06); }
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }
 .gindex__row--ns .gindex__bar i { opacity: 0.38; }
-.gindex__score { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--light); opacity: 0.6; text-align: left; }
+.gindex__score { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-numeral); color: var(--light); opacity: 0.6; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .gindex__row { animation: none; } }
 /* index expand/collapse */
 /* item 10: floats — box removed. item 5b: hover is a direct color swap (below). */
@@ -288,7 +288,7 @@
 .pnote__track { flex: 1; height: 3px; background: rgba(251, 255, 0, 0.12); }
 .pnote__fill { display: block; height: 100%; background: var(--yellow); transform-origin: right; animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; }
 /* min-width ensures two-digit values (e.g. "10") are never clipped */
-.pnote__val { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--yellow); min-width: 26px; width: auto; text-align: left; flex-shrink: 0; letter-spacing: 0.05em; }
+.pnote__val { font-family: var(--display); font-size: var(--text-lg); font-weight: 700; color: var(--yellow); min-width: 26px; width: auto; text-align: left; flex-shrink: 0; letter-spacing: var(--tracking-title); }
 /* item 8: body copy unified to the primary body size (14px) — was 13px, a near-duplicate */
 .pnote__text { margin-top: 7px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.82; }
 /* provenance line — the empirical source behind the axis (the credibility move) */
@@ -423,7 +423,7 @@
   position: sticky; top: 0; z-index: 2; background: var(--panel-surface);
   display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 14px;
 }
-.ffilter__title { font-family: var(--display); font-size: 20px; font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-title); }
+.ffilter__title { font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-title); }
 .ffilter__body { padding: 0 20px 8px; }
 .ffilter__group { margin-bottom: 22px; }
 .ffilter__group-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-bottom: 4px; }
@@ -436,7 +436,7 @@
 }
 .ffilter__row.is-on { color: var(--yellow); font-weight: 700; }
 .ffilter__row-lbl { flex: 1 1 auto; }
-.ffilter__row-count { flex: none; font-family: var(--latin); font-size: 11px; color: var(--ink-faint); }
+.ffilter__row-count { flex: none; font-family: var(--latin); font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--ink-faint); }
 .ffilter__row-check { flex: none; width: 16px; text-align: center; color: var(--yellow); }
 .ffilter__slider { width: 100%; margin-top: 8px; }
 .ffilter__foot {
