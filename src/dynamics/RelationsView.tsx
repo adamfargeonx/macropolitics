@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entities'
 import { authoredRelation, AUTHORED_RELATIONS } from '../data/relations'
 import { PanelDock } from './Chrome'
+import { Words } from './Words'
 import { useDeCollide } from './useDeCollide'
 import { AXIS_RIM } from './forces-model'
 import { sound } from '../sound'
@@ -332,7 +333,7 @@ export default function RelationsView() {
           <span className="rel-detail__kicker">{focusPoint.e.id === refId ? 'מדינת הייחוס' : `היחס מול ${refNode.he}`}</span>
           <h1 className="panel__title">{focusPoint.e.he}</h1>
           <p className={`rel-detail__verdict rel-detail__verdict--${dom}`}>{VERDICT[dom]}</p>
-          {focusPoint.r.why && <p className="panel__why">{focusPoint.r.why}</p>}
+          {focusPoint.r.why && <p className="panel__why"><Words text={focusPoint.r.why} /></p>}
           <div className="panel__forces">
             <span className="panel__rels-h">מאפייני היחס</span>
             {(['tension', 'friction', 'harmony'] as Pole[]).map((pole, bi) => {
@@ -360,8 +361,7 @@ export default function RelationsView() {
         <aside className="panel" dir="rtl">
           <h1 className="panel__title">קונסטלציה</h1>
           <p className="panel__body">
-            כל רשת הקשרים באזור בבת אחת. כל קו מחבר שתי מדינות, וצבעו מסמן את אופי
-            הקשר ביניהן. מיקום אופקי לפי הציר, גובה לפי כוח.
+            <Words text="כל רשת הקשרים באזור בבת אחת. כל קו מחבר שתי מדינות, וצבעו מסמן את אופי הקשר ביניהן. מיקום אופקי לפי הציר, גובה לפי כוח." />
           </p>
           <p className="rel-hint">רחפו על מדינה כדי להאיר את רשת הקשרים שלה</p>
           <div className="rel-legend">
@@ -376,8 +376,7 @@ export default function RelationsView() {
         <aside className="panel" dir="rtl">
           <h1 className="panel__title">מערכות היחסים</h1>
           <p className="panel__body">
-            כל יחס באזור נמתח בין שלושה קטבים: מתח, חיכוך והרמוניה. מיקומה של כל מדינה
-            במשולש מגדיר את אופי הקשר שלה מול מדינת הייחוס.
+            <Words text="כל יחס באזור נמתח בין שלושה קטבים: מתח, חיכוך והרמוניה. מיקומה של כל מדינה במשולש מגדיר את אופי הקשר שלה מול מדינת הייחוס." />
           </p>
           <div className="panel__refpick">
             <span className="panel__rels-h">מדינת הייחוס</span>

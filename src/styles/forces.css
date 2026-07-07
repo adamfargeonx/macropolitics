@@ -73,7 +73,9 @@
   position: relative; z-index: 1; padding: 9px 22px; font-size: var(--text-lg); font-weight: 700; font-family: var(--display);
   color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: var(--tracking-numeral);
   transition: color 0.42s var(--ease-out-expo), transform 0.18s ease;
+  display: flex; align-items: center; gap: 8px;
 }
+.tab__icon { width: 15px; height: 15px; flex: none; }
 .tab:hover:not(.tab--active) { color: var(--white); }
 .tab--active { color: var(--bg); }
 .tab:active { transform: scale(0.96); }
@@ -113,50 +115,6 @@
   white-space: nowrap; animation: fadeIn 1.2s 1.5s both;
 }
 
-/* ── State-tour annotation — the editorial beat as the tour meets each power in turn ─── */
-/* Positioned on the left side, vertically centred; floats above the canvas */
-.forces-annot {
-  position: absolute;
-  left: 42px; top: 50%; transform: translateY(-50%);
-  z-index: 5; pointer-events: none;
-  display: flex; flex-direction: column; gap: 6px;
-  max-width: 210px;
-}
-/* rank · score meta row */
-.forces-annot__count {
-  display: flex; flex-direction: row-reverse; align-items: baseline; justify-content: flex-end; gap: 8px;
-}
-.forces-annot__rank {
-  font-family: var(--display); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-numeral);
-  color: var(--yellow);
-}
-.forces-annot__score {
-  font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-micro);
-  color: var(--yellow); opacity: 0.66;
-}
-.forces-annot__label {
-  font-family: var(--display); font-size: clamp(20px, 2.8vw, 22px); font-weight: var(--fw-bold);
-  line-height: 1.1; letter-spacing: var(--tracking-title);
-  color: var(--light); margin: 0;
-}
-/* tier · bloc row */
-.forces-annot__meta {
-  font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
-  color: var(--light); opacity: 0.62;
-}
-.forces-annot__editorial {
-  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
-  color: var(--ink-faint); margin: 2px 0 0;
-}
-/* compact "N / total" progress readout (replaces the 5 tier pips — 29 states is too many dots) */
-.forces-annot__progress {
-  margin-top: 10px; font-family: var(--latin); font-size: var(--text-xs); font-weight: var(--fw-bold);
-  letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.5;
-}
-@media (max-width: 768px) {
-  .forces-annot { left: 16px; max-width: 168px; }
-  .forces-annot__label { font-size: 20px; }
-}
 .fnode {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 5px;

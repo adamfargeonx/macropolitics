@@ -19,10 +19,9 @@
 // via ctx.setTransform, cached rect refreshed on resize/pointerenter, full cleanup on unmount.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
 import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
-import { type Order, buildStateAnnot, metricVal } from './forces-model'
+import { type Order, metricVal } from './forces-model'
 import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -81,23 +80,39 @@ interface WellBody {
 
 const GOLDEN = 2.399963229728653
 
-// ── Extra-regional great powers — drawn just as large (size still = real gravity power), but
-// they are not what this site is about, so the layout below keeps them OFF the visual centre.
-// Everyone else (Iran, Turkey, the Gulf, the Levant, Egypt/Jordan, the non-state actors…) IS the
-// Middle East this field exists to depict, and gets the centred golden-spiral packing instead.
-const EXTERNAL = new Set(['usa', 'russia', 'china', 'europe', 'india', 'pakistan'])
+// ── Composition — cluster by AXIS ALIGNMENT, not a single centred blob ────────────────────────
+// Exploring a genuinely different reading of the same data: instead of one organic cluster with
+// the extra-regional great powers pushed to the rim, every body is grouped into ONE OF TWO visual
+// HEMISPHERES by its real bloc alignment (the same `axis` already used for the rim-tint) — the
+// western bloc anchored left, the eastern bloc anchored right — with the non-aligned/neutral
+// states (Turkey, the Gulf go-betweens, India/Pakistan, the free-radical non-state actors with no
+// patron) forming a third, vertical "seam" cluster down the centre between the two poles. The
+// power hierarchy still reads WITHIN each hemisphere (biggest-of-that-bloc anchored nearest its
+// own rim, smaller states spiralling in around it) — so the field now tells two stories at once:
+// bloc geography (left/right) and power rank (rim → seam, biggest → smallest).
+type Hemi = 'west' | 'east' | 'mid'
+const HEMI_CENTER: Record<Hemi, [number, number]> = { west: [0.26, 0.5], east: [0.74, 0.5], mid: [0.5, 0.5] }
+const hemisphereOf = (id: string): Hemi => {
+  const a = AXIS[id] ?? 'none'
+  return a === 'west' ? 'west' : a === 'east' ? 'east' : 'mid'
+}
+// the biggest-of-a-hemisphere angle to anchor toward: due-left for the west bloc, due-right for
+// the east bloc; the seam's two biggest alternate south/north so the neutral cluster reads as a
+// vertical column rather than piling onto one side of the centre line.
+const bigBaseTheta = (h: Hemi, idx: number) =>
+  h === 'west' ? Math.PI : h === 'east' ? 0 : idx % 2 === 0 ? Math.PI / 2 : -Math.PI / 2
+// bodies this large need a guaranteed rim spot before the rest of their hemisphere exists (a
+// radius floor, not a hardcoded id list, so it tracks whatever the live power model produces).
+const BIG_R = 0.08
 
 // Collision margin between any two bodies (normalized units). Tighter than the field's old
-// single-list value (0.04) — with the regional cluster and six large external disks now
-// competing for the same 0.01–0.99 box, the looser margin left no legal, in-bounds spot
-// anywhere for the biggest external powers (verified by simulation: USA/China/Russia's
-// searches exhausted the entire box). 0.02 keeps a clean, visible gap between every pair
-// while leaving enough room for both groups to resolve without overlap or fallback.
+// single-list value (0.04) — with several large disks now competing for the same 0.01–0.99 box,
+// the looser margin left no legal, in-bounds spot anywhere for the biggest powers (verified by
+// simulation). 0.02 keeps a clean, visible gap between every pair while leaving enough room for
+// every group to resolve without overlap or fallback.
 const PACK_MARGIN = 0.02
 
 function powerLayout(): WellBody[] {
-  const regional = [...NODES].filter((n) => !EXTERNAL.has(n.id)).sort((a, b) => b.power - a.power)
-  const external = [...NODES].filter((n) => EXTERNAL.has(n.id)).sort((a, b) => b.power - a.power)
   const placed: WellBody[] = []
   const radii: number[] = []
   const cx = 0.5, cy = 0.5
@@ -121,51 +136,58 @@ function powerLayout(): WellBody[] {
     return Math.min(half / Math.max(1e-6, Math.abs(Math.cos(theta))), half / Math.max(1e-6, Math.abs(Math.sin(theta))))
   }
 
-  // ── Pass 1 — extra-regional great powers, placed FIRST while the field is still empty, each
-  // anchored toward a compass point on the rim (four corners for the four biggest, left/right
-  // mid-edge for the two smaller) at the farthest in-bounds distance for that angle. Placing
-  // these large disks before the regional cluster exists is what makes them fit at all: doing
-  // it the other way round (regional packed first, externals squeezed into what's left) was
-  // tried and is geometrically impossible — the regional cluster's natural footprint plus a
-  // ~0.16-radius disk exceeds the box in every direction (confirmed by simulation). If a target
-  // corner is contested, nudge by angle and then by distance until clear. ──
-  const ANCHORS = [45, 135, 225, 315, 0, 180].map((d) => (d * Math.PI) / 180)
-  external.forEach((n, idx) => {
-    const r = radiusFrac(n.power)
-    const baseTheta = ANCHORS[idx % ANCHORS.length]
-    let nx = cx, ny = cy
-    search:
-    for (let shrink = 0; shrink < 40; shrink++) {
-      for (let step = 0; step < 90; step++) {
-        const off = (step % 2 === 0 ? 1 : -1) * Math.ceil(step / 2) * (Math.PI / 90)
-        const theta = baseTheta + off
-        const rad = boxMaxReach(theta, r) - 0.015 - shrink * 0.01
-        if (rad <= 0) continue
-        const x = cx + Math.cos(theta) * rad
-        const y = cy + Math.sin(theta) * rad
-        if (fits(x, y, r) && clear(x, y, r)) { nx = x; ny = y; break search }
+  const byHemi: Record<Hemi, Entity[]> = { west: [], east: [], mid: [] }
+  for (const n of NODES) byHemi[hemisphereOf(n.id)].push(n)
+  const HEMIS: Hemi[] = ['west', 'east', 'mid']
+  HEMIS.forEach((h) => byHemi[h].sort((a, b) => b.power - a.power))
+
+  // ── Pass 1 — each hemisphere's biggest bodies anchor toward ITS OWN side of the rim first
+  // (west → the left edge, east → the right edge, mid → top/bottom of the vertical seam), at the
+  // farthest in-bounds distance for that angle — placing the giants while the field is still
+  // empty is what makes them fit at all (the same reasoning the previous single-cluster layout's
+  // external-power pass relied on). If a target spot is contested, nudge by angle then distance
+  // until clear. ──
+  HEMIS.forEach((h) => {
+    byHemi[h].filter((n) => radiusFrac(n.power) >= BIG_R).forEach((n, idx) => {
+      const r = radiusFrac(n.power)
+      const baseTheta = bigBaseTheta(h, idx)
+      let nx = cx, ny = cy
+      search:
+      for (let shrink = 0; shrink < 40; shrink++) {
+        for (let step = 0; step < 90; step++) {
+          const off = (step % 2 === 0 ? 1 : -1) * Math.ceil(step / 2) * (Math.PI / 90)
+          const theta = baseTheta + (idx % 2 === 0 ? off : -off)
+          const rad = boxMaxReach(theta, r) - 0.015 - shrink * 0.01
+          if (rad <= 0) continue
+          const x = cx + Math.cos(theta) * rad
+          const y = cy + Math.sin(theta) * rad
+          if (fits(x, y, r) && clear(x, y, r)) { nx = x; ny = y; break search }
+        }
       }
-    }
-    commit(n, r, nx, ny)
+      commit(n, r, nx, ny)
+    })
   })
 
-  // ── Pass 2 — the regional cluster (the Middle East itself), packed via the same centred
-  // golden spiral as the original single-group layout, biggest-of-the-region first. The rim is
-  // already claimed, so this naturally fills the guaranteed-open middle — the actual composition
-  // this page is about ends up centred, exactly as intended. ──
-  for (const n of regional) {
-    const r = radiusFrac(n.power)
-    let nx = cx, ny = cy
-    for (let s = 0; s < 8000; s++) {
-      const ang = s * GOLDEN
-      const rad = 0.017 * Math.sqrt(s)
-      const x = cx + Math.cos(ang) * rad
-      const y = cy + Math.sin(ang) * rad
-      if (!fits(x, y, r) || !clear(x, y, r)) continue
-      nx = x; ny = y; break
-    }
-    commit(n, r, nx, ny)
-  }
+  // ── Pass 2 — everyone else in a hemisphere golden-spiral-packs inward from THAT hemisphere's
+  // own centre (not the canvas centre) — the rim is already claimed by pass 1, so each
+  // hemisphere's remaining bodies naturally settle around their own side, biggest-of-the-rest
+  // first. ──
+  HEMIS.forEach((h) => {
+    const [hcx, hcy] = HEMI_CENTER[h]
+    byHemi[h].filter((n) => radiusFrac(n.power) < BIG_R).forEach((n) => {
+      const r = radiusFrac(n.power)
+      let nx = hcx, ny = hcy
+      for (let s = 0; s < 8000; s++) {
+        const ang = s * GOLDEN
+        const rad = 0.017 * Math.sqrt(s)
+        const x = hcx + Math.cos(ang) * rad
+        const y = hcy + Math.sin(ang) * rad
+        if (!fits(x, y, r) || !clear(x, y, r)) continue
+        nx = x; ny = y; break
+      }
+      commit(n, r, nx, ny)
+    })
+  })
 
   return placed
 }
@@ -578,6 +600,14 @@ class GravityWell {
     // current scroll-tour focus — all three share the exact same focus treatment.
     const isFocus = i === this.hoveredIdx || i === this.selectedIdx || i === this.scrollFocusIdx
     const bloom = this.bloom[i]
+    // Non-state actors (militias/factions, kind 'nonstate') read as a DIFFERENT kind of body than a
+    // sovereign state: a dashed/broken rim (vs. a state's clean solid ring) + a hollow, low-alpha
+    // "diffuse presence" fill at rest (vs. a state's opaque "solid mass" disk). The dashed rim is a
+    // stable identity marker — it persists even while focused — but the fill still converts to the
+    // same solid-yellow "this is the subject" convention on hover/select/tour-focus, so the shared
+    // focus language never forks.
+    const isNonstate = BODIES[i].kind === 'nonstate'
+    const hollow = isNonstate && !isFocus
 
     const r = this.bodyR(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
@@ -614,8 +644,10 @@ class GravityWell {
       const edgeDist = Math.min(sx, sy, this.w - sx, this.h - sy)
       const glowR = Math.min(rr * (2.0 + (bloom - 1) * 1.1), edgeDist)
       if (glowR > 0) {
+        // a hollow non-state body casts a softer, more diffuse glow — no solid mass behind it
+        const glowMul = hollow ? 0.55 : 1
         const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-        grd.addColorStop(0, `rgba(${glowCol},${0.1 + (bloom - 1) * 0.14})`)
+        grd.addColorStop(0, `rgba(${glowCol},${(0.1 + (bloom - 1) * 0.14) * glowMul})`)
         grd.addColorStop(1, `rgba(${glowCol},0)`)
         ctx.fillStyle = grd
         ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
@@ -629,10 +661,13 @@ class GravityWell {
         ctx.beginPath(); ctx.arc(sx, sy, rr + 8 + pp * 40, 0, TAU); ctx.stroke()
       }
 
-      // Solid disk. The hovered/selected/tour-focused body fills SOLID YELLOW (the accent = "this
-      // is the subject"); every other body keeps the near-white fill.
+      // Solid disk for a state (the "solid mass" reading); a hollow, near-transparent disk for an
+      // unfocused non-state actor (the "diffuse presence" reading — a militia/faction is not a
+      // sovereign territorial mass). The hovered/selected/tour-focused body — state OR non-state —
+      // always fills SOLID YELLOW (the accent = "this is the subject"), so the shared focus
+      // convention never forks; only the AT-REST fill differs by kind.
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
-      ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : `rgb(${LIGHT})`
+      ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : hollow ? `rgba(${LIGHT},0.16)` : `rgb(${LIGHT})`
       ctx.fill()
 
       // In-circle axis graph — reveals on the focused (solid yellow) body: three concentric value-
@@ -645,13 +680,20 @@ class GravityWell {
       // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
       // "ledger" set (top-N by active metric + whatever's focused) attempts a label. Every body's
       // OWN label stays visible regardless of what else is hovered/focused (no hover-hide hack).
-      if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha)
+      if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha, hollow)
 
-      // Ring stroke: the focused body's rim warms to yellow; others stay a faint light.
+      // Ring stroke: the focused body's rim warms to yellow; others stay a faint light. A non-state
+      // actor's rim is DASHED rather than solid — the one identity cue that persists regardless of
+      // focus state, reading as "irregular/non-sovereign" at a glance, at any zoom level.
       const ringCol = isFocus ? YELLOW : LIGHT
       const ringA = isFocus ? 0.92 : 0.3
       ctx.strokeStyle = `rgba(${ringCol},${ringA})`
-      ctx.lineWidth = 1.5; ctx.stroke()
+      ctx.lineWidth = 1.5
+      if (isNonstate) {
+        const dash = Math.max(3, rr * 0.2)
+        ctx.setLineDash([dash, dash * 0.85])
+      }
+      ctx.stroke()
     })
   }
 
@@ -659,7 +701,9 @@ class GravityWell {
   // label, instead of floating text below it. Font scales to the body radius; if the name still
   // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim. Always
   // shown (subject to its own fade-in intro) regardless of which body is hovered/focused elsewhere.
-  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number) {
+  // `hollow`: true for an unfocused non-state body — its disk is a low-alpha wash over the dark
+  // page background rather than an opaque light fill, so dark ink would vanish; use light ink instead.
+  private drawInCircleLabel(sx: number, sy: number, rr: number, i: number, alpha: number, hollow = false) {
     if (alpha <= 0.01) return
     const b = BODIES[i]
     const ctx = this.ctx
@@ -681,7 +725,7 @@ class GravityWell {
     }
     if (width > maxWidth || rr < 16) { ctx.restore(); return }
     ctx.globalAlpha = alpha * this.labelIntro
-    ctx.fillStyle = `rgb(${DARK})`
+    ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
     ctx.fillText(b.he, sx, sy)
     ctx.restore()
   }
@@ -774,10 +818,6 @@ class GravityWell {
 function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
   ctx.save(); fn(); ctx.restore()
 }
-
-// ── Scroll annotation easing ───────────────────────────────────────────────────
-const EASING_ENTER: [number, number, number, number] = [0.16, 1, 0.3, 1]   // expo out
-const EASING_EXIT: [number, number, number, number]  = [0.4, 0, 0.6, 1]    // ease-in-out
 
 // ── Component ────────────────────────────────────────────────────────────────
 // tierFocus: controlled — 0=all visible, 1–5=tier focus. Set from the mobile filter sheet's
@@ -964,11 +1004,16 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
     const idx = tourStep > 0 ? (rankedIndices[tourStep - 1] ?? -1) : -1
     wellRef.current?.setScrollFocus(idx)
   }, [tourStep, rankedIndices])
-
-  // The current tour subject's annotation: rank · score · tier · bloc + a one-line positional note.
-  const activeAnnot = tourStep > 0
-    ? buildStateAnnot(rankedIds[tourStep - 1], tourStep, rankedIds.length, grav)
-    : null
+  // Drive the REAL side panel from the tour too — each scroll step now opens/updates the actual
+  // detail panel exactly as if that state had been clicked (replacing the old floating .forces-annot
+  // card). Only fires while actively touring (tourStep > 0); stepping back to 0 does NOT force a
+  // deselect — the last-toured state stays selected, the same way a click leaves its target
+  // selected until something else clears it (clicking empty canvas, or a new tour step).
+  useEffect(() => {
+    if (tourStep <= 0) return
+    const id = rankedIds[tourStep - 1]
+    if (id) onSelectRef.current(id)
+  }, [tourStep, rankedIds])
 
   return (
     <div className="sheet-embed" ref={stageRef} dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -986,57 +1031,6 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
         </div>
       )}
 
-      {/* ── State-tour annotation: the editorial beat as the tour meets each power in turn. A meta
-          row (rank · score), the state name, its tier · bloc, the one-line positional note, and a
-          compact "N / total" progress readout. Keyed by state id so it re-animates on each step. ── */}
-      <AnimatePresence mode="wait">
-        {activeAnnot && (
-          <motion.div
-            key={activeAnnot.id}
-            className="forces-annot"
-            dir="rtl"
-            initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.55, ease: EASING_ENTER } }}
-            exit={{ opacity: 0, x: 18, filter: 'blur(4px)', transition: { duration: 0.28, ease: EASING_EXIT } }}
-            aria-live="polite"
-          >
-            <motion.div
-              className="forces-annot__count"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.08, duration: 0.4, ease: EASING_ENTER } }}
-            >
-              <span className="forces-annot__rank" dir="ltr">#{activeAnnot.rank}</span>
-              <span className="forces-annot__score" dir="ltr">{activeAnnot.score}/10</span>
-            </motion.div>
-            <motion.h2
-              className="forces-annot__label"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.0, duration: 0.5, ease: EASING_ENTER } }}
-            >
-              {activeAnnot.he}
-            </motion.h2>
-            <motion.div
-              className="forces-annot__meta"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.12, duration: 0.45, ease: EASING_ENTER } }}
-            >
-              {activeAnnot.tier} · {activeAnnot.bloc}
-            </motion.div>
-            {activeAnnot.note && (
-              <motion.p
-                className="forces-annot__editorial"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.45, ease: EASING_ENTER } }}
-              >
-                {activeAnnot.note}
-              </motion.p>
-            )}
-            <div className="forces-annot__progress" dir="ltr" aria-hidden>
-              {activeAnnot.rank} / {activeAnnot.total}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

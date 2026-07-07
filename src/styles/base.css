@@ -84,6 +84,11 @@
   --warn-border: rgba(255, 157, 110, 0.5);
   --warn-bg:     rgba(255, 157, 110, 0.06);
   --ok-bg:       rgba(143, 227, 136, 0.08);
+  /* relationship-pole red (friction) — a distinct semantic from the data-status pair above
+     (tension/friction/harmony is a relationship-dynamics reading, not a data-quality flag), so it
+     gets its own token rather than reusing --warn's orange. */
+  --danger: #ff5c5c;
+  --danger-bg: rgba(255, 92, 92, 0.08);
   /* allegiance rims (bloc temperature) — used as rgb() triplets */
   --rim-west: 132, 160, 196;
   --rim-east: 198, 134, 98;

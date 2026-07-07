@@ -12,9 +12,14 @@ const NAV: { view: View; he: string; sub: string; pos: string }[] = [
 ]
 
 // The opener thesis — backbone line + the description on two lines (no equation; that lives inside).
+// Adapted from the About overlay's lede (its methodological thesis — see AboutView.tsx's
+// `.about__lede`: "שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס... במקום כותרות, המפה
+// מציעה מבנה") into an inviting "before you dive in" opener rather than a "here's the
+// methodology" explainer — same forces/gravity metaphor and bodies-and-relations-not-headlines
+// framing, just shorter and orienting rather than dense.
 const INTRO_L1 = 'תורת היחסות של המזרח התיכון'
-const INTRO_L2A = 'כל מדינה היא גוף בעל כובד: כוח מכופף מרחב, וקרבה היא משיכה.'
-const INTRO_L2B = 'מאקרופוליטיקה היא מערכת הממפה את מדינות המזרח התיכון לכדי מערך של כוחות ויחסים המניעים את האזור.'
+const INTRO_L2A = 'המזרח התיכון הוא שדה של כוחות משיכה: לכל מדינה משקל, לכל זוג יחס.'
+const INTRO_L2B = 'מאקרופוליטיקה ממפה את המכלול הזה למערך של כוחות ויחסים שניתן לקרוא — במקום כותרות, מבנה.'
 
 const LEAN_MAX = 16    // px — the closed core leans, magnetically, toward the cursor
 

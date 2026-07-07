@@ -331,7 +331,6 @@
 .fscore__unit { font-family: var(--display); font-size: var(--text-md); color: var(--ink-dim); }
 .fscore__meta { display: flex; flex-direction: column; gap: 3px; }
 .fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.85; }
-.fscore__rank { font-family: var(--latin); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.6; direction: ltr; text-align: right; }
 @keyframes gaugeGrow { from { transform: scaleX(0); } }
 .panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
 .panelb__rels { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
@@ -373,7 +372,7 @@
 .fparam__lead { display: flex; align-items: baseline; gap: 8px; }
 .fparam__label {
   display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base);
   letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9;
 }
 .fparam__icon { color: var(--yellow); opacity: 0.85; font-size: 13px; flex-shrink: 0; }
@@ -395,9 +394,13 @@
   font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
 }
-/* the single full-description drill-down trigger — a small on-brand text button, not a box */
+/* the single full-description drill-down trigger — a small on-brand text button, not a box.
+   Sits between the brief description (.fscore__gen / .fnarr__gen) and the eco/mil/geo rows
+   (.fparams / .fnarr__axis) — no longer pinned to the panel foot, so margin is symmetric
+   (space above from the description, space below before the axis rows) rather than the old
+   "--foot" variant tuned for trailing the relations section; that modifier is dropped. */
 .ffull-btn {
-  margin-top: 14px; display: inline-flex; align-items: center; gap: 5px; cursor: none;
+  margin: 14px 0 2px; display: inline-flex; align-items: center; gap: 5px; cursor: none;
   background: none; border: 1px solid var(--line-yellow); padding: 6px 12px;
   font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
   line-height: var(--leading-loose); color: var(--yellow); opacity: 0.82;
@@ -405,7 +408,8 @@
 }
 .ffull-btn:hover { background: var(--yellow-06); opacity: 1; }
 .ffull-btn.is-open { background: var(--yellow-06); }
-/* the narrative drill-down sits just under the button */
+/* the narrative container's own top-offset from the header (mirrors .fscore__headline's own
+   margin-top so both modes open at the same visual offset below the panel header) */
 .fbody > .fnarr { margin-top: 16px; }
 /* backing note — borrowed weight from a patron (no single-sided container stroke) */
 .fbacking {
@@ -511,14 +515,14 @@
 .drel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .drel__name { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-base); letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--white); }
 .drel__pole { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); }
-.drel__pole--t { color: var(--warn); }
-.drel__pole--f { color: var(--yellow); }
+.drel__pole--t { color: var(--yellow); }
+.drel__pole--f { color: var(--danger); }
 .drel__pole--h { color: var(--ok); }
 /* the split makeup bar — tension | friction | harmony, widths = the (normalized) t/f/h weights */
 .drel__bar { display: flex; height: 5px; margin: 7px 0 6px; overflow: hidden; }
 .drel__seg { display: block; height: 100%; }
-.drel__seg--t { background: var(--warn); }
-.drel__seg--f { background: var(--yellow); }
+.drel__seg--t { background: var(--yellow); }
+.drel__seg--f { background: var(--danger); }
 .drel__seg--h { background: var(--ok); }
 .drel__why { display: block; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 /* fused synthesis caption — NOTE: no left-stroke accent, retired sitewide (see .dcard__orbit

@@ -126,7 +126,7 @@ function EvidenceLink({ detail }: { detail: EntityDetail }) {
 // FORCES narrative (forces · תיאור mode): the interpretation layer, shown flat (no collapsible).
 // General read plus three axis blocks (eco/mil/geo) drawn from FORCES_DESCRIPTIONS. Falls back to
 // the short POWER_NOTES summaries where a long description is absent, so the mode is never empty.
-function ForcesNarrative({ detail }: { detail: EntityDetail }) {
+function ForcesNarrative({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
   const notes = detail.powerNotes
   const general = desc?.general ?? notes?.general
@@ -138,11 +138,19 @@ function ForcesNarrative({ detail }: { detail: EntityDetail }) {
   if (!general && axes.every((a) => !a.text)) return null
   return (
     <div className="fnarr">
-      {general && <p className="fnarr__gen">{general}</p>}
+      {general && <p className="fnarr__gen"><Words key={detail.id} text={general} /></p>}
+      {/* the toggle button — pinned in the same visual slot as ForcesScore's ("תיאור מלא"):
+          right after the general read, before the per-axis blocks. Here it's always in the
+          "open" (full-narrative) state, so it reads "בחזרה לציון". */}
+      {hasNarrative && (
+        <button className="ffull-btn is-open" onClick={onToggleFull} aria-expanded={true}>
+          בחזרה לציון <span aria-hidden>←</span>
+        </button>
+      )}
       {axes.filter((a) => a.text).map((a) => (
         <div key={a.label} className="fnarr__axis">
           <span className="fnarr__axis-l"><Icon name={a.icon} className="fnarr__axis-icon" />{a.label}</span>
-          <p className="fnarr__axis-t">{a.text}</p>
+          <p className="fnarr__axis-t"><Words key={`${detail.id}-${a.label}`} text={a.text!} /></p>
         </div>
       ))}
     </div>
@@ -209,10 +217,12 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       : []
     return { satellites, siblings }
   }, [id, detail.satellites])
-  // the two tight descriptor chips (tier + axis) — disposition is dropped to stay compact
+  // the three tight descriptor chips — tier, axis, and disposition (the body's stance: aggressive
+  // / assertive / cautious), matching the trio PanelHeader shows for the forces panel.
   const chips: { icon: IconName; text: string }[] = [
     { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier },
     { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel },
+    ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo }] : []),
   ]
   // CENTREPIECE — the sharpest defining ties, strongest dominant-pole first (up to 5).
   const rels = useMemo(() => {
@@ -222,18 +232,75 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       .sort((a, b) => b.dom.v - a.dom.v)
       .slice(0, 5)
   }, [id])
-  // closing synthesis: strongest axis + top-tension partner + top-harmony partner
+  // strongest axis — used as a fallback anchor in the closing synthesis below, when there's no
+  // patron to orbit and no relation strong enough to hang the sentence on.
   const axisName = f
     ? (['eco', 'mil', 'geo'] as const).map((k) => ({ k, v: f[k] })).reduce((m, x) => (x.v > m.v ? x : m)).k
     : null
   const AXIS_HE: Record<'eco' | 'mil' | 'geo', string> = { eco: 'הכוח הכלכלי', mil: 'הכוח הצבאי', geo: 'המעמד הגאו-אסטרטגי' }
   const all = id ? relationsFor(id) : []
-  const topTension = all.slice().sort((a, b) => b.rel.t - a.rel.t)[0]
-  const topHarmony = all.slice().sort((a, b) => b.rel.h - a.rel.h)[0]
-  const caption =
-    axisName && topTension && topHarmony
-      ? `${detail.he}: עוצמתה נשענת על ${AXIS_HE[axisName]}, מתוחה מול ${heById.get(topTension.other) ?? topTension.other}, ונסמכת על ${heById.get(topHarmony.other) ?? topHarmony.other}.`
-      : null
+  // Closing synthesis — a genuine, varied read of the body's actual shape, not one mad-lib
+  // template restated for all 29 bodies (the old version always read "X: strength rests on Y,
+  // tense against Z, relies on W" verbatim). Branches on the RELATIONAL PATTERN — no authored ties
+  // at all / anchors its own orbital system / one pole (tension·friction·harmony) clearly
+  // dominates its ties / a genuinely even mix — so both the sentence's shape AND which fields it
+  // pulls differ per body. Where possible it reuses the already-authored `rel.why` line verbatim
+  // as the evidence, instead of re-deriving new generic phrasing on top of it.
+  const nameOf = (oid: string) => heById.get(oid) ?? oid
+  const caption = ((): string => {
+    if (all.length === 0) {
+      // no bilateral ties authored — almost always a non-state proxy whose relevance is entirely
+      // structural (who backs it), never relational. The powerNotes general line supplies the one
+      // fact the (empty) relation graph can't: what the body actually IS.
+      const gen = detail.powerNotes?.general
+      return detail.parentHe
+        ? `${detail.he} כמעט ואינה שחקן עצמאי במארג היחסים — מעמדה נגזר כמעט כולו מזיקתה ל${detail.parentHe}.${gen ? ` ${gen}` : ''}`
+        : `${detail.he} פועלת מחוץ למארג היחסים הדו-צדדיים שהמפה עוקבת אחריהם.${gen ? ` ${gen}` : ''}`
+    }
+    const doms = all.map((r) => ({ ...r, dom: dominantPole(r.rel) }))
+    const nT = doms.filter((d) => d.dom.key === 't').length
+    const nH = doms.filter((d) => d.dom.key === 'h').length
+    const nF = doms.filter((d) => d.dom.key === 'f').length
+    const byT = doms.slice().sort((a, b) => b.rel.t - a.rel.t)[0]
+    const byH = doms.slice().sort((a, b) => b.rel.h - a.rel.h)[0]
+    const byF = doms.slice().sort((a, b) => b.rel.f - a.rel.f)[0]
+    if (orbit.satellites.length >= 2) {
+      // a hub anchoring its own orbital system (usa / saudi / iran) — that IS the defining fact,
+      // so lead with it, then whichever single tie (tensest or warmest) is sharpest in absolute terms.
+      const sharp = byT.rel.t >= byH.rel.h ? byT : byH
+      return `${detail.he} מעגנת מערכת שלמה של ${orbit.satellites.length} גופים סביבה — אך מוגדרת לא פחות ביחסה עם ${nameOf(sharp.other)}: ${sharp.rel.why}`
+    }
+    if (nH > nT && nH > nF) {
+      // harmony clearly dominates its ties — a genuinely aligned body. Name the exception too (how
+      // many of its ties AREN'T warm) so the line doesn't oversell a uniformly cozy picture.
+      const rest = doms.length - 1
+      return `${detail.he} נשענת בעיקר על יחסי שיתוף — במובהק מול ${nameOf(byH.other)}: ${byH.rel.why}${rest > 0 ? ` שאר קשריה המוגדרים (${rest}) נותרים תחרותיים או חסרי חום דומה.` : ''}`
+    }
+    if (nT > nH && nT > nF) {
+      // tension clearly dominates — an embattled body. Name a second adversary if there is one.
+      const others = doms.filter((d) => d.dom.key === 't' && d.other !== byT.other).map((d) => nameOf(d.other))
+      return `${detail.he} מוקפת מתח יותר משיתוף — מול ${nameOf(byT.other)} בעיקר: ${byT.rel.why}${others.length ? ` המתח חוזר גם מול ${others.slice(0, 2).join(' ו')}.` : ''}`
+    }
+    if (nF > nT && nF > nH) {
+      // friction (chronic grinding, not open enmity) dominates — neither ally nor foe, just abrasion.
+      return `${detail.he} מוגדרת פחות באיבה גלויה ויותר בחיכוך מתמשך — הבולט מול ${nameOf(byF.other)}: ${byF.rel.why}`
+    }
+    // no clean majority — a genuinely mixed profile. Anchor the read in whatever IS fixed about
+    // the body (the patron it orbits, or failing that, the axis carrying its weight), then name
+    // the single sharpest tie — folding the two together when they're the same body, rather than
+    // naming the same partner twice in one sentence.
+    const tie = byH.rel.h >= byT.rel.t ? byH : byT
+    const tieIsAnchor = !!detail.parentHe && nameOf(tie.other) === detail.parentHe
+    if (tieIsAnchor) {
+      return `${detail.he} סובבת במסלול תלות סביב ${detail.parentHe} — ${tie.rel.why} — ושאר קשריה נותרים מעורבים, בלי גוש ברור אחד.`
+    }
+    const anchor = detail.parentHe
+      ? `נעה במסלול תלות סביב ${detail.parentHe}`
+      : axisName
+        ? `שואבת את עיקר משקלה מ${AXIS_HE[axisName]}`
+        : 'ללא עוגן ברור אחד'
+    return `${detail.he} ${anchor}, ומחזיקה יחסים מעורבים יותר משהיא שייכת לגוש אחד — הבולט שבהם עם ${nameOf(tie.other)}: ${tie.rel.why}`
+  })()
   return (
     <aside className="panelb dcard panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
@@ -279,7 +346,7 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
                 <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
               </span>
               <RelationBar rel={rel} />
-              <span className="drel__why">{rel.why}</span>
+              <span className="drel__why"><Words key={other} text={rel.why} /></span>
             </button>
           ))}
         </section>
@@ -309,7 +376,7 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
           )}
         </div>
       )}
-      {caption && <p className="dcard__caption">{caption}</p>}
+      {caption && <p className="dcard__caption"><Words key={detail.id} text={caption} /></p>}
     </aside>
   )
 }
@@ -391,7 +458,7 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
       {value != null && (
         <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
       )}
-      {text && <p className="fparam__desc-text">{firstSentence(text)}</p>}
+      {text && <p className="fparam__desc-text"><Words text={firstSentence(text)!} /></p>}
     </div>
   )
 }
@@ -402,7 +469,7 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
 // category rows, each with a sentence-complete description, plus a backing note (if any) and
 // the evidence link. The same `general` text opens ForcesNarrative too (the fuller read) — that's
 // intentional: a brief intro here, the same line reprised as the narrative's opening there.
-function ForcesScore({ detail }: { detail: EntityDetail }) {
+function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
@@ -414,12 +481,16 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
         <span className="fscore__num"><b>{score}</b><span className="fscore__unit">{unit}</span></span>
         <span className="fscore__meta">
           <span className="fscore__lbl">כוח משיכה</span>
-          {detail.rank != null && (
-            <span className="fscore__rank">#{detail.rank}{detail.total != null ? ` · ${detail.total}` : ''}</span>
-          )}
         </span>
       </div>
-      {general && <p className="fscore__gen">{firstSentence(general)}</p>}
+      {general && <p className="fscore__gen"><Words key={detail.id} text={firstSentence(general)!} /></p>}
+      {/* the toggle button — right after the brief description, before the eco/mil/geo breakdown
+          (moved up from the old panel-foot position; see ForcesNarrative for its "open" twin). */}
+      {hasNarrative && (
+        <button className="ffull-btn" onClick={onToggleFull} aria-expanded={false}>
+          תיאור מלא <span aria-hidden>↗</span>
+        </button>
+      )}
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
@@ -438,7 +509,7 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
         <div className="fbacking">
           <span className="fbacking__label">גיבוי ⟵ {detail.backing.patronHe}</span>
           <span className="fbacking__val">+{detail.backing.amount}</span>
-          <p className="fbacking__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
+          <p className="fbacking__text"><Words key={detail.id} text="משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות." /></p>
         </div>
       )}
       <EvidenceLink detail={detail} />
@@ -448,15 +519,18 @@ function ForcesScore({ detail }: { detail: EntityDetail }) {
 
 // FORCES detail panel (forces view) — grouped header, then ONE of two full-panel-body states:
 // the score/category cluster (default) OR the complete narrative — toggled by a single button
-// pinned at the actual BOTTOM of the panel (after the relations section), whose label names
-// which way it switches. This REPLACES the previous "append the narrative inline below the
-// button" behaviour: the button now SWITCHES the panel's content area, it doesn't grow it.
+// whose label names which way it switches. The button sits right below the brief description,
+// ABOVE the eco/mil/geo breakdown (moved up from the old panel-foot position, after the relations
+// section) — its rendering is delegated to ForcesScore/ForcesNarrative (each renders it in the
+// equivalent slot right after their own general-read paragraph) since only one of the two is ever
+// mounted at a time, but the MODE STATE and toggle logic stay owned here, passed down as props.
 function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
   const [mode, setMode] = useState<'score' | 'full'>('score')
   // a fresh selection resets to the score view — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
   if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
   const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
+  const toggleMode = () => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }
   return (
     // stopPropagation: ForcesView's outer .stage has an onClick that deselects the current body
     // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
@@ -466,7 +540,9 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
       <div className="fbody">
-        {mode === 'score' ? <ForcesScore detail={detail} /> : <ForcesNarrative detail={detail} />}
+        {mode === 'score'
+          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />
+          : <ForcesNarrative detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />}
       </div>
       {detail.relations.length > 0 && (
         <div className="panel__rels">
@@ -477,15 +553,6 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
             ))}
           </div>
         </div>
-      )}
-      {hasNarrative && (
-        <button
-          className={`ffull-btn ffull-btn--foot${mode === 'full' ? ' is-open' : ''}`}
-          onClick={() => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }}
-          aria-expanded={mode === 'full'}
-        >
-          {mode === 'score' ? <>תיאור מלא <span aria-hidden>↗</span></> : <>בחזרה לציון <span aria-hidden>←</span></>}
-        </button>
       )}
     </aside>
   )
@@ -517,10 +584,13 @@ export function SidePanel({ detail, onClose, onRelSelect, view }: { detail?: Ent
 }
 
 export type View = 'home' | 'forces' | 'relations' | 'dynamics'
-const TABS: { he: string; view: View; ready?: boolean }[] = [
-  { he: 'הכוחות', view: 'forces', ready: true },
-  { he: 'היחסים', view: 'relations', ready: true },
-  { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
+// Icons: forces = a single mass (weight, standalone); relations = the tension/friction/harmony
+// triangle (a tie between two); dynamics = two masses on one shared orbit — forces + relations
+// composed into one figure, matching the site's own equation (יחסי הכוחות = הכוחות + היחסים).
+const TABS: { he: string; view: View; icon: IconName; ready?: boolean }[] = [
+  { he: 'הכוחות', view: 'forces', icon: 'forces', ready: true },
+  { he: 'היחסים', view: 'relations', icon: 'relations', ready: true },
+  { he: 'יחסי הכוחות', view: 'dynamics', icon: 'dynamics', ready: true },
 ]
 
 export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {
@@ -554,6 +624,7 @@ export function TabBar({ view, onView }: { view: View; onView: (v: View) => void
           aria-current={view === t.view ? 'page' : undefined}
           onClick={() => t.ready !== false && onView(t.view)}
         >
+          <Icon name={t.icon} className="tab__icon" />
           {t.he}
         </button>
       ))}

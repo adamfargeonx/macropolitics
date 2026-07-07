@@ -264,10 +264,15 @@
 .home--open .home-title .letters__ch { transform: scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
 
 /* ── Home leaving (home → a page): a three-beat choreographed exit —
-   1) the wordmark shatters letter-by-letter — alternating characters scale outward/inward with a
-      slight rotation and drift, instead of every glyph collapsing toward the same point, so the
-      motion reads as organic rather than a single mechanical shrink (fast wave, right-to-left
-      reading order via --ci, a "back" ease so it snaps rather than glides)
+   1) the wordmark shatters letter-by-letter — every glyph SCALES OUT to nothing (no fade, no
+      blur — the defining motion is scale, not a dissolve) while alternating characters carry a
+      different translate/rotate offset, so the motion reads as an organic "fly-apart" burst
+      rather than every glyph collapsing straight down to the same point (fast wave, right-to-left
+      reading order via --ci, a "back" ease so it snaps rather than glides). The offset transforms
+      are written BEFORE `scale(0)` in each rule — since CSS composes transform functions with the
+      rightmost applied first, that ordering keeps the translate/rotate a fixed offset in the
+      parent's space instead of also being crushed toward zero by the shrink, so the letter visibly
+      shrinks AND drifts, not just shrinks in place.
    2) tagline/equation retreat back into their entrance mask, and the nav ("section") titles exit
       through the SAME masked slide they entered by — just reversed — rather than a generic fade
    3) the ring itself zooms into the void (App.tsx then applies .nav-rail--zoom-up)
@@ -275,15 +280,14 @@
    sequenced even though it's one class toggle — simpler and less brittle than chained timers
    for each visual layer, while still matching the requested order. ── */
 .home--leaving .home-title .letters__ch {
-  transition: transform 0.44s var(--ease-out-back), opacity 0.34s ease, filter 0.38s ease;
+  transition: transform 0.44s var(--ease-out-back);
   transition-delay: calc(var(--ci, 0) * 0.017s);
-  opacity: 0; filter: blur(9px);
 }
 /* alternating variants so neighbouring letters never move identically — one direction would read
-   as a single push; this reads as a burst */
-.home--leaving .home-title .letters__ch:nth-child(odd) { transform: scale(1.8) translateY(-11px) rotate(-8deg); }
-.home--leaving .home-title .letters__ch:nth-child(even) { transform: scale(0.28) translateY(9px) rotate(7deg); }
-.home--leaving .home-title .letters__ch:nth-child(3n) { transform: scale(1.4) translateX(7px) rotate(5deg); }
+   as a single push; this reads as a burst. Each ends in scale(0) — full scale-out, no partial. */
+.home--leaving .home-title .letters__ch:nth-child(odd) { transform: translateY(-16px) rotate(-11deg) scale(0); }
+.home--leaving .home-title .letters__ch:nth-child(even) { transform: translateY(13px) rotate(9deg) scale(0); }
+.home--leaving .home-title .letters__ch:nth-child(3n) { transform: translateX(10px) rotate(6deg) scale(0); }
 
 /* tagline sits at TOP-centre and is visible (translateY(0)) when open → it retreats UP into the
    mask it entered by. */
@@ -397,14 +401,17 @@
 }
 /* the brief explainer, revealed fluidly on hover — a tooltip: dark text on the yellow field */
 .home-nav__sub {
-  position: absolute; top: 100%; left: 50%; transform: translate(-50%, 2px); white-space: nowrap;
+  /* pulled up snug under the label's own line-height (top:100% leaves the label's full line-box
+     gap below the glyphs, which read as "too far away") — a small negative top offset closes that
+     gap, and the rest/revealed translateY values are shrunk to match, so it sits close under the title */
+  position: absolute; top: calc(100% - 8px); left: 50%; transform: translate(-50%, 0px); white-space: nowrap;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--tooltip-fg); background: var(--tooltip-bg); padding: 4px 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
 }
 .home-nav__item:hover .home-nav__sub,
-.home-nav__item--near .home-nav__sub { opacity: 1; transform: translate(-50%, 6px); }
+.home-nav__item--near .home-nav__sub { opacity: 1; transform: translate(-50%, 3px); }
 /* hover (or the orbit dot sweeping near) opens the dimension up — colour shift + wider kerning */
 .home-nav__item:hover .home-nav__label,
 .home-nav__item--near .home-nav__label { color: var(--yellow); letter-spacing: 0.12em; }

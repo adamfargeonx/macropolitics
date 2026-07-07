@@ -33,6 +33,10 @@ const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relation
 const hashToView = (h: string): View | null =>
   h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
 
+// The orbit dot's dramatic lock-sweep (HomeView's `lockTo`/`LOCK_SWEEP_MS`) rotates all the way to
+// the chosen page title before the page transition proceeds — mirrors HomeView's own constant.
+const LOCK_SWEEP_MS = 900
+
 export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [intro, setIntro] = useState(false)
@@ -52,6 +56,10 @@ export default function App() {
   // "crazy jump" — not the ring/canvas motion itself. Fading them out over the SAME window the
   // per-body cascade uses closes that gap so nothing hard-cuts at the swap instant.
   const [homeExiting, setHomeExiting] = useState(false)
+  // home → page: the destination view the orbit dot is sweeping to (see HomeView's `lockTo`) —
+  // set the instant `go()` fires so the dot starts its 900ms rotation right away, before any of
+  // the wordmark/ring choreography below begins. Cleared once the page has actually swapped in.
+  const [lockView, setLockView] = useState<View | null>(null)
   const viewRef = useRef(view)
   const transRef = useRef<{ to: View; timers: number[] } | null>(null)
   useEffect(() => { viewRef.current = view }, [view])
@@ -70,19 +78,29 @@ export default function App() {
     setNavTarget(v)
 
     if (from === 'home') {
-      // Three beats: (1) wordmark exits letter-by-letter + nav labels fade (~680ms, driven by
-      // `home--leaving`), (2) the ring zooms into the void (~530ms), (3) the page blooms in.
+      // Four beats now: (0) the orbit dot sweeps all the way round to the destination title first
+      // (~900ms, `lockView` → HomeView's `lockTo`) — the "rotate to the chosen page title before
+      // transitioning to it" behaviour the user asked to bring back. Only once that sweep has
+      // visibly landed do the original three beats run: (1) wordmark exits letter-by-letter + nav
+      // labels fade (~680ms, driven by `home--leaving`), (2) the ring zooms into the void (~530ms),
+      // (3) the page blooms in. Sequential rather than concurrent — a concurrent 900ms sweep would
+      // still be mid-flight while the ring is already zoomed/blurred away (the zoom-up phase starts
+      // at 680ms), so the landing would never actually be seen; running it first means the dot is
+      // the whole show for its own beat, exactly as it used to read.
       // NOTE: `home--leaving` is held on THROUGH the zoom (cleared only at setView, when HomeView
       // unmounts) — releasing it earlier while HomeView is still mounted in its open state would
       // re-arm the wordmark's entrance-reveal on the already-shattered letters, flashing them back.
-      setHomeLeaving(true)
+      setLockView(v)
       t.timers.push(window.setTimeout(() => {
-        setRail('nav-rail--zoom-up')
+        setHomeLeaving(true)
         t.timers.push(window.setTimeout(() => {
-          viewRef.current = v; setView(v); setRail('nav-rail--bloom'); setHomeLeaving(false)
-          t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 580))
-        }, 530))
-      }, 680))
+          setRail('nav-rail--zoom-up')
+          t.timers.push(window.setTimeout(() => {
+            viewRef.current = v; setView(v); setRail('nav-rail--bloom'); setHomeLeaving(false); setLockView(null)
+            t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 580))
+          }, 530))
+        }, 680))
+      }, LOCK_SWEEP_MS))
       return
     }
 
@@ -162,7 +180,7 @@ export default function App() {
           ? <HomeView
               open={homeOpen}
               intro={view === 'home' ? intro : false}
-              lockTo={null}
+              lockTo={lockView}
               leaving={homeLeaving}
               onToggle={() => setHomeOpen(o => !o)}
               onView={go}

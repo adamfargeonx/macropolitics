@@ -282,16 +282,17 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 /* item 9: head divider line removed — the orbit mark + title carry the header on their own */
 .about__head { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; }
 .about__head-txt { display: flex; flex-direction: column; gap: 3px; }
-/* a mini orbit mark — echoes the wordmark logo, ties the modal to the brand system */
-.about__mark { position: relative; flex: none; width: 30px; height: 30px; border: 1px solid var(--yellow-30); border-radius: 50%; }
-.about__mark-spin { position: absolute; inset: 0; animation: orbitSpin 9s linear infinite; }
-.about__mark-spin i { position: absolute; top: -3px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+/* the info mark — a static circled-"i" (Icon name="model"), the same glyph the "המודל" utility-nav
+   button uses to open this very overlay. Previously a spinning orbit dot; a static info icon reads
+   more honestly as "here's how this is calculated" than a decorative animation. The circular frame
+   is kept as a backdrop — it centres the icon and echoes the wordmark logo's orbit motif at rest. */
+.about__mark { position: relative; flex: none; width: 30px; height: 30px; border: 1px solid var(--yellow-30); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--yellow); }
+.about__mark-icon { width: 16px; height: 16px; }
 /* typography sweep: was 27px, a 1px stray off the 26px used by its two shared-panel-family
    siblings (.evid__title, .legend__title — same big yellow overlay-title role) — matched to them,
    and now all three point at the shared --text-title token instead of a repeated literal. */
 .about__title { font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
 .about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
-@media (prefers-reduced-motion: reduce) { .about__mark-spin { animation: none; } }
 .about__lede { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
 /* the equation — a focal block. item 9: horizontal container rules dropped in favour of the
    language's vertical accent + the radial glow that already makes it a focal block. */
@@ -313,15 +314,19 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .about__col-n { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: var(--tracking-numeral); }
 .about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin: 4px 0 7px; }
 .about__col p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
+/* no container — a plain paragraph, same treatment as .about__lede (the opening thesis) above.
+   The numbered .about__col cards are the one container treatment kept in this overlay. */
 .about__honesty {
-  margin-top: 22px; padding: 12px 14px; font-family: var(--body);
+  margin-top: 22px; font-family: var(--body);
   font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--yellow); opacity: 0.85;
-  background: rgba(251, 255, 0, 0.05);
 }
 .about__foot {
-  margin-top: 18px; display: flex; justify-content: space-between;
+  margin-top: 18px; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 4px;
   font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.60;
 }
+/* the credit line — Latin caps, set in the site's Latin display face, small and unobtrusive next
+   to the version/updated notes rather than a separate call-out. Pushed to the far (start) edge. */
+.about__credit { font-family: var(--latin); letter-spacing: var(--tracking-loose); margin-inline-start: auto; }
 @media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .about { animation: none; } }
 
