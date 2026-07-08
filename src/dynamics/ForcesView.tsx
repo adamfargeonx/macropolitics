@@ -95,7 +95,7 @@ export default function ForcesView() {
       onClick={() => { setSelected(null); setToolsOpen(false) }}
     >
       <ForcesSheet
-        grav={grav} orderBy={orderBy} selected={selected} onSelect={setSelected} onHover={setHovered}
+        grav={grav} orderBy={orderBy} filterBloc={filterBloc} selected={selected} onSelect={setSelected} onHover={setHovered}
         tierFocus={isMobile ? tierFocus : undefined}
       />
 

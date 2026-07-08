@@ -194,19 +194,27 @@ export default function RelationsView() {
   const geo = mode === 'triangle' ? tri : net
 
   const refNode = byId.get(refId)!
-  const focusId = pinned ?? hovered
-  const focusPoint = geo?.points.find((p) => p.e.id === focusId)
-  const dom = focusPoint ? dominantOf(focusPoint.r) : null
-  // ego-network: edge keys ('a|b') touching the focused node — those light, the rest dim
+  // emphasisId drives purely VISUAL canvas feedback (glow, dim, tether/guide lines, ego-web) —
+  // hover OR pin, exactly as before. It does NOT decide what the side panel shows any more.
+  const emphasisId = pinned ?? hovered
+  const emphasisPoint = geo?.points.find((p) => p.e.id === emphasisId)
+  // the side panel (full stats) now opens on CLICK only — hover gets the lightweight card instead
+  // (see hoverCardPoint below), so mousing across the web no longer hijacks the whole panel.
+  const panelPoint = pinned ? geo?.points.find((p) => p.e.id === pinned) : undefined
+  const panelDom = panelPoint ? dominantOf(panelPoint.r) : null
+  // the compact hover preview — only while genuinely just hovering (not the pinned node itself,
+  // which already has its full stats open in the panel; no point doubling the same info).
+  const hoverCardPoint = hovered && hovered !== pinned ? geo?.points.find((p) => p.e.id === hovered) : undefined
+  // ego-network: edge keys ('a|b') touching the emphasised node — those light, the rest dim
   const egoEdges = useMemo(() => {
-    if (mode !== 'constellation' || !net || !focusId) return null
+    if (mode !== 'constellation' || !net || !emphasisId) return null
     const keys = new Set<string>()
     for (const ed of net.edges) {
-      if (ed.a === focusId || ed.b === focusId) keys.add(`${ed.a}|${ed.b}`)
+      if (ed.a === emphasisId || ed.b === emphasisId) keys.add(`${ed.a}|${ed.b}`)
     }
     return keys
-  }, [mode, net, focusId])
-  useDeCollide(fieldRef, '.rnode', '.rnode__name', focusId, [size, mode, refId, hovered, pinned])
+  }, [mode, net, emphasisId])
+  useDeCollide(fieldRef, '.rnode', '.rnode__name', emphasisId, [size, mode, refId, hovered, pinned])
 
   const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null) }
   const setModeAndReset = (m: Mode) => { if (m === mode) return; sound.play('tab'); setMode(m); setPinned(null); setHovered(null) }
@@ -228,16 +236,16 @@ export default function RelationsView() {
                 <circle key={i} className="rel-zone" cx={v.x} cy={v.y} r={Math.min(size.w, size.h) * 0.26} fill="url(#relpole)" />
               ))}
               <polygon className="rel-poly" points={`${tri.Vt.x},${tri.Vt.y} ${tri.Vf.x},${tri.Vf.y} ${tri.Vh.x},${tri.Vh.y}`} fill="var(--yellow-018)" stroke="var(--yellow-22)" strokeWidth="1" />
-              {/* the relationship link: a flowing tether from the reference (centre) to the focused body */}
-              {focusPoint && (
-                <line className="rel-tether" x1={tri.cx} y1={tri.cy} x2={focusPoint.x} y2={focusPoint.y} />
+              {/* the relationship link: a flowing tether from the reference (centre) to the emphasised body */}
+              {emphasisPoint && (
+                <line className="rel-tether" x1={tri.cx} y1={tri.cy} x2={emphasisPoint.x} y2={emphasisPoint.y} />
               )}
-              {/* barycentric guide-lines: focus point → each vertex, weighted by component */}
-              {focusPoint && (
+              {/* barycentric guide-lines: emphasised point → each vertex, weighted by component */}
+              {emphasisPoint && (
                 <g className="rel-guides">
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={tri.Vt.x} y2={tri.Vt.y} stroke="var(--yellow)" strokeOpacity={0.06 + focusPoint.r.tension * 0.42} strokeWidth={0.5 + focusPoint.r.tension * 1.4} />
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={tri.Vf.x} y2={tri.Vf.y} stroke="var(--yellow)" strokeOpacity={0.06 + focusPoint.r.friction * 0.42} strokeWidth={0.5 + focusPoint.r.friction * 1.4} />
-                  <line x1={focusPoint.x} y1={focusPoint.y} x2={tri.Vh.x} y2={tri.Vh.y} stroke="var(--yellow)" strokeOpacity={0.06 + focusPoint.r.harmony * 0.42} strokeWidth={0.5 + focusPoint.r.harmony * 1.4} />
+                  <line x1={emphasisPoint.x} y1={emphasisPoint.y} x2={tri.Vt.x} y2={tri.Vt.y} stroke="var(--yellow)" strokeOpacity={0.06 + emphasisPoint.r.tension * 0.42} strokeWidth={0.5 + emphasisPoint.r.tension * 1.4} />
+                  <line x1={emphasisPoint.x} y1={emphasisPoint.y} x2={tri.Vf.x} y2={tri.Vf.y} stroke="var(--yellow)" strokeOpacity={0.06 + emphasisPoint.r.friction * 0.42} strokeWidth={0.5 + emphasisPoint.r.friction * 1.4} />
+                  <line x1={emphasisPoint.x} y1={emphasisPoint.y} x2={tri.Vh.x} y2={tri.Vh.y} stroke="var(--yellow)" strokeOpacity={0.06 + emphasisPoint.r.harmony * 0.42} strokeWidth={0.5 + emphasisPoint.r.harmony * 1.4} />
                 </g>
               )}
             </svg>
@@ -259,7 +267,7 @@ export default function RelationsView() {
               const key = `${ed.a}|${ed.b}`
               const isEgo = !!egoEdges?.has(key)
               const baseOp = 0.12 + 0.5 * ed.strength
-              const op = focusId ? (isEgo ? Math.min(0.92, baseOp + 0.4) : 0.06) : baseOp
+              const op = emphasisId ? (isEgo ? Math.min(0.92, baseOp + 0.4) : 0.06) : baseOp
               return (
                 <line
                   key={key}
@@ -276,9 +284,9 @@ export default function RelationsView() {
           <>
             {/* plotted states */}
             {geo.points.map(({ e, x, y, d }, i) => {
-              const isFocus = e.id === focusId
+              const isFocus = e.id === emphasisId
               const isPinned = e.id === pinned
-              const dim = focusId && !isFocus
+              const dim = emphasisId && !isFocus
               const rim = AXIS_RIM[AXIS[e.id] ?? 'none']
               // per-node exit delay — spread over ~360ms in index order, count-independent so the
               // cascade window matches the canvas views' EXIT_SPREAD regardless of node count.
@@ -309,6 +317,32 @@ export default function RelationsView() {
             })}
           </>
         )}
+        {/* hover preview — a compact YELLOW card near the star, 3-5 lines: verdict + why + the raw
+            split. Deliberately NOT the full stats panel (that's reserved for a click, see
+            panelPoint below) — mousing across the web to get a quick read shouldn't hijack the
+            whole side panel every time the cursor crosses a star. */}
+        {hoverCardPoint && (
+          <div
+            className={`rel-hovercard${hoverCardPoint.y < 130 ? ' rel-hovercard--below' : ''}`}
+            style={{ left: hoverCardPoint.x, top: hoverCardPoint.y - hoverCardPoint.d / 2 }}
+          >
+            <span className="rel-hovercard__name">{hoverCardPoint.e.he}</span>
+            {hoverCardPoint.e.id === refId ? (
+              <span className="rel-hovercard__verdict">מדינת הייחוס — הכול נמדד ביחסה</span>
+            ) : (
+              <>
+                <span className="rel-hovercard__verdict">{VERDICT[dominantOf(hoverCardPoint.r)]} מול {refNode.he}</span>
+                <p className="rel-hovercard__why">
+                  {hoverCardPoint.r.why
+                    ?? `הקשר נשען בעיקר על ${POLE_HE[dominantOf(hoverCardPoint.r)]}, לצד תמהיל של שיוך גושי, בריתות ועמדתה של ${hoverCardPoint.e.he}.`}
+                </p>
+                <span className="rel-hovercard__stat">
+                  מתח {Math.round(hoverCardPoint.r.tension * 100)}% · חיכוך {Math.round(hoverCardPoint.r.friction * 100)}% · הרמוניה {Math.round(hoverCardPoint.r.harmony * 100)}%
+                </span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <PanelDock>
@@ -327,19 +361,19 @@ export default function RelationsView() {
           onClick={() => setModeAndReset('constellation')}
         >קונסטלציה</button>
       </div>
-      {focusPoint && dom ? (
-        <aside className="panel panel--detail rel-detail" dir="rtl" key={focusPoint.e.id}>
-          {pinned && <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>}
-          <span className="rel-detail__kicker">{focusPoint.e.id === refId ? 'מדינת הייחוס' : `היחס מול ${refNode.he}`}</span>
-          <h1 className="panel__title">{focusPoint.e.he}</h1>
-          <p className={`rel-detail__verdict rel-detail__verdict--${dom}`}>{VERDICT[dom]}</p>
-          {focusPoint.r.why && <p className="panel__why"><Words text={focusPoint.r.why} /></p>}
+      {panelPoint && panelDom ? (
+        <aside className="panel panel--detail rel-detail" dir="rtl" key={panelPoint.e.id}>
+          <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>
+          <span className="rel-detail__kicker">{panelPoint.e.id === refId ? 'מדינת הייחוס' : `היחס מול ${refNode.he}`}</span>
+          <h1 className="panel__title">{panelPoint.e.he}</h1>
+          <p className={`rel-detail__verdict rel-detail__verdict--${panelDom}`}>{VERDICT[panelDom]}</p>
+          {panelPoint.r.why && <p className="panel__why"><Words text={panelPoint.r.why} /></p>}
           <div className="panel__forces">
             <span className="panel__rels-h">מאפייני היחס</span>
             {(['tension', 'friction', 'harmony'] as Pole[]).map((pole, bi) => {
-              const v = Math.round(focusPoint.r[pole] * 100)
+              const v = Math.round(panelPoint.r[pole] * 100)
               return (
-                <div className={`fbar${pole === dom ? ' fbar--on' : ''}`} key={pole} style={{ '--bd': `${bi * 0.08}s` } as React.CSSProperties}>
+                <div className={`fbar${pole === panelDom ? ' fbar--on' : ''}`} key={pole} style={{ '--bd': `${bi * 0.08}s` } as React.CSSProperties}>
                   <span className="fbar__k">{POLE_HE[pole]}</span>
                   <span className="fbar__track"><span className="fbar__fill" style={{ width: `${v}%` }} /></span>
                   <span className="fbar__v">{v}</span>
@@ -348,12 +382,12 @@ export default function RelationsView() {
             })}
           </div>
           <div className="panel__meta">
-            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v"><bdi>{focusPoint.e.dispo}</bdi></span></div>
-            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v"><bdi>{AXIS_LABEL[AXIS[focusPoint.e.id] ?? 'none']}</bdi></span></div>
+            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v"><bdi>{panelPoint.e.dispo}</bdi></span></div>
+            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v"><bdi>{AXIS_LABEL[AXIS[panelPoint.e.id] ?? 'none']}</bdi></span></div>
           </div>
           {mode === 'triangle' && (
-            <button className="panel__setref" onClick={() => setReference(focusPoint.e.id)}>
-              קבעו את {focusPoint.e.he} כמדינת הייחוס ←
+            <button className="panel__setref" onClick={() => setReference(panelPoint.e.id)}>
+              קבעו את {panelPoint.e.he} כמדינת הייחוס ←
             </button>
           )}
         </aside>

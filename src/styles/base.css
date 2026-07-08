@@ -167,6 +167,14 @@
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
   /* a "back" ease — slight overshoot before settling, for motion that should snap rather than glide */
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* held-then-released ease-in — value barely moves for the first half, then rushes to the end.
+     For anything animating TO exactly zero (e.g. scale(0)): --ease-out-back's overshoot (y > 1)
+     means the interpolated value crosses its zero target within the first ~25% of the duration,
+     so the element is already fully vanished while ~75% of the animation time remains unseen —
+     "reaches the end, then holds there invisibly" reads as an instant cut, not a motion. This curve
+     keeps the value close to its START for most of the duration so the motion stays visible almost
+     to the end, THEN snaps to the target right at the finish. */
+  --ease-in-quart: cubic-bezier(0.5, 0, 0.75, 0);
 
   /* ── Elevation (z-index scale) ───────────────────────────── */
   --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;

@@ -21,7 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
-import { type Order, metricVal } from './forces-model'
+import { type Order, type Bloc, metricVal } from './forces-model'
 import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -78,121 +78,104 @@ interface WellBody {
   ny: number
 }
 
-const GOLDEN = 2.399963229728653
-
-// ── Composition — cluster by AXIS ALIGNMENT, not a single centred blob ────────────────────────
-// Exploring a genuinely different reading of the same data: instead of one organic cluster with
-// the extra-regional great powers pushed to the rim, every body is grouped into ONE OF TWO visual
-// HEMISPHERES by its real bloc alignment (the same `axis` already used for the rim-tint) — the
-// western bloc anchored left, the eastern bloc anchored right — with the non-aligned/neutral
-// states (Turkey, the Gulf go-betweens, India/Pakistan, the free-radical non-state actors with no
-// patron) forming a third, vertical "seam" cluster down the centre between the two poles. The
-// power hierarchy still reads WITHIN each hemisphere (biggest-of-that-bloc anchored nearest its
-// own rim, smaller states spiralling in around it) — so the field now tells two stories at once:
-// bloc geography (left/right) and power rank (rim → seam, biggest → smallest).
-type Hemi = 'west' | 'east' | 'mid'
-const HEMI_CENTER: Record<Hemi, [number, number]> = { west: [0.26, 0.5], east: [0.74, 0.5], mid: [0.5, 0.5] }
-const hemisphereOf = (id: string): Hemi => {
+// ── Composition — a radial POWER DIAL, live to both the bloc filter and the sort metric ─────────
+// ANGLE = bloc alignment: the western bloc sweeps a wedge centred due-left, the eastern bloc a
+// wedge centred due-right, and the neutral/unaligned bodies fill whatever is left over — split into
+// the two symmetric gaps above and below the west/east seam (there is no single "third slot" once
+// west and east each own a side, so neutral naturally lands in both). RADIUS = the body's GLOBAL
+// rank under the ACTIVE sort metric — strongest nearest the centre, weakest out toward the rim —
+// so the dial reads as a literal gravity well regardless of which bloc owns which wedge.
+// Both axes are driven by ForcesView's live filter state (see `layoutFor`, called from
+// `setLayout()`), not baked in once at import time: picking a bloc widens that bloc's wedge and
+// compresses the others; changing the sort metric reshuffles every body's radius. Positions EASE
+// toward the new layout (see the class's nx/ny vs nxTarget/nyTarget) rather than snapping.
+type Cat = 'west' | 'east' | 'neutral'
+const catOf = (id: string): Cat => {
   const a = AXIS[id] ?? 'none'
-  return a === 'west' ? 'west' : a === 'east' ? 'east' : 'mid'
+  return a === 'west' ? 'west' : a === 'east' ? 'east' : 'neutral'
 }
-// the biggest-of-a-hemisphere angle to anchor toward: due-left for the west bloc, due-right for
-// the east bloc; the seam's two biggest alternate south/north so the neutral cluster reads as a
-// vertical column rather than piling onto one side of the centre line.
-const bigBaseTheta = (h: Hemi, idx: number) =>
-  h === 'west' ? Math.PI : h === 'east' ? 0 : idx % 2 === 0 ? Math.PI / 2 : -Math.PI / 2
-// bodies this large need a guaranteed rim spot before the rest of their hemisphere exists (a
-// radius floor, not a hardcoded id list, so it tracks whatever the live power model produces).
-const BIG_R = 0.08
+const GOLDEN = 2.399963229728653
+// Collision margin between any two bodies (normalized units) for the placement search below.
+const PACK_MARGIN = 0.018
+// Baseline anchor for each bloc when no filter narrows the field — spread well apart (west/east
+// each own a side, neutral rides the top) so the three read as distinct zones even at a glance.
+const CAT_ANCHOR: Record<Cat, [number, number]> = { west: [0.24, 0.48], east: [0.76, 0.48], neutral: [0.5, 0.16] }
+// Where a bloc's neighbourhood sits with a filter ACTIVE: the selected bloc's anchor moves to the
+// true centre (so it can spread across the whole canvas, unconstrained by its usual side), while
+// the other two retreat into small opposite corners — visibly "sidelined" rather than merely dimmed.
+const CAT_CORNER: Record<Cat, [number, number]> = { west: [0.13, 0.86], east: [0.87, 0.86], neutral: [0.5, 0.07] }
+function anchorFor(filterBloc: Bloc, cat: Cat): [number, number] {
+  if (filterBloc === 'all') return CAT_ANCHOR[cat]
+  return cat === filterBloc ? [0.5, 0.5] : CAT_CORNER[cat]
+}
+// How far each bloc's golden-spiral fill is allowed to reach from its anchor — the SAME spiral
+// shape the site's proven collision-safe packer already used (see the retired `powerLayout`), just
+// scaled per-bloc: the selected bloc gets a generous reach so it can spread out and dominate the
+// canvas; the sidelined blocs get a tight one so they compress into their corner instead of
+// spilling back into the centre.
+function reachFor(filterBloc: Bloc, cat: Cat): number {
+  if (filterBloc === 'all') return 0.3
+  return cat === filterBloc ? 0.47 : 0.14
+}
 
-// Collision margin between any two bodies (normalized units). Tighter than the field's old
-// single-list value (0.04) — with several large disks now competing for the same 0.01–0.99 box,
-// the looser margin left no legal, in-bounds spot anywhere for the biggest powers (verified by
-// simulation). 0.02 keeps a clean, visible gap between every pair while leaving enough room for
-// every group to resolve without overlap or fallback.
-const PACK_MARGIN = 0.02
+// Every body's target (nx, ny) under the current (filterBloc, orderBy, grav) — a pure function of
+// live state, recomputed whenever any of the three changes (see GravityWell.setLayout). Places
+// bodies bloc-by-bloc with the SAME collision-safe golden-spiral search the field has always used
+// (fits/clear/spiral) rather than a closed-form formula — a formula-only approach (tried first)
+// couldn't reliably keep the biggest disks from overlapping near a shared centre point without an
+// aggressive relax pass afterwards, and that relax pass ended up scrambling the very bloc
+// separation this composition exists to show. Search-based placement guarantees zero overlap by
+// construction, and — because each bloc's list is already sorted strongest-first — the biggest
+// body of each bloc naturally lands nearest ITS OWN anchor with weaker ones spiralling outward, so
+// "distance from a bloc's own centre" still reads as that bloc's internal power hierarchy.
+function layoutFor(filterBloc: Bloc, order: Order, grav: Map<string, GravityResult>): Map<string, { nx: number; ny: number }> {
+  const rankOf = (n: Entity) => (grav.size ? metricVal(n, order, grav) : n.power)
+  const ranked = [...NODES].sort((a, b) => rankOf(b) - rankOf(a))
+  const byCat: Record<Cat, Entity[]> = { west: [], east: [], neutral: [] }
+  for (const n of ranked) byCat[catOf(n.id)].push(n) // already rank-sorted (stable partition)
 
-function powerLayout(): WellBody[] {
-  const placed: WellBody[] = []
-  const radii: number[] = []
-  const cx = 0.5, cy = 0.5
-
-  const fits = (x: number, y: number, r: number) =>
-    x - r >= 0.01 && x + r <= 0.99 && y - r >= 0.01 && y + r <= 0.99
+  const placedXY: { nx: number; ny: number }[] = []
+  const placedR: number[] = []
+  const fits = (x: number, y: number, r: number) => x - r >= 0.02 && x + r <= 0.98 && y - r >= 0.02 && y + r <= 0.98
   const clear = (x: number, y: number, r: number) => {
-    for (let j = 0; j < placed.length; j++) {
-      if (Math.hypot(x - placed[j].nx, y - placed[j].ny) < r + radii[j] + PACK_MARGIN) return false
+    for (let j = 0; j < placedXY.length; j++) {
+      if (Math.hypot(x - placedXY[j].nx, y - placedXY[j].ny) < r + placedR[j] + PACK_MARGIN) return false
     }
     return true
   }
-  const commit = (n: Entity, r: number, nx: number, ny: number) => {
-    placed.push({ id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', kind: n.kind, nx, ny })
-    radii.push(r)
-  }
-  // Farthest a body of radius `r` can sit from centre at angle `theta` and still stay inside
-  // the 0.01–0.99 box (a square, so the diagonals ~45°/135°/225°/315° allow the most room).
-  const boxMaxReach = (theta: number, r: number) => {
-    const half = 0.49 - r
-    return Math.min(half / Math.max(1e-6, Math.abs(Math.cos(theta))), half / Math.max(1e-6, Math.abs(Math.sin(theta))))
-  }
 
-  const byHemi: Record<Hemi, Entity[]> = { west: [], east: [], mid: [] }
-  for (const n of NODES) byHemi[hemisphereOf(n.id)].push(n)
-  const HEMIS: Hemi[] = ['west', 'east', 'mid']
-  HEMIS.forEach((h) => byHemi[h].sort((a, b) => b.power - a.power))
-
-  // ── Pass 1 — each hemisphere's biggest bodies anchor toward ITS OWN side of the rim first
-  // (west → the left edge, east → the right edge, mid → top/bottom of the vertical seam), at the
-  // farthest in-bounds distance for that angle — placing the giants while the field is still
-  // empty is what makes them fit at all (the same reasoning the previous single-cluster layout's
-  // external-power pass relied on). If a target spot is contested, nudge by angle then distance
-  // until clear. ──
-  HEMIS.forEach((h) => {
-    byHemi[h].filter((n) => radiusFrac(n.power) >= BIG_R).forEach((n, idx) => {
+  const out = new Map<string, { nx: number; ny: number }>()
+  const CATS: Cat[] = ['west', 'east', 'neutral']
+  for (const cat of CATS) {
+    const [acx, acy] = anchorFor(filterBloc, cat)
+    const spiralK = 0.017 * (reachFor(filterBloc, cat) / 0.3)
+    byCat[cat].forEach((n) => {
       const r = radiusFrac(n.power)
-      const baseTheta = bigBaseTheta(h, idx)
-      let nx = cx, ny = cy
-      search:
-      for (let shrink = 0; shrink < 40; shrink++) {
-        for (let step = 0; step < 90; step++) {
-          const off = (step % 2 === 0 ? 1 : -1) * Math.ceil(step / 2) * (Math.PI / 90)
-          const theta = baseTheta + (idx % 2 === 0 ? off : -off)
-          const rad = boxMaxReach(theta, r) - 0.015 - shrink * 0.01
-          if (rad <= 0) continue
-          const x = cx + Math.cos(theta) * rad
-          const y = cy + Math.sin(theta) * rad
-          if (fits(x, y, r) && clear(x, y, r)) { nx = x; ny = y; break search }
-        }
-      }
-      commit(n, r, nx, ny)
-    })
-  })
-
-  // ── Pass 2 — everyone else in a hemisphere golden-spiral-packs inward from THAT hemisphere's
-  // own centre (not the canvas centre) — the rim is already claimed by pass 1, so each
-  // hemisphere's remaining bodies naturally settle around their own side, biggest-of-the-rest
-  // first. ──
-  HEMIS.forEach((h) => {
-    const [hcx, hcy] = HEMI_CENTER[h]
-    byHemi[h].filter((n) => radiusFrac(n.power) < BIG_R).forEach((n) => {
-      const r = radiusFrac(n.power)
-      let nx = hcx, ny = hcy
-      for (let s = 0; s < 8000; s++) {
+      let nx = acx, ny = acy
+      for (let s = 0; s < 4000; s++) {
         const ang = s * GOLDEN
-        const rad = 0.017 * Math.sqrt(s)
-        const x = hcx + Math.cos(ang) * rad
-        const y = hcy + Math.sin(ang) * rad
+        const rad = spiralK * Math.sqrt(s)
+        const x = acx + Math.cos(ang) * rad
+        const y = acy + Math.sin(ang) * rad
         if (!fits(x, y, r) || !clear(x, y, r)) continue
         nx = x; ny = y; break
       }
-      commit(n, r, nx, ny)
+      placedXY.push({ nx, ny }); placedR.push(r)
+      out.set(n.id, { nx, ny })
     })
-  })
-
-  return placed
+  }
+  return out
 }
 
-const BODIES: WellBody[] = powerLayout()
+// Identity-only — every body's static fields (position now lives on the class instance, since it
+// must ease toward a live-recomputed target rather than stay fixed after import).
+const BODIES: WellBody[] = (() => {
+  const initial = layoutFor('all', 'total', new Map())
+  return NODES.map((n) => {
+    const p = initial.get(n.id)!
+    return { id: n.id, he: n.he, power: n.power, axis: AXIS[n.id] ?? 'none', kind: n.kind, nx: p.nx, ny: p.ny }
+  })
+})()
 // id → canvas body index — translates the metric-ranked tour order into canvas indices for the
 // well's scroll focus.
 const BODY_INDEX = new Map(BODIES.map((b, i) => [b.id, i]))
@@ -213,6 +196,14 @@ class GravityWell {
 
   private bodyScreenX: Float32Array
   private bodyScreenY: Float32Array
+  // live (eased) world position, [0,1] normalized — recomputed targets arrive from setLayout()
+  // (bloc filter / sort metric change) and nx/ny glide toward nxTarget/nyTarget every frame,
+  // exactly like `mass`/`massTarget` already do, so a filter change re-forms the dial rather than
+  // snapping the field into its new shape.
+  private nx: Float32Array
+  private ny: Float32Array
+  private nxTarget: Float32Array
+  private nyTarget: Float32Array
   private bodyAppear: Float32Array
   private bloom: Float32Array
   private breathPhase: Float32Array
@@ -294,6 +285,10 @@ class GravityWell {
     this.breathPhase = new Float32Array(n).map((_, i) => (i * 2.39) % TAU)
     this.mass = new Float32Array(n).map((_, i) => BODIES[i].power)
     this.massTarget = new Float32Array(n).map((_, i) => BODIES[i].power)
+    this.nx = new Float32Array(n).map((_, i) => BODIES[i].nx)
+    this.ny = new Float32Array(n).map((_, i) => BODIES[i].ny)
+    this.nxTarget = new Float32Array(n).map((_, i) => BODIES[i].nx)
+    this.nyTarget = new Float32Array(n).map((_, i) => BODIES[i].ny)
     this.metricAlpha = new Float32Array(n).fill(1)
     this.axisEco = new Float32Array(n)
     this.axisMil = new Float32Array(n)
@@ -350,6 +345,19 @@ class GravityWell {
     }
   }
 
+  // Re-form the dial for the current (bloc filter, sort metric) — sets new EASE TARGETS only;
+  // the frame loop glides nx/ny toward them (see the position-ease block in `frame`), so a filter
+  // or sort change visibly reshuffles the field rather than snapping it into its new shape.
+  setLayout(filterBloc: Bloc, order: Order, grav: Map<string, GravityResult>) {
+    const next = layoutFor(filterBloc, order, grav)
+    for (let i = 0; i < BODIES.length; i++) {
+      const p = next.get(BODIES[i].id)
+      if (!p) continue
+      this.nxTarget[i] = p.nx
+      this.nyTarget[i] = p.ny
+    }
+  }
+
   // Set the tour focus (called from the wheel step / mobile tier pick in the component). -1 clears
   // the focus (whole field visible). Eases the CAMERA (pan+zoom) toward centring the focused body —
   // bodies themselves never move; the recede easing in the frame loop still drives the dim-lens.
@@ -365,7 +373,7 @@ class GravityWell {
   private cameraTargetFor(idx: number): { zoom: number; pan: { x: number; y: number } } {
     const [ccx, ccy] = this.bodyToScreen(0.5, 0.5)
     if (idx < 0 || !BODIES[idx]) return { zoom: 1, pan: { x: 0, y: 0 } }
-    const [rawX, rawY] = this.bodyToScreen(BODIES[idx].nx, BODIES[idx].ny)
+    const [rawX, rawY] = this.bodyToScreen(this.nx[idx], this.ny[idx])
     const z = CAM_FOCUS_ZOOM
     return { zoom: z, pan: { x: -(rawX - ccx) * z, y: -(rawY - ccy) * z } }
   }
@@ -521,7 +529,16 @@ class GravityWell {
         this.recede[i] += (recTarget - this.recede[i]) * (recTarget > this.recede[i] ? 0.08 : 0.06)
       }
 
-      const [rawX, rawY] = this.bodyToScreen(BODIES[i].nx, BODIES[i].ny)
+      // ease the world position toward its live layout target (bloc filter / sort metric) — same
+      // exponential-lerp shape as `mass`/`massTarget` above, so a filter change re-forms the dial
+      // smoothly instead of the field jumping into its new shape.
+      if (this.reduced) {
+        this.nx[i] = this.nxTarget[i]; this.ny[i] = this.nyTarget[i]
+      } else {
+        this.nx[i] += (this.nxTarget[i] - this.nx[i]) * 0.06
+        this.ny[i] += (this.nyTarget[i] - this.ny[i]) * 0.06
+      }
+      const [rawX, rawY] = this.bodyToScreen(this.nx[i], this.ny[i])
       this.bodyScreenX[i] = ccx + this.camPan.x + (rawX - ccx) * this.camZoom
       this.bodyScreenY[i] = ccy + this.camPan.y + (rawY - ccy) * this.camZoom
     }
@@ -822,10 +839,11 @@ function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
 // ── Component ────────────────────────────────────────────────────────────────
 // tierFocus: controlled — 0=all visible, 1–5=tier focus. Set from the mobile filter sheet's
 // tier-focus list (touch) or driven internally by wheel/drag (desktop mouse, see below).
-export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFocus }: {
+export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onHover, tierFocus }: {
   grav: Map<string, GravityResult>
   tierFocus?: number
   orderBy: Order
+  filterBloc: Bloc
   selected: string | null
   onSelect: (id: string | null) => void
   onHover: (id: string | null) => void
@@ -996,6 +1014,7 @@ export function ForcesSheet({ grav, orderBy, selected, onSelect, onHover, tierFo
   }, [])
 
   useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
+  useEffect(() => { wellRef.current?.setLayout(filterBloc, orderBy, grav) }, [filterBloc, orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
   // Sync the canvas focus to the effective tour step (updating an external system — the well —
   // with the latest React state). Runs on tourStep AND rankedIndices (metric change), so switching

@@ -294,11 +294,11 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .about__title { font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
 .about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
 .about__lede { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
-/* the equation — a focal block. item 9: horizontal container rules dropped in favour of the
-   language's vertical accent + the radial glow that already makes it a focal block. */
+/* the equation — no container at all now (the radial-glow backdrop read as a boxed card, which
+   contradicts "no containers except the 01-03 cards"); the large display type and generous margin
+   already make it a focal block on its own. */
 .about__eq {
-  margin: 24px 0; padding: 18px 20px; display: flex; align-items: baseline; justify-content: center; gap: 14px;
-  background: radial-gradient(120% 140% at 50% 0%, rgba(251, 255, 0, 0.05), transparent 70%);
+  margin: 24px 0; display: flex; align-items: baseline; justify-content: center; gap: 14px;
 }
 .about__eq-term { font-family: var(--display); font-size: var(--text-2xl); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--white); }
 .about__eq-term:first-child { color: var(--yellow); }

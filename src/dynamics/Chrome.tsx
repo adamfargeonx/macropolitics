@@ -588,9 +588,9 @@ export type View = 'home' | 'forces' | 'relations' | 'dynamics'
 // triangle (a tie between two); dynamics = two masses on one shared orbit — forces + relations
 // composed into one figure, matching the site's own equation (יחסי הכוחות = הכוחות + היחסים).
 const TABS: { he: string; view: View; icon: IconName; ready?: boolean }[] = [
-  { he: 'הכוחות', view: 'forces', icon: 'forces', ready: true },
-  { he: 'היחסים', view: 'relations', icon: 'relations', ready: true },
-  { he: 'יחסי הכוחות', view: 'dynamics', icon: 'dynamics', ready: true },
+  { he: 'הכוחות', view: 'forces', icon: 'nav-forces', ready: true },
+  { he: 'היחסים', view: 'relations', icon: 'nav-relations', ready: true },
+  { he: 'יחסי הכוחות', view: 'dynamics', icon: 'nav-dynamics', ready: true },
 ]
 
 export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {

@@ -5,7 +5,7 @@
 
 export type IconName =
   | 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing'
-  | 'model' | 'legend' | 'forces' | 'dynamics'
+  | 'model' | 'legend' | 'nav-forces' | 'nav-relations' | 'nav-dynamics'
   // generic category icons (used in evidence overlay axis heads, pnote labels)
   | 'tier' | 'axis' | 'dispo'
   // per-value tier icons
@@ -37,18 +37,25 @@ const PATHS: Record<IconName, React.ReactNode> = {
   model: (<><circle cx="12" cy="12" r="9.5" /><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none" /><path d="M12 11 V17" /></>),
   // legend — a small key-to-symbols list (swatch + label row, ×3): what a map legend literally is
   legend: (<><rect x="3" y="4.5" width="4" height="4" /><path d="M10.5 6.5 H20.5" /><rect x="3" y="10" width="4" height="4" /><path d="M10.5 12 H20.5" /><rect x="3" y="15.5" width="4" height="4" /><path d="M10.5 17.5 H20.5" /></>),
-  // forces (site nav) — a single mass with a radiating field: one body's weight, standalone,
-  // before it is set against any other. The root term the other two build on: relations ties two
-  // of these together, dynamics puts that tie into motion. Deliberately NOT the orbit glyph — this
-  // is mass in isolation, not yet interacting.
-  forces: (<><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /><path d="M12 2 V5.3" /><path d="M12 18.7 V22" /><path d="M2 12 H5.3" /><path d="M18.7 12 H22" /></>),
-  // dynamics (site nav) — two of the same masses, tied by a bent line (an orbit): forces + relations
-  // literally composed into one figure. Two peer bodies (not a hierarchy like `orbit`'s
-  // body-and-satellite) sharing a single elliptical path — the system in motion. Dots sit at the
-  // ellipse's flat top/bottom (the minor-axis vertices, its widest radius of curvature) rather than
-  // its pointed left/right ends — placed at the sharp ends they visually fuse into the curve and
-  // read as one lens shape instead of two distinct bodies.
-  dynamics: (<><ellipse cx="12" cy="12" rx="9" ry="5.5" /><circle cx="12" cy="6.5" r="2.1" fill="currentColor" stroke="none" /><circle cx="12" cy="17.5" r="2.1" fill="currentColor" stroke="none" /></>),
+  // ── Site-nav trio (tab bar) — one deliberate visual family building forces → relations →
+  // dynamics as literal geometry, not three unrelated pictograms. All three use the SAME "mass"
+  // dot at the same scale, so the eye reads them as one alphabet:
+  //   forces    = a single mass + the field around it (weight, alone, not yet interacting)
+  //   relations = two masses joined by a STRAIGHT tie (a relationship: fixed, one specific link)
+  //   dynamics  = the SAME two masses, their tie bent into a closed orbit (a system in motion) —
+  //               literally "relations, put in motion by a force" = forces + relations.
+  // nav-forces — a mass (filled disk) with a thin halo ring: the body's own gravitational field,
+  // before it is set against anything else. Deliberately not the halo-less `orbit` glyph — that's
+  // a hierarchy (body + satellite); this is a single body, in isolation.
+  'nav-forces': (<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none" /></>),
+  // nav-relations — two masses (the same disks) joined by one straight tie: a specific,
+  // fixed relationship between exactly two bodies.
+  'nav-relations': (<><circle cx="5" cy="12" r="2.7" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="2.7" fill="currentColor" stroke="none" /><path d="M7.9 12 H16.1" /></>),
+  // nav-dynamics — the SAME two masses as `nav-relations`, but their tie has closed into an
+  // orbit: forces acting on a relation puts it into motion. Dots sit at the ellipse's flat
+  // top/bottom (its widest radius of curvature) rather than its pointed left/right ends — at the
+  // sharp ends they visually fuse into the curve and read as one lens shape, not two bodies.
+  'nav-dynamics': (<><ellipse cx="12" cy="12" rx="9" ry="5.5" /><circle cx="12" cy="6.5" r="2.3" fill="currentColor" stroke="none" /><circle cx="12" cy="17.5" r="2.3" fill="currentColor" stroke="none" /></>),
   // generic category icons (used in evidence overlay axis heads, pnote labels)
   tier: (<><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></>),
   axis: (<><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></>),
