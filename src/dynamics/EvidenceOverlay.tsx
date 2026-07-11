@@ -31,6 +31,16 @@ const ECO_ROWS = [
 ] as const
 const AXIS_ROWS = { eco: ECO_ROWS, mil: MIL_ROWS, geo: GEO_ROWS } as const
 
+// Criteria from each axis's original rubric that are deliberately NOT scored — not hidden data,
+// just real factors the model's authors chose not to fabricate numbers for (see military.ts/geo.ts
+// "JUDGMENT; not modelled" comments). Surfaced as a small hover-hint tag rather than a paragraph so
+// the panel stays scannable while staying honest that these 4-7 rows aren't the whole picture.
+const UNMODELED = {
+  eco: [],
+  mil: ['לוגיסטיקה', 'ניסיון קרבי', 'תעשייה ביטחונית', 'ציוד וטכנולוגיה', 'בריתות', 'מודיעין', 'אימונים'],
+  geo: ['מיקום אסטרטגי', 'טופוגרפיה'],
+} as const
+
 const milMissing = (k: string, m: string[]) => m.includes(k)
 const geoMissing = (k: string, m: string[]) => (k === 'resources' ? m.includes('oil') || m.includes('gas') : false)
 const ecoMissing = (k: string, m: string[]) => (k === 'credit' ? m.includes('rating') || m.includes('inflation') : m.includes(k))
@@ -98,14 +108,14 @@ function Trend({ id, axis }: { id: string; axis: Axis }) {
   const pct = Math.round(((pair.y2025 - pair.y2020) / pair.y2020) * 100)
   const up = pct >= 0
   return (
-    <div className="evid__trend">
+    <p className="evid__meta-line evid__meta-line--trend">
       <span className="evid__trend-line" dir="ltr">
         <span>{fmt(pair.y2020)}</span><span className="evid__trend-arrow">→</span><span>{fmt(pair.y2025)}</span>
         <span className={`evid__trend-pct evid__trend-pct--${up ? 'up' : 'down'}`}>{up ? '+' : ''}{pct}%</span>
         <span className="evid__trend-years">’20→’25</span>
       </span>
-      <span className="evid__trend-src">{src}</span>
-    </div>
+      <span className="evid__trend-src"> · <bdi>{src}</bdi></span>
+    </p>
   )
 }
 
@@ -183,12 +193,23 @@ export function EvidenceOverlay() {
                     <span className="evid__src-score">{d.axes[axis]}</span>
                   </div>
                   <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} />
-                  <div className="evid__src-meta">
-                    <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
-                    <p className="evid__figure">{p.figure}</p>
+                  {/* one consolidated card for everything secondary — status, figure, trend, note,
+                      citation — instead of four separately-boxed elements */}
+                  <div className="evid__meta">
+                    <p className="evid__meta-line evid__meta-line--figure">
+                      <span className={`evid__tag evid__tag--${p.status}`}>{STATUS_LABEL[p.status]}</span>
+                      {UNMODELED[axis].length > 0 && (
+                        <span className="evid__tag evid__tag--unmodeled" data-hint={`לא נמדד: ${UNMODELED[axis].join(' · ')}`}>
+                          +{UNMODELED[axis].length} לא נמדד
+                        </span>
+                      )}
+                      {p.figure}
+                    </p>
                     <Trend id={id} axis={axis} />
-                    {p.note && <p className="evid__note">{p.note}</p>}
-                    <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                    {p.note && <p className="evid__meta-line evid__meta-line--note">{p.note}</p>}
+                    <p className="evid__meta-line evid__meta-line--link">
+                      <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                    </p>
                   </div>
                 </section>
               )

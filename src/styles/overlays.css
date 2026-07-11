@@ -109,29 +109,32 @@
 .evid__src-axis { display: inline-flex; align-items: center; gap: 6px; font-family: var(--display); font-size: var(--text-base); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--white); }
 .evid__src-icon { color: var(--yellow); opacity: 0.85; }
 .evid__src-score { margin-inline-start: auto; font-family: var(--display); font-size: var(--text-lg); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--yellow); }
-/* secondary block, below the graphs/criteria — small, muted, sparing: a clean status tag then
-   whatever else (figure, trend, note, source link), each just a quiet line, none competing with
-   the composite above for attention. */
-.evid__src-meta { margin-top: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.evid__badge { font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); padding: 2px 6px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
-.evid__badge--sourced { color: var(--ok); border-color: var(--ok-border); }
-.evid__badge--estimate { color: var(--yellow); border-color: var(--yellow-30); }
-.evid__badge--judgment { color: var(--ink-dim); }
-.evid__badge--no-data { color: var(--warn); border-color: var(--warn-border); }
-.evid__figure { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-dim); }
-.evid__src--flag .evid__figure { color: var(--yellow); opacity: 0.85; }
-.evid__note { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
-.evid__link { display: inline-block; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
+/* ONE consolidated card for everything secondary — status tag, figure, trend, note, citation —
+   instead of four separately-boxed elements. Quiet by design: a single subtle tint, tight line
+   spacing, small muted text throughout, so it reads as one calm footnote under the graphs above,
+   not a second competing section. */
+.evid__meta { margin-top: 14px; padding: 10px 12px; background: rgba(255, 255, 255, 0.025); display: flex; flex-direction: column; gap: 5px; }
+.evid__meta-line { font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
+.evid__meta-line--figure { font-weight: var(--fw-bold); color: var(--ink-dim); }
+.evid__src--flag .evid__meta-line--figure { color: var(--yellow); opacity: 0.85; }
+.evid__tag { display: inline-block; margin-inline-end: 6px; padding: 1px 5px; border: 1px solid var(--line); font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px; letter-spacing: var(--tracking-loose); color: var(--ink-dim); white-space: nowrap; }
+.evid__tag--sourced { color: var(--ok); border-color: var(--ok-border); }
+.evid__tag--estimate { color: var(--yellow); border-color: var(--yellow-30); }
+.evid__tag--judgment { color: var(--ink-dim); }
+.evid__tag--no-data { color: var(--warn); border-color: var(--warn-border); }
+/* the "+N not measured" tag — dashed border marks it as informational (hover for the list), not a
+   provenance grade like the status tag beside it */
+.evid__tag--unmodeled { border-style: dashed; color: var(--ink-faint); }
+.evid__link { display: inline-block; color: var(--ink-dim); text-decoration: none; transition: color var(--dur-fast) ease; }
 .evid__link:hover { color: var(--yellow); }
-/* sourced 2020→2025 trend (a real temporal datapoint) */
-.evid__trend { width: 100%; padding: 7px 9px; background: rgba(251, 255, 0, 0.04); }
-.evid__trend-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 7px; font-family: var(--latin); font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); font-weight: 700; color: var(--white); }
+/* sourced 2020→2025 trend (a real temporal datapoint) — now a plain line within .evid__meta */
+.evid__trend-line { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 5px 7px; font-family: var(--latin); font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); font-weight: 700; color: var(--white); }
 .evid__trend-arrow { color: var(--ink-dim); }
 .evid__trend-pct { font-size: var(--text-xs); }
 .evid__trend-pct--up { color: var(--ok); }
 .evid__trend-pct--down { color: var(--warn); }
 .evid__trend-years { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint); }
-.evid__trend-src { display: block; margin-top: 5px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint); }
+.evid__trend-src { font-weight: var(--fw-bold); }
 /* unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — one set of styles.
    This is the panel's star content (graphs + criteria), so it gets the most generous spacing:
    larger padding, taller bars, more row breathing room than anything else on the card. */
