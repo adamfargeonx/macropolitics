@@ -16,7 +16,6 @@ import { sound } from '../sound'
 const HE_AXIS = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' } as const
 const AXIS_SRC = { eco: 'IMF · בנק עולמי · S&P', mil: 'SIPRI · IISS · FAS · NCPI', geo: 'CIA · OPEC · BP · EIA' } as const
 const AXIS_ICON: Record<'eco' | 'mil' | 'geo', IconName> = { eco: 'eco', mil: 'mil', geo: 'geo' }
-const AXIS_JUDGMENT = { mil: '+7 קריטריונים בשיפוט', geo: '+2 קריטריונים בשיפוט', eco: '' } as const
 
 const MIL_ROWS = [
   { k: 'spend', he: 'הוצאה צבאית' }, { k: 'manpower', he: 'כוח אדם' },
@@ -83,7 +82,6 @@ function Composite({ axis, sub, missing, status }: { axis: Axis; sub: Record<str
           )
         })}
       </div>
-      {AXIS_JUDGMENT[axis] && <span className="evid__comp-judgment">{AXIS_JUDGMENT[axis]}</span>}
     </div>
   )
 }
@@ -161,7 +159,10 @@ export function EvidenceOverlay() {
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
           <h2 className="evid__title">{node.he}</h2>
-          <span className="evid__score">כוח משיכה <bdi>{g.gravity.toFixed(1)} / 10</bdi>{year !== 2025 ? ` · ${year}` : ''}</span>
+          <div className="evid__grav">
+            <span className="evid__grav-lbl">כוח משיכה{year !== 2025 ? ` · ${year}` : ''}</span>
+            <span className="evid__grav-num"><bdi>{g.gravity.toFixed(1)}</bdi><i>/10</i></span>
+          </div>
         </header>
 
         <div className="evid__tabs" role="tablist" aria-label="תצוגה">
@@ -180,13 +181,15 @@ export function EvidenceOverlay() {
                   <div className="evid__src-head">
                     <span className="evid__src-axis"><Icon name={AXIS_ICON[axis]} className="evid__src-icon" />{HE_AXIS[axis]}</span>
                     <span className="evid__src-score">{d.axes[axis]}</span>
-                    <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
                   </div>
-                  <p className="evid__figure">{p.figure}</p>
                   <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} />
-                  <Trend id={id} axis={axis} />
-                  {p.note && <p className="evid__note">{p.note}</p>}
-                  <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                  <div className="evid__src-meta">
+                    <span className={`evid__badge evid__badge--${p.status}`}>{STATUS_LABEL[p.status]}</span>
+                    <p className="evid__figure">{p.figure}</p>
+                    <Trend id={id} axis={axis} />
+                    {p.note && <p className="evid__note">{p.note}</p>}
+                    <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                  </div>
                 </section>
               )
             })}
