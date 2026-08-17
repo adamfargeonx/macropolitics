@@ -30,26 +30,40 @@ export function Legend({ view }: { view: View }) {
         <div className="legend__rows">
           <div className="legend__row">
             <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
-            <span className="legend__txt"><b>גודל</b> — כוח משיכה: שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי.</span>
+            <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
           </div>
 
-          <div className="legend__row">
-            <span className="legend__swatch"><i className="legend__disk legend__disk--full" /><i className="legend__disk legend__disk--hollow" /></span>
-            <span className="legend__txt">עיגול <b>מלא</b> — מדינה · טבעת <b>חלולה</b> — שחקן לא-מדינתי.</span>
+          {/* each graphic paired directly with its own short (2-3 word) label, instead of one
+              long sentence describing both — a state disk and a non-state ring are two distinct
+              graphics, so they get two distinct pairs. */}
+          <div className="legend__group">
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--full" /></span>
+              <span className="legend__txt"><b>מלא</b> = מדינה</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--hollow" /></span>
+              <span className="legend__txt"><b>חלולה</b> = לא-מדינתי</span>
+            </div>
           </div>
 
-          <div className="legend__row">
-            <span className="legend__swatch legend__rims">
-              <i style={{ borderColor: 'rgba(132,160,196,0.95)' }} />
-              <i style={{ borderColor: 'rgba(198,134,98,0.95)' }} />
-              <i style={{ borderColor: 'rgba(150,150,150,0.7)' }} />
-            </span>
-            <span className="legend__txt">גוון המסגרת — שיוך: <b>כחול</b> מערב · <b>חום</b> מזרח · <b>אפור</b> ניטרלי.</span>
+          <div className="legend__group">
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(132,160,196,0.95)' }} /></span>
+              <span className="legend__txt"><b>כחול</b> = מערב</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(198,134,98,0.95)' }} /></span>
+              <span className="legend__txt"><b>חום</b> = מזרח</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(150,150,150,0.7)' }} /></span>
+              <span className="legend__txt"><b>אפור</b> = ניטרלי</span>
+            </div>
           </div>
         </div>
 
         {hint && <p className="legend__hint">{hint}</p>}
-        <p className="legend__foot">ESC או לחיצה מחוץ לחלון לסגירה</p>
       </aside>
     </div>
   )

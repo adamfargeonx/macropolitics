@@ -167,6 +167,12 @@
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
   /* a "back" ease — slight overshoot before settling, for motion that should snap rather than glide */
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* sidepanel entrance ease — an ~80% more dramatic curve than --ease-out-expo: a genuine slow
+     ease-IN start (control point 1 pulled toward 0) THEN a much longer ease-out glide (control
+     point 2 pulled toward 0 on the x-axis), instead of --ease-out-expo's near-instant fast start.
+     Used only by the panel-shell family entrance (detailIn, textRise, wordRise, gindex__row) —
+     everything else keeps --ease-out-expo. */
+  --ease-panel: cubic-bezier(0.3, 0, 0.08, 1);
 
   /* ── Elevation (z-index scale) ───────────────────────────── */
   --z-field: 2; --z-content: 3; --z-scrim: 4; --z-panel: 5; --z-chrome: 6;

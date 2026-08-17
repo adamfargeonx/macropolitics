@@ -194,7 +194,9 @@ export function EvidenceOverlay() {
                   </div>
                   <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} />
                   {/* one consolidated card for everything secondary — status, figure, trend, note,
-                      citation — instead of four separately-boxed elements */}
+                      citation. The three axes repeat this exact structure, so the citation link
+                      (previously its own line) now folds into the figure line — one fewer repeated
+                      row × 3 axes, less stacked load per axis without losing any information. */}
                   <div className="evid__meta">
                     <p className="evid__meta-line evid__meta-line--figure">
                       <span className={`evid__tag evid__tag--${p.status}`}>{STATUS_LABEL[p.status]}</span>
@@ -204,12 +206,11 @@ export function EvidenceOverlay() {
                         </span>
                       )}
                       {p.figure}
+                      {' · '}
+                      <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
                     </p>
                     <Trend id={id} axis={axis} />
                     {p.note && <p className="evid__meta-line evid__meta-line--note">{p.note}</p>}
-                    <p className="evid__meta-line evid__meta-line--link">
-                      <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
-                    </p>
                   </div>
                 </section>
               )

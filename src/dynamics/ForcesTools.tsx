@@ -33,9 +33,9 @@ type ForcesToolsProps = {
   onClose: () => void
 }
 
-// The "⚙ כלים" disclosure: bloc filter, threshold, year toggle, and the scenario weight sandbox.
+// The "⚙ כלים" disclosure: bloc filter, year toggle, and the scenario weight sandbox.
 export function ForcesTools(props: ForcesToolsProps) {
-  const { filterBloc, setFilterBloc, minScore, setMinScore, year, setYear, raw, setRaw, normW, scenario, stateActive, exiting, onResetAll, onClose } = props
+  const { filterBloc, setFilterBloc, year, setYear, raw, setRaw, normW, scenario, stateActive, exiting, onResetAll, onClose } = props
   return (
     <div className={`forcestools${exiting ? ' forcestools--out' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <div className="forcestools__row" role="group" aria-label="גוש">
@@ -46,11 +46,6 @@ export function ForcesTools(props: ForcesToolsProps) {
             {BLOC_LABEL[bl]} ({BLOC_COUNT[bl]})
           </button>
         ))}
-      </div>
-      <div className="forcestools__row">
-        <span className="forcestools__lbl">סף ≥ {minScore}</span>
-        <input className="forcesctl__slider" type="range" min={0} max={9} step={1} value={minScore} dir="ltr"
-          onChange={(e) => setMinScore(Number(e.target.value))} aria-label="סף ציון מינימלי" />
       </div>
       <YearToggle year={year} setYear={setYear} />
       <div className="forcestools__divider" />

@@ -75,7 +75,6 @@
   transition: color 0.42s var(--ease-out-expo), transform 0.18s ease;
   display: flex; align-items: center; gap: 8px;
 }
-.tab__icon { width: 15px; height: 15px; flex: none; }
 .tab:hover:not(.tab--active) { color: var(--white); }
 .tab--active { color: var(--bg); }
 .tab:active { transform: scale(0.96); }
@@ -189,7 +188,7 @@
 .gindex__row {
   display: grid; grid-template-columns: 22px minmax(0, 1fr) 74px 30px; align-items: center; gap: 9px;
   padding: 7px 6px; background: none; border: none;
-  cursor: none; text-align: right; animation: textRise 0.5s var(--ease-out-expo) both;
+  cursor: none; text-align: right; animation: textRise 0.7s var(--ease-panel) both;
   transition: background 0.42s var(--ease-out-expo), transform 0.42s var(--ease-out-expo);
 }
 /* staggered row entrance — each row fans in with ~0.04s offset */
@@ -450,22 +449,16 @@
 }
 .ffull-btn--foot:hover { background: none; }
 
-/* ── Forces panel header — descriptor-chip tooltips open BELOW instead of above ────────────────
+/* ── Forces panel header — power-tier tooltip opens BELOW instead of above ─────────────────────
    Root-cause of the remaining tooltip-overlap: the shared [data-hint] tooltip (overlays.css) is
-   anchored ABOVE its trigger by design, but .phead__descriptors sits only 12px below the title/
-   rank line — less than ANY real tooltip box needs (even a single short line + padding runs
-   ~28–35px tall). Measured via getComputedStyle: no amount of widening the tooltip's own
-   clearance/width (done in the owned overlays.css block) can clear that 12px gap — the box is
-   simply bigger than the gap, full stop. Pushing the chip row further from the title doesn't fix
-   it either (tried and measured): the tooltip is TIED to the chip's position while the title is
-   fixed, so moving the chip down moves the tooltip down too, deeper into the title, not clear of
-   it — it would take a ~78px gap to fully escape, which breaks the "cohesive cluster beneath the
-   title" the header is designed around. The one direction with real open room is DOWN — below the
-   descriptor row is the score cluster's headline (a bigger, useful gap) — so descriptor-chip
-   tooltips specifically are flipped to open below. Higher-specificity override of the shared
-   [data-hint] rule (only for chips inside .phead__descriptors), not a change to the shared rule. */
-.phead__descriptors .panelb__desc[data-hint]:hover::after,
-.phead__descriptors .panelb__desc[data-hint]:active::after {
+   anchored ABOVE its trigger by design, but .phead__tier sits only 10px below the title/rank
+   line — less than ANY real tooltip box needs (even a single short line + padding runs
+   ~28–35px tall). The one direction with real open room is DOWN — below it is the score
+   cluster's headline (a bigger, useful gap) — so this tag's tooltip is flipped to open below.
+   Higher-specificity override of the shared [data-hint] rule (only for .phead__tier), not a
+   change to the shared rule. */
+.phead__tier[data-hint]:hover::after,
+.phead__tier[data-hint]:active::after {
   bottom: auto; top: calc(100% + 10px);
 }
 

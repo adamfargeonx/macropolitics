@@ -12,8 +12,11 @@
   border: var(--panel-border);
   box-shadow: var(--panel-shadow);
   /* item 9: a more dramatic, slightly slower reveal — larger rise + a subtle scale-settle and
-     blur-in on a long expo decel, so the panel reads as a deliberate reveal, not a quick pop. */
-  animation: detailIn 0.46s var(--ease-out-expo);
+     blur-in on a long expo decel, so the panel reads as a deliberate reveal, not a quick pop.
+     Duration +40% / a substantially stronger ease-in+out curve vs the sitewide default — every
+     panel-family appearance (this shell + textRise/wordRise/gindex__row below) now shares this
+     slower, more considered entrance language. */
+  animation: detailIn 0.64s var(--ease-panel);
 }
 /* shared close button — identical inset + size on every panel/modal. Sits at the inline-END
    (RTL: visual left), opposite the right-aligned title, where every panel's close already lived. */
@@ -157,8 +160,10 @@
 .evid__comp-row--miss .evid__comp-bar i { opacity: 0.3; }
 @media (max-width: 720px) { .evid__sources { grid-template-columns: 1fr; } }
 
-.evid__flags { margin-top: 18px; padding: 12px 14px; background: var(--warn-bg); border-inline-start: 2px solid var(--warn-border); }
-.evid__flags p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--warn); }
+/* no container fill, no sidestroke — the smallest body size (--text-xs) + the warn colour alone
+   now carry this as a quiet footnote, not a boxed callout competing with the graphs above. */
+.evid__flags { margin-top: 18px; }
+.evid__flags p { font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--warn); }
 .evid__flags p + p { margin-top: 6px; }
 .evid__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) { .evid { animation: none; } }
@@ -183,7 +188,7 @@
   .legend__scrim.is-closing .about, .legend__scrim.is-closing .evid { animation: none; }
 }
 .legend {
-  position: relative; width: min(452px, calc(100vw - 48px));
+  position: relative; width: min(520px, calc(100vw - 48px));
   padding: 28px 30px 22px; text-align: right;
   /* surface/border/shadow/animation inherited from the shared panel shell */
 }
@@ -200,6 +205,15 @@
   display: flex; align-items: center; gap: 16px; padding: 13px 0;
   padding-inline-start: 16px;
 }
+/* each graphic paired directly beside its own short (2-3 word) label — a "shape" group (state ·
+   non-state) and a "colour" group (west · east · neutral), wrapping naturally rather than forcing
+   a rigid column count. Same entrance rhythm as .legend__row (which owns the size-ramp row above),
+   continuing the cascade into these two groups. */
+.legend__group { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 4px; padding-inline-start: 16px; animation: textRise 0.77s var(--ease-panel) both; }
+.legend__group:nth-of-type(1) { animation-delay: 0.1s; }
+.legend__group:nth-of-type(2) { animation-delay: 0.18s; }
+.legend__pair { display: inline-flex; align-items: center; gap: 12px; padding: 8px 0; }
+.legend__swatch--pair { flex: 0 0 40px; height: 40px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
@@ -214,14 +228,13 @@
 .legend__disk { display: block; width: 17px; height: 17px; border-radius: 50%; }
 .legend__disk--full { background: var(--light); }
 .legend__disk--hollow { background: transparent; border: 2px solid var(--light); }
-.legend__rims i { display: block; width: 14px; height: 14px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
+.legend__rim { display: block; width: 16px; height: 16px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
 .legend__hint {
   margin-top: 18px; padding: 12px 14px; font-family: var(--body);
   /* item 8: unified to the primary body size (13px) */
   font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
   background: rgba(251, 255, 0, 0.05);
 }
-.legend__foot { margin-top: 16px; font-family: var(--body); font-size: var(--text-xs); color: var(--light); opacity: 0.60; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim, .legend, .about, .evid, .panel, .panelb, .panel--detail { animation: none; }
 }
@@ -261,7 +274,7 @@
 .panel__note { margin-top: 10px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
 
 /* Detail panel (a body is selected). Close button comes from the shared shell. */
-.panel--detail { animation: detailIn 0.46s var(--ease-out-expo); }
+.panel--detail { animation: detailIn 0.64s var(--ease-panel); }
 @keyframes detailIn {
   from { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(7px); }
   55%  { filter: blur(0); }
@@ -309,18 +322,18 @@
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
    `justify-content: flex-end` packed the chips toward main-END = the LEFT edge (leaving a gap on
    the right — the bug the user saw); `flex-start` is what actually hugs the right edge here. */
-.phead__descriptors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: flex-start; }
-.panelb__desc {
+/* the power-tier tag — the ONLY descriptor left in this header (axis + disposition chips were
+   dropped: this line is purely about power now). Sits directly below the name. */
+.phead__tier {
   position: relative;
-  display: inline-flex; align-items: center; gap: 5px; cursor: none;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
-  border: 1px solid var(--line); padding: 4px 10px;
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  display: inline-flex; align-items: center; gap: 6px; cursor: none; margin-top: 10px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.85;
+  transition: opacity var(--dur-fast) ease;
 }
-.panelb__desc:hover, .panelb__desc:focus-visible { color: var(--light); border-color: var(--ink-dim); outline: none; }
+.phead__tier:hover, .phead__tier:focus-visible { opacity: 1; outline: none; }
+.phead__tier-icon { color: var(--yellow); opacity: 0.85; font-size: 12px; flex-shrink: 0; }
 .phead__rank { cursor: none; transition: opacity var(--dur-fast) ease; }
 .phead__rank:hover, .phead__rank:focus-visible { opacity: 0.9; outline: none; }
-.panelb__desc-icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
 /* hover-explanation caption — a reserved IN-FLOW line, not a floating ::after tooltip. The panel is
    an overflow scroll container (overflow-x:hidden), so a chip's floating tooltip near the panel's
    left edge is physically clipped by the panel box (reproduced: the disposition chip's tooltip ran
@@ -339,6 +352,7 @@
   display: flex; align-items: baseline; gap: 14px;
   margin-top: 18px; padding-bottom: 16px;
   border-bottom: 1px solid var(--line-yellow);
+  animation: textRise 0.77s var(--ease-panel) both;
 }
 .fscore__num { display: inline-flex; align-items: baseline; gap: 5px; }
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
@@ -379,10 +393,17 @@
    description (no per-row read-more). Every row is the same height so they read as a uniform set;
    the full text lives behind the "תיאור מלא" button. */
 .fparams { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+/* staggered entrance — noticeably offset (not the tight ~0.03-0.06s row-list rhythm used
+   elsewhere): headline 0s → gen text .14s (Words delay, see Chrome.tsx) → these three rows →
+   backing/full-btn/sources link below. Uneven steps (.14/.11/.11) read as considered, not metronomic. */
 .fparam {
   padding: 8px 10px; background: var(--surface-1);
   display: flex; flex-direction: column; justify-content: center; gap: 7px;
+  animation: textRise 0.77s var(--ease-panel) both;
 }
+.fparam:nth-child(1) { animation-delay: 0.28s; }
+.fparam:nth-child(2) { animation-delay: 0.39s; }
+.fparam:nth-child(3) { animation-delay: 0.50s; }
 .fparam__lead { display: flex; align-items: baseline; gap: 8px; }
 .fparam__label {
   display: inline-flex; align-items: center; gap: 6px;
@@ -399,7 +420,9 @@
   display: block; height: 100%; background: var(--yellow);
   animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
 }
-@media (prefers-reduced-motion: reduce) { .fparam__track i { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fparam__track i, .fscore__headline, .fparam, .fbacking, .fscore .ffull-btn, .fevidence { animation: none; }
+}
 /* per-axis description — the brief FIRST SENTENCE (see firstSentence() in Chrome.tsx): a complete
    thought, no clamp, no ellipsis. Same PROSE size as the general read above (the panel's body copy
    is one size, 13px; labels/captions are the other, 11px — two Futurism sizes, full stop). */
@@ -422,6 +445,9 @@
 }
 .ffull-btn:hover { background: var(--yellow-06); opacity: 1; }
 .ffull-btn.is-open { background: var(--yellow-06); }
+/* ForcesScore only (not the ForcesNarrative "is-open" twin) — last-but-one in the stagger,
+   right before the sources link below it. */
+.fscore .ffull-btn { animation: textRise 0.77s 0.64s var(--ease-panel) both; }
 /* the narrative container's own top-offset from the header (mirrors .fscore__headline's own
    margin-top so both modes open at the same visual offset below the panel header) */
 .fbody > .fnarr { margin-top: 16px; }
@@ -429,6 +455,7 @@
 .fbacking {
   margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px;
+  animation: textRise 0.77s 0.64s var(--ease-panel) both;
 }
 .fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9; }
 .fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
@@ -439,6 +466,7 @@
   background: none; border: none; border-bottom: 1px solid var(--yellow-30); padding: 0 0 1px;
   font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
   line-height: var(--leading-loose); color: var(--yellow); opacity: 0.6; transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  animation: textRise 0.77s 0.78s var(--ease-panel) both;
 }
 .fevidence:hover { opacity: 1; border-bottom-color: var(--yellow); }
 

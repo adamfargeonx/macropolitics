@@ -626,31 +626,35 @@
   .chrome-exit, .chrome-exit--out, .panel-root, .panel-root--exiting { transition: none; }
 }
 
-/* text reveal — a clip-mask rise applied sitewide (the editorial reveal, no dissolve) */
-.panel__title { animation: textRise 0.55s var(--ease-out-expo) both; }
-.panel__body, .panel__note, .panel__eq { animation: textRise 0.55s 0.04s var(--ease-out-expo) both; }
-.panel__meta { animation: textRise 0.55s 0.04s var(--ease-out-expo) both; }
-.panel__rel-toward { animation: textRise 0.55s 0.04s var(--ease-out-expo) both; }
-.pnotes__h { animation: textRise 0.55s 0.04s var(--ease-out-expo) both; }
-.pnote { animation: textRise 0.55s var(--ease-out-expo) both; }
+/* text reveal — a clip-mask rise applied sitewide (the editorial reveal, no dissolve).
+   Panel-family duration +40% (0.55s→0.77s) + swapped to --ease-panel, a substantially stronger
+   ease-in+out curve than the sitewide --ease-out-expo default — every side-panel appearance
+   (title, body, rows) now shares this slower, more deliberate reveal. Stagger delay OFFSETS
+   (0.04s / nth-child steps) are unchanged — only the base motion itself got slower + heavier. */
+.panel__title { animation: textRise 0.77s var(--ease-panel) both; }
+.panel__body, .panel__note, .panel__eq { animation: textRise 0.77s 0.04s var(--ease-panel) both; }
+.panel__meta { animation: textRise 0.77s 0.04s var(--ease-panel) both; }
+.panel__rel-toward { animation: textRise 0.77s 0.04s var(--ease-panel) both; }
+.pnotes__h { animation: textRise 0.77s 0.04s var(--ease-panel) both; }
+.pnote { animation: textRise 0.77s var(--ease-panel) both; }
 .pnote:nth-child(2) { animation-delay: 0.1s; }
 .pnote:nth-child(3) { animation-delay: 0.16s; }
 .pnote:nth-child(4) { animation-delay: 0.22s; }
 .pnote:nth-child(5) { animation-delay: 0.28s; }
-.legend__row { animation: textRise 0.55s var(--ease-out-expo) both; }
-.legend__row:nth-child(2) { animation-delay: 0.06s; }
-.legend__row:nth-child(3) { animation-delay: 0.12s; }
+.legend__row { animation: textRise 0.77s var(--ease-panel) both; }
 @keyframes textRise {
   from { clip-path: inset(0 0 105% 0); transform: translateY(0.5em); }
   to { clip-path: inset(0 0 -25% 0); transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .panel__title, .panel__body, .panel__note, .panel__eq, .panel__meta, .panel__rel-toward,
-  .pnotes__h, .pnote, .legend__row { animation: none; }
+  .pnotes__h, .pnote, .legend__row, .legend__group { animation: none; }
 }
 
-/* universal per-word body reveal — words rise + fade in, staggered */
-.words__w { display: inline-block; will-change: transform, opacity; animation: wordRise 0.5s var(--ease-out-expo) both; }
+/* universal per-word body reveal — words rise + fade in, staggered. Duration +40% (0.5s→0.7s) +
+   --ease-panel (a substantially stronger ease-in+out curve) — matches the panel-family reveal
+   language above; per-word stagger step (set via the `delay`/`step` props) is unchanged. */
+.words__w { display: inline-block; will-change: transform, opacity; animation: wordRise 0.7s var(--ease-panel) both; }
 @keyframes wordRise { from { opacity: 0; transform: translateY(0.5em); } to { opacity: 1; transform: translateY(0); } }
 /* where words animate, the block itself shouldn't also clip-rise (would double the motion) */
 .panel__body--words, .about__lede--words { animation: none !important; }

@@ -28,8 +28,11 @@ export function AboutOverlay() {
           </div>
         </header>
 
+        {/* entrance cascade, top→bottom (each section noticeably later than the last):
+            head 0s → lede .18s → eq .38s (container, see chrome.css) → cols .52/.58/.64s →
+            honesty .8s → foot .92s (container, see chrome.css) */}
         <p className="about__lede about__lede--words">
-          <Words delay={0.15} step={0.035} text="מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות, המפה מציעה מבנה." />
+          <Words delay={0.18} step={0.035} text="מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות, המפה מציעה מבנה." />
         </p>
 
         <div className="about__eq" aria-label="המשוואה">
@@ -44,22 +47,22 @@ export function AboutOverlay() {
           <div className="about__col">
             <span className="about__col-n">01</span>
             <h3>הכוחות</h3>
-            <p><Words delay={0.05} text="כוח המשיכה של כל גוף — שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי, בסולם 0–10 — קובע את גודלו במפה." /></p>
+            <p><Words delay={0.52} text="כוח המשיכה של כל גוף — שקלול של כוח כלכלי, צבאי וגאו-אסטרטגי, בסולם 0–10 — קובע את גודלו במפה." /></p>
           </div>
           <div className="about__col">
             <span className="about__col-n">02</span>
             <h3>היחסים</h3>
-            <p><Words delay={0.05} text="כל יחס נמתח בין שלושה קטבים — מתח, חיכוך והרמוניה — ומיקומו במשולש מגדיר את אופיו מול מדינת הייחוס." /></p>
+            <p><Words delay={0.58} text="כל יחס נמתח בין שלושה קטבים — מתח, חיכוך והרמוניה — ומיקומו במשולש מגדיר את אופיו מול מדינת הייחוס." /></p>
           </div>
           <div className="about__col">
             <span className="about__col-n">03</span>
             <h3>יחסי הכוחות</h3>
-            <p><Words delay={0.05} text="התמונה המלאה: גופים במסלולים סביב מרכזי כובד. המרחק, הטבעת והמסלול מבטאים תלות, חסות וזיקה." /></p>
+            <p><Words delay={0.64} text="התמונה המלאה: גופים במסלולים סביב מרכזי כובד. המרחק, הטבעת והמסלול מבטאים תלות, חסות וזיקה." /></p>
           </div>
         </div>
 
         <p className="about__honesty">
-          <Words text="חלקן אמפירי ומתועד, השאר שיפוט פרשני מנומק — הכול ניתן לערעור, והמשקלים פתוחים להזזה." />
+          <Words delay={0.8} text="חלקן אמפירי ומתועד, השאר שיפוט פרשני מנומק — הכול ניתן לערעור, והמשקלים פתוחים להזזה." />
         </p>
 
         <footer className="about__foot">

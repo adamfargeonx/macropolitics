@@ -14,7 +14,9 @@ import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
 
 function SoundToggle() {
-  const [muted, setMuted] = useState(false)
+  // muted by default — matches SoundEngine's own default (sound.ts) so the UI state and the
+  // engine's actual gain agree from the first render, before any user interaction.
+  const [muted, setMuted] = useState(true)
   return (
     <button
       className="soundtoggle"

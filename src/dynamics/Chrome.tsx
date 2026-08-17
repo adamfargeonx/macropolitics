@@ -404,13 +404,12 @@ const DISPO_ICON: Record<string, IconName> = {
 // tooltip anchored to a chip near the panel's left edge is physically clipped by the panel box no
 // matter how it's positioned — an in-flow caption inside the panel can never clip. (Reproduced:
 // the disposition chip's tooltip ran off the panel's left edge.)
+// This header line is purely about POWER now — the axis (bloc) and disposition chips that used
+// to sit here were dropped (they aren't power facts), leaving only the power tier, relocated to
+// sit directly below the name instead of inside a separate descriptor-chip row.
 function PanelHeader({ detail }: { detail: EntityDetail }) {
   const [hint, setHint] = useState<string | null>(null)
-  const descriptors: { icon: IconName; text: string; hint: string }[] = [
-    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier, hint: 'דרגת העוצמה — סיווג הכוח של הגוף' },
-    { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel, hint: 'שיוך — הגוש הגאו-פוליטי שאליו נוטה הגוף' },
-    ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo, hint: 'עמדה — האוריינטציה האסטרטגית של הגוף' }] : []),
-  ]
+  const tierHint = 'דרגת העוצמה — סיווג הכוח של הגוף'
   const rankHint = 'הדירוג בכוח המשיכה — מקומו בטבלת העוצמה'
   const bind = (h: string) => ({
     tabIndex: 0,
@@ -423,14 +422,10 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
         {detail.rank && <span className="phead__rank" {...bind(rankHint)}>{String(detail.rank).padStart(2, '0')}</span>}
         <h1 className="phead__title">{detail.he}</h1>
       </div>
-      <div className="phead__descriptors">
-        {descriptors.map((d) => (
-          <span key={d.text} className="panelb__desc" {...bind(d.hint)}>
-            <Icon name={d.icon} className="panelb__desc-icon" />{d.text}
-          </span>
-        ))}
-      </div>
-      <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
+      <span className="phead__tier" {...bind(tierHint)}>
+        <Icon name={TIER_ICON[detail.tier] ?? 'tier'} className="phead__tier-icon" />{detail.tier}
+      </span>
+      <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
     </header>
   )
 }
@@ -483,14 +478,7 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
           <span className="fscore__lbl">כוח משיכה</span>
         </span>
       </div>
-      {general && <p className="fscore__gen"><Words key={detail.id} text={firstSentence(general)!} /></p>}
-      {/* the toggle button — right after the brief description, before the eco/mil/geo breakdown
-          (moved up from the old panel-foot position; see ForcesNarrative for its "open" twin). */}
-      {hasNarrative && (
-        <button className="ffull-btn" onClick={onToggleFull} aria-expanded={false}>
-          תיאור מלא <span aria-hidden>↗</span>
-        </button>
-      )}
+      {general && <p className="fscore__gen"><Words key={detail.id} delay={0.14} text={firstSentence(general)!} /></p>}
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
@@ -512,10 +500,18 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
           <p className="fbacking__text"><Words key={detail.id} text="משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות." /></p>
         </div>
       )}
+      {/* the toggle button — moved below every metric component (headline, description, eco/mil/geo
+          breakdown, backing note), directly above the sources link, per user placement request. */}
+      {hasNarrative && (
+        <button className="ffull-btn" onClick={onToggleFull} aria-expanded={false}>
+          תיאור מלא <span aria-hidden>↗</span>
+        </button>
+      )}
       <EvidenceLink detail={detail} />
     </div>
   )
 }
+
 
 // FORCES detail panel (forces view) — grouped header, then ONE of two full-panel-body states:
 // the score/category cluster (default) OR the complete narrative — toggled by a single button
@@ -587,10 +583,10 @@ export type View = 'home' | 'forces' | 'relations' | 'dynamics'
 // Icons: forces = a single mass (weight, standalone); relations = the tension/friction/harmony
 // triangle (a tie between two); dynamics = two masses on one shared orbit — forces + relations
 // composed into one figure, matching the site's own equation (יחסי הכוחות = הכוחות + היחסים).
-const TABS: { he: string; view: View; icon: IconName; ready?: boolean }[] = [
-  { he: 'הכוחות', view: 'forces', icon: 'nav-forces', ready: true },
-  { he: 'היחסים', view: 'relations', icon: 'nav-relations', ready: true },
-  { he: 'יחסי הכוחות', view: 'dynamics', icon: 'nav-dynamics', ready: true },
+const TABS: { he: string; view: View; ready?: boolean }[] = [
+  { he: 'הכוחות', view: 'forces', ready: true },
+  { he: 'היחסים', view: 'relations', ready: true },
+  { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
 ]
 
 export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {
@@ -624,7 +620,6 @@ export function TabBar({ view, onView }: { view: View; onView: (v: View) => void
           aria-current={view === t.view ? 'page' : undefined}
           onClick={() => t.ready !== false && onView(t.view)}
         >
-          <Icon name={t.icon} className="tab__icon" />
           {t.he}
         </button>
       ))}

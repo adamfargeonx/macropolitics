@@ -27,7 +27,8 @@ class SoundEngine {
   private uiBus: GainNode | null = null
   private ambBus: GainNode | null = null
   private started = false
-  private _muted = false
+  // muted by default (until the user explicitly turns sound on via the toggle)
+  private _muted = true
   private lastHover = 0
   private buffers: Record<string, AudioBuffer> = {}
   private samplesLoading = false
