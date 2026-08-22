@@ -221,11 +221,16 @@ export class OrbitalField {
     }
   }
 
-  private get gutter() { return this.w > 760 ? Math.min(400, this.w * 0.3) : 0 }
-  private get fieldW() { return Math.max(this.w - this.gutter, this.w * 0.6) }
-  private get cx() { return this.fieldW / 2 }
+  // The orrery is composed against the FULL canvas, with the side panel floating over it. It used
+  // to reserve a ~400px right gutter and centre on whatever was left, which pushed the whole system
+  // off-centre and left a dead column on the right whenever the dock was closed.
+  private get cx() { return this.w / 2 }
   private get cy() { return this.h / 2 }
-  private get maxR() { return Math.min(this.fieldW, this.h) * 0.5 }
+  private get maxR() { return Math.min(this.w, this.h) * 0.5 }
+  // Bodies may pass under the panel — they still read as shapes through the scrim. CAPTIONS can't:
+  // text under the panel is simply lost. So text placement, and ONLY text placement, still keeps
+  // clear of the panel's column. This is never the composition's centre.
+  private get captionW() { return this.w > 760 ? Math.max(this.w - Math.min(400, this.w * 0.3), this.w * 0.6) : this.w }
   private get viewScale() { return this.maxR / 520 } // world px → screen px at zoom 1
 
   resize = () => {
@@ -759,7 +764,7 @@ export class OrbitalField {
     const ctx = this.ctx
     const fs = 12.5
     ctx.font = `400 ${fs}px 'Tel Aviv Brutalist', sans-serif`
-    const maxW = Math.min(248, this.fieldW * 0.62)
+    const maxW = Math.min(248, this.captionW * 0.62)
     const lines = wrapText(ctx, text, maxW)
     const lh = fs * 1.5
     const x = fns.sx
@@ -782,7 +787,7 @@ export class OrbitalField {
     const ctx = this.ctx
     const pad = 14
     const headFs = 11.5, descFs = 10.5
-    const maxW = Math.min(196, this.fieldW * 0.5)
+    const maxW = Math.min(196, this.captionW * 0.5)
     const lineH = descFs * 1.4
     // captions placed this call — the second tie de-collides against the first as well as against
     // last frame's body-name labels (placedBuf, one frame stale — imperceptible at this drift speed).
@@ -790,7 +795,7 @@ export class OrbitalField {
     // keep captions inside the VISIBLE field: on wide screens the right gutter is reserved for the
     // DOM readout panel, so a partner that drifts under the panel would otherwise hide its caption.
     const loX = pad + maxW / 2
-    const hiX = Math.max(loX, this.fieldW - pad - maxW / 2)
+    const hiX = Math.max(loX, this.captionW - pad - maxW / 2)
     ctx.save(); ctx.textAlign = 'center'; ctx.direction = 'rtl'
     for (const rel of rels.slice(0, 2)) {
       const nb = this.nodes[rel.ib]

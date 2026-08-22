@@ -10,6 +10,7 @@ import { sound } from '../sound'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
 import { Hint } from './Hint'
+import { LetterSwap, CountUp, Gauge } from './PanelMotion'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -447,9 +448,9 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
     <header className="phead">
       <div className="phead__line">
         {detail.rank && <span className="phead__rank" {...bind(rankHint)}>{String(detail.rank).padStart(2, '0')}</span>}
-        {/* keyed by id so the title replays its own swap motion on every switch, independent of
-            whether the panel container itself (unkeyed, stays mounted) animates. */}
-        <h1 className="phead__title" key={detail.id}>{detail.he}</h1>
+        {/* the name is the panel's one genuinely expressive swap — letters of the old drop away as
+            the new rise in (see LetterSwap). The <h1> itself never animates or moves. */}
+        <h1 className="phead__title"><LetterSwap text={detail.he} /></h1>
       </div>
       <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
     </header>
@@ -469,17 +470,19 @@ function firstSentence(t?: string): string | undefined {
 
 // One scored axis row — icon + label + numeric value + bar + a brief first-sentence description.
 // The full text lives behind the single "תיאור מלא" drill-down.
+// The row itself, its icon and its label are IDENTICAL for every body, so they are permanently
+// static — no key, no entrance animation. Only the value (counts) and the bar (tweens its width)
+// move, plus the description's own per-word rise.
 function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value?: number; icon: IconName; hint?: string; text?: string }) {
   return (
     <div className="fparam">
       <div className="fparam__lead">
         <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
-        {value != null && <span className="fparam__val">{value}</span>}
+        {value != null && <span className="fparam__val"><CountUp value={value} /></span>}
       </div>
-      {value != null && (
-        <span className="fparam__track"><i style={{ width: `${value * 10}%` }} /></span>
-      )}
-      {text && <p className="fparam__desc-text"><Words text={firstSentence(text)!} /></p>}
+      {value != null && <Gauge value={value * 10} />}
+      {/* reserved height (see .fparam__desc-text) so a shorter description can't pull the next row up */}
+      <p className="fparam__desc-text">{text && <Words key={text} text={firstSentence(text)!} />}</p>
     </div>
   )
 }
@@ -490,31 +493,31 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
 // category rows, each with a sentence-complete description, plus a backing note (if any) and
 // the evidence link. The same `general` text opens ForcesNarrative too (the fuller read) — that's
 // intentional: a brief intro here, the same line reprised as the narrative's opening there.
-function ForcesScore({ detail, hasNarrative, onToggleFull, reselect }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void; reselect: boolean }) {
-  const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
+function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
+  const scoreNum = detail.scoreLabel ? parseFloat(detail.scoreLabel.split(' ')[0]) : detail.power
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
   const notes = detail.powerNotes
   const general = desc?.general ?? notes?.general
   return (
     <div className="fscore">
+      {/* the headline ROW never animates or moves — only the numeral inside it counts to its new
+          value, and the tier chip (whose text genuinely differs per body) cross-fades. */}
       <div className="fscore__headline">
-        {/* keyed by id — its own numeralPop motion plays every switch, distinct from the
-            headline row's one-time textRise (which only ever plays on first panel open). */}
-        <span className="fscore__num" key={detail.id}><b>{score}</b><span className="fscore__unit">{unit}</span></span>
+        <span className="fscore__num"><b><CountUp value={scoreNum} /></b><span className="fscore__unit">{unit}</span></span>
         <span className="fscore__meta">
           <span className="fscore__lbl">כוח משיכה</span>
         </span>
         {detail.tier && (
           <Hint text="דרגת העוצמה — סיווג הכוח של הגוף" className="fscore__tier">
-            <Icon name={TIER_ICON[detail.tier] ?? 'tier'} className="fscore__tier-icon" />{detail.tier}
+            <Icon name={TIER_ICON[detail.tier] ?? 'tier'} className="fscore__tier-icon" />
+            <span className="fscore__tier-txt" key={detail.tier}>{detail.tier}</span>
           </Hint>
         )}
       </div>
-      {/* first open plays the full tuned cascade (0.20s in); re-selecting a different body while
-          the panel stays mounted drops the delay so the read doesn't replay a slow multi-second
-          wave every click — see .panel--reselect in overlays.css for the sibling row delays. */}
-      {general && <p className="fscore__gen"><Words key={detail.id} delay={reselect ? 0 : 0.20} text={firstSentence(general)!} /></p>}
+      {/* reserved 3-line height (see .fscore__gen) — the breakdown below it must sit at the same
+          y for every body, whatever the sentence length. */}
+      <p className="fscore__gen">{general && <Words key={detail.id} text={firstSentence(general)!} />}</p>
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
@@ -533,7 +536,7 @@ function ForcesScore({ detail, hasNarrative, onToggleFull, reselect }: { detail:
         <div className="fbacking">
           <span className="fbacking__label">גיבוי ⟵ {detail.backing.patronHe}</span>
           <span className="fbacking__val">+{detail.backing.amount}</span>
-          <p className="fbacking__text"><Words key={detail.id} text="משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות." /></p>
+          <p className="fbacking__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
         </div>
       )}
       {/* the toggle button — moved below every metric component (headline, description, eco/mil/geo
@@ -560,17 +563,7 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
   const [mode, setMode] = useState<'score' | 'full'>('score')
   // a fresh selection resets to the score view — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
-  // the panel container itself never remounts across a country switch (only unselecting entirely
-  // does) — so this distinguishes the FIRST body shown (plays the full tuned entrance cascade) from
-  // every RESELECTION after it (fast, near-simultaneous — see .panel--reselect below), instead of
-  // replaying the same slow multi-second wave on every single click. Set during render (same
-  // sanctioned pattern as lastId/mode above), not a ref — a ref read during render doesn't
-  // re-trigger the render that needs to see it flip.
-  const [reselected, setReselected] = useState(false)
-  if (detail.id !== lastId) {
-    setLastId(detail.id); setMode('score')
-    if (!reselected) setReselected(true)
-  }
+  if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
   const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
   const toggleMode = () => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }
   return (
@@ -578,12 +571,12 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
     // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
     // the panel — the full-description button, the evidence link, relation chips — bubbles up and
     // immediately deselects too, reverting the whole panel closed.
-    <aside className={`panelb panel--detail${reselected ? ' panel--reselect' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
       <div className="fbody">
         {mode === 'score'
-          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} reselect={reselected} />
+          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />
           : <ForcesNarrative detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />}
       </div>
       {detail.relations.length > 0 && (

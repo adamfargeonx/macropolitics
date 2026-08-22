@@ -265,9 +265,12 @@
 
 /* index (.panel) + detail (.panelb) share ONE frame — same position, width, padding & surface,
    so the resting index and the selected-entity detail read as the SAME panel, different content. */
+/* Geometry comes from the dock's own custom properties (forces.css .pdock) so the sliding frame,
+   the grip pinned to its edge, and the panel itself can never drift apart — the fallbacks apply
+   when a panel is used outside the dock (the mobile sheet). */
 .panel {
-  position: absolute; top: 88px; right: 44px;
-  width: 396px; z-index: var(--z-panel); text-align: right; padding: 28px;
+  position: absolute; top: var(--panel-top, 88px); right: var(--panel-inset, 44px);
+  width: var(--panel-w, 396px); z-index: var(--z-panel); text-align: right; padding: 28px;
   display: flex; flex-direction: column;
   overflow-y: auto; scrollbar-width: none;
 }
@@ -330,7 +333,8 @@
    growable content block fills the remaining space and scrolls internally; this outer scroll is
    a fallback so nothing is ever clipped. */
 .panelb {
-  position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel);
+  position: absolute; top: var(--panel-top, 88px); right: var(--panel-inset, 44px);
+  width: var(--panel-w, 396px); z-index: var(--z-panel);
   text-align: right; padding: 28px 28px 28px;
   display: flex; flex-direction: column;
   overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
@@ -344,27 +348,8 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
   color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
 }
-/* title swap — a distinct identity-materializing motion (horizontal scale + blur), NOT the shared
-   textRise body-text rise. Keyed by id in Chrome.tsx so it replays every time the name changes,
-   independent of the (unkeyed, static) panel container around it. */
-.phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; animation: titleSwap 0.34s var(--ease-panel) both; }
-@keyframes titleSwap {
-  from { opacity: 0; transform: translateY(-6px) scaleX(0.94); filter: blur(3px); }
-  60%  { filter: blur(0); }
-  to   { opacity: 1; transform: translateY(0) scaleX(1); filter: blur(0); }
-}
-/* gravity numeral pop — a weighted "landing" motion (slide + overshoot), distinct from titleSwap
-   and from textRise. Keyed by id so it replays on every switch, first open and reselect alike. */
-@keyframes numeralPop {
-  0%   { opacity: 0; transform: translateY(10px) scale(0.85); }
-  65%  { opacity: 1; transform: translateY(-2px) scale(1.04); }
-  100% { transform: translateY(0) scale(1); }
-}
-.fscore__num { animation: numeralPop 0.36s var(--ease-out-expo) both; }
-.dcard__pstrip-score { animation: numeralPop 0.36s var(--ease-out-expo) both; }
-@media (prefers-reduced-motion: reduce) {
-  .phead__title, .dcard__title, .fscore__num, .dcard__pstrip-score { animation: none; }
-}
+/* STATIC element — the swap happens per-letter INSIDE it (LetterSwap), never to the <h1> itself. */
+.phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
    `justify-content: flex-end` packed the chips toward main-END = the LEFT edge (leaving a gap on
@@ -385,11 +370,12 @@
    be mistaken for a fourth category bar. An oversized numeral + label/rank, set off from the
    supporting eco/mil/geo bars beneath by a hairline divider → clear [headline]→[categories]
    hierarchy. ── */
+/* STATIC — the row, its label and its rule exist identically for every body. Only the numeral
+   inside it moves (it counts), so animating the row itself just made the panel wash in and out. */
 .fscore__headline {
   display: flex; align-items: baseline; gap: 14px;
   margin-top: 18px; padding-bottom: 16px;
   border-bottom: 1px solid var(--line-yellow);
-  animation: textRise 0.77s var(--ease-panel) both;
 }
 .fscore__num { display: inline-flex; align-items: baseline; gap: 5px; }
 .fscore__num b { font-family: var(--display); font-size: var(--display-md); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
@@ -406,7 +392,6 @@
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow);
 }
 .fscore__tier-icon { color: var(--yellow); font-size: 13px; flex-shrink: 0; }
-@keyframes gaugeGrow { from { transform: scaleX(0); } }
 .panel__rels-h { display: inline-flex; align-items: center; gap: 5px; }
 .panelb__rels { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (prefers-reduced-motion: reduce) { .panelb__gauge i { animation: none; } }
@@ -430,8 +415,11 @@
    just the FIRST SENTENCE (see firstSentence() in Chrome.tsx): a brief, COMPLETE thought — no
    line-clamp, so it can never trail off in a "…". The full multi-sentence read lives unclamped in
    ForcesNarrative (.fnarr__gen, same token/family/colour) behind the "תיאור מלא" button. */
+/* Reserved 3-line slot. Without it a short sentence pulled the entire breakdown up and a long one
+   pushed it down, so every switch shifted the rows under it — the "jumping" that made the panel
+   feel unstable even when nothing was animating. */
 .fscore__gen {
-  margin-top: 14px;
+  margin-top: 14px; min-height: calc(3 * var(--text-base) * var(--leading-loose));
   font-family: var(--body); font-size: var(--text-base);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim);
 }
@@ -448,20 +436,7 @@
 .fparam {
   padding: 8px 10px; background: var(--surface-1);
   display: flex; flex-direction: column; justify-content: center; gap: 7px;
-  animation: textRise 0.77s var(--ease-panel) both;
 }
-.fparam:nth-child(1) { animation-delay: 0.40s; }
-.fparam:nth-child(2) { animation-delay: 0.60s; }
-.fparam:nth-child(3) { animation-delay: 0.80s; }
-/* re-selecting a different body (panel already open — see .panel--reselect in Chrome.tsx) drops
-   the tuned first-open cascade to a tight, barely-staggered set so switching doesn't replay the
-   same ~2s wave on every click; the title + numeral above still get their own always-on swap/pop. */
-.panel--reselect .fparam:nth-child(1) { animation-delay: 0s; }
-.panel--reselect .fparam:nth-child(2) { animation-delay: 0.06s; }
-.panel--reselect .fparam:nth-child(3) { animation-delay: 0.12s; }
-.panel--reselect .fscore .ffull-btn { animation-delay: 0.18s; }
-.panel--reselect .fbacking { animation-delay: 0.18s; }
-.panel--reselect .fevidence { animation-delay: 0.22s; }
 .fparam__lead { display: flex; align-items: baseline; gap: 8px; }
 .fparam__label {
   display: inline-flex; align-items: center; gap: 6px;
@@ -476,16 +451,20 @@
 .fparam__track { height: 4px; background: var(--line-2); overflow: hidden; }
 .fparam__track i {
   display: block; height: 100%; background: var(--yellow);
-  animation: gaugeGrow 1s 0.1s var(--ease-out-expo) both; transform-origin: right;
+  /* B-A — the fill TWEENS from the previous body's value to the new one, so the movement itself
+     carries the comparison. Width is driven from React (see Gauge in PanelMotion.tsx). */
+  transition: width 0.68s var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) {
-  .fparam__track i, .fscore__headline, .fparam, .fbacking, .fscore .ffull-btn, .fevidence { animation: none; }
+  .fparam__track i, .fbacking { animation: none; transition: none; }
 }
 /* per-axis description — the brief FIRST SENTENCE (see firstSentence() in Chrome.tsx): a complete
    thought, no clamp, no ellipsis. Same PROSE size as the general read above (the panel's body copy
    is one size, 13px; labels/captions are the other, 11px — two Futurism sizes, full stop). */
+/* Reserved 2-line slot — same reason as .fscore__gen: keeps every row the same height so the
+   three rows, the button and the sources link all sit at a fixed y for every body. */
 .fparam__desc-text {
-  margin-top: 0;
+  margin-top: 0; min-height: calc(3 * var(--text-base) * var(--leading-loose));
   font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.7;
 }
@@ -505,7 +484,7 @@
 .ffull-btn.is-open { background: var(--yellow-06); }
 /* ForcesScore only (not the ForcesNarrative "is-open" twin) — last-but-one in the stagger,
    right before the sources link below it. */
-.fscore .ffull-btn { animation: textRise 0.77s 1.00s var(--ease-panel) both; }
+/* STATIC — its label never changes between bodies. */
 /* the narrative container's own top-offset from the header (mirrors .fscore__headline's own
    margin-top so both modes open at the same visual offset below the panel header) */
 .fbody > .fnarr { margin-top: 16px; }
@@ -513,8 +492,10 @@
 .fbacking {
   margin-top: 12px; padding: 9px 10px; background: var(--yellow-06);
   display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px;
-  animation: textRise 0.77s 1.00s var(--ease-panel) both;
+  animation: backingIn 0.5s var(--ease-panel) both;
 }
+/* the ONE block that genuinely appears/disappears per body — a soft fade is honest here */
+@keyframes backingIn { from { opacity: 0; } to { opacity: 1; } }
 .fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9; }
 .fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
 .fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim); }
@@ -526,7 +507,6 @@
   background: none; border: none; border-bottom: 1px solid var(--yellow-30); padding: 0 0 1px;
   font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-label);
   line-height: var(--leading-loose); color: var(--yellow); opacity: 0.6; transition: opacity var(--dur-fast) ease, border-color var(--dur-fast) ease;
-  animation: textRise 0.77s 1.20s var(--ease-panel) both;
 }
 .fevidence:hover { opacity: 1; border-bottom-color: var(--yellow); }
 
@@ -567,7 +547,7 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
   color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
 }
-.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1; animation: titleSwap 0.34s var(--ease-panel) both; }
+.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1; }
 /* the synthesis — now the card's LEDE (was the closing line at the bottom), so it reads with more
    weight than the old muted footnote treatment: --text-base, not --text-xs, and full ink not faint. */
 .dcard__lede {
@@ -659,3 +639,32 @@
   .legend { padding: 24px 18px 20px; }
 }
 
+
+/* ════════════════════════════════════════════════════════════════
+   PANEL CONTENT MOTION — the frame is permanently static; only the
+   fields that genuinely differ between one body and the next move.
+   See PanelMotion.tsx for the three primitives.
+   ════════════════════════════════════════════════════════════════ */
+
+/* T-C · letter cascade — the outgoing name's letters drop away as the incoming name's rise in,
+   both staggered. Layered in a grid cell so the two occupy the same box and the <h1> never
+   changes height or reflows mid-swap. */
+.lswap { position: relative; display: inline-grid; }
+.lswap__layer { grid-area: 1 / 1; display: flex; white-space: pre; }
+.lswap__layer i { font-style: normal; display: inline-block; }
+.lswap__layer--out i { animation: lswapDrop 0.3s var(--ease-panel) both; }
+.lswap__layer--in i { animation: lswapRise 0.44s var(--ease-out-expo) both; }
+@keyframes lswapDrop { to { transform: translateY(0.5em) rotate(4deg); opacity: 0; } }
+@keyframes lswapRise { from { transform: translateY(-0.55em); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* N-A · the counted numerals — digits must not reflow while ticking */
+.fscore__num b, .fparam__val { font-variant-numeric: tabular-nums; }
+
+/* the tier chip's TEXT is the only part of that chip that differs per body */
+.fscore__tier-txt { animation: tierFade 0.34s var(--ease-panel) both; }
+@keyframes tierFade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lswap__layer i, .fscore__tier-txt { animation: none; }
+  .lswap__layer--out { display: none; }
+}

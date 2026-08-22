@@ -1,6 +1,6 @@
 /* ── Relations view (triangle) ─────────────────────────────── */
 .rel-field {
-  position: absolute; top: 20px; bottom: 64px; left: 0; right: var(--rail-w); z-index: 2;
+  position: absolute; top: 20px; bottom: 64px; left: 0; right: 0; z-index: 2;
   transform-origin: center; animation: relZoomOut 1.3s var(--ease-out-expo) both;
 }
 /* the relations lens enters by zooming OUT — pulling back to reveal all states at once */

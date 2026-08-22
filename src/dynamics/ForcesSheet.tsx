@@ -23,6 +23,7 @@ import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { type Order, type Bloc, metricVal } from './forces-model'
 import { gridLayout, gridRadius, revealAt } from './forces-grid'
+import { Affordance } from './Affordance'
 import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -1198,14 +1199,16 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
         aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
       />
 
-      {/* ── Hint (before first interaction) — copy matches the input: tap vs. hover ────── */}
-      {!interacted && tourStep === 0 && (
-        <div className="sheet-hint" dir="rtl">
-          {composition === 'grid'
-            ? (coarse ? 'הקישו על גוף לבחירה · הגל חושף את הכוח' : 'רחפו על גוף · הגל חושף את הכוח · ממוין מהחזק לחלש')
-            : (coarse ? 'הקישו על גוף לבחירה · הגודל = הכוח' : 'רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש')}
-        </div>
-      )}
+      {/* ── Affordance — the self-retiring coach line (see Affordance.tsx), replacing the old
+          always-on .sheet-hint. It teaches the ONE gesture that isn't self-evident: the scroll
+          tour. Hovering a body already announces itself (the body blooms under the cursor), and
+          "size = power / sorted strong→weak" are READINGS of the picture, not gestures — those
+          live in the מקרא legend, not in a line pinned to the canvas forever. ── */}
+      <Affordance
+        id={`forces-tour-${coarse ? 'touch' : 'wheel'}`}
+        text={coarse ? 'הקישו על גוף לפתיחה' : 'גלגלו לסיור מודרך בין הגופים'}
+        done={interacted || tourStep > 0}
+      />
 
     </div>
   )

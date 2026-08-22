@@ -74,8 +74,6 @@
   /* ── Tooltip — dark text on yellow (the one tooltip language; see overlays.css) ── */
   --tooltip-bg: var(--yellow);
   --tooltip-fg: var(--bg);
-  /* ── Rail width — side dock/panel offset (forces field right edge) ── */
-  --rail-w: 416px;
   /* ── Data-status colors (deliberate palette exception — data-quality semantics only) ── */
   /* See design-system.md §2 for justification. These are NOT chromatic accents. */
   --ok:   #8fe388;                    /* sourced / verified */
@@ -364,7 +362,6 @@ body {
 /* ── 768px responsive: field goes full-width, scrim removed ──── */
 @media (max-width: 768px) {
   :root {
-    --rail-w: 0px;
     /* coordinated bottom band: a full-width footer tab bar + a bottom sheet that
        sits ABOVE it. Canvas fields reserve (--tabbar-h + --sheet-h) below them so
        nothing in the bottom region overlaps. */

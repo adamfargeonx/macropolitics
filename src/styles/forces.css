@@ -1,7 +1,17 @@
 /* Collapsible side dock — a PINNED grip handle; only the panel slides (no jitter) ── */
-.pdock { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-panel); }
+/* These four MUST mirror .panel/.panelb's own geometry (overlays.css): the dock is only a sliding
+   frame around them, and the grip is positioned off its edges. When they drifted apart the grip
+   ended up floating 16px clear of the panel with nothing joining them — it read as a stray tab
+   rather than the panel's own pinched edge. */
+.pdock {
+  position: absolute; inset: 0; pointer-events: none; z-index: var(--z-panel);
+  --panel-w: 396px; --panel-inset: 44px; --panel-top: 88px; --panel-bottom: 26px;
+}
 .pdock__panel {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 456px;
+  position: absolute; top: 0; right: 0; bottom: 0;
+  /* panel width + the gap it keeps from the viewport edge → the frame's inward edge lands EXACTLY
+     on the panel's own left edge, so the grip's right:100% is flush against it */
+  width: calc(var(--panel-w) + var(--panel-inset));
   /* item 9: a touch slower + more expressive slide-in for the whole side dock */
   pointer-events: none; transition: transform 0.66s var(--ease-out-expo); will-change: transform;
 }
@@ -16,7 +26,11 @@
    own surface + border tokens and drops the border on the side that meets the panel, so the two
    read as one continuous piece of chrome. Label-free: the chevron carries the affordance. */
 .pdock__handle {
-  position: absolute; right: 100%; top: 50%; transform: translateY(-50%);
+  /* vertically centred on the PANEL, not the viewport: the panel is inset --panel-top from the top
+     and --panel-bottom from the bottom, so its midpoint sits half that difference below 50%. */
+  position: absolute; right: 100%;
+  top: calc(50% + (var(--panel-top) - var(--panel-bottom)) / 2);
+  transform: translateY(-50%);
   width: 22px; height: 74px; cursor: none; pointer-events: auto;
   display: flex; align-items: center; justify-content: center;
   background: var(--panel-surface); color: var(--yellow);
@@ -28,7 +42,7 @@
 .pdock__chev { width: 13px; height: 13px; transition: transform var(--dur-base) var(--ease-out-expo); }
 .pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
-@media (max-width: 900px) { .pdock__panel { width: 340px; } }
+@media (max-width: 900px) { .pdock { --panel-w: 296px; } }
 /* ── 768px: side dock becomes a bottom sheet ──────────────────── */
 /* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
 @media (max-width: 768px) {
@@ -74,10 +88,13 @@
 .tab {
   position: relative; z-index: 1; padding: 9px 22px; font-size: var(--text-lg); font-weight: 700; font-family: var(--display);
   color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: var(--tracking-numeral);
-  transition: color 0.42s var(--ease-out-expo), transform 0.18s ease;
+  transition: color 0.42s var(--ease-out-expo), background 0.42s var(--ease-out-expo), transform 0.18s ease;
   display: flex; align-items: center; gap: 8px;
 }
-.tab:hover:not(.tab--active) { color: var(--white); }
+/* hover = a soft filled container behind the label, matching the ranked-row hover
+   (.gindex__row:hover) — one hover language sitewide. NOT a colour swap to white: that competed
+   with the active tab's own colour change and read as a second "selected" state. */
+.tab:hover:not(.tab--active) { background: var(--yellow-06); }
 .tab--active { color: var(--bg); }
 .tab:active { transform: scale(0.96); }
 /* the single yellow marker slides (translateX) to the active tab — one shared element, RTL-correct,
@@ -106,16 +123,14 @@
 }
 
 /* ── Forces view ───────────────────────────────────────────── */
-.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
+.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: 0; z-index: 2; }
 .forces-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
-/* warped-sheet reading — occupies the same field area as the constellation (respects the rail) */
-.sheet-embed { position: absolute; top: 20px; bottom: 70px; left: 0; right: var(--rail-w); z-index: 2; }
-.sheet-hint {
-  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
-  white-space: nowrap; animation: fadeIn 1.2s 1.5s both;
-}
 
+/* Full-bleed: the scene is composed against the WHOLE viewport and the side panel floats over it
+   (see .stage::before for the scrim that keeps the panel legible). It used to be inset by the
+   panel's width, which squeezed every composition into the left ~2/3 and left a dead column on
+   the right whenever the dock was closed. */
+.sheet-embed { position: absolute; top: 20px; bottom: 70px; left: 0; right: 0; z-index: 2; }
 .fnode {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 5px;
