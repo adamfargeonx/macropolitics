@@ -11,6 +11,7 @@ import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
 import { Hint } from './Hint'
 import { LetterSwap, CountUp, Gauge } from './PanelMotion'
+import { BEAT } from './panel-beats'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -473,16 +474,16 @@ function firstSentence(t?: string): string | undefined {
 // The row itself, its icon and its label are IDENTICAL for every body, so they are permanently
 // static — no key, no entrance animation. Only the value (counts) and the bar (tweens its width)
 // move, plus the description's own per-word rise.
-function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value?: number; icon: IconName; hint?: string; text?: string }) {
+function ForceAxisRow({ label, value, icon, hint, text, beat = 0 }: { label: string; value?: number; icon: IconName; hint?: string; text?: string; beat?: number }) {
   return (
     <div className="fparam">
       <div className="fparam__lead">
         <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
-        {value != null && <span className="fparam__val"><CountUp value={value} /></span>}
+        {value != null && <span className="fparam__val"><CountUp value={value} delay={beat} /></span>}
       </div>
-      {value != null && <Gauge value={value * 10} />}
+      {value != null && <Gauge value={value * 10} delay={beat} />}
       {/* reserved height (see .fparam__desc-text) so a shorter description can't pull the next row up */}
-      <p className="fparam__desc-text">{text && <Words key={text} text={firstSentence(text)!} />}</p>
+      <p className="fparam__desc-text">{text && <Words key={text} delay={beat} text={firstSentence(text)!} />}</p>
     </div>
   )
 }
@@ -504,7 +505,7 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
       {/* the headline ROW never animates or moves — only the numeral inside it counts to its new
           value, and the tier chip (whose text genuinely differs per body) cross-fades. */}
       <div className="fscore__headline">
-        <span className="fscore__num"><b><CountUp value={scoreNum} /></b><span className="fscore__unit">{unit}</span></span>
+        <span className="fscore__num"><b><CountUp value={scoreNum} delay={BEAT.score} /></b><span className="fscore__unit">{unit}</span></span>
         <span className="fscore__meta">
           <span className="fscore__lbl">כוח משיכה</span>
         </span>
@@ -517,18 +518,21 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
       </div>
       {/* reserved 3-line height (see .fscore__gen) — the breakdown below it must sit at the same
           y for every body, whatever the sentence length. */}
-      <p className="fscore__gen">{general && <Words key={detail.id} text={firstSentence(general)!} />}</p>
+      <p className="fscore__gen">{general && <Words key={detail.id} delay={BEAT.lede} text={firstSentence(general)!} />}</p>
       <div className="fparams">
+        {/* deliberately UNKEYED — see ForceAxisRow. A per-body key remounts the row and resets the
+            bar to empty; keeping the instance alive is what lets it slide from the previous body's
+            value straight to the new one. */}
         <ForceAxisRow
-          key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
+          label="כלכלי" icon="eco" value={detail.forces?.eco} beat={BEAT.rows}
           hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" text={desc?.eco ?? notes?.eco}
         />
         <ForceAxisRow
-          key={`${detail.id}-mil`} label="צבאי" icon="mil" value={detail.forces?.mil}
+          label="צבאי" icon="mil" value={detail.forces?.mil} beat={BEAT.rows + BEAT.rowStep}
           hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" text={desc?.mil ?? notes?.mil}
         />
         <ForceAxisRow
-          key={`${detail.id}-geo`} label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo}
+          label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo} beat={BEAT.rows + BEAT.rowStep * 2}
           hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" text={desc?.geo ?? notes?.geo}
         />
       </div>

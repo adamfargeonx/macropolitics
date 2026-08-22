@@ -348,14 +348,26 @@
   flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
   color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
 }
-/* STATIC element — the swap happens per-letter INSIDE it (LetterSwap), never to the <h1> itself. */
-.phead__title { font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.05; }
+/* STATIC element — the swap happens per-letter INSIDE it (LetterSwap), never to the <h1> itself.
+   Two lines are RESERVED and the name sits on the LAST of them: a handful of bodies have names
+   that wrap (הכוחות הדמוקרטיים, הרשות הפלסטינית, מיליציות עיראקיות), and without the reservation
+   selecting one of those pushed the score, the breakdown and everything under it down a whole
+   line. Bottom-aligning means a one-word name keeps the exact baseline a two-line name ends on,
+   so the block below never moves for ANY body. */
+.phead__title {
+  font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.08;
+  min-height: calc(2 * 1.08em); display: flex; align-items: flex-end;
+}
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
    `justify-content: flex-end` packed the chips toward main-END = the LEFT edge (leaving a gap on
    the right — the bug the user saw); `flex-start` is what actually hugs the right edge here. */
 .phead__rank { cursor: none; transition: opacity var(--dur-fast) ease; }
-.phead__rank:hover, .phead__rank:focus-visible { opacity: 0.9; outline: none; }
+.phead__rank:hover { opacity: 0.9; }
+/* real, visible focus ring — this control is tabbable (it reveals the hint line below), and the
+   previous rule removed the outline in favour of an opacity nudge that reads as nothing. */
+.phead__rank:focus-visible { opacity: 1; outline: 2px solid var(--yellow); outline-offset: 3px; }
 /* hover-explanation caption — a reserved IN-FLOW line, not a floating ::after tooltip. The panel is
    an overflow scroll container (overflow-x:hidden), so a chip's floating tooltip near the panel's
    left edge is physically clipped by the panel box (reproduced: the disposition chip's tooltip ran
@@ -452,8 +464,11 @@
 .fparam__track i {
   display: block; height: 100%; background: var(--yellow);
   /* B-A — the fill TWEENS from the previous body's value to the new one, so the movement itself
-     carries the comparison. Width is driven from React (see Gauge in PanelMotion.tsx). */
-  transition: width 0.68s var(--ease-out-expo);
+     carries the comparison. Width (and its per-row delay) is driven from React; see Gauge in
+     PanelMotion.tsx. Long + heavily eased on purpose: at 0.68s/expo the bars snapped almost before
+     the eye caught them, which wasted the one moment that actually shows the difference between
+     two bodies. --ease-panel is the project's strongest decel curve. */
+  transition: width 1.15s var(--ease-panel);
 }
 @media (prefers-reduced-motion: reduce) {
   .fparam__track i, .fbacking { animation: none; transition: none; }
@@ -650,7 +665,11 @@
    both staggered. Layered in a grid cell so the two occupy the same box and the <h1> never
    changes height or reflows mid-swap. */
 .lswap { position: relative; display: inline-grid; }
-.lswap__layer { grid-area: 1 / 1; display: flex; white-space: pre; }
+/* both names share ONE grid cell so they animate over each other without the <h1> reflowing */
+.lswap__layer { grid-area: 1 / 1; }
+/* each word is an unbreakable unit, so a long name wraps between words like normal text instead of
+   overflowing the panel (nowrap) or breaking mid-word (a flat run of inline-block letters) */
+.lswap__w { display: inline-block; white-space: nowrap; }
 .lswap__layer i { font-style: normal; display: inline-block; }
 .lswap__layer--out i { animation: lswapDrop 0.3s var(--ease-panel) both; }
 .lswap__layer--in i { animation: lswapRise 0.44s var(--ease-out-expo) both; }
@@ -661,7 +680,7 @@
 .fscore__num b, .fparam__val { font-variant-numeric: tabular-nums; }
 
 /* the tier chip's TEXT is the only part of that chip that differs per body */
-.fscore__tier-txt { animation: tierFade 0.34s var(--ease-panel) both; }
+.fscore__tier-txt { animation: tierFade 0.34s 0.30s var(--ease-panel) both; } /* 0.30s = BEAT.score */
 @keyframes tierFade { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {

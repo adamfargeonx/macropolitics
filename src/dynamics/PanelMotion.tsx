@@ -42,18 +42,31 @@ export function LetterSwap({ text, className }: { text: string; className?: stri
 
   return (
     <span className={`lswap${className ? ` ${className}` : ''}`} aria-label={text}>
-      {pair.prev != null && (
-        <span className="lswap__layer lswap__layer--out" aria-hidden key={`out-${pair.prev}`}>
-          {Array.from(pair.prev).map((ch, i) => (
-            <i key={i} style={{ animationDelay: `${i * 0.03}s` }}>{ch === ' ' ? ' ' : ch}</i>
+      {pair.prev != null && <SwapLayer text={pair.prev} step={0.03} variant="out" key={`out-${pair.prev}`} />}
+      <SwapLayer text={pair.cur} step={0.045} variant="in" key={`in-${pair.cur}`} />
+    </span>
+  )
+}
+
+// One name, split into per-letter spans for the cascade — but grouped BY WORD, each word an
+// inline-block that cannot break internally. A flat run of letter spans lets the browser break
+// anywhere, including mid-word, and the single nowrap line it replaced simply overflowed the panel
+// (the long multi-word names — הכוחות הדמוקרטיים, הרשות הפלסטינית — ran straight past its edge).
+// Grouping restores ordinary word wrapping while keeping the per-letter stagger, with the delay
+// counted across the WHOLE name so the cascade still reads as one continuous sweep over the break.
+function SwapLayer({ text, step, variant }: { text: string; step: number; variant: 'in' | 'out' }) {
+  let ci = 0
+  const words = text.split(' ')
+  return (
+    <span className={`lswap__layer lswap__layer--${variant}`} aria-hidden>
+      {words.map((word, wi) => (
+        <span className="lswap__w" key={wi}>
+          {Array.from(word).map((ch, i) => (
+            <i key={i} style={{ animationDelay: `${ci++ * step}s` }}>{ch}</i>
           ))}
+          {wi < words.length - 1 ? ' ' : null}
         </span>
-      )}
-      <span className="lswap__layer lswap__layer--in" aria-hidden key={`in-${pair.cur}`}>
-        {Array.from(pair.cur).map((ch, i) => (
-          <i key={i} style={{ animationDelay: `${i * 0.045}s` }}>{ch === ' ' ? ' ' : ch}</i>
-        ))}
-      </span>
+      ))}
     </span>
   )
 }
@@ -62,7 +75,7 @@ export function LetterSwap({ text, className }: { text: string; className?: stri
 const COUNT_MS = 620
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
-export function CountUp({ value, decimals = 1 }: { value: number; decimals?: number }) {
+export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; decimals?: number; delay?: number }) {
   // reduced-motion is read ONCE into state rather than branched on inside the effect: setting state
   // synchronously in an effect body cascades renders (and the lint rule rightly rejects it), so the
   // reduced path simply renders `value` and never schedules a tween at all.
@@ -77,16 +90,20 @@ export function CountUp({ value, decimals = 1 }: { value: number; decimals?: num
     const from = fromRef.current
     if (from === value) return
     let raf = 0
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - t0) / COUNT_MS)
-      setShown(from + (value - from) * easeOutCubic(k))
-      if (k < 1) raf = requestAnimationFrame(tick)
-      else fromRef.current = value
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [value, reduced])
+    // hold at the PREVIOUS value through the delay — the number must not jump early, it waits its
+    // turn in the sequence and then counts.
+    const timer = window.setTimeout(() => {
+      const t0 = performance.now()
+      const tick = (now: number) => {
+        const k = Math.min(1, (now - t0) / COUNT_MS)
+        setShown(from + (value - from) * easeOutCubic(k))
+        if (k < 1) raf = requestAnimationFrame(tick)
+        else fromRef.current = value
+      }
+      raf = requestAnimationFrame(tick)
+    }, delay * 1000)
+    return () => { window.clearTimeout(timer); cancelAnimationFrame(raf) }
+  }, [value, reduced, delay])
 
   return <>{(reduced ? value : shown).toFixed(decimals)}</>
 }
@@ -94,7 +111,7 @@ export function CountUp({ value, decimals = 1 }: { value: number; decimals?: num
 // ── Gauge ─────────────────────────────────────────────────────────────────────
 // Width is a CSS transition (see .fparam__track i), so React only ever sets the target; mounting at
 // 0 and stepping to the real value on the next frame makes the first paint animate too.
-export function Gauge({ value, className }: { value: number; className?: string }) {
+export function Gauge({ value, className, delay = 0 }: { value: number; className?: string; delay?: number }) {
   const [reduced] = useState(reducedMotion)
   const [w, setW] = useState(0)
   useEffect(() => {
@@ -104,7 +121,7 @@ export function Gauge({ value, className }: { value: number; className?: string 
   }, [value, reduced])
   return (
     <span className={className ?? 'fparam__track'}>
-      <i style={{ width: `${reduced ? value : w}%` }} />
+      <i style={{ width: `${reduced ? value : w}%`, transitionDelay: `${delay}s` }} />
     </span>
   )
 }
