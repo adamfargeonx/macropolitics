@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NODES, AXIS, type Kind, type Entity } from '../data/entities'
 import { type GravityResult } from '../model/gravity'
 import { type Order, type Bloc, metricVal } from './forces-model'
+import { gridLayout, gridRadius, revealAt } from './forces-grid'
 import { isInteractive } from '../sound'
 
 // ── Constants (mirroring engine.ts palette) ──────────────────────────────────
@@ -251,6 +252,29 @@ class GravityWell {
     }
   }
 
+  // ── Grid composition (the ALTERNATE screen — see forces-grid.ts + ForcesGridView) ──────────
+  // OFF by default: everything above is the packed force-field, untouched. When on, bodies sit on a
+  // uniform ranked grid at one shared radius, and power is stated only by the travelling reveal wave
+  // (revealProg) rather than permanently by size. Every other behaviour — hover/select, the scroll
+  // tour + its camera, the exit cascade — is shared verbatim between the two compositions.
+  private gridMode = false
+  // rank of each body under the ACTIVE metric (0 = strongest) — drives BOTH the grid's reading
+  // order and each body's offset in the reveal wave. Kept in sync by setLayout().
+  private gridRank: Int32Array
+  private revealProg: Float32Array
+  // last (filter, order, grav) handed to setLayout — replayed on resize, since the grid's column
+  // count depends on the canvas aspect and must re-solve when the box changes shape.
+  private lastLayoutArgs: { filterBloc: Bloc; order: Order; grav: Map<string, GravityResult> } | null = null
+
+  setGrid(on: boolean) {
+    if (this.gridMode === on) return
+    this.gridMode = on
+    if (this.lastLayoutArgs) {
+      const { filterBloc, order, grav } = this.lastLayoutArgs
+      this.setLayout(filterBloc, order, grav)
+    }
+  }
+
   // ── Scroll tour focus ─────────────────────────────────────────────────────
   // scrollFocusIdx: the canvas body index the tour currently focuses (-1 = whole field, no focus).
   // Set from the component (wheel step on desktop, tier pick on mobile). The recede/pull easing +
@@ -297,6 +321,8 @@ class GravityWell {
     this.recede = new Float32Array(n)
     this.exitDelay = new Float32Array(n)
     this.exitProg = new Float32Array(n)
+    this.gridRank = new Int32Array(n).map((_, i) => i)
+    this.revealProg = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -317,6 +343,11 @@ class GravityWell {
     this.canvas.style.width = `${this.w}px`
     this.canvas.style.height = `${this.h}px`
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+    // the grid's column count is solved against the canvas aspect, so a reshape must re-solve it
+    // (the packed field's layout is aspect-independent and needs no replay).
+    if (this.gridMode && this.lastLayoutArgs) {
+      this.setGridLayout(this.lastLayoutArgs.order, this.lastLayoutArgs.grav)
+    }
     // the canvas centre + every body's base screen position depend on w/h — if a tour focus is
     // active, snap (no animation) the camera to the recomputed target rather than let it drift
     // from stale geometry until the next focus change re-tweens it.
@@ -349,12 +380,32 @@ class GravityWell {
   // the frame loop glides nx/ny toward them (see the position-ease block in `frame`), so a filter
   // or sort change visibly reshuffles the field rather than snapping it into its new shape.
   setLayout(filterBloc: Bloc, order: Order, grav: Map<string, GravityResult>) {
+    this.lastLayoutArgs = { filterBloc, order, grav }
+    if (this.gridMode) { this.setGridLayout(order, grav); return }
     const next = layoutFor(filterBloc, order, grav)
     for (let i = 0; i < BODIES.length; i++) {
       const p = next.get(BODIES[i].id)
       if (!p) continue
       this.nxTarget[i] = p.nx
       this.nyTarget[i] = p.ny
+    }
+  }
+
+  // Uniform ranked grid — rank 1 top-right (RTL reading order), filling leftward then down. Ranked
+  // by the ACTIVE metric, so switching the sort lens re-orders the grid (bodies ease to their new
+  // cells) exactly as it re-forms the field. The bloc filter deliberately does NOT reshape this
+  // composition: the grid's whole argument is that every state gets the same cell, so sidelining
+  // a bloc into a corner would contradict it — filtered-out bodies just dim via metricAlpha.
+  private setGridLayout(order: Order, grav: Map<string, GravityResult>) {
+    const n = BODIES.length
+    const ranked = Array.from({ length: n }, (_, i) => i)
+      .sort((a, b) => metricVal(NODES[b], order, grav) - metricVal(NODES[a], order, grav))
+    const cells = gridLayout(n, Math.max(1, this.w), Math.max(1, this.h))
+    for (let rank = 0; rank < n; rank++) {
+      const i = ranked[rank]
+      this.gridRank[i] = rank
+      this.nxTarget[i] = cells[rank].nx
+      this.nyTarget[i] = cells[rank].ny
     }
   }
 
@@ -479,7 +530,8 @@ class GravityWell {
       const d = Math.hypot(this.bodyScreenX[i] - this.mouse.x, this.bodyScreenY[i] - this.mouse.y)
       // pad scales with the camera zoom so hit-testing matches what's actually drawn on screen
       // while the tour camera is pushed in on a focused body.
-      const pad = Math.max(this.bodyR(this.mass[i]) * this.camZoom + 10, padFloor)
+      const baseR = this.gridMode ? this.gridBodyR(i) : this.bodyR(this.mass[i])
+      const pad = Math.max(baseR * this.camZoom + 10, padFloor)
       if (d < pad && d < bestD) { bestD = d; best = i }
     }
     if (best !== this.hoveredIdx) { this.hoveredIdx = best; this.onHover?.(best) }
@@ -491,6 +543,22 @@ class GravityWell {
   private bodyR(power: number) {
     const r = radiusFrac(power) * this.playSize
     return this.narrow ? Math.max(r, 9) : r
+  }
+
+  // Grid mode radius for body `i`: the shared uniform cell radius at rest, easing toward this
+  // body's TRUE power-proportional radius as the reveal wave passes over it — the one moment the
+  // grid admits the hierarchy. Power radii are normalized against the strongest body so the biggest
+  // reveal still fits its cell instead of spilling into its neighbours.
+  private gridBodyR(i: number) {
+    const uniform = gridRadius(BODIES.length, Math.max(1, this.w), Math.max(1, this.h))
+    const rev = this.revealProg[i]
+    if (rev <= 0.001) return uniform
+    let peak = 0
+    for (let k = 0; k < BODIES.length; k++) peak = Math.max(peak, this.mass[k])
+    const share = peak > 0 ? Math.max(0, this.mass[i]) / peak : 0
+    // floor at 0.42 so even the weakest body still reads as a deliberate reveal, not a vanishing act
+    const powered = uniform * (0.42 + share * 1.18)
+    return uniform + (powered - uniform) * rev
   }
 
   private bodyToScreen(nx: number, ny: number): [number, number] {
@@ -573,6 +641,18 @@ class GravityWell {
         const hrate = hoverTarget > this.hoverProg[i] ? 0.09 : 0.07
         this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
       }
+
+      // ── Grid reveal wave ──────────────────────────────────────────────────
+      // The travelling "show their size and power" pass. Suppressed while this body is the
+      // subject (hover/select/tour focus) — the focus treatment already opens it to a readout, and
+      // stacking the two would fight over the same radius. Reduced-motion holds the grid uniform
+      // and never runs the wave.
+      if (this.gridMode && !this.reduced) {
+        const raw = revealAt(this.gridRank[i], t, BODIES.length)
+        this.revealProg[i] = raw * (1 - this.hoverProg[i])
+      } else {
+        this.revealProg[i] = 0
+      }
     }
 
     // ── Which bodies carry an on-canvas name label ────────────────────────────
@@ -584,7 +664,13 @@ class GravityWell {
       .sort((a, b) => this.massTarget[b] - this.massTarget[a])
     const TOP_N = this.narrow ? 5 : 8
     this.labelSet.clear()
-    order.slice(0, TOP_N).forEach((idx) => this.labelSet.add(idx))
+    if (this.gridMode) {
+      // uniform cells are uniformly legible — there's no "too small to label" body any more, and a
+      // top-N ledger would reintroduce exactly the hierarchy the grid composition is arguing against.
+      for (let i = 0; i < BODIES.length; i++) this.labelSet.add(i)
+    } else {
+      order.slice(0, TOP_N).forEach((idx) => this.labelSet.add(idx))
+    }
     if (focus !== null) this.labelSet.add(focus)
 
     // ── Page-exit cascade progress (0 = present → 1 = gone), per-body staggered ─
@@ -626,7 +712,7 @@ class GravityWell {
     const isNonstate = BODIES[i].kind === 'nonstate'
     const hollow = isNonstate && !isFocus
 
-    const r = this.bodyR(this.mass[i])
+    const r = this.gridMode ? this.gridBodyR(i) : this.bodyR(this.mass[i])
     const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
     const scale = (1 + (bloom - 1) * 0.18) * pulse
     let rr = r * scale * bodyA
@@ -699,6 +785,12 @@ class GravityWell {
       // OWN label stays visible regardless of what else is hovered/focused (no hover-hide hack).
       if (this.labelSet.has(i)) this.drawInCircleLabel(sx, sy, rr, i, bodyA * tAlpha, hollow)
 
+      // Grid reveal: the score itself, surfacing under the name for the beat the wave holds this
+      // body open — the "and power" half of the reveal (the swell is the "size" half).
+      if (this.revealProg[i] > 0.02) {
+        this.drawRevealScore(sx, sy, rr, i, bodyA * tAlpha * this.revealProg[i], hollow)
+      }
+
       // Ring stroke: the focused body's rim warms to yellow; others stay a faint light. A non-state
       // actor's rim is DASHED rather than solid — the one identity cue that persists regardless of
       // focus state, reading as "irregular/non-sovereign" at a glance, at any zoom level.
@@ -740,10 +832,43 @@ class GravityWell {
       ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
       width = ctx.measureText(b.he).width
     }
+    // Grid composition: every cell is the same size, so a body whose name won't fit one line must
+    // still be named — a blank circle is a hole in a reading whose whole premise is that each state
+    // is equally present. Wrap onto two lines rather than dropping the label (the packed field keeps
+    // the original bail-out: there, an unfittable name belongs to a speck nobody is reading).
+    if (width > maxWidth && this.gridMode) {
+      const lines = wrapToTwo(ctx, b.he, maxWidth)
+      if (lines) {
+        ctx.globalAlpha = alpha * this.labelIntro
+        ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
+        const lh = fontPx * 1.12
+        ctx.fillText(lines[0], sx, sy - lh / 2)
+        ctx.fillText(lines[1], sx, sy + lh / 2)
+        ctx.restore()
+        return
+      }
+    }
     if (width > maxWidth || rr < 16) { ctx.restore(); return }
     ctx.globalAlpha = alpha * this.labelIntro
     ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
     ctx.fillText(b.he, sx, sy)
+    ctx.restore()
+  }
+
+  // Grid reveal score — the live metric value (0–10), set under the name inside the swelled body.
+  // Deliberately the same dark-ink-on-light convention as the name label, one size down, so it
+  // reads as the name's caption rather than a competing second headline.
+  private drawRevealScore(sx: number, sy: number, rr: number, i: number, alpha: number, hollow: boolean) {
+    if (alpha <= 0.01 || rr < 14) return
+    const ctx = this.ctx
+    const fontPx = Math.min(17, Math.max(9, rr * 0.3))
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `700 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
+    ctx.fillText((this.mass[i] / 10).toFixed(1), sx, sy + fontPx * 1.15)
     ctx.restore()
   }
 
@@ -832,6 +957,26 @@ class GravityWell {
   }
 }
 
+// Split a name across two lines at the word break that leaves the two halves most even, but only
+// if BOTH halves then fit `maxWidth`. Returns null when no break works (single word, or still too
+// wide) so the caller can fall back to its own bail-out.
+function wrapToTwo(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): [string, string] | null {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length < 2) return null
+  let best: [string, string] | null = null
+  let bestDelta = Infinity
+  for (let cut = 1; cut < words.length; cut++) {
+    const a = words.slice(0, cut).join(' ')
+    const b = words.slice(cut).join(' ')
+    const wa = ctx.measureText(a).width
+    const wb = ctx.measureText(b).width
+    if (wa > maxWidth || wb > maxWidth) continue
+    const delta = Math.abs(wa - wb)
+    if (delta < bestDelta) { bestDelta = delta; best = [a, b] }
+  }
+  return best
+}
+
 function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
   ctx.save(); fn(); ctx.restore()
 }
@@ -839,7 +984,10 @@ function ctx_save_restore(ctx: CanvasRenderingContext2D, fn: () => void) {
 // ── Component ────────────────────────────────────────────────────────────────
 // tierFocus: controlled — 0=all visible, 1–5=tier focus. Set from the mobile filter sheet's
 // tier-focus list (touch) or driven internally by wheel/drag (desktop mouse, see below).
-export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onHover, tierFocus }: {
+// composition: 'field' (default) = the packed force-field where radius carries power permanently;
+// 'grid' = the alternate uniform ranked grid where power is revealed only by the travelling wave.
+// Both share every behaviour below (hover/select, scroll tour + camera, exit cascade).
+export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onHover, tierFocus, composition = 'field' }: {
   grav: Map<string, GravityResult>
   tierFocus?: number
   orderBy: Order
@@ -847,13 +995,15 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
   selected: string | null
   onSelect: (id: string | null) => void
   onHover: (id: string | null) => void
+  composition?: 'field' | 'grid'
 }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wellRef = useRef<GravityWell | null>(null)
   const onHoverRef = useRef(onHover)
   const onSelectRef = useRef(onSelect)
-  useEffect(() => { onHoverRef.current = onHover; onSelectRef.current = onSelect })
+  const compositionRef = useRef(composition)
+  useEffect(() => { onHoverRef.current = onHover; onSelectRef.current = onSelect; compositionRef.current = composition })
 
   const [interacted, setInteracted] = useState(false)
   // The tour step: 0 = the whole field (no focus); 1..N = the Nth-ranked state (by the active metric)
@@ -894,6 +1044,8 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
 
     const well = new GravityWell(canvas, stage)
     wellRef.current = well
+    // before ANY layout runs — the composition decides which layout setLayout() will compute
+    well.setGrid(compositionRef.current === 'grid')
 
     well.onHover = (idx) => {
       onHoverRef.current(idx == null ? null : (BODIES[idx]?.id ?? null))
@@ -1013,6 +1165,9 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // declared BEFORE the setLayout effect so a composition switch re-solves the layout in the same
+  // commit rather than leaving one frame of the wrong arrangement
+  useEffect(() => { wellRef.current?.setGrid(composition === 'grid') }, [composition])
   useEffect(() => { wellRef.current?.setField(orderBy, grav) }, [orderBy, grav])
   useEffect(() => { wellRef.current?.setLayout(filterBloc, orderBy, grav) }, [filterBloc, orderBy, grav])
   useEffect(() => { wellRef.current?.selectById(selected) }, [selected])
@@ -1046,7 +1201,9 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
       {/* ── Hint (before first interaction) — copy matches the input: tap vs. hover ────── */}
       {!interacted && tourStep === 0 && (
         <div className="sheet-hint" dir="rtl">
-          {coarse ? 'הקישו על גוף לבחירה · הגודל = הכוח' : 'רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש'}
+          {composition === 'grid'
+            ? (coarse ? 'הקישו על גוף לבחירה · הגל חושף את הכוח' : 'רחפו על גוף · הגל חושף את הכוח · ממוין מהחזק לחלש')
+            : (coarse ? 'הקישו על גוף לבחירה · הגודל = הכוח' : 'רחפו על גוף · הגודל = הכוח · ממוין מהחזק לחלש')}
         </div>
       )}
 

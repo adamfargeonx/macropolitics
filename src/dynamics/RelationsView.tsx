@@ -3,6 +3,7 @@ import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entiti
 import { authoredRelation, AUTHORED_RELATIONS } from '../data/relations'
 import { PanelDock } from './Chrome'
 import { Words } from './Words'
+import { Affordance } from './Affordance'
 import { useDeCollide } from './useDeCollide'
 import { AXIS_RIM } from './forces-model'
 import { sound } from '../sound'
@@ -345,7 +346,10 @@ export default function RelationsView() {
         )}
       </div>
 
-      <PanelDock>
+      {/* Relations is DOM-rendered, not canvas: its node cascade is done by ~1.4s (see the
+          per-node animationDelay below), so it doesn't need the canvas views' 4s entrance window
+          before the panel may enter — just that same settle + one beat. */}
+      <PanelDock enterAfter={2400}>
       {/* mode toggle — the headline switch between the per-reference triangle and the whole web */}
       <div className="rel-modeswitch" role="tablist" aria-label="מצב תצוגה">
         <button
@@ -397,7 +401,9 @@ export default function RelationsView() {
           <p className="panel__body">
             <Words text="כל רשת הקשרים באזור בבת אחת. כל קו מחבר שתי מדינות, וצבעו מסמן את אופי הקשר ביניהן. מיקום אופקי לפי הציר, גובה לפי כוח." />
           </p>
-          <p className="rel-hint">רחפו על מדינה כדי להאיר את רשת הקשרים שלה</p>
+          {/* was a permanent .rel-hint line; now retires itself the first time a body is actually
+              hovered or pinned — see Affordance.tsx. */}
+          <Affordance id="rel-hover" text="רחפו על מדינה כדי להאיר את רשת הקשרים שלה" done={!!hovered || !!pinned} />
           <div className="rel-legend">
             <span className="panel__rels-h">מקרא הקשרים</span>
             <div className="rel-legend__row"><span className="rel-legend__swatch rel-legend__swatch--tension" /><span className="rel-legend__lbl">מתח</span></div>

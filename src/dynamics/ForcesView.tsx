@@ -46,6 +46,11 @@ export default function ForcesView() {
   const [orderBy, setOrderBy] = useState<Order>('total')
   const [filterBloc, setFilterBloc] = useState<Bloc>('all')
   const [minScore, setMinScore] = useState(0)
+  // FLAG — currently UNREACHABLE on desktop. The ⚙ כלים button that opened this was removed
+  // (מקרא took its slot in the index panel's control row), and nothing else sets it true, so the
+  // filter / time-axis / scenario controls in <ForcesTools> can no longer be opened. The state and
+  // the sheet are left wired up deliberately: re-add a trigger anywhere to bring them back. If
+  // those controls are meant to stay retired, ForcesTools + this state can be deleted outright.
   const [toolsOpen, setToolsOpen] = useState(false) // desktop-only floating disclosure
   const [showAllIndex, setShowAllIndex] = useState(false)
   // mobile only: which tier the field is focused on (0 = all) — set from the filter sheet,
@@ -129,6 +134,7 @@ export default function ForcesView() {
               <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
             ) : (
               <ForcesIndexPanel
+                composition="field"
                 orderBy={orderBy} setOrderBy={setOrderBy}
                 toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} stateActive={stateActive}
                 filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}

@@ -374,7 +374,6 @@
   transition-delay: calc(0.1s + var(--bd, 0s) * 0.12s);
   opacity: 0;
 }
-.home--leaving .home-credit,
 .home--leaving .home-hint {
   transition: opacity 0.24s ease; transition-delay: 0.12s; opacity: 0;
 }
@@ -384,7 +383,6 @@
   .home--leaving .home-eq > span,
   .home--leaving .home-nav__label > span,
   .home--leaving .home-nav__item,
-  .home--leaving .home-credit,
   .home--leaving .home-hint { transition: none; }
 }
 
@@ -482,14 +480,6 @@
 .home-nav__item--bl  { transform: translate(-50%, -50%) translate(calc(var(--ring-d) * -0.433), calc(var(--ring-d) * 0.25)); }
 .home-nav__item--br  { transform: translate(-50%, -50%) translate(calc(var(--ring-d) * 0.433), calc(var(--ring-d) * 0.25)); }
 @keyframes navBreathe { 0%, 100% { opacity: 0.66; } 50% { opacity: 0.94; } }
-
-/* credit micro-line (open state, bottom-right; the toggle sits at the corner) */
-.home-credit {
-  position: absolute; bottom: var(--sp-6); left: var(--sp-8); z-index: var(--z-content);
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
-  opacity: 0; transition: opacity 0.6s ease 0.8s; pointer-events: none;
-}
-.home--open .home-credit { opacity: 1; }
 
 /* hint (closed state only) */
 .home-hint {

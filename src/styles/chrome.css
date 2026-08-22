@@ -115,7 +115,7 @@
 .sandbox__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
 .sandbox__v { font-family: var(--latin); font-size: var(--text-sm); font-weight: 700; color: var(--yellow); text-align: left; direction: ltr; }
 /* item 7: hint caption was 10.5px, a near-duplicate of the --text-xs (11px) caption role used
-   elsewhere (.forces-hint, .about__foot) — re-pointed to the token. */
+   elsewhere (.forces-hint) — re-pointed to the token. */
 .sandbox__hint { margin-top: 6px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
 
 /* Compound state breadcrumb — visible below forcesctl when secondary filters are active */
@@ -218,29 +218,20 @@
 }
 /* utility nav is always at full opacity on the home page (rendered inside the stage on home) */
 body:has(.home--closed) .unav { opacity: 0.75; }
-/* item 10: the utility-nav controls float — no boxes. "המודל" stays the prominent one via its
-   yellow ink (not a filled pill); legend rests dim. item 5b: hover is a direct color swap
-   (below), not a drawn line. */
+/* item 10: the utility-nav controls float — no boxes. Both rest at a dim white-with-opacity ink
+   (matched, equally-live controls — neither reads as disabled) and brighten to yellow on hover,
+   the same dim→accent pattern used elsewhere in the chrome (e.g. .hdr__logo). Was solid yellow at
+   rest, which read too loud/bright for a persistent, always-on-screen control. item 5b: hover is
+   a direct color swap (below), not a drawn line. */
 .unav__model {
   position: relative;
   display: inline-flex; align-items: center; gap: 7px; cursor: none;
   font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
-  color: var(--yellow); background: none; border: none; padding: 6px 6px;
+  color: var(--ink-dim); background: none; border: none; padding: 6px 6px;
   transition: color var(--dur-fast) ease;
 }
-.unav__model:hover { color: var(--white); }
+.unav__model:hover { color: var(--yellow); }
 .unav__icon { font-size: var(--text-lg); flex: none; transition: color var(--dur-fast) ease; }
-/* legend trigger — floats as bare icon + label, same yellow-ink treatment as .unav__model so
-   the pair reads as two equally-live controls, not one prominent + one disabled-looking */
-.unav__legend {
-  position: relative;
-  display: inline-flex; align-items: center; gap: 8px; cursor: none;
-  font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
-  color: var(--yellow); background: none; border: none; padding: 6px 6px;
-  transition: color var(--dur-fast) ease;
-}
-.unav__legend:hover { color: var(--white); }
-.unav__legend:active { transform: scale(0.96); }
 
 /* item 5b: the drawn-line hover was removed — floated chrome controls (utility nav, sort chips,
    the tools reset) now fall back to a direct, near-instant color swap on hover (see each
@@ -280,37 +271,23 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
 .about::-webkit-scrollbar { display: none; }
-/* item 9: head divider line removed — the orbit mark + title carry the header on their own.
+/* item 9: head divider line removed — the title carries the header on its own, right-aligned
+   (the mark icon was dropped — it duplicated the "המודל" utility-nav button's own glyph).
    Entrance: this is the FIRST section to appear, no delay — the rest of the modal cascades in
-   beneath it (see .about__eq / .about__foot below + the Words `delay` staggering in AboutView). */
-.about__head { display: flex; align-items: center; gap: 18px; padding-bottom: 24px; animation: textRise 0.77s var(--ease-panel) both; }
-.about__head-txt { display: flex; flex-direction: column; gap: 3px; }
-/* the info mark — a static circled-"i" (Icon name="model"), the same glyph the "המודל" utility-nav
-   button uses to open this very overlay. Previously a spinning orbit dot; a static info icon reads
-   more honestly as "here's how this is calculated" than a decorative animation. The circular frame
-   is kept as a backdrop — it centres the icon and echoes the wordmark logo's orbit motif at rest. */
-/* no wrapper ring — the icon (Icon name="model") already draws its own circle, so a second
-   circular border here doubled it into two concentric rings. The wrapper now just sizes/centres. */
-.about__mark { position: relative; flex: none; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--yellow); }
-.about__mark-icon { width: 20px; height: 20px; }
+   beneath it via the Words `delay` staggering in AboutView. */
+/* two columns now: title+subtitle at the RTL start (right), the lede at the far end (left) —
+   saves the lede's own full-width row below, so the modal contracts by roughly that row's height
+   (see the narrower .about width too). align-items: flex-start since the two columns' natural
+   heights differ (lede wraps to 2-3 lines against the 2-line title block). */
+.about__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; animation: textRise 0.77s var(--ease-panel) both; }
+.about__head-txt { flex: none; display: flex; flex-direction: column; gap: 3px; text-align: right; }
 /* typography sweep: was 27px, a 1px stray off the 26px used by its two shared-panel-family
    siblings (.evid__title, .legend__title — same big yellow overlay-title role) — matched to them,
    and now all three point at the shared --text-title token instead of a repeated literal. */
 .about__title { font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
 .about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
-.about__lede { margin-top: 24px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
-/* the equation — no container at all now (the radial-glow backdrop read as a boxed card, which
-   contradicts "no containers except the 01-03 cards"); the large display type and generous margin
-   already make it a focal block on its own. Entrance: third section in the cascade (after head,
-   lede) — see the delay schedule note above .about__foot below. */
-.about__eq {
-  margin: 32px 0; display: flex; align-items: baseline; justify-content: center; gap: 18px;
-  animation: textRise 0.77s 0.38s var(--ease-panel) both;
-}
-.about__eq-term { font-family: var(--display); font-size: var(--text-2xl); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--white); }
-.about__eq-term:first-child { color: var(--yellow); }
-.about__eq-op { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.7; }
-.about__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+.about__lede { margin-top: 4px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
+.about__cols { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
 /* each lens as a small card — even box border (no single-sided top stroke), index, subtle hover lift */
 .about__col {
   position: relative; padding: 18px 17px 17px; border: 1px solid var(--line-2);
@@ -323,23 +300,10 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .about__col p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
 /* no container — a plain paragraph, same treatment as .about__lede (the opening thesis) above.
    The numbered .about__col cards are the one container treatment kept in this overlay. */
-/* lower-hierarchy disclaimer — smallest body size + no card, reads as a footnote, not body copy */
-.about__honesty {
-  margin-top: 29px; font-family: var(--body);
-  font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--yellow); opacity: 0.85;
-}
-/* last section in the cascade — mirrors the head/eq container entrance (the in-between sections
-   stagger via their own Words `delay` prop in AboutView, so every block down the modal has a
-   distinct, increasing entrance offset: head 0s → lede .18s → eq .38s → cols .52-.64s →
-   honesty .8s → foot .92s). */
-.about__foot {
-  margin-top: 24px; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 18px; row-gap: 4px;
-  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.60;
-  animation: textRise 0.77s 0.92s var(--ease-panel) both;
-}
-/* the credit line — Latin caps, set in the site's Latin display face, small and unobtrusive next
-   to the version/updated notes rather than a separate call-out. Pushed to the far (start) edge. */
-.about__credit { font-family: var(--latin); letter-spacing: var(--tracking-loose); margin-inline-start: auto; }
+/* lower-hierarchy disclaimer — folded behind an (i) trigger now (.info-disclosure), not a
+   persistent line; this rule just positions the trigger under the cards and keeps its entrance
+   at the same .78s cascade slot the honesty line held before (see the schedule note in AboutView). */
+.about__honesty { margin-top: 29px; animation: textRise 0.6s 0.78s var(--ease-panel) both; }
 @media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .about { animation: none; } }
 
@@ -391,6 +355,6 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   .hdr__tagline { display: none; }
   /* utility nav: icon-only pills (font-size:0 hides the bare label text node;
      the icon carries its own explicit size) */
-  .unav__model, .unav__legend { font-size: 0; gap: 0; padding: 8px 10px; }
+  .unav__model { font-size: 0; gap: 0; padding: 8px 10px; }
   .unav__icon { font-size: var(--text-xl); }
 }

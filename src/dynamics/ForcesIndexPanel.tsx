@@ -25,6 +25,13 @@ type ForcesIndexPanelProps = {
   indexRows: typeof NODES[number][]
   showAllIndex: boolean
   setShowAllIndex: (fn: (v: boolean) => boolean) => void
+  /** Drop the panel's top block (metric title + description) — the grid screen's composition
+   *  leads with the field itself, so the explanatory header is dead weight there. */
+  compact?: boolean
+  /** Which forces composition is on screen. When set, the control row grows a toggle that flips
+   *  between the packed field and the alternate ranked grid, so the two can be compared without
+   *  hand-editing the URL. Omit to hide the toggle entirely (retires the experiment). */
+  composition?: 'field' | 'grid'
 }
 
 const METRIC_TITLE: Record<Order, string> = {
@@ -84,13 +91,16 @@ export function RankedList(props: RankedListProps) {
 }
 
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
-  const { orderBy, setOrderBy, toolsOpen, setToolsOpen, stateActive, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
+  // toolsOpen / setToolsOpen / stateActive are still in the props type (ForcesView owns that
+  // state and the ForcesTools sheet it drives) but this panel no longer renders a trigger for
+  // them — the ⚙ כלים button was removed and מקרא took its slot. See the note in ForcesView.
+  const { orderBy, setOrderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex, compact, composition } = props
 
   return (
-    <aside className="panel" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
-      <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>
+    <aside className={`panel${compact ? ' panel--compact' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+      {!compact && <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>}
       {/* short (1–2 line) metric description — shown in full, no read-more toggle */}
-      <p className="panel__body panel__body--metric" key={`desc-${orderBy}`}>{METRIC_DESC[orderBy]}</p>
+      {!compact && <p className="panel__body panel__body--metric" key={`desc-${orderBy}`}>{METRIC_DESC[orderBy]}</p>}
       {/* unified controls — sort the index + open the tools disclosure */}
       <div className="gctl" role="group" aria-label="מיון וכלים">
         <span className="gctl__lbl">מיון</span>
@@ -104,13 +114,22 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
             <span>{ORDER_SHORT[o]}</span>
           </button>
         ))}
+        {/* מקרא takes the slot the tools (⚙ כלים) button held — it moved out of the panel shell's
+            floating corner button into the panel's own control row, where it sits with the sort
+            controls instead of hovering beside the panel. */}
         <button
-          className={`gctl__tools${toolsOpen ? ' is-on' : ''}${stateActive ? ' has-state' : ''}`}
-          onClick={() => { sound.play('tab'); setToolsOpen((v) => !v) }}
-          aria-pressed={toolsOpen}
-          title="סינון, ציר זמן, תרחיש"
-        ><span aria-hidden>⚙</span> כלים</button>
+          className="gctl__legend"
+          onClick={() => { sound.play('tab'); window.dispatchEvent(new Event('mp-legend')) }}
+        >מקרא</button>
       </div>
+      {/* composition A/B — names the OTHER composition (what you'd switch to), the same way a
+          toggle labels its destination rather than its current state. */}
+      {composition && (
+        <button
+          className="gctl__ab"
+          onClick={() => { sound.play('tab'); window.dispatchEvent(new Event('mp-forces-composition')) }}
+        >{composition === 'grid' ? 'תצוגת שדה' : 'תצוגת רשת'}</button>
+      )}
       <RankedList
         orderBy={orderBy} filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
         hovered={hovered} setHovered={setHovered} onHoverId={onHoverId} onSelect={onSelect}

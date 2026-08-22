@@ -7,6 +7,7 @@ import { useYear } from '../model/year-store'
 import { useFocusTrap } from './useFocusTrap'
 import { OVERLAY_EXIT_MS } from './useOverlay'
 import { Icon, type IconName } from './Icon'
+import { InfoDisclosure } from './InfoDisclosure'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -67,7 +68,7 @@ function paramStatus(axis: Axis, miss: boolean): SourceStatus {
 
 // Unified composite sub-criteria breakdown (eco 7 · mil 4 · geo 4) — every parameter is a bar row
 // with an inline status badge (sourced ✓ · estimate ~ · assessment ⊙ · no-data ✕). One component, three axes.
-function Composite({ axis, sub, missing, status }: { axis: Axis; sub: Record<string, number>; missing: string[]; status: SourceStatus }) {
+function Composite({ axis, sub, missing, status, unmodeled }: { axis: Axis; sub: Record<string, number>; missing: string[]; status: SourceStatus; unmodeled: readonly string[] }) {
   const rows = AXIS_ROWS[axis]
   const missFn = AXIS_MISS[axis]
   const hasBreakdown = Object.keys(sub).length > 0
@@ -91,6 +92,17 @@ function Composite({ axis, sub, missing, status }: { axis: Axis; sub: Record<str
             </div>
           )
         })}
+        {/* criteria from the rubric deliberately left unscored (see UNMODELED above) — now real
+            rows in the graph itself, not just names hidden behind the summary line's hover-hint
+            tag, so the composite honestly shows its full rubric, scored and unscored alike. */}
+        {unmodeled.map((he) => (
+          <div className="evid__comp-row evid__comp-row--unmodeled" key={he}>
+            <span className="evid__comp-status evid__comp-status--unmodeled" title="לא נמדד" aria-label="לא נמדד">·</span>
+            <span className="evid__comp-k">{he}</span>
+            <span className="evid__comp-bar"><i style={{ width: '0%' }} /></span>
+            <span className="evid__comp-v">—</span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -192,26 +204,29 @@ export function EvidenceOverlay() {
                     <span className="evid__src-axis"><Icon name={AXIS_ICON[axis]} className="evid__src-icon" />{HE_AXIS[axis]}</span>
                     <span className="evid__src-score">{d.axes[axis]}</span>
                   </div>
-                  <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} />
-                  {/* one consolidated card for everything secondary — status, figure, trend, note,
-                      citation. The three axes repeat this exact structure, so the citation link
-                      (previously its own line) now folds into the figure line — one fewer repeated
-                      row × 3 axes, less stacked load per axis without losing any information. */}
-                  <div className="evid__meta">
-                    <p className="evid__meta-line evid__meta-line--figure">
+                  <Composite axis={axis} sub={breakdown[axis] ?? {}} missing={missingOf[axis]} status={d.prov[axis].status} unmodeled={UNMODELED[axis]} />
+                  {/* folded/collapsed by default — status + figure is the summary line (always
+                      visible, enough to read the axis at a glance); trend, note, and the citation
+                      link only render once opened. Same repeated structure × 3 axes as before, but
+                      now genuinely collapsed rather than just visually merged into one card. */}
+                  <details className="evid__meta">
+                    <summary className="evid__meta-summary">
                       <span className={`evid__tag evid__tag--${p.status}`}>{STATUS_LABEL[p.status]}</span>
                       {UNMODELED[axis].length > 0 && (
                         <span className="evid__tag evid__tag--unmodeled" data-hint={`לא נמדד: ${UNMODELED[axis].join(' · ')}`}>
                           +{UNMODELED[axis].length} לא נמדד
                         </span>
                       )}
-                      {p.figure}
-                      {' · '}
-                      <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
-                    </p>
-                    <Trend id={id} axis={axis} />
-                    {p.note && <p className="evid__meta-line evid__meta-line--note">{p.note}</p>}
-                  </div>
+                      <span className="evid__meta-figure">{p.figure}</span>
+                    </summary>
+                    <div className="evid__meta-body">
+                      <p className="evid__meta-line evid__meta-line--source">
+                        <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
+                      </p>
+                      <Trend id={id} axis={axis} />
+                      {p.note && <p className="evid__meta-line evid__meta-line--note">{p.note}</p>}
+                    </div>
+                  </details>
                 </section>
               )
             })}
@@ -253,7 +268,7 @@ export function EvidenceOverlay() {
         )}
 
         <footer className="evid__foot">
-          הציון האפקטיבי הוא הערכה מנומקת המעוגנת בנתון המקור — לא מדידה. המשקלים והשיפוט ניתנים לערעור.
+          <InfoDisclosure text="הציון האפקטיבי הוא הערכה מנומקת המעוגנת בנתון המקור — לא מדידה. המשקלים והשיפוט ניתנים לערעור." />
         </footer>
       </aside>
     </div>

@@ -5,7 +5,7 @@
 
 export type IconName =
   | 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing'
-  | 'model' | 'legend' | 'nav-forces' | 'nav-relations' | 'nav-dynamics'
+  | 'model' | 'legend' | 'disclaimer' | 'nav-forces' | 'nav-relations' | 'nav-dynamics'
   // generic category icons (used in evidence overlay axis heads, pnote labels)
   | 'tier' | 'axis' | 'dispo'
   // per-value tier icons
@@ -37,6 +37,10 @@ const PATHS: Record<IconName, React.ReactNode> = {
   model: (<><circle cx="12" cy="12" r="9.5" /><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none" /><path d="M12 11 V17" /></>),
   // legend — a small key-to-symbols list (swatch + label row, ×3): what a map legend literally is
   legend: (<><rect x="3" y="4.5" width="4" height="4" /><path d="M10.5 6.5 H20.5" /><rect x="3" y="10" width="4" height="4" /><path d="M10.5 12 H20.5" /><rect x="3" y="15.5" width="4" height="4" /><path d="M10.5 17.5 H20.5" /></>),
+  // disclaimer — a footnote asterisk (six straight spokes from one centre): the editorial mark
+  // for "caveat attached," distinct from `model`'s circled-i ("here's how this works"). Sharp
+  // crossing lines, not a dot/star, to stay in the no-curves-for-marks grammar the other icons use.
+  disclaimer: (<><path d="M12 4 V20" /><path d="M5 8 L19 16" /><path d="M19 8 L5 16" /></>),
   // ── Site-nav trio (tab bar) — one deliberate visual family building forces → relations →
   // dynamics as literal geometry, not three unrelated pictograms. All three use the SAME "mass"
   // dot at the same scale, so the eye reads them as one alphabet:

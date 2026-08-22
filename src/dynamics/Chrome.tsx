@@ -9,6 +9,7 @@ import { AUTHORED_RELATIONS, type AuthoredRelation } from '../data/relations'
 import { sound } from '../sound'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
+import { Hint } from './Hint'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -18,9 +19,17 @@ import { Icon, type IconName } from './Icon'
 // .nav-rail is what gets scaled/blurred by the page-transition (zoom-up/bloom/collapse/mask),
 // and the panel must NOT ride along with that; it's a foreground layer that animates in/out on
 // its own (slide + fade), independent of whichever page transition is happening behind it.
-export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void }) {
-  // mounts closed, then slides in after the page transition has landed — the panel
-  // arriving a beat late reads as a considered reveal, not a static frame.
+// House rule: the side panel enters only AFTER the screen's own entrance animation has finished,
+// then waits one more beat — the two must never animate at the same time. The orbital canvas runs
+// its intro to t=4.0s (engine.ts's `intro = clamp01(t / 4.0)`), so that's the canvas default.
+// DOM-based views (Relations) settle far sooner and pass their own, shorter `enterAfter`.
+const CANVAS_ENTRANCE_MS = 4000
+const PANEL_BEAT_MS = 1000
+export const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
+
+export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number }) {
+  // mounts closed, then slides in once the screen's entrance has fully landed (see above) — the
+  // panel arriving a clear beat later reads as a considered reveal, not a competing animation.
   const [open, setOpen] = useState(false)
   // the portal target may not exist yet on the very first render (App.tsx renders it as a
   // sibling) — fall back to an inline render for that one frame, then re-parent once mounted.
@@ -31,26 +40,33 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick }: {
   useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const t = window.setTimeout(() => setOpen(true), 850)
+    const t = window.setTimeout(() => setOpen(true), enterAfter)
     return () => window.clearTimeout(t)
-  }, [])
+  }, [enterAfter])
   // mobile map/list toggle drives the sheet: forceClosed (map, nothing selected) keeps the field
   // full-screen; forceOpen (list, or a body selected) pins it open. Desktop passes neither.
   const isOpen = forceClosed ? false : (forceOpen || open)
   const node = (
     <div className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
-      <div className="pdock__panel">{children}</div>
-      <button
-        className="pdock__handle"
-        onClick={() => { sound.play('tab'); if (onHandleClick) onHandleClick(); else setOpen((o) => !o) }}
-        aria-label={isOpen ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
-        aria-expanded={isOpen}
-      >
-        <svg className="pdock__chev" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="9 5 16 12 9 19" />
-        </svg>
-        <span className="pdock__handle-lbl">מידע</span>
-      </button>
+      <div className="pdock__panel">
+        {children}
+        {/* The grip lives INSIDE the panel and rides its transform, so it reads as the panel's own
+            pinched edge rather than a tab pinned to the viewport that the panel slides away from.
+            It sits just outside the panel's inward edge (right:100%), which keeps it on-screen in
+            both states — the panel parks at translateX(100%) when closed, leaving the grip visible.
+            No "מידע" label: a control should afford its action by shape and motion, not narrate it;
+            the chevron alone says which way it moves. */}
+        <button
+          className="pdock__handle"
+          onClick={() => { sound.play('tab'); if (onHandleClick) onHandleClick(); else setOpen((o) => !o) }}
+          aria-label={isOpen ? 'הסתרת לוח המידע' : 'הצגת לוח המידע'}
+          aria-expanded={isOpen}
+        >
+          <svg className="pdock__chev" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="9 5 16 12 9 19" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
   return root ? createPortal(node, root) : node
@@ -86,9 +102,6 @@ export function UtilityNav() {
     <div className="unav" dir="rtl">
       <button className="unav__model" onClick={() => window.dispatchEvent(new Event('mp-about'))} title="המודל — המתודולוגיה">
         <Icon name="model" className="unav__icon" />המודל
-      </button>
-      <button className="unav__legend" aria-label="מקרא — השפה החזותית" onClick={() => window.dispatchEvent(new Event('mp-legend'))} title="מקרא — השפה החזותית">
-        <Icon name="legend" className="unav__icon" />מקרא
       </button>
     </div>
   )
@@ -138,15 +151,14 @@ function ForcesNarrative({ detail, hasNarrative, onToggleFull }: { detail: Entit
   if (!general && axes.every((a) => !a.text)) return null
   return (
     <div className="fnarr">
-      {general && <p className="fnarr__gen"><Words key={detail.id} text={general} /></p>}
-      {/* the toggle button — pinned in the same visual slot as ForcesScore's ("תיאור מלא"):
-          right after the general read, before the per-axis blocks. Here it's always in the
-          "open" (full-narrative) state, so it reads "בחזרה לציון". */}
+      {/* the toggle button — sits above the general read now (was: between it and the per-axis
+          blocks). Here it's always in the "open" (full-narrative) state, so it reads "בחזרה לציון". */}
       {hasNarrative && (
         <button className="ffull-btn is-open" onClick={onToggleFull} aria-expanded={true}>
           בחזרה לציון <span aria-hidden>←</span>
         </button>
       )}
+      {general && <p className="fnarr__gen"><Words key={detail.id} text={general} /></p>}
       {axes.filter((a) => a.text).map((a) => (
         <div key={a.label} className="fnarr__axis">
           <span className="fnarr__axis-l"><Icon name={a.icon} className="fnarr__axis-icon" />{a.label}</span>
@@ -188,18 +200,11 @@ function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number 
 // why — then orbital position and a synthesis line. No duplication of the forces score breakdown.
 const AXIS_SHORT: Record<'eco' | 'mil' | 'geo', string> = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
 
-// One relation's tension·friction·harmony makeup as a single 100%-wide split bar (t/f/h are already
-// normalized to sum ≈ 1). Reads at a glance as "mostly harmony", "mostly tension", a even mix, etc.
-function RelationBar({ rel }: { rel: AuthoredRelation }) {
+// One relation's tension·friction·harmony makeup, reduced to a single "stance" percentage set —
+// used as the title on the compressed .drel__sq square (see DynamicsCard's Relations category).
+function poleShare(rel: AuthoredRelation): { t: number; f: number; h: number } {
   const total = rel.t + rel.f + rel.h || 1
-  const pc = (v: number) => `${(v / total) * 100}%`
-  return (
-    <span className="drel__bar" aria-hidden>
-      <i className="drel__seg drel__seg--t" style={{ width: pc(rel.t) }} />
-      <i className="drel__seg drel__seg--f" style={{ width: pc(rel.f) }} />
-      <i className="drel__seg drel__seg--h" style={{ width: pc(rel.h) }} />
-    </span>
-  )
+  return { t: Math.round((rel.t / total) * 100), f: Math.round((rel.f / total) * 100), h: Math.round((rel.h / total) * 100) }
 }
 
 function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
@@ -217,13 +222,14 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       : []
     return { satellites, siblings }
   }, [id, detail.satellites])
-  // the three tight descriptor chips — tier, axis, and disposition (the body's stance: aggressive
-  // / assertive / cautious), matching the trio PanelHeader shows for the forces panel.
-  const chips: { icon: IconName; text: string }[] = [
-    { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier },
-    { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel },
-    ...(detail.dispo ? [{ icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo }] : []),
-  ]
+  // the three descriptor chips no longer sit in one flat header row — each is now the badge for
+  // the category it actually describes: tier (a power fact) → הכוחות, axis/bloc (what fixes the
+  // body's orbital structure) → הדינמיקה, disposition (how it behaves toward others) → היחסים.
+  const tierChip: { icon: IconName; text: string } = { icon: TIER_ICON[detail.tier] ?? 'tier', text: detail.tier }
+  const axisChip: { icon: IconName; text: string } = { icon: AXIS_ICON[detail.axisLabel] ?? 'axis', text: detail.axisLabel }
+  const dispoChip: { icon: IconName; text: string } | null = detail.dispo
+    ? { icon: (DISPO_ICON[detail.dispo] ?? 'dispo') as IconName, text: detail.dispo }
+    : null
   // CENTREPIECE — the sharpest defining ties, strongest dominant-pole first (up to 5).
   const rels = useMemo(() => {
     if (!id) return []
@@ -306,77 +312,100 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <header className="dcard__head">
         {detail.rank && <span className="dcard__rank">{String(detail.rank).padStart(2, '0')}</span>}
-        <h1 className="dcard__title">{detail.he}</h1>
-        <div className="dcard__chips">
-          {chips.map((c) => (
-            <span key={c.text} className="dcard__chip"><Icon name={c.icon} className="dcard__chip-icon" />{c.text}</span>
-          ))}
-        </div>
+        <h1 className="dcard__title" key={detail.id}>{detail.he}</h1>
       </header>
 
-      {/* compact power strip — score + eco/mil/geo on one tidy line. Context, not the focus (the
-          forces panel owns the deep breakdown); here it just situates the body's raw weight. */}
-      {f && (
-        <div className="dcard__pstrip">
-          <span className="dcard__pstrip-score"><b>{score}</b><span>כוח משיכה</span></span>
-          <span className="dcard__pstrip-axes">
-            {(['eco', 'mil', 'geo'] as const).map((k) => (
-              <span key={k} className="dcard__pstrip-ax">
-                <Icon name={k} className="dcard__pstrip-icon" /><b>{f[k]}</b>{AXIS_SHORT[k]}
-              </span>
-            ))}
-          </span>
-        </div>
-      )}
+      {/* synthesis — moved to the top (was the closing line at the bottom). It's the one-line read
+          of the body's whole shape; the three categories below back it up with the specifics that
+          built it. Mirrors ForcesScore's own "brief read right after the header" placement. */}
+      {caption && <p className="dcard__lede"><Words key={detail.id} text={caption} /></p>}
 
-      {/* CENTREPIECE — defining ties, each with its tension/friction/harmony makeup + a one-line why.
-          This is the dynamics-specific value the forces panel can't show. Each row re-centres. */}
-      {rels.length > 0 && (
-        <section className="dcard__rels">
-          <span className="dcard__sec-h"><Icon name="relations" className="dcard__sec-icon" />קשרים מגדירים</span>
-          <span className="dcard__rels-key" aria-hidden>
-            <span className="dcard__rels-key-i"><i className="drel__seg--t" />מתח</span>
-            <span className="dcard__rels-key-i"><i className="drel__seg--f" />חיכוך</span>
-            <span className="dcard__rels-key-i"><i className="drel__seg--h" />הרמוניה</span>
-          </span>
-          {rels.map(({ other, rel, dom }) => (
-            <button key={other} className="drel" onClick={() => onRelSelect?.(other)}>
-              <span className="drel__head">
-                <span className="drel__name">{heById.get(other) ?? other}</span>
-                <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
-              </span>
-              <RelationBar rel={rel} />
-              <span className="drel__why"><Words key={other} text={rel.why} /></span>
-            </button>
-          ))}
+      {/* ── category: DYNAMICS (orbital position). Written-out section titles were dropped — they
+          restated what the content plainly shows and cost a full row each; the category's own chip
+          now heads it. Badge = the axis/bloc chip: bloc alignment is what actually fixes a body's
+          place in the orbital structure, so it belongs here, not in a generic header row. ── */}
+      {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
+        <section className="dcat">
+          <header className="dcat__head">
+            <span className="dcat__badge"><Icon name={axisChip.icon} className="dcat__badge-icon" />{axisChip.text}</span>
+          </header>
+          <div className="dcard__orbit">
+            {detail.parentHe && (
+              <div className="dcard__orbit-row">
+                <span className="dcard__orbit-k">במסלול סביב</span>
+                <span className="dcard__orbit-v">{detail.parentHe}</span>
+              </div>
+            )}
+            {orbit.satellites.length > 0 && (
+              <div className="dcard__orbit-row">
+                <span className="dcard__orbit-k">גופים במסלולה</span>
+                <span className="dcard__orbit-v">{orbit.satellites.join(' · ')}</span>
+              </div>
+            )}
+            {!detail.parentHe && orbit.satellites.length === 0 && orbit.siblings.length > 0 && (
+              <div className="dcard__orbit-row">
+                <span className="dcard__orbit-k">משתפת מסלול עם</span>
+                <span className="dcard__orbit-v">{orbit.siblings.join(' · ')}</span>
+              </div>
+            )}
+          </div>
         </section>
       )}
 
-      {/* orbital position — the orrery-specific context (secondary) */}
-      {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
-        <div className="dcard__orbit">
-          <span className="dcard__orbit-h"><Icon name="orbit" className="dcard__orbit-icon" />מיקום מסלולי</span>
-          {detail.parentHe && (
-            <div className="dcard__orbit-row">
-              <span className="dcard__orbit-k">במסלול סביב</span>
-              <span className="dcard__orbit-v">{detail.parentHe}</span>
-            </div>
-          )}
-          {orbit.satellites.length > 0 && (
-            <div className="dcard__orbit-row">
-              <span className="dcard__orbit-k">גופים במסלולה</span>
-              <span className="dcard__orbit-v">{orbit.satellites.join(' · ')}</span>
-            </div>
-          )}
-          {!detail.parentHe && orbit.satellites.length === 0 && orbit.siblings.length > 0 && (
-            <div className="dcard__orbit-row">
-              <span className="dcard__orbit-k">משתפת מסלול עם</span>
-              <span className="dcard__orbit-v">{orbit.siblings.join(' · ')}</span>
-            </div>
-          )}
-        </div>
+      {/* ── category: FORCES — score + eco/mil/geo, on the same compact one-line strip as before
+          (the forces panel still owns the deep breakdown). Badge = the power-tier chip. ── */}
+      {f && (
+        <section className="dcat">
+          <header className="dcat__head">
+            <span className="dcat__badge"><Icon name={tierChip.icon} className="dcat__badge-icon" />{tierChip.text}</span>
+          </header>
+          <div className="dcard__pstrip">
+            <span className="dcard__pstrip-score" key={detail.id}><b>{score}</b><span>כוח משיכה</span></span>
+            <span className="dcard__pstrip-axes">
+              {(['eco', 'mil', 'geo'] as const).map((k) => (
+                <span key={k} className="dcard__pstrip-ax">
+                  <Icon name={k} className="dcard__pstrip-icon" /><b>{f[k]}</b>{AXIS_SHORT[k]}
+                </span>
+              ))}
+            </span>
+          </div>
+        </section>
       )}
-      {caption && <p className="dcard__caption"><Words key={detail.id} text={caption} /></p>}
+
+      {/* ── category: RELATIONS — defining ties. Each row's tension/friction/harmony makeup, formerly
+          a full-width split bar, is now one small square coloured by the dominant pole (the exact
+          split is still there — hover/focus the square for the percentages — just not spelled out
+          in pixels, since the pole word beside the name already states the headline read). Badge =
+          the disposition chip: how the body BEHAVES toward others belongs with its ties. ── */}
+      {rels.length > 0 && (
+        <section className="dcat">
+          {dispoChip && (
+            <header className="dcat__head">
+              <span className="dcat__badge"><Icon name={dispoChip.icon} className="dcat__badge-icon" />{dispoChip.text}</span>
+            </header>
+          )}
+          <div className="dcard__rels">
+            {rels.map(({ other, rel, dom }) => {
+              const share = poleShare(rel)
+              return (
+                <button key={other} className="drel" onClick={() => onRelSelect?.(other)}>
+                  <span
+                    className={`drel__sq drel__sq--${dom.key}`} aria-hidden
+                    title={`מתח ${share.t}% · חיכוך ${share.f}% · הרמוניה ${share.h}%`}
+                  />
+                  <span className="drel__body">
+                    <span className="drel__head">
+                      <span className="drel__name">{heById.get(other) ?? other}</span>
+                      <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
+                    </span>
+                    <span className="drel__why"><Words key={other} text={rel.why} /></span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
     </aside>
   )
 }
@@ -397,19 +426,17 @@ const DISPO_ICON: Record<string, IconName> = {
   'אגרסיבית': 'dispo-agg', 'אסרטיבית': 'dispo-assert', 'זהירה': 'dispo-caut',
 }
 
-// Shared identity header — rank + title, with descriptor chips right-aligned (RTL leading edge)
-// in a cohesive cluster beneath the title. Used by the forces detail panel.
+// Shared identity header — rank + title. Used by the forces detail panel.
 // Hover explanations are shown in a RESERVED caption line inside the header — NOT a floating
 // ::after tooltip. The panel is an overflow scroll container (overflow-x:hidden), so a floating
 // tooltip anchored to a chip near the panel's left edge is physically clipped by the panel box no
 // matter how it's positioned — an in-flow caption inside the panel can never clip. (Reproduced:
 // the disposition chip's tooltip ran off the panel's left edge.)
-// This header line is purely about POWER now — the axis (bloc) and disposition chips that used
-// to sit here were dropped (they aren't power facts), leaving only the power tier, relocated to
-// sit directly below the name instead of inside a separate descriptor-chip row.
+// The power tier used to live here as a descriptor line below the name — it's since moved down
+// to sit beside the gravity score itself (see .fscore__tier in ForcesScore), which is the number
+// the tier is actually classifying.
 function PanelHeader({ detail }: { detail: EntityDetail }) {
   const [hint, setHint] = useState<string | null>(null)
-  const tierHint = 'דרגת העוצמה — סיווג הכוח של הגוף'
   const rankHint = 'הדירוג בכוח המשיכה — מקומו בטבלת העוצמה'
   const bind = (h: string) => ({
     tabIndex: 0,
@@ -420,11 +447,10 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
     <header className="phead">
       <div className="phead__line">
         {detail.rank && <span className="phead__rank" {...bind(rankHint)}>{String(detail.rank).padStart(2, '0')}</span>}
-        <h1 className="phead__title">{detail.he}</h1>
+        {/* keyed by id so the title replays its own swap motion on every switch, independent of
+            whether the panel container itself (unkeyed, stays mounted) animates. */}
+        <h1 className="phead__title" key={detail.id}>{detail.he}</h1>
       </div>
-      <span className="phead__tier" {...bind(tierHint)}>
-        <Icon name={TIER_ICON[detail.tier] ?? 'tier'} className="phead__tier-icon" />{detail.tier}
-      </span>
       <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
     </header>
   )
@@ -464,7 +490,7 @@ function ForceAxisRow({ label, value, icon, hint, text }: { label: string; value
 // category rows, each with a sentence-complete description, plus a backing note (if any) and
 // the evidence link. The same `general` text opens ForcesNarrative too (the fuller read) — that's
 // intentional: a brief intro here, the same line reprised as the narrative's opening there.
-function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
+function ForcesScore({ detail, hasNarrative, onToggleFull, reselect }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void; reselect: boolean }) {
   const score = detail.scoreLabel ? detail.scoreLabel.split(' ')[0] : String(detail.power)
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
@@ -473,12 +499,22 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
   return (
     <div className="fscore">
       <div className="fscore__headline">
-        <span className="fscore__num"><b>{score}</b><span className="fscore__unit">{unit}</span></span>
+        {/* keyed by id — its own numeralPop motion plays every switch, distinct from the
+            headline row's one-time textRise (which only ever plays on first panel open). */}
+        <span className="fscore__num" key={detail.id}><b>{score}</b><span className="fscore__unit">{unit}</span></span>
         <span className="fscore__meta">
           <span className="fscore__lbl">כוח משיכה</span>
         </span>
+        {detail.tier && (
+          <Hint text="דרגת העוצמה — סיווג הכוח של הגוף" className="fscore__tier">
+            <Icon name={TIER_ICON[detail.tier] ?? 'tier'} className="fscore__tier-icon" />{detail.tier}
+          </Hint>
+        )}
       </div>
-      {general && <p className="fscore__gen"><Words key={detail.id} delay={0.14} text={firstSentence(general)!} /></p>}
+      {/* first open plays the full tuned cascade (0.20s in); re-selecting a different body while
+          the panel stays mounted drops the delay so the read doesn't replay a slow multi-second
+          wave every click — see .panel--reselect in overlays.css for the sibling row delays. */}
+      {general && <p className="fscore__gen"><Words key={detail.id} delay={reselect ? 0 : 0.20} text={firstSentence(general)!} /></p>}
       <div className="fparams">
         <ForceAxisRow
           key={`${detail.id}-eco`} label="כלכלי" icon="eco" value={detail.forces?.eco}
@@ -524,7 +560,17 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
   const [mode, setMode] = useState<'score' | 'full'>('score')
   // a fresh selection resets to the score view — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
-  if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
+  // the panel container itself never remounts across a country switch (only unselecting entirely
+  // does) — so this distinguishes the FIRST body shown (plays the full tuned entrance cascade) from
+  // every RESELECTION after it (fast, near-simultaneous — see .panel--reselect below), instead of
+  // replaying the same slow multi-second wave on every single click. Set during render (same
+  // sanctioned pattern as lastId/mode above), not a ref — a ref read during render doesn't
+  // re-trigger the render that needs to see it flip.
+  const [reselected, setReselected] = useState(false)
+  if (detail.id !== lastId) {
+    setLastId(detail.id); setMode('score')
+    if (!reselected) setReselected(true)
+  }
   const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
   const toggleMode = () => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }
   return (
@@ -532,12 +578,12 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
     // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
     // the panel — the full-description button, the evidence link, relation chips — bubbles up and
     // immediately deselects too, reverting the whole panel closed.
-    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+    <aside className={`panelb panel--detail${reselected ? ' panel--reselect' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <PanelHeader detail={detail} />
       <div className="fbody">
         {mode === 'score'
-          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />
+          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} reselect={reselected} />
           : <ForcesNarrative detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />}
       </div>
       {detail.relations.length > 0 && (

@@ -10,21 +10,24 @@
 /* hover the pinned handle → the panel peeks in (handle never moves → stable) */
 .pdock--closed:has(.pdock__handle:hover) .pdock__panel,
 .pdock--closed:has(.pdock__handle:focus-visible) .pdock__panel { transform: translateX(calc(100% - 54px)); }
-/* the drawer tab — clearly a control: chevron + vertical "מידע" label, at the right edge */
+/* the grip — the panel's own edge pinched into a pull, not a separate tab. It sits immediately
+   outside the panel's inward edge (right:100%) INSIDE .pdock__panel, so it rides the panel's
+   transform instead of staying pinned while the panel slides away from it. It borrows the panel's
+   own surface + border tokens and drops the border on the side that meets the panel, so the two
+   read as one continuous piece of chrome. Label-free: the chevron carries the affordance. */
 .pdock__handle {
-  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-  width: 34px; padding: 16px 0; gap: 10px; cursor: none; pointer-events: auto;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(10, 6, 22, 0.82); color: var(--yellow);
-  border: 1px solid var(--line-yellow); border-right: none; border-radius: 0;
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  position: absolute; right: 100%; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 74px; cursor: none; pointer-events: auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel-surface); color: var(--yellow);
+  border: var(--panel-border); border-right: none; border-radius: 0;
+  transition: color var(--dur-fast) ease, width var(--dur-fast) var(--ease-out-expo);
 }
-.pdock__handle:hover { background: rgba(251, 255, 0, 0.14); box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3); }
+.pdock__handle:hover { width: 27px; color: var(--white); }
 .pdock__handle:active { transform: translateY(-50%) scale(0.96); }
-.pdock__chev { width: 16px; height: 16px; transition: transform var(--dur-base) var(--ease-out-expo); }
+.pdock__chev { width: 13px; height: 13px; transition: transform var(--dur-base) var(--ease-out-expo); }
 .pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
-.pdock__handle-lbl { writing-mode: vertical-rl; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.78; }
 @media (max-width: 900px) { .pdock__panel { width: 340px; } }
 /* ── 768px: side dock becomes a bottom sheet ──────────────────── */
 /* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
@@ -52,7 +55,6 @@
     border-right: 1px solid var(--line-yellow); border-bottom: none;
   }
   .pdock__handle:active { transform: translateX(50%) scale(0.96); }
-  .pdock__handle-lbl { writing-mode: horizontal-tb; }
 }
 @media (prefers-reduced-motion: reduce) { .pdock__panel { transition: none; } .pdock__chev { transition: none; } }
 
@@ -157,9 +159,28 @@
 .gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__opt:hover:not(.is-on) { color: var(--light); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
-.gctl__tools { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 5px; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
-.gctl__tools:hover, .gctl__tools.has-state { color: var(--yellow); }
-.gctl__tools.is-on { border-color: var(--yellow-30); color: var(--yellow); background: var(--yellow-06); }
+/* מקרא — sits at the row's far end (where the ⚙ כלים button used to), same quiet treatment as the
+   sort options beside it so the row reads as one control group. */
+.gctl__legend { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; align-items: center; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+.gctl__legend:hover { color: var(--yellow); border-color: var(--yellow-30); }
+
+/* ── Forces composition A/B (field ⇄ ranked grid) ──────────────────────────────
+   A full-width row under the sort controls rather than another chip inside them: it does not
+   filter or sort the SAME picture the way every control beside it does — it swaps the picture
+   entirely — so it reads as its own act. Retire with the experiment (see FORCES_GRID_HASH). */
+.gctl__ab {
+  margin-top: 10px; width: 100%; cursor: none;
+  background: none; border: 1px dashed var(--line-yellow); padding: 6px 10px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
+  color: var(--yellow); opacity: 0.62;
+  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.gctl__ab:hover { opacity: 1; background: var(--yellow-06); }
+
+/* the grid screen drops the panel's metric title + description, so the control row is the panel's
+   first element and needs the top offset the title used to provide */
+.panel--compact .gctl { margin-top: 0; }
 
 /* per-metric description transitions when filter changes */
 .panel__body--metric { transition: opacity 0.3s ease; }
@@ -191,18 +212,21 @@
   cursor: none; text-align: right; animation: textRise 0.7s var(--ease-panel) both;
   transition: background 0.42s var(--ease-out-expo), transform 0.42s var(--ease-out-expo);
 }
-/* staggered row entrance — each row fans in with ~0.04s offset */
+/* staggered row entrance — each row fans in with ~0.06s offset (was 0.04s; bumped alongside the
+   rest of the side panel's stagger step so entrances read as more deliberately paced sitewide —
+   kept modest here vs. the detail panel's 0.20s step since this is a dense many-row list, where
+   too wide a step would make the tail rows feel slow to arrive rather than "felt"). */
 .gindex__row:nth-child(1)  { animation-delay: 0.00s; }
-.gindex__row:nth-child(2)  { animation-delay: 0.04s; }
-.gindex__row:nth-child(3)  { animation-delay: 0.08s; }
-.gindex__row:nth-child(4)  { animation-delay: 0.12s; }
-.gindex__row:nth-child(5)  { animation-delay: 0.16s; }
-.gindex__row:nth-child(6)  { animation-delay: 0.20s; }
-.gindex__row:nth-child(7)  { animation-delay: 0.24s; }
-.gindex__row:nth-child(8)  { animation-delay: 0.28s; }
-.gindex__row:nth-child(9)  { animation-delay: 0.32s; }
-.gindex__row:nth-child(10) { animation-delay: 0.36s; }
-.gindex__row:nth-child(n+11) { animation-delay: 0.40s; }
+.gindex__row:nth-child(2)  { animation-delay: 0.06s; }
+.gindex__row:nth-child(3)  { animation-delay: 0.12s; }
+.gindex__row:nth-child(4)  { animation-delay: 0.18s; }
+.gindex__row:nth-child(5)  { animation-delay: 0.24s; }
+.gindex__row:nth-child(6)  { animation-delay: 0.30s; }
+.gindex__row:nth-child(7)  { animation-delay: 0.36s; }
+.gindex__row:nth-child(8)  { animation-delay: 0.42s; }
+.gindex__row:nth-child(9)  { animation-delay: 0.48s; }
+.gindex__row:nth-child(10) { animation-delay: 0.54s; }
+.gindex__row:nth-child(n+11) { animation-delay: 0.60s; }
 .gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); transform: translateX(-4px); }
 .gindex__rank { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.3; }
 .gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }

@@ -3,6 +3,7 @@ import LoaderView from './dynamics/LoaderView'
 import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
 import ForcesView from './dynamics/ForcesView'
+import ForcesGridView from './dynamics/ForcesGridView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { GlobalField } from './dynamics/GlobalField'
@@ -32,8 +33,14 @@ function SoundToggle() {
 }
 
 const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relations: '#/relations', dynamics: '#/dynamics' }
+// `#/forces-grid` is a VARIANT of the forces route, not a fourth tab: the alternate grid
+// composition (ForcesGridView) kept alongside the packed field so the two can be compared
+// head-to-head. It deliberately stays out of the `View` union — the tab bar, keyboard shortcuts,
+// home nav and tab order all keep treating it as "הכוחות", and nothing but the composition changes.
+// Drop this constant + FORCES_GRID_HASH's two call sites to retire the experiment.
+const FORCES_GRID_HASH = '#/forces-grid'
 const hashToView = (h: string): View | null =>
-  h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
+  h === '#/forces' || h === FORCES_GRID_HASH ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
 
 // The orbit dot's dramatic lock-sweep (HomeView's `lockTo`/`LOCK_SWEEP_MS`) rotates all the way to
 // the chosen page title before the page transition proceeds — mirrors HomeView's own constant.
@@ -43,6 +50,8 @@ export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [intro, setIntro] = useState(false)
   const initial = hashToView(window.location.hash) ?? 'home'
+  // which forces composition the '#/forces…' route resolves to — see FORCES_GRID_HASH above
+  const [forcesGrid, setForcesGrid] = useState(() => window.location.hash === FORCES_GRID_HASH)
   const [homeOpen, setHomeOpen] = useState(initial !== 'home')
   const [view, setView] = useState<View>(initial)
   const [rail, setRail] = useState('')
@@ -143,15 +152,29 @@ export default function App() {
   }, [reduceMotion])
 
   useEffect(() => {
-    const want = VIEW_HASH[view]
+    // the grid variant keeps its own hash so the comparison URL survives a reload / can be shared
+    const want = view === 'forces' && forcesGrid ? FORCES_GRID_HASH : VIEW_HASH[view]
     if (window.location.hash !== want) history.replaceState(null, '', want || window.location.pathname)
-  }, [view])
+  }, [view, forcesGrid])
 
   useEffect(() => {
-    const onHash = () => { const v = hashToView(window.location.hash); if (v) go(v) }
+    const onHash = () => {
+      const v = hashToView(window.location.hash)
+      if (!v) return
+      setForcesGrid(window.location.hash === FORCES_GRID_HASH)
+      go(v)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [go])
+
+  // A/B toggle between the two forces compositions (see FORCES_GRID_HASH) — fired from the index
+  // panel's control row on either screen.
+  useEffect(() => {
+    const onSwap = () => setForcesGrid((g) => !g)
+    window.addEventListener('mp-forces-composition', onSwap)
+    return () => window.removeEventListener('mp-forces-composition', onSwap)
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -187,7 +210,7 @@ export default function App() {
               onToggle={() => setHomeOpen(o => !o)}
               onView={go}
             />
-          : view === 'forces' ? <ForcesView />
+          : view === 'forces' ? (forcesGrid ? <ForcesGridView /> : <ForcesView />)
           : view === 'relations' ? <RelationsView />
           : <DynamicsView />}
       </div>

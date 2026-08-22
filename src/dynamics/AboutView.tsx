@@ -1,11 +1,7 @@
-import { Icon } from './Icon'
 import { Words } from './Words'
+import { InfoDisclosure } from './InfoDisclosure'
 import { useFocusTrap } from './useFocusTrap'
 import { useOverlay } from './useOverlay'
-
-// hardcoded — there's no CMS/backend behind this overlay, so "last updated" is a literal
-// constant bumped by hand whenever the model or its data sources change meaningfully.
-const LAST_UPDATED = '6.7.2026'
 
 // "המודל" — the methodology overlay. The site's thesis, the equation, how each lens
 // reads, and an honesty note about the data. Opens on the header control ('mp-about').
@@ -20,28 +16,18 @@ export function AboutOverlay() {
       <aside ref={dialogRef} className="about" dir="rtl" role="dialog" aria-modal="true" aria-label="המודל" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
 
+        {/* lede sits beside the title now (top-left corner, same row) instead of its own row
+            below — saves a full row's height, so the modal contracts to match. entrance cascade,
+            top→bottom: head 0s → lede .18s → cols .52/.58/.64s → honesty .78s. */}
         <header className="about__head">
-          <span className="about__mark" aria-hidden><Icon name="model" className="about__mark-icon" /></span>
           <div className="about__head-txt">
             <h2 className="about__title">המודל</h2>
             <span className="about__sub">תורת היחסות של המזרח התיכון</span>
           </div>
+          <p className="about__lede about__lede--words">
+            <Words delay={0.18} step={0.035} text="מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות, המפה מציעה מבנה." />
+          </p>
         </header>
-
-        {/* entrance cascade, top→bottom (each section noticeably later than the last):
-            head 0s → lede .18s → eq .38s (container, see chrome.css) → cols .52/.58/.64s →
-            honesty .8s → foot .92s (container, see chrome.css) */}
-        <p className="about__lede about__lede--words">
-          <Words delay={0.18} step={0.035} text="מאקרופוליטיקה מתייחסת אל המזרח התיכון כאל שדה של כוחות משיכה: לכל גוף משקל, לכל זוג גופים יחס, והמכלול — מערך מסלולים שניתן לקרוא. במקום כותרות, המפה מציעה מבנה." />
-        </p>
-
-        <div className="about__eq" aria-label="המשוואה">
-          <span className="about__eq-term">יחסי הכוחות</span>
-          <span className="about__eq-op">=</span>
-          <span className="about__eq-term">הכוחות</span>
-          <span className="about__eq-op">+</span>
-          <span className="about__eq-term">היחסים</span>
-        </div>
 
         <div className="about__cols">
           <div className="about__col">
@@ -61,15 +47,9 @@ export function AboutOverlay() {
           </div>
         </div>
 
-        <p className="about__honesty">
-          <Words delay={0.8} text="חלקן אמפירי ומתועד, השאר שיפוט פרשני מנומק — הכול ניתן לערעור, והמשקלים פתוחים להזזה." />
-        </p>
-
-        <footer className="about__foot">
-          <span>מאקרופוליטיקה · מודל 0.9</span>
-          <span>עודכן לאחרונה: {LAST_UPDATED}</span>
-          <span className="about__credit">MADE BY ADAM FARGEON</span>
-        </footer>
+        <div className="about__honesty">
+          <InfoDisclosure text="חלקן אמפירי ומתועד, השאר שיפוט פרשני מנומק — הכול ניתן לערעור, והמשקלים פתוחים להזזה." />
+        </div>
       </aside>
     </div>
   )

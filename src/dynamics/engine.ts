@@ -46,10 +46,23 @@ const VISUALS = {
   rimAlpha: 0.4,
   nonStateHollow: true, // non-state actors render hollow (taxonomy)
   greatCorona: true, // superpowers get a faint corona ring
-  zoomGatedLabels: true, // hide minor labels until zoomed past gate
-  labelGate: 0.95,
   speedScale: 0.62, // calm the motion (1 = original measured speeds)
 }
+// ── Zoom-driven label LOD — at DEFAULT_ZOOM the field reads as pure shape/scale; names ease in
+// as the camera pushes in, biggest bodies first so the reveal feels like a cartographic zoom
+// rather than a light switch. Each kind gets its own start point + fade span over `this.zoom`.
+const LABEL_ZOOM_LOD: Record<Entity['kind'], { start: number; span: number }> = {
+  great: { start: DEFAULT_ZOOM, span: 0.22 },
+  regional: { start: DEFAULT_ZOOM + 0.06, span: 0.24 },
+  intermediate: { start: DEFAULT_ZOOM + 0.14, span: 0.26 },
+  edge: { start: DEFAULT_ZOOM + 0.14, span: 0.26 },
+  nonstate: { start: DEFAULT_ZOOM + 0.24, span: 0.3 },
+}
+// ── Zoom-driven orbit prominence — rings are near-invisible at the default frame and gain
+// opacity + weight as the camera pushes in, so depth reads as "coming into focus" not a toggle.
+const ORBIT_ZOOM_RANGE = 0.5 // zoom span (from DEFAULT_ZOOM) over which prominence ramps to full
+const ORBIT_ZOOM_BOOST = 0.65 // extra opacity multiplier at full ramp
+const ORBIT_ZOOM_WIDTH_BOOST = 0.6 // extra stroke width (px) at full ramp
 // Muted bloc temperatures — read as warm/cool, not "team colors"
 const AXIS_COLOR: Record<string, string> = {
   west: '132,160,196', // cool steel
@@ -470,6 +483,47 @@ export class OrbitalField {
       // ease current power toward its target (snap when reduced-motion); same smoothing idiom as the field
       ns.power += this.reduced ? (ns.powerTarget - ns.power) : (ns.powerTarget - ns.power) * 0.12
       ns.sr = clamp((powerSize(ns.power) / 2) * this.viewScale * this.zoom, 2, 88)
+      // appear factor computed here (was: recomputed later in frame()'s draw loop) so it's fresh
+      // for separateBodies() below — entering/barely-visible bodies should exert/absorb near-zero
+      // separation force instead of shoving fully-grown neighbours on their very first frame.
+      const ri = NODE_RING.get(e.id) ?? RINGS.length
+      ns.appear = clamp01((t - ri * 0.65) / 0.75)
+    }
+    this.separateBodies()
+  }
+
+  // Pure orbital placement (angle, radius around a parent anchor) has no awareness of a body's
+  // on-screen SIZE, so differently-sized bodies — or bodies on separate orbits whose paths cross
+  // in projection — can visually overlap even though their underlying physics never "collide".
+  // A few iterations of pairwise circle-circle separation nudges overlapping pairs apart every
+  // frame, mass-weighted by radius (the bigger body gives way less) so it reads as gentle crowding
+  // rather than a jitter fight. Runs in screen space, post-zoom, since that's what has to visually
+  // not-overlap — world-space separation would fight the zoom level for no reason.
+  private separateBodies() {
+    const nodes = this.nodes
+    const PAD = 3 // small breathing gap so touching circles don't read as fused
+    for (let iter = 0; iter < 6; iter++) {
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]
+        const ra = a.sr * easeOutCubic(a.appear)
+        if (ra <= 0) continue
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j]
+          const rb = b.sr * easeOutCubic(b.appear)
+          if (rb <= 0) continue
+          const dx = b.sx - a.sx, dy = b.sy - a.sy
+          const dist = Math.hypot(dx, dy) || 0.0001
+          const minDist = ra + rb + PAD
+          if (dist >= minDist) continue
+          const overlap = minDist - dist
+          const nx = dx / dist, ny = dy / dist
+          const totalR = ra + rb
+          const pushA = overlap * (rb / totalR)
+          const pushB = overlap * (ra / totalR)
+          a.sx -= nx * pushA; a.sy -= ny * pushA
+          b.sx += nx * pushB; b.sy += ny * pushB
+        }
+      }
     }
   }
 
@@ -480,6 +534,8 @@ export class OrbitalField {
     const intro = clamp01(t / 4.0)
     const ctx = this.ctx
     ctx.clearRect(0, 0, this.w, this.h)
+    ;(window as unknown as { __nodes?: unknown }).__nodes = this.nodes.map((n) => ({ id: n.e.id, sx: n.sx, sy: n.sy }))
+    ;(window as unknown as { __rect?: unknown }).__rect = this.container.getBoundingClientRect()
 
     this.stepCamera() // advance pan/zoom tween (recenter on focus) before projecting bodies
     this.drawStars(t, intro)
@@ -493,9 +549,9 @@ export class OrbitalField {
       const ee = now - this.exitStart
       for (const ns of this.nodes) ns.exitP = this.reduced ? 1 : clamp01((ee - ns.exitDelay) / EXIT_BODY_DUR)
     }
+    // .appear is now computed once in resolve() (above, before drawOrbits/drawCenters also read
+    // it) — this loop just draws with the already-current value.
     for (let k = 0; k < this.nodes.length; k++) {
-      const ri = NODE_RING.get(this.nodes[k].e.id) ?? RINGS.length
-      this.nodes[k].appear = clamp01((t - ri * 0.65) / 0.75)
       this.drawNode(this.nodes[k], t)
     }
     this.drawDepthLayer() // insight labels + proximity captions — populates insightChildren for updateLabels
@@ -535,6 +591,7 @@ export class OrbitalField {
     if (ringFade <= 0.001) return
     const ctx = this.ctx
     const s = this.viewScale * this.zoom
+    const zoomP = clamp01((this.zoom - DEFAULT_ZOOM) / ORBIT_ZOOM_RANGE)
     for (let ri = 0; ri < RINGS.length; ri++) {
       const ring = RINGS[ri]
       const ringIntro = clamp01((t - (ri * 0.65 - 0.2)) / 0.7)
@@ -544,8 +601,8 @@ export class OrbitalField {
       const dim = this.focusId && !lit
       const base = ring.he ? 0.3 : 0.16
       ctx.beginPath(); ctx.arc(c.x, c.y, ring.r * s, 0, TAU)
-      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * ringIntro * ringFade})`
-      ctx.lineWidth = 1
+      ctx.strokeStyle = `rgba(${YELLOW},${(lit ? 0.55 : dim ? 0.05 : base) * ringIntro * ringFade * (1 + zoomP * ORBIT_ZOOM_BOOST)})`
+      ctx.lineWidth = 1 + zoomP * ORBIT_ZOOM_WIDTH_BOOST
       if (ring.dash) ctx.setLineDash([2, 7])
       ctx.stroke(); ctx.setLineDash([])
     }
@@ -634,7 +691,6 @@ export class OrbitalField {
 
   private updateLabels() {
     const placed = this.placedBuf; placed.length = 0 // reuse scratch — no per-frame array allocation
-    const showMinor = !VISUALS.zoomGatedLabels || this.zoom >= VISUALS.labelGate
     for (const ns of this.labelOrder) {
       const el = this.labels.get(ns.e.id); if (!el) continue
       // the drill-in canvas layer is labelling this body — suppress its DOM label to avoid doubling
@@ -645,14 +701,15 @@ export class OrbitalField {
       const fs = ns.e.kind === 'great' || ns.e.kind === 'regional' ? 15 : ns.e.kind === 'nonstate' ? 11 : 12
       const w = ns.e.he.length * fs * 0.58, hh = fs * 1.3
       const forced = !!this.focusId && this.connected.has(ns.e.id)
-      const minor = ns.e.kind === 'intermediate' || ns.e.kind === 'edge' || ns.e.kind === 'nonstate'
+      const lod = LABEL_ZOOM_LOD[ns.e.kind]
+      const zoomAlpha = forced ? 1 : clamp01((this.zoom - lod.start) / lod.span)
       let hide = ns.sx < -40 || ns.sx > this.w + 40 || ns.sy < -40 || ns.sy > this.h + 40
-      if (!forced && minor && !showMinor) hide = true
+      if (zoomAlpha <= 0.01) hide = true
       if (!hide && !forced) for (const p of placed) { if (Math.abs(x - p.x) < (w + p.w) / 2 - 4 && Math.abs(y - p.y) < (hh + p.h) / 2 - 1) { hide = true; break } }
       const dim = this.focusId && !this.connected.has(ns.e.id) ? 0.14 : 1
       // fade each label out together with its body during the page-exit cascade
       const exitFade = this.exiting ? 1 - ns.exitP : 1
-      el.style.opacity = String(hide ? 0 : a * dim * exitFade)
+      el.style.opacity = String(hide ? 0 : a * dim * exitFade * zoomAlpha)
       if (!hide) placed.push({ x, y, w, h: hh })
     }
   }

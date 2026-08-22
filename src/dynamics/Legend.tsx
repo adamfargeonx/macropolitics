@@ -17,6 +17,12 @@ export function Legend({ view }: { view: View }) {
 
   if (!open) return null
   const hint = VIEW_HINT[view]
+  // size (body radius = gravitational pull) and the state/non-state fill distinction are both
+  // artifacts of the orbital engine (engine.ts's VISUALS.nonStateHollow) that Forces and Dynamics
+  // share — Relations lays bodies out by triangle position (tension/friction/harmony) and always
+  // renders a filled disk (see .rnode__disk in views.css), so neither row applies there. Bloc rim
+  // colour is the one encoding that carries over unchanged (RelationsView still colours by AXIS_RIM).
+  const showOrbitRows = view === 'forces' || view === 'dynamics'
 
   return (
     <div className={`legend__scrim${closing ? ' is-closing' : ''}`} onClick={close}>
@@ -28,24 +34,28 @@ export function Legend({ view }: { view: View }) {
         </header>
 
         <div className="legend__rows">
-          <div className="legend__row">
-            <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
-            <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
-          </div>
+          {showOrbitRows && (
+            <div className="legend__row">
+              <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
+              <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
+            </div>
+          )}
 
           {/* each graphic paired directly with its own short (2-3 word) label, instead of one
               long sentence describing both — a state disk and a non-state ring are two distinct
               graphics, so they get two distinct pairs. */}
-          <div className="legend__group">
-            <div className="legend__pair">
-              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--full" /></span>
-              <span className="legend__txt"><b>מלא</b> = מדינה</span>
+          {showOrbitRows && (
+            <div className="legend__group">
+              <div className="legend__pair">
+                <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--full" /></span>
+                <span className="legend__txt"><b>מלא</b> = מדינה</span>
+              </div>
+              <div className="legend__pair">
+                <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--hollow" /></span>
+                <span className="legend__txt"><b>חלולה</b> = לא-מדינתי</span>
+              </div>
             </div>
-            <div className="legend__pair">
-              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--hollow" /></span>
-              <span className="legend__txt"><b>חלולה</b> = לא-מדינתי</span>
-            </div>
-          </div>
+          )}
 
           <div className="legend__group">
             <div className="legend__pair">

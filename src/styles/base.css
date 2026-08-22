@@ -228,6 +228,93 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   font-size: var(--text-xs); letter-spacing: var(--tracking-micro); line-height: var(--leading-loose);
 }
 
+/* ── House rule: no prose line runs longer than ~10 words. ──────────────────
+   CSS can't count words directly, so this is a measure (max-width in ch) tuned empirically
+   against real sentences in this app's Hebrew --body font: 32ch kept every sampled paragraph's
+   longest line at 8-9 words across both text-base (13px) and text-xs (11px) sizes (unconstrained,
+   some ran 14-21 words on one line). ch is font-relative, so one value holds across sizes as long
+   as the family is var(--body) — which every selector below uses. Applies to actual narrative
+   copy (multi-word sentences); short labels/tags/formulas/hints are intentionally excluded — they
+   don't run long enough to need it. Add new long-form paragraph classes to this list as they're
+   introduced, don't leave them uncapped. */
+.about__lede, .about__col p,
+.fscore__gen, .fparam__desc-text, .fbacking__text,
+.fnarr__gen, .fnarr__axis-t,
+.panel__body, .panel__why, .dcard__lede,
+.evid__weights, .info-disclosure__text {
+  max-width: 32ch;
+}
+
+/* ── Shared "read me for more info" disclosure — a small (i) trigger that click-reveals a short
+   disclaimer sentence in-flow, never a floating hover tooltip (both call sites — the evidence
+   overlay's methodology footer, the about modal's honesty note — live inside overflow-scroll
+   panels, and a floating tooltip near an edge gets clipped by the panel box; same reasoning as
+   PanelHeader's reserved-caption hint). See InfoDisclosure.tsx. */
+.info-disclosure__btn {
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  cursor: none; background: none; border: 1px solid var(--line); border-radius: 50%;
+  color: var(--ink-faint); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.info-disclosure__btn:hover, .info-disclosure__btn[aria-expanded="true"] { color: var(--yellow); border-color: var(--line-yellow); }
+.info-disclosure__icon { font-size: 13px; }
+.info-disclosure__text {
+  margin-top: 8px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+  animation: textRise 0.4s var(--ease-panel) both;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   AFFORDANCE FRAMEWORK — two primitives replacing five ad-hoc hint
+   mechanisms (the [data-hint] ::after tooltip + its two specificity
+   overrides, native title="", the always-on static hint paragraphs,
+   and the reserved in-flow caption line).
+   ════════════════════════════════════════════════════════════════ */
+
+/* visually hidden, still announced by screen readers — for naming an icon-only control whose
+   explanation lives in a hover tooltip (which AT can't reach on its own). */
+.u-sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* 1 · Hint — explains an element. Rendered in the browser's TOP LAYER (see Hint.tsx), so unlike
+   the ::after pattern it replaces it can't be clipped by the overflow-scroll panels it opens
+   inside. `position-area` puts it above the anchor and flips it below when there's no room. */
+/* Positioned with explicit anchor() insets rather than `position-area`: measured live, the
+   shorthand silently failed to move the box out of the anchor's own band (it stayed overlapping
+   the trigger), while bottom/left anchor() functions place it exactly. `position-try-fallbacks`
+   still flips it below when there's no room above. */
+.hint {
+  /* reset the UA popover defaults (border, padding, inset:0, width/height auto-sizing to the
+     viewport) before applying our own — otherwise the box stretches the full viewport. */
+  position: fixed; inset: auto; overflow: visible; color: var(--tooltip-fg);
+  bottom: anchor(top); left: anchor(center); translate: -50% 0;
+  position-try-fallbacks: flip-block;
+  margin-block: 10px; z-index: 300; width: max-content; max-width: 260px; padding: 7px 10px;
+  background: var(--tooltip-bg); color: var(--tooltip-fg);
+  border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
+  text-align: right; pointer-events: none;
+  animation: hintIn 0.16s var(--ease-out-expo) both;
+}
+@keyframes hintIn { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .hint { animation: none; } }
+
+/* 2 · Affordance — a coach line that retires once its gesture is performed (see Affordance.tsx).
+   ONE anchored slot, bottom-centre above the tab bar, identical in every view — that fixed
+   position is what stops it reading as arbitrarily stuck wherever there was room. Fades both
+   ways: in after the entrance settles, out the moment the gesture lands. */
+.afford {
+  position: fixed; bottom: calc(26px + 54px); left: 50%; transform: translateX(-50%) translateY(4px);
+  z-index: var(--z-content); pointer-events: none; white-space: nowrap;
+  font-family: var(--body); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
+  opacity: 0; transition: opacity 0.5s ease, transform 0.5s var(--ease-out-expo);
+}
+.afford--in { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { .afford { transition: opacity 0.2s ease; } }
+
 html, body, #root { height: 100%; }
 body {
   background: var(--bg);

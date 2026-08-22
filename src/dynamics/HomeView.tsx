@@ -184,8 +184,6 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
           </button>
         ))}
       </nav>
-
-      <p className="home-credit">מודל 0.9 · השיפוט פרשני · מקרא ומתודולוגיה בכותרת</p>
     </div>
   )
 }
