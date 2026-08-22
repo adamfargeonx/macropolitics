@@ -352,12 +352,14 @@
    Two lines are RESERVED and the name sits on the LAST of them: a handful of bodies have names
    that wrap (הכוחות הדמוקרטיים, הרשות הפלסטינית, מיליציות עיראקיות), and without the reservation
    selecting one of those pushed the score, the breakdown and everything under it down a whole
-   line. Bottom-aligning means a one-word name keeps the exact baseline a two-line name ends on,
-   so the block below never moves for ANY body. */
+   line. TOP-aligned: the name starts at the header's top edge for every body, and the reserved
+   slack falls BELOW it (reading as space before the score) rather than above it — a gap over the
+   name looks like a bug, a gap under it looks like breathing room. Either way the block below
+   never moves. */
 .phead__title {
   font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-black);
   letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.08;
-  min-height: calc(2 * 1.08em); display: flex; align-items: flex-end;
+  min-height: calc(2 * 1.08em); display: flex; align-items: flex-start;
 }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
    NOTE: in this RTL panel the flex main-axis runs right→left, so main-START is the RIGHT edge.
@@ -687,3 +689,6 @@
   .lswap__layer i, .fscore__tier-txt { animation: none; }
   .lswap__layer--out { display: none; }
 }
+
+/* the back button's line arrow — sized to the label, never larger than its cap height */
+.ffull-btn__arrow { font-size: 12px; flex-shrink: 0; }

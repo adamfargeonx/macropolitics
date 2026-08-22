@@ -4,7 +4,7 @@
 // Use: <Icon name="eco" /> — inherits color + sizes to 1em so it sits inline with a label.
 
 export type IconName =
-  | 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing'
+  | 'eco' | 'mil' | 'geo' | 'sources' | 'calc' | 'orbit' | 'relations' | 'backing' | 'arrow-back'
   | 'model' | 'legend' | 'disclaimer' | 'nav-forces' | 'nav-relations' | 'nav-dynamics'
   // generic category icons (used in evidence overlay axis heads, pnote labels)
   | 'tier' | 'axis' | 'dispo'
@@ -33,6 +33,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
   relations: (<path d="M12 4 L20.5 19.5 H3.5 Z" />),
   // backing — a borrowed-weight arrow toward the body
   backing: (<><path d="M20 12 H5" /><path d="M11 6 L5 12 L11 18" /></>),
+  // back — the same line-arrow language as `backing`, mirrored to point RIGHT, which is the
+  // "back" direction in an RTL interface (the LTR convention flipped, not reused as-is).
+  'arrow-back': (<><path d="M4 12 H19" /><path d="M13 6 L19 12 L13 18" /></>),
   // model — a circled "i": the universal info glyph for "how this is calculated"
   model: (<><circle cx="12" cy="12" r="9.5" /><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none" /><path d="M12 11 V17" /></>),
   // legend — a small key-to-symbols list (swatch + label row, ×3): what a map legend literally is

@@ -157,7 +157,7 @@ function ForcesNarrative({ detail, hasNarrative, onToggleFull }: { detail: Entit
           blocks). Here it's always in the "open" (full-narrative) state, so it reads "בחזרה לציון". */}
       {hasNarrative && (
         <button className="ffull-btn is-open" onClick={onToggleFull} aria-expanded={true}>
-          בחזרה לציון <span aria-hidden>←</span>
+          בחזרה לציון <Icon name="arrow-back" className="ffull-btn__arrow" />
         </button>
       )}
       {general && <p className="fnarr__gen"><Words key={detail.id} text={general} /></p>}
