@@ -228,22 +228,24 @@
 .legend__row {
   display: flex; align-items: center; gap: 16px; padding: 13px 0;
   padding-inline-start: 16px;
+  animation: textRise 0.77s 0.30s var(--ease-panel) both;
 }
 /* each graphic paired directly beside its own short (2-3 word) label — a "shape" group (state ·
    non-state) and a "colour" group (west · east · neutral), wrapping naturally rather than forcing
    a rigid column count. Same entrance rhythm as .legend__row (which owns the size-ramp row above),
    continuing the cascade into these two groups. */
 .legend__group { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 4px; padding-inline-start: 16px; animation: textRise 0.77s var(--ease-panel) both; }
-.legend__group:nth-of-type(1) { animation-delay: 0.1s; }
-.legend__group:nth-of-type(2) { animation-delay: 0.18s; }
+.legend__group:nth-of-type(1) { animation-delay: 0.46s; }
+.legend__group:nth-of-type(2) { animation-delay: 0.62s; }
 .legend__pair { display: inline-flex; align-items: center; gap: 12px; padding: 8px 0; }
 .legend__swatch--pair { flex: 0 0 40px; height: 40px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
 .legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
+/* no background fill — the graphic itself (dots/disks/rings) is the whole point; a tinted box
+   behind every single one added a container the eye had to see past, not read through. */
 .legend__swatch {
   flex: 0 0 58px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
-  background: rgba(255, 255, 255, 0.03); border-radius: 0;
 }
 .legend__sizeramp i { display: block; border-radius: 50%; background: var(--light); }
 .legend__sizeramp i:nth-child(1) { width: 7px; height: 7px; opacity: 0.55; }
@@ -253,11 +255,13 @@
 .legend__disk--full { background: var(--light); }
 .legend__disk--hollow { background: transparent; border: 2px solid var(--light); }
 .legend__rim { display: block; width: 16px; height: 16px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
+/* no background band — same reasoning as .legend__swatch above; the yellow ink already marks
+   this as a distinct note, a tinted box behind the whole paragraph was redundant emphasis. */
 .legend__hint {
-  margin-top: 18px; padding: 12px 14px; font-family: var(--body);
+  margin-top: 18px; padding: 0; font-family: var(--body);
   /* item 8: unified to the primary body size (13px) */
   font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
-  background: rgba(251, 255, 0, 0.05);
+  animation: textRise 0.77s 0.85s var(--ease-panel) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim, .legend, .about, .evid, .panel, .panelb, .panel--detail { animation: none; }
@@ -375,8 +379,12 @@
    left edge is physically clipped by the panel box (reproduced: the disposition chip's tooltip ran
    off the left edge). Routing the hint to a caption inside the panel can never clip. Reserved height
    keeps the layout from shifting; blank when nothing is hovered. */
+/* margin/min-height both trimmed — the TITLE above already reserves its own 2-line slot
+   (.phead__title), so a one-word name (which only fills line 1) already leaves a line's worth of
+   slack before this even starts; this used to stack a FULL extra reservation on top of that,
+   reading as an oversized gap specifically for short names. */
 .phead__hint {
-  margin-top: 10px; min-height: 1.5em;
+  margin-top: 2px; min-height: 1.2em;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.72;
 }
@@ -466,7 +474,13 @@
      shared by eco/mil/geo. */
   margin-inline-start: auto;
 }
-.fparam__track { height: 4px; background: var(--line-2); overflow: hidden; }
+/* explicit display:block — this used to be a direct flex child of .fparam, which auto-
+   "blockifies" a flex item's display per spec even though the element is a plain <span>. Wrapping
+   it in an extra wrapper span (for a since-removed per-value glow overlay) moved it one level
+   away from that flex context,
+   so it silently collapsed back to inline (0×0, since a percentage-width child inside a height:auto
+   inline parent has nothing real to resolve against) — the bars vanished. */
+.fparam__track { display: block; width: 100%; height: 4px; background: var(--line-2); overflow: hidden; }
 .fparam__track i {
   display: block; height: 100%; background: var(--yellow);
   /* B-A — the fill TWEENS from the previous body's value to the new one, so the movement itself
@@ -698,32 +712,21 @@
 .ffull-btn__arrow { font-size: 12px; flex-shrink: 0; }
 
 /* ════════════════════════════════════════════════════════════════
-   CHANGE GLOW — a brief, soft flash on the fields that just updated
-   (title, numeral, bars), so a country switch reads as a genuine
-   event even at a glance, not just "the number is now different."
+   CHANGE GLOW — the panel itself flashes once on a country switch, so
+   the change reads as a genuine event at a glance. Deliberately ONE
+   effect on the whole shell (ForcesPanelFrame), not scattered per-value
+   glows — that read as visual noise, not "the panel just changed."
    ════════════════════════════════════════════════════════════════ */
-.countup { position: relative; display: inline-block; }
-.value-glow {
-  position: absolute; inset: -10px -14px; pointer-events: none; z-index: -1;
-  border-radius: 6px; font-style: normal;
-  background: radial-gradient(ellipse at center, rgba(251,255,0,0.4), transparent 72%);
-  animation: valueGlow 0.75s var(--ease-out-expo) both;
+/* a soft bloom, not a stroke — a hard 1px inset shadow read as an outline flashing on/off (a
+   "bug," not a glow), and 0.9s was gone before it registered. Wide blur radius + slow decay
+   instead, and no inset hairline at all — the glow should feel like light, not a border. */
+.panel-glow {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit;
+  animation: panelGlow 1.9s var(--ease-out-expo) both;
 }
-.gauge-wrap { position: relative; display: block; }
-.value-glow--bar { inset: -7px -3px; border-radius: 3px; }
-@keyframes valueGlow {
-  0%   { opacity: 0; transform: scale(0.82); }
-  35%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.22); }
+@keyframes panelGlow {
+  0%   { box-shadow: 0 0 90px 22px rgba(251,255,0,0.32), 0 0 40px 6px rgba(251,255,0,0.22); }
+  60%  { box-shadow: 0 0 60px 14px rgba(251,255,0,0.16), 0 0 24px 3px rgba(251,255,0,0.12); }
+  100% { box-shadow: 0 0 0 0 rgba(251,255,0,0), 0 0 0 0 rgba(251,255,0,0); }
 }
-/* the title's glow rides its own already-remounting "in" layer (see LetterSwap/SwapLayer in
-   PanelMotion.tsx) — no JS pulse counter needed, it replays naturally every swap. */
-.lswap__layer--in::before {
-  content: ''; position: absolute; inset: -8px -16px; z-index: -1; pointer-events: none;
-  border-radius: 6px;
-  background: radial-gradient(ellipse at center, rgba(251,255,0,0.32), transparent 70%);
-  animation: valueGlow 0.8s var(--ease-out-expo) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .value-glow, .lswap__layer--in::before { animation: none; display: none; }
-}
+@media (prefers-reduced-motion: reduce) { .panel-glow { animation: none; display: none; } }

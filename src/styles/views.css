@@ -316,7 +316,16 @@
      duration then snaps to the end matrix within a single frame, regardless of easing curve. */
   transform: translateY(0) rotate(0deg) scale(0.55); opacity: 0; filter: blur(14px);
   transition: transform 0.92s var(--ease-out-expo), opacity 0.55s ease, filter 0.7s var(--ease-out-expo);
+  /* cursor-proximity glow — --px (0→1) is written per-frame by useLetterProximity.ts. Deliberately
+     on `color`/`text-shadow`, NOT `transform`/`opacity`/`filter`: those three are already owned by
+     the entrance/exit choreography above, and writing to them from JS every frame would fight the
+     CSS transitions driving this exact same element. See useLetterProximity.ts for why this is a
+     colour tint rather than the font-weight morph the effect was adapted from — the display face
+     isn't a variable font, so `font-variation-settings` would have been a silent no-op here. */
+  color: color-mix(in srgb, var(--white) calc(100% - var(--px, 0) * 100%), var(--yellow) calc(var(--px, 0) * 100%));
+  text-shadow: 0 0 calc(var(--px, 0) * 16px) rgba(251, 255, 0, calc(var(--px, 0) * 0.8));
 }
+@media (prefers-reduced-motion: reduce) { .home-title .letters__ch { color: var(--white); text-shadow: none; } }
 .home--open .home-title .letters__ch { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
 
 /* ── Home leaving (home → a page): a three-beat choreographed exit —

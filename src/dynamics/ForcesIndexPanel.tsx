@@ -7,6 +7,8 @@ import {
   type Order, type Bloc,
 } from './forces-model'
 import { INDEX_BEAT } from './panel-beats'
+import { LetterSwap } from './PanelMotion'
+import { Words } from './Words'
 
 export type ForcesIndexPanelProps = {
   orderBy: Order
@@ -103,9 +105,18 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
 
   return (
     <>
-      {!compact && <h1 className="panel__title" key={orderBy} style={{ animationDelay: `${INDEX_BEAT.title}s` }}>{METRIC_TITLE[orderBy]}</h1>}
-      {/* short (1–2 line) metric description — shown in full, no read-more toggle */}
-      {!compact && <p className="panel__body panel__body--metric" key={`desc-${orderBy}`} style={{ animationDelay: `${INDEX_BEAT.desc}s` }}>{METRIC_DESC[orderBy]}</p>}
+      {!compact && (
+        <h1 className="panel__title" style={{ animationDelay: `${INDEX_BEAT.title}s` }}>
+          <LetterSwap text={METRIC_TITLE[orderBy]} />
+        </h1>
+      )}
+      {/* short (1–2 line) metric description — shown in full, no read-more toggle. Same Words
+          per-word rise every other body-text line on the site uses, not a plain block fade. */}
+      {!compact && (
+        <p className="panel__body panel__body--metric" style={{ animationDelay: `${INDEX_BEAT.desc}s` }}>
+          <Words key={orderBy} text={METRIC_DESC[orderBy]} />
+        </p>
+      )}
       {/* unified controls — sort the index + open the tools disclosure */}
       <div className="gctl" role="group" aria-label="מיון וכלים" style={{ animationDelay: `${INDEX_BEAT.controls}s` }}>
         <span className="gctl__lbl">מיון</span>

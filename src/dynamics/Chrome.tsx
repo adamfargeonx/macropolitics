@@ -49,10 +49,20 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
   // mobile map/list toggle drives the sheet: forceClosed (map, nothing selected) keeps the field
   // full-screen; forceOpen (list, or a body selected) pins it open. Desktop passes neither.
   const isOpen = forceClosed ? false : (forceOpen || open)
+  // Content mounts the FIRST time the dock opens, and then stays mounted forever after — even if
+  // the user later closes it (clicking the handle, or a mobile forceClosed toggle). It must NOT be
+  // re-gated on isOpen directly: that mounted content only on isOpen===true, so closing the dock
+  // UNMOUNTED everything in the same instant, before the panel's own 0.66s slide-out transition
+  // had a chance to play with content still visible — reported as the panel "completely vanishing"
+  // instead of sliding out. everMounted only ever flips false→true, never back, so a close now
+  // correctly leaves the (already-settled) content in place while the CSS transform carries it
+  // off-screen, and a reopen doesn't replay the entrance cascade every single toggle either.
+  const [everMounted, setEverMounted] = useState(false)
+  if (isOpen && !everMounted) setEverMounted(true)
   const node = (
     <div className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">
-        {children}
+        {everMounted && children}
         {/* The grip lives INSIDE the panel and rides its transform, so it reads as the panel's own
             pinched edge rather than a tab pinned to the viewport that the panel slides away from.
             It sits just outside the panel's inward edge (right:100%), which keeps it on-screen in
@@ -621,8 +631,20 @@ export function ForcesPanelFrame({ selected, detail, onClose, onRelSelect, index
   indexProps: ForcesIndexPanelProps
 }) {
   const showDetail = !!(selected && detail)
+  // "the entire sidepanel glows when changing countries" — one flash on the SHELL, keyed to a
+  // pulse counter bumped only on a REAL country→country switch (not on first opening a body from
+  // the ranked list, and not on closing back to it — those already have their own reveal).
+  // Adjusted during render (same pattern as ForcesPanelContent's own lastId/mode reset above).
+  const [lastId, setLastId] = useState<string | null>(null)
+  const [glowPulse, setGlowPulse] = useState(0)
+  const curId = detail?.id ?? null
+  if (curId !== lastId) {
+    if (lastId && curId) setGlowPulse((p) => p + 1)
+    setLastId(curId)
+  }
   return (
     <aside className={`panelb panel--detail${indexProps.compact ? ' panel--compact' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+      {showDetail && <i className="panel-glow" key={glowPulse} aria-hidden />}
       {showDetail && <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>}
       {showDetail
         ? <ForcesPanelContent detail={detail!} onRelSelect={onRelSelect} />

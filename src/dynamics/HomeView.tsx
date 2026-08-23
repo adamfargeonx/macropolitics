@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type View } from './Chrome'
 import { sound } from '../sound'
 import { Words, Letters } from './Words'
+import { useLetterProximity } from './useLetterProximity'
 
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
 // `sub` is the brief explainer revealed on hover (and when the orbit dot sweeps near — see below).
@@ -41,6 +42,10 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
   const [orbitHovered, setOrbitHovered] = useState(false)
   const [nearNav, setNearNav] = useState<View | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  // cursor-proximity glow on the wordmark — see useLetterProximity.ts for why this drives a
+  // colour tint (--px custom property) rather than the font-weight morph its reference used.
+  useLetterProximity(titleRef, { reach: 190, tau: 0.1 })
   const spinRef = useRef<HTMLDivElement>(null)
   const lockRef = useRef<{ to: View; from: number; target: number; t0: number } | null>(null)
 
@@ -175,7 +180,7 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
           wordmark keeps its own signature explode-blast (rotate+scale+blur, not a waterfall) —
           that one stays the title's unique moment. */}
       <p className="home-tagline"><Letters text="תורת היחסות של המזרח התיכון" /></p>
-      <h1 className="home-title"><Letters text="מאקרופוליטיקה" /></h1>
+      <h1 className="home-title" ref={titleRef}><Letters text="מאקרופוליטיקה" /></h1>
       <p className="home-eq" aria-hidden><span>יחסי הכוחות = הכוחות + היחסים</span></p>
 
       <nav className="home-nav" aria-label="כניסה">

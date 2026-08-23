@@ -172,7 +172,11 @@
 
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
 .gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; animation: textRise 0.7s var(--ease-panel) both; }
-.gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-inline-end: 2px; }
+/* a hairline + dimmer opacity — not a container, not a button-like box — is enough to read "this
+   one is a label, not an option": it shared near-identical size/colour with the actual sort chips
+   next to it, so the row read as five equal, equally-clickable items instead of one caption + four
+   controls. */
+.gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint); opacity: 0.7; padding-inline-end: 9px; margin-inline-end: 5px; border-inline-end: 1px solid var(--line-2); }
 /* item 10: sort chips + tools trigger float — the resting box is a TRANSPARENT border (no reflow
    when the active state re-colours it), so inactive controls read as bare text; the active .is-on
    chip keeps its yellow fill. item 5b: hover is a direct color swap (below), not a drawn line. */
