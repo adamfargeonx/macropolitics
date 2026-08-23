@@ -8,6 +8,8 @@ import { useFocusTrap } from './useFocusTrap'
 import { OVERLAY_EXIT_MS } from './useOverlay'
 import { Icon, type IconName } from './Icon'
 import { InfoDisclosure } from './InfoDisclosure'
+import { LetterSwap } from './PanelMotion'
+import { Words } from './Words'
 import { sound } from '../sound'
 
 // The evidence overlay — opened from a body's forces panel (the 'mp-evidence' event with {id}).
@@ -180,7 +182,7 @@ export function EvidenceOverlay() {
       <aside ref={dialogRef} className="evid" dir="rtl" role="dialog" aria-modal="true" aria-label="מקורות וחישוב" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="evid__head">
-          <h2 className="evid__title">{node.he}</h2>
+          <h2 className="evid__title"><LetterSwap text={node.he} /></h2>
           <div className="evid__grav">
             <span className="evid__grav-lbl">כוח משיכה{year !== 2025 ? ` · ${year}` : ''}</span>
             <span className="evid__grav-num"><bdi>{g.gravity.toFixed(1)}</bdi><i>/10</i></span>
@@ -224,7 +226,7 @@ export function EvidenceOverlay() {
                         <a className="evid__link" href={p.url} target="_blank" rel="noreferrer"><bdi>{p.source} · {p.year}</bdi> ↗</a>
                       </p>
                       <Trend id={id} axis={axis} />
-                      {p.note && <p className="evid__meta-line evid__meta-line--note">{p.note}</p>}
+                      {p.note && <p className="evid__meta-line evid__meta-line--note"><Words key={p.note} text={p.note} /></p>}
                     </div>
                   </details>
                 </section>

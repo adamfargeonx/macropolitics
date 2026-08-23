@@ -281,12 +281,25 @@
    handoff reason as orbitBreathe above. */
 @keyframes coreDotBreath { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.82); opacity: 0.82; } }
 
-/* ── Masked text reveals (tagline + nav slide up from behind a mask — no dissolve) ── */
-.home-tagline, .home-nav__label { overflow: hidden; }
-.home-tagline > span, .home-nav__label > span { display: inline-block; will-change: transform; }
-.home-tagline > span, .home-nav__label > span { transform: translateY(110%); transition: transform 0.9s var(--ease-out-expo); }
-.home--open .home-tagline > span { transform: translateY(0); transition-delay: 0.3s; }
-.home--open .home-nav__label > span { transform: translateY(0); transition-delay: calc(0.55s + var(--bd, 0s) * 0.4); }
+/* ── Waterfall text reveal (tagline + nav) — per-letter cascade, replacing the old single
+   mask-slide-up. Same motion language as the panels' LetterSwap (see .lswap__layer--in in
+   overlays.css: each letter rises from above on its own stagger) rather than one block sliding
+   out from behind a hidden edge — a closer match to how every OTHER piece of text on the site now
+   enters. The wordmark's own explode-blast (rotate+scale+blur, above) stays untouched — that one
+   is deliberately the title's unique moment, not this shared language. */
+.home-tagline .letters__ch, .home-nav__label .letters__ch {
+  display: inline-block; will-change: transform, opacity;
+  transform: translateY(-0.6em); opacity: 0;
+  transition: transform 0.5s var(--ease-out-expo), opacity 0.4s ease;
+}
+.home--open .home-tagline .letters__ch {
+  transform: translateY(0); opacity: 1;
+  transition-delay: calc(0.3s + var(--ci, 0) * 0.028s);
+}
+.home--open .home-nav__label .letters__ch {
+  transform: translateY(0); opacity: 1;
+  transition-delay: calc(0.55s + var(--bd, 0s) * 0.4 + var(--ci, 0) * 0.028s);
+}
 
 /* wordmark reveal — explode-blast: scales up from a tight, blurred core (no mask slide).
    The wordmark is per-CHARACTER spans (see Words.tsx `Letters`) so the LEAVE transition (below)
@@ -346,12 +359,12 @@
 .home--leaving .home-title .letters__ch:nth-child(even) { transform: translateY(21px) rotate(14deg) scale(0); }
 .home--leaving .home-title .letters__ch:nth-child(3n) { transform: translateX(18px) rotate(9deg) scale(0); }
 
-/* tagline sits at TOP-centre and is visible (translateY(0)) when open → it retreats UP into the
-   mask it entered by. */
-.home--leaving .home-tagline > span {
-  transition: transform 0.36s var(--ease-out-back), opacity 0.26s ease;
-  transition-delay: 0.05s;
-  transform: translateY(-115%); opacity: 0;
+/* tagline retreats the way it entered — letter by letter, back up — mirroring the waterfall-in
+   above rather than one block sliding out. */
+.home--leaving .home-tagline .letters__ch {
+  transition: transform 0.3s var(--ease-out-back), opacity 0.22s ease;
+  transition-delay: calc(0.05s + var(--ci, 0) * 0.015s);
+  transform: translateY(-0.7em); opacity: 0;
 }
 /* the equation sits BELOW centre and (unless orbit-hovered) is hidden at translateY(110%). It must
    retreat the SAME way it reveals — back DOWN out of its mask — NEVER sweep up through 0, which
@@ -362,12 +375,13 @@
   transition-delay: 0.05s;
   transform: translateY(110%); opacity: 0;
 }
-/* section titles exit the way they entered — sliding back up behind their own overflow mask,
-   each on its own ring-anchored stagger (--bd), not a generic fade+shrink of the whole button */
-.home--leaving .home-nav__label > span {
-  transition: transform 0.41s var(--ease-out-back);
-  transition-delay: calc(0.06s + var(--bd, 0s) * 0.12s);
-  transform: translateY(-115%);
+/* section titles exit the way they entered — letter by letter, back up — each label on its own
+   ring-anchored stagger (--bd) with an additional per-letter stagger (--ci) inside it, not a
+   generic fade+shrink of the whole button */
+.home--leaving .home-nav__label .letters__ch {
+  transition: transform 0.34s var(--ease-out-back), opacity 0.22s ease;
+  transition-delay: calc(0.06s + var(--bd, 0s) * 0.12s + var(--ci, 0) * 0.015s);
+  transform: translateY(-0.7em); opacity: 0;
 }
 .home--leaving .home-nav__item {
   transition: opacity 0.36s ease;
@@ -379,11 +393,12 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .home--leaving .home-title .letters__ch,
-  .home--leaving .home-tagline > span,
+  .home--leaving .home-tagline .letters__ch,
   .home--leaving .home-eq > span,
-  .home--leaving .home-nav__label > span,
+  .home--leaving .home-nav__label .letters__ch,
   .home--leaving .home-nav__item,
   .home--leaving .home-hint { transition: none; }
+  .home-tagline .letters__ch, .home-nav__label .letters__ch { transition: none; transform: none; opacity: 1; }
 }
 
 /* brand wordmark — light weight, wide kerning. The trailing letter-spacing is added after the

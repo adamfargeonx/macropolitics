@@ -167,7 +167,11 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
         </div>
       )}
 
-      <p className="home-tagline"><span>תורת היחסות של המזרח התיכון</span></p>
+      {/* tagline + nav labels enter letter-by-letter (a waterfall cascade), the same motion
+          language as the panels' LetterSwap — replacing the old single mask-slide-up. The
+          wordmark keeps its own signature explode-blast (rotate+scale+blur, not a waterfall) —
+          that one stays the title's unique moment. */}
+      <p className="home-tagline"><Letters text="תורת היחסות של המזרח התיכון" /></p>
       <h1 className="home-title"><Letters text="מאקרופוליטיקה" /></h1>
       <p className="home-eq" aria-hidden><span>יחסי הכוחות = הכוחות + היחסים</span></p>
 
@@ -179,7 +183,7 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
             style={{ '--bd': `${i * 0.6}s` } as React.CSSProperties}
             onClick={() => onView(n.view)}
           >
-            <span className="home-nav__label"><span>{n.he}</span></span>
+            <span className="home-nav__label"><Letters text={n.he} /></span>
             <span className="home-nav__sub">{n.sub}</span>
           </button>
         ))}

@@ -1,5 +1,6 @@
 import { Words } from './Words'
 import { InfoDisclosure } from './InfoDisclosure'
+import { LetterSwap } from './PanelMotion'
 import { useFocusTrap } from './useFocusTrap'
 import { useOverlay } from './useOverlay'
 
@@ -21,7 +22,9 @@ export function AboutOverlay() {
             top→bottom: head 0s → lede .18s → cols .52/.58/.64s → honesty .78s. */}
         <header className="about__head">
           <div className="about__head-txt">
-            <h2 className="about__title">המודל</h2>
+            {/* same swap primitive as every other panel title — mounts fresh each open (this
+                overlay unmounts on close), so the "swap" plays as a one-shot entrance here. */}
+            <h2 className="about__title"><LetterSwap text="המודל" /></h2>
             <span className="about__sub">תורת היחסות של המזרח התיכון</span>
           </div>
           <p className="about__lede about__lede--words">

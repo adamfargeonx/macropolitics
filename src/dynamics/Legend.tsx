@@ -1,4 +1,6 @@
 import type { View } from './Chrome'
+import { LetterSwap } from './PanelMotion'
+import { Words } from './Words'
 import { useFocusTrap } from './useFocusTrap'
 import { useOverlay } from './useOverlay'
 
@@ -29,7 +31,7 @@ export function Legend({ view }: { view: View }) {
       <aside ref={dialogRef} className="legend" dir="rtl" role="dialog" aria-modal="true" aria-label="מקרא" inert={closing} onClick={(e) => e.stopPropagation()}>
         <button className="panel__close" onClick={close} aria-label="סגירה">✕</button>
         <header className="legend__head">
-          <h2 className="legend__title">מקרא</h2>
+          <h2 className="legend__title"><LetterSwap text="מקרא" /></h2>
           <span className="legend__sub">השפה החזותית של המפה</span>
         </header>
 
@@ -73,7 +75,7 @@ export function Legend({ view }: { view: View }) {
           </div>
         </div>
 
-        {hint && <p className="legend__hint">{hint}</p>}
+        {hint && <p className="legend__hint"><Words key={hint} text={hint} /></p>}
       </aside>
     </div>
   )

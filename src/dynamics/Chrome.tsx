@@ -314,7 +314,9 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
       <header className="dcard__head">
         {detail.rank && <span className="dcard__rank">{String(detail.rank).padStart(2, '0')}</span>}
-        <h1 className="dcard__title" key={detail.id}>{detail.he}</h1>
+        {/* same swap motion as the Forces panel's title — was a dead `key` with no actual
+            animation since titleSwap was retired; this is the real fix, not a leftover. */}
+        <h1 className="dcard__title"><LetterSwap text={detail.he} /></h1>
       </header>
 
       {/* synthesis — moved to the top (was the closing line at the bottom). It's the one-line read
