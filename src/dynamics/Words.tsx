@@ -12,7 +12,13 @@ export function Letters({ text, className }: { text: string; className?: string 
     <span className={`letters${className ? ` ${className}` : ''}`} aria-label={text}>
       {chars.map((ch, i) => (
         <span key={i} className="letters__ch" aria-hidden style={{ '--ci': i } as React.CSSProperties}>
-          {ch}
+          {/* a plain " " inside its own display:inline-block box collapses to zero width (the
+              browser trims whitespace-only inline content) — invisible on the no-space wordmark
+              this was built for, but it ate every space once multi-word text (tagline, nav
+              labels) started using Letters too. A non-breaking space is exempt from that trim,
+              escaped as \u00A0 in the code below rather than typed literally so it doesn't
+              trip the no-irregular-whitespace lint rule. */}
+          {ch === ' ' ? '\u00A0' : ch}
         </span>
       ))}
     </span>

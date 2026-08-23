@@ -5,10 +5,10 @@ import { computeGravities } from '../model/gravity'
 import { useWeights, weightsStore } from '../model/weights-store'
 import { useYear, yearStore } from '../model/year-store'
 import { useScenarioWeights } from './useScenario'
-import { SidePanel, PanelDock } from './Chrome'
+import { SidePanel, PanelDock, ForcesPanelFrame } from './Chrome'
 import { usePresence } from './usePresence'
 import { ForcesTools } from './ForcesTools'
-import { ForcesIndexPanel, RankedList } from './ForcesIndexPanel'
+import { RankedList } from './ForcesIndexPanel'
 import { ForcesSheet } from './ForcesSheet'
 import { ForcesMobileSheet } from './ForcesMobileSheet'
 import { ForcesFilterSheet } from './ForcesFilterSheet'
@@ -130,20 +130,19 @@ export default function ForcesView() {
           )}
 
           <PanelDock>
-            {selected ? (
-              <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
-            ) : (
-              <ForcesIndexPanel
-                composition="field"
-                orderBy={orderBy} setOrderBy={setOrderBy}
-                toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} stateActive={stateActive}
-                filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
-                hovered={hovered} setHovered={setHovered}
-                onHoverId={(id) => setHovered(id)} onSelect={(id) => { setSelected(id); setHovered(null) }}
-                ranked={ranked} indexRows={indexRows}
-                showAllIndex={showAllIndex} setShowAllIndex={setShowAllIndex}
-              />
-            )}
+            <ForcesPanelFrame
+              selected={selected} detail={detail} onClose={() => setSelected(null)}
+              indexProps={{
+                composition: 'field',
+                orderBy, setOrderBy,
+                toolsOpen, setToolsOpen, stateActive,
+                filterBloc, year, scenario, grav,
+                hovered, setHovered,
+                onHoverId: (id) => setHovered(id), onSelect: (id) => { setSelected(id); setHovered(null) },
+                ranked, indexRows,
+                showAllIndex, setShowAllIndex,
+              }}
+            />
           </PanelDock>
         </>
       )}

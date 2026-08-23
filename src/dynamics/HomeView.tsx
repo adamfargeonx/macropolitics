@@ -161,7 +161,10 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
 
       {showThesis && (
         <div className="home-intro" aria-label={`${INTRO_L1}. ${INTRO_L2A} ${INTRO_L2B}`}>
-          <p className="home-intro__l1"><Words text={INTRO_L1} step={0.05} /></p>
+          {/* this line reads as a headline (display font, wide tracking — see .home-intro__l1),
+              so it gets the same letter waterfall as every other title, not the word-by-word
+              rise the two body lines below it use. */}
+          <p className="home-intro__l1"><Letters text={INTRO_L1} /></p>
           <p className="home-intro__l2"><Words text={INTRO_L2A} delay={0.5} step={0.03} /></p>
           <p className="home-intro__l2"><Words text={INTRO_L2B} delay={0.95} step={0.03} /></p>
         </div>

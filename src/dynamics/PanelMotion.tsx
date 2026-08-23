@@ -84,11 +84,15 @@ export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; dec
   // switch after that counts from the previous body's value.
   const [shown, setShown] = useState(0)
   const fromRef = useRef(0)
+  // bumped once per REAL value change — keys the glow overlay below so it remounts (and its
+  // self-contained CSS animation replays) exactly in sync with the tween, never on a no-op render.
+  const [pulse, setPulse] = useState(0)
 
   useEffect(() => {
     if (reduced) return
     const from = fromRef.current
     if (from === value) return
+    setPulse((p) => p + 1)
     let raf = 0
     // hold at the PREVIOUS value through the delay — the number must not jump early, it waits its
     // turn in the sequence and then counts.
@@ -105,7 +109,12 @@ export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; dec
     return () => { window.clearTimeout(timer); cancelAnimationFrame(raf) }
   }, [value, reduced, delay])
 
-  return <>{(reduced ? value : shown).toFixed(decimals)}</>
+  return (
+    <span className="countup">
+      {(reduced ? value : shown).toFixed(decimals)}
+      {!reduced && <i className="value-glow" key={pulse} style={{ animationDelay: `${delay}s` }} aria-hidden />}
+    </span>
+  )
 }
 
 // ── Gauge ─────────────────────────────────────────────────────────────────────
@@ -114,14 +123,20 @@ export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; dec
 export function Gauge({ value, className, delay = 0 }: { value: number; className?: string; delay?: number }) {
   const [reduced] = useState(reducedMotion)
   const [w, setW] = useState(0)
+  const [pulse, setPulse] = useState(0)
   useEffect(() => {
     if (reduced) return
-    const raf = requestAnimationFrame(() => setW(value))
+    const raf = requestAnimationFrame(() => { setW(value); setPulse((p) => p + 1) })
     return () => cancelAnimationFrame(raf)
   }, [value, reduced])
   return (
-    <span className={className ?? 'fparam__track'}>
-      <i style={{ width: `${reduced ? value : w}%`, transitionDelay: `${delay}s` }} />
+    <span className="gauge-wrap">
+      <span className={className ?? 'fparam__track'}>
+        <i style={{ width: `${reduced ? value : w}%`, transitionDelay: `${delay}s` }} />
+      </span>
+      {/* glow lives OUTSIDE the track (which clips to a 4px bar via overflow:hidden) so it can
+          bloom beyond the bar's own thin height instead of being sliced to a sliver. */}
+      {!reduced && <i className="value-glow value-glow--bar" key={pulse} style={{ animationDelay: `${delay}s` }} aria-hidden />}
     </span>
   )
 }

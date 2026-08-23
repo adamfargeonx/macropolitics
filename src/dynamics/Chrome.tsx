@@ -12,6 +12,7 @@ import { Icon, type IconName } from './Icon'
 import { Hint } from './Hint'
 import { LetterSwap, CountUp, Gauge } from './PanelMotion'
 import { BEAT } from './panel-beats'
+import { ForcesIndexPanel, type ForcesIndexPanelProps } from './ForcesIndexPanel'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -565,7 +566,15 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
 // section) — its rendering is delegated to ForcesScore/ForcesNarrative (each renders it in the
 // equivalent slot right after their own general-read paragraph) since only one of the two is ever
 // mounted at a time, but the MODE STATE and toggle logic stay owned here, passed down as props.
-function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
+// Content only — no outer <aside> (see PanelFrame below, and its comment, for why: this used to
+// own its own <aside class="panelb panel--detail">, a SEPARATE element from ForcesIndexPanel's
+// <aside class="panel">, so React fully unmounted/remounted the whole shell every time the ranked
+// list and a selected body's detail swapped — the shell's own mount animation replaying looked
+// like a "quick disappear and reappear" instead of the frame just holding still while its content
+// changed. Close button now lives in PanelFrame, since it's the ONE thing that must be visible
+// while ANY detail content (Forces or Dynamics) is showing, regardless of which detail component
+// is rendering.
+function ForcesPanelContent({ detail, onRelSelect }: DetailProps) {
   const [mode, setMode] = useState<'score' | 'full'>('score')
   // a fresh selection resets to the score view — it's per-body, not sticky.
   const [lastId, setLastId] = useState(detail.id)
@@ -573,12 +582,7 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
   const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
   const toggleMode = () => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }
   return (
-    // stopPropagation: ForcesView's outer .stage has an onClick that deselects the current body
-    // (for clicking empty canvas space to close the panel). Without this guard, EVERY click inside
-    // the panel — the full-description button, the evidence link, relation chips — bubbles up and
-    // immediately deselects too, reverting the whole panel closed.
-    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
-      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+    <>
       <PanelHeader detail={detail} />
       <div className="fbody">
         {mode === 'score'
@@ -595,6 +599,50 @@ function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+// The persistent shell shared by the Forces ranked-list index and a selected body's detail — ONE
+// <aside>, always mounted (ForcesView/ForcesGridView render this instead of switching between two
+// differently-typed components), so toggling between "nothing selected" and "a body is selected"
+// never remounts the panel itself. Only the CONTENT inside swaps, and each half keeps its own
+// entrance choreography (ForcesIndexPanel's INDEX_BEAT, the detail panel's own BEAT) so the panel
+// visibly re-sequences its contents in place instead of flashing out and back in — reported as
+// "quick disappear and reappear" when it was two separate <aside>s doing a hard swap.
+// Forces-specific: DynamicsView/RelationsView's own SidePanel fallback below is a simpler, separate
+// case (its "nothing selected" state is one static paragraph, not a whole second panel's worth of
+// controls + a ranked list) and was never affected by this bug.
+export function ForcesPanelFrame({ selected, detail, onClose, onRelSelect, indexProps }: {
+  selected: string | null
+  detail: EntityDetail | null
+  onClose: () => void
+  onRelSelect?: (id: string) => void
+  indexProps: ForcesIndexPanelProps
+}) {
+  const showDetail = !!(selected && detail)
+  return (
+    <aside className={`panelb panel--detail${indexProps.compact ? ' panel--compact' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+      {showDetail && <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>}
+      {showDetail
+        ? <ForcesPanelContent detail={detail!} onRelSelect={onRelSelect} />
+        : <ForcesIndexPanel {...indexProps} />}
+    </aside>
+  )
+}
+
+// Self-contained wrapper around ForcesPanelContent — for the callers that DON'T go through
+// ForcesPanelFrame's shared shell (the mobile sheet, and SidePanel's use in Dynamics/Relations):
+// those need one complete <aside>, not a frame that persists across a ranked-list ⇄ detail toggle
+// that doesn't exist in those contexts.
+function ForcesPanel({ detail, onClose, onRelSelect }: DetailProps) {
+  return (
+    // stopPropagation: the outer .stage has an onClick that deselects the current body (for
+    // clicking empty canvas space to close the panel). Without this guard, EVERY click inside the
+    // panel bubbles up and immediately deselects too, reverting the whole panel closed.
+    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+      <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>
+      <ForcesPanelContent detail={detail} onRelSelect={onRelSelect} />
     </aside>
   )
 }

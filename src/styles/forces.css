@@ -17,9 +17,14 @@
 }
 .pdock__panel > * { pointer-events: auto; }
 .pdock--closed .pdock__panel { transform: translateX(100%); }
-/* hover the pinned handle → the panel peeks in (handle never moves → stable) */
-.pdock--closed:has(.pdock__handle:hover) .pdock__panel,
-.pdock--closed:has(.pdock__handle:focus-visible) .pdock__panel { transform: translateX(calc(100% - 54px)); }
+/* NO peek-on-hover here (removed — was a real bug, not a design choice). The handle rides the
+   panel's own transform (right:100% INSIDE .pdock__panel, see below) so it can pinch flush against
+   the panel's edge. A "peek" rule used to slide the panel 54px in when the handle was hovered — but
+   since the handle moves WITH the panel, that slide dragged the handle out from under a stationary
+   cursor, un-hovering it, snapping the panel back, re-hovering it, sliding again: a rapid jitter
+   loop, reported as "hard to interact with." The handle's own :hover feedback (width grow, colour)
+   below is affordance enough; it doesn't create a feedback loop because it targets a fixed-size
+   box, not one that moves. */
 /* the grip — the panel's own edge pinched into a pull, not a separate tab. It sits immediately
    outside the panel's inward edge (right:100%) INSIDE .pdock__panel, so it rides the panel's
    transform instead of staying pinned while the panel slides away from it. It borrows the panel's
@@ -166,7 +171,7 @@
 .fbar__v { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--white); width: 18px; letter-spacing: var(--tracking-numeral); }
 
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
-.gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; }
+.gctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-bottom: 18px; animation: textRise 0.7s var(--ease-panel) both; }
 .gctl__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-inline-end: 2px; }
 /* item 10: sort chips + tools trigger float — the resting box is a TRANSPARENT border (no reflow
    when the active state re-colours it), so inactive controls read as bare text; the active .is-on
@@ -186,6 +191,7 @@
 .gctl__ab {
   margin-top: 10px; width: 100%; cursor: none;
   background: none; border: 1px dashed var(--line-yellow); padding: 6px 10px;
+  animation: textRise 0.7s var(--ease-panel) both;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
   color: var(--yellow); opacity: 0.62;
@@ -218,7 +224,7 @@
 
 /* gravity index — the ranked ledger (forces default panel) */
 .gindex { margin-top: 34px; display: flex; flex-direction: column; }
-.gindex__h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); padding-bottom: 8px; }
+.gindex__h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); padding-bottom: 8px; display: block; animation: textRise 0.7s var(--ease-panel) both; }
 /* item 7: name column is minmax(0,1fr) so a long label (e.g. גאו-אסטרטגי) can't widen the column
    and shove the bar/score off-axis; bar + score are FIXED so every row's bar starts/ends alike. */
 .gindex__row {
@@ -231,17 +237,6 @@
    rest of the side panel's stagger step so entrances read as more deliberately paced sitewide —
    kept modest here vs. the detail panel's 0.20s step since this is a dense many-row list, where
    too wide a step would make the tail rows feel slow to arrive rather than "felt"). */
-.gindex__row:nth-child(1)  { animation-delay: 0.00s; }
-.gindex__row:nth-child(2)  { animation-delay: 0.06s; }
-.gindex__row:nth-child(3)  { animation-delay: 0.12s; }
-.gindex__row:nth-child(4)  { animation-delay: 0.18s; }
-.gindex__row:nth-child(5)  { animation-delay: 0.24s; }
-.gindex__row:nth-child(6)  { animation-delay: 0.30s; }
-.gindex__row:nth-child(7)  { animation-delay: 0.36s; }
-.gindex__row:nth-child(8)  { animation-delay: 0.42s; }
-.gindex__row:nth-child(9)  { animation-delay: 0.48s; }
-.gindex__row:nth-child(10) { animation-delay: 0.54s; }
-.gindex__row:nth-child(n+11) { animation-delay: 0.60s; }
 .gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); transform: translateX(-4px); }
 .gindex__rank { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.3; }
 .gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }
@@ -250,7 +245,7 @@
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }
 .gindex__row--ns .gindex__bar i { opacity: 0.38; }
 .gindex__score { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-numeral); color: var(--light); opacity: 0.6; text-align: left; }
-@media (prefers-reduced-motion: reduce) { .gindex__row { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .gindex__row, .gctl, .gctl__ab, .gindex__h { animation: none; } }
 /* index expand/collapse */
 /* item 10: floats — box removed. item 5b: hover is a direct color swap (below). */
 .gindex__more {

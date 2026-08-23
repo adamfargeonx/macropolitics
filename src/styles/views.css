@@ -456,6 +456,18 @@
 }
 .home-intro__l2 + .home-intro__l2 { margin-top: 5px; }
 
+/* this line reads as a HEADLINE (display font, wide tracking, see .home-intro__l1 above) — it
+   gets the same letter waterfall every other title on the site uses, not the word-by-word rise
+   .home-intro__l2 keeps for its actual body prose. Self-contained CSS animation (not gated by a
+   parent class) because this block mounts fresh each time showThesis becomes true. */
+.home-intro__l1 .letters__ch {
+  display: inline-block; will-change: transform, opacity;
+  animation: homeIntroWaterfall 0.46s var(--ease-out-expo) both;
+  animation-delay: calc(var(--ci, 0) * 0.026s);
+}
+@keyframes homeIntroWaterfall { from { transform: translateY(-0.6em); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .home-intro__l1 .letters__ch { animation: none; } }
+
 .home-nav { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: var(--z-content); transition: opacity var(--dur-base) ease; }
 .home--closed .home-nav { opacity: 0; pointer-events: none; }
 .home-nav__item {

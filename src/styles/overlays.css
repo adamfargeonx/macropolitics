@@ -461,6 +461,10 @@
 .fparam__val {
   font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xl);
   color: var(--white); line-height: 1;
+  /* pushed to the row's far (left, in this RTL panel) edge on all three rows — was sitting right
+     next to the label, which read as attached to "כלכלי" specifically rather than a value column
+     shared by eco/mil/geo. */
+  margin-inline-start: auto;
 }
 .fparam__track { height: 4px; background: var(--line-2); overflow: hidden; }
 .fparam__track i {
@@ -692,3 +696,34 @@
 
 /* the back button's line arrow — sized to the label, never larger than its cap height */
 .ffull-btn__arrow { font-size: 12px; flex-shrink: 0; }
+
+/* ════════════════════════════════════════════════════════════════
+   CHANGE GLOW — a brief, soft flash on the fields that just updated
+   (title, numeral, bars), so a country switch reads as a genuine
+   event even at a glance, not just "the number is now different."
+   ════════════════════════════════════════════════════════════════ */
+.countup { position: relative; display: inline-block; }
+.value-glow {
+  position: absolute; inset: -10px -14px; pointer-events: none; z-index: -1;
+  border-radius: 6px; font-style: normal;
+  background: radial-gradient(ellipse at center, rgba(251,255,0,0.4), transparent 72%);
+  animation: valueGlow 0.75s var(--ease-out-expo) both;
+}
+.gauge-wrap { position: relative; display: block; }
+.value-glow--bar { inset: -7px -3px; border-radius: 3px; }
+@keyframes valueGlow {
+  0%   { opacity: 0; transform: scale(0.82); }
+  35%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.22); }
+}
+/* the title's glow rides its own already-remounting "in" layer (see LetterSwap/SwapLayer in
+   PanelMotion.tsx) — no JS pulse counter needed, it replays naturally every swap. */
+.lswap__layer--in::before {
+  content: ''; position: absolute; inset: -8px -16px; z-index: -1; pointer-events: none;
+  border-radius: 6px;
+  background: radial-gradient(ellipse at center, rgba(251,255,0,0.32), transparent 70%);
+  animation: valueGlow 0.8s var(--ease-out-expo) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .value-glow, .lswap__layer--in::before { animation: none; display: none; }
+}

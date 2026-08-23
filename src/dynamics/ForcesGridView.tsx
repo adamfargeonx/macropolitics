@@ -5,9 +5,8 @@ import { computeGravities } from '../model/gravity'
 import { useWeights, weightsStore } from '../model/weights-store'
 import { useYear, yearStore } from '../model/year-store'
 import { useScenarioWeights } from './useScenario'
-import { SidePanel, PanelDock } from './Chrome'
+import { PanelDock, ForcesPanelFrame } from './Chrome'
 import { ForcesSheet } from './ForcesSheet'
-import { ForcesIndexPanel } from './ForcesIndexPanel'
 import {
   DEFAULT_RAW, INDEX_PREVIEW_N,
   metricVal, passesBloc, buildForceDetail,
@@ -68,20 +67,19 @@ export default function ForcesGridView() {
       />
 
       <PanelDock>
-        {selected ? (
-          <SidePanel detail={detail} view="forces" onClose={() => setSelected(null)} />
-        ) : (
-          <ForcesIndexPanel
-            compact composition="grid"
-            orderBy={orderBy} setOrderBy={setOrderBy}
-            toolsOpen={false} setToolsOpen={() => false} stateActive={false}
-            filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
-            hovered={hovered} setHovered={setHovered}
-            onHoverId={(id) => setHovered(id)} onSelect={(id) => { setSelected(id); setHovered(null) }}
-            ranked={ranked} indexRows={indexRows}
-            showAllIndex={showAllIndex} setShowAllIndex={setShowAllIndex}
-          />
-        )}
+        <ForcesPanelFrame
+          selected={selected} detail={detail} onClose={() => setSelected(null)}
+          indexProps={{
+            compact: true, composition: 'grid',
+            orderBy, setOrderBy,
+            toolsOpen: false, setToolsOpen: () => false, stateActive: false,
+            filterBloc, year, scenario, grav,
+            hovered, setHovered,
+            onHoverId: (id) => setHovered(id), onSelect: (id) => { setSelected(id); setHovered(null) },
+            ranked, indexRows,
+            showAllIndex, setShowAllIndex,
+          }}
+        />
       </PanelDock>
     </div>
   )

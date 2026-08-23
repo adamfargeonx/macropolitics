@@ -6,8 +6,9 @@ import {
   metricVal, ORDERS, ORDER_SHORT, ORDER_LABEL, BLOC_LABEL,
   type Order, type Bloc,
 } from './forces-model'
+import { INDEX_BEAT } from './panel-beats'
 
-type ForcesIndexPanelProps = {
+export type ForcesIndexPanelProps = {
   orderBy: Order
   setOrderBy: (o: Order) => void
   toolsOpen: boolean
@@ -69,12 +70,12 @@ export function RankedList(props: RankedListProps) {
   // internally (see the .panel/.panelb height rule), so there is no preview/expand step.
   return (
     <div className="gindex">
-      <span className="gindex__h">מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
+      <span className="gindex__h" style={{ animationDelay: `${INDEX_BEAT.listHeader}s` }}>מדד {ORDER_LABEL[orderBy]}{filterBloc !== 'all' ? ` · ${BLOC_LABEL[filterBloc]}` : ''}{year !== 2025 ? ` · ${year}` : ''}{scenario && orderBy === 'total' ? ' · תרחיש' : ''}</span>
       {ranked.map((e, i) => (
         <button
           key={e.id}
           className={`gindex__row${e.kind === 'nonstate' ? ' gindex__row--ns' : ''}${e.id === hovered ? ' gindex__row--lit' : ''}`}
-          style={{ animationDelay: `${Math.min(0.05 + i * 0.03, 0.9)}s` }}
+          style={{ animationDelay: `${Math.min(INDEX_BEAT.rowsStart + i * INDEX_BEAT.rowStep, INDEX_BEAT.rowsStart + 1.1)}s` }}
           onMouseEnter={() => onHoverId(e.id)}
           onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
           onClick={() => onSelect(e.id)}
@@ -90,6 +91,10 @@ export function RankedList(props: RankedListProps) {
   )
 }
 
+// Content only — no outer <aside>. Mounted inside the shared PanelFrame shell (Chrome.tsx) so it
+// swaps in and out of the SAME persistent panel box a selected body's detail also lives in,
+// instead of owning its own <aside> that would remount the whole shell on every ranked-list ⇄
+// detail toggle (see PanelFrame's own comment for why that mattered).
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   // toolsOpen / setToolsOpen / stateActive are still in the props type (ForcesView owns that
   // state and the ForcesTools sheet it drives) but this panel no longer renders a trigger for
@@ -97,12 +102,12 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   const { orderBy, setOrderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex, compact, composition } = props
 
   return (
-    <aside className={`panel${compact ? ' panel--compact' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
-      {!compact && <h1 className="panel__title" key={orderBy}>{METRIC_TITLE[orderBy]}</h1>}
+    <>
+      {!compact && <h1 className="panel__title" key={orderBy} style={{ animationDelay: `${INDEX_BEAT.title}s` }}>{METRIC_TITLE[orderBy]}</h1>}
       {/* short (1–2 line) metric description — shown in full, no read-more toggle */}
-      {!compact && <p className="panel__body panel__body--metric" key={`desc-${orderBy}`}>{METRIC_DESC[orderBy]}</p>}
+      {!compact && <p className="panel__body panel__body--metric" key={`desc-${orderBy}`} style={{ animationDelay: `${INDEX_BEAT.desc}s` }}>{METRIC_DESC[orderBy]}</p>}
       {/* unified controls — sort the index + open the tools disclosure */}
-      <div className="gctl" role="group" aria-label="מיון וכלים">
+      <div className="gctl" role="group" aria-label="מיון וכלים" style={{ animationDelay: `${INDEX_BEAT.controls}s` }}>
         <span className="gctl__lbl">מיון</span>
         {ORDERS.map((o) => (
           <button
@@ -127,6 +132,7 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
       {composition && (
         <button
           className="gctl__ab"
+          style={{ animationDelay: `${INDEX_BEAT.ab}s` }}
           onClick={() => { sound.play('tab'); window.dispatchEvent(new Event('mp-forces-composition')) }}
         >{composition === 'grid' ? 'תצוגת שדה' : 'תצוגת רשת'}</button>
       )}
@@ -135,6 +141,6 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
         hovered={hovered} setHovered={setHovered} onHoverId={onHoverId} onSelect={onSelect}
         ranked={ranked} indexRows={indexRows} showAllIndex={showAllIndex} setShowAllIndex={setShowAllIndex}
       />
-    </aside>
+    </>
   )
 }
