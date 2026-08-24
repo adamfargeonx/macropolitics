@@ -646,10 +646,28 @@
    verified via captured video, not the ring/canvas motion itself. ── */
 .chrome-exit { transition: opacity 0.4s ease; }
 .chrome-exit--out { opacity: 0; transition: opacity 0.56s ease; pointer-events: none; }
-.panel-root { transition: opacity 0.4s ease; }
-.panel-root--exiting { opacity: 0; transition: opacity 0.56s ease; pointer-events: none; }
+/* Side-panel exit — #panel-root itself (the whole portal container PanelDock renders into, NOT
+   .pdock__panel inside it) carries this transform, so it composes cleanly with .pdock__panel's own
+   open/closed slide (a transform on a different element entirely) instead of fighting it. */
+.panel-root { transition: opacity 0.4s ease, transform 0.4s ease; transform: translateX(0); }
+/* page → home: slide off in the SAME direction the dock's own closed state already parks in
+   (translateX(100%), see .pdock--closed .pdock__panel in forces.css) — reads as "the drawer
+   closing itself" rather than a bespoke fade, and shares that transition's ease. Duration matches
+   the EXIT_MS/per-body-cascade window in App.tsx so it's fully settled before the swap unmounts it. */
+.panel-root--exiting {
+  transform: translateX(100%); opacity: 0;
+  transition: transform 0.56s var(--ease-out-expo), opacity 0.56s ease;
+  pointer-events: none;
+}
+/* page → page: slides off in lockstep with .nav-rail's own out-left/out-right (same duration,
+   same ease, same keyframe shape) so the panel and the canvas read as one coordinated exit. */
+.panel-root--out-right { animation: panelRootOutRight 0.42s var(--ease-in-out-quart) both; }
+@keyframes panelRootOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; pointer-events: none; } }
+.panel-root--out-left { animation: panelRootOutLeft 0.42s var(--ease-in-out-quart) both; }
+@keyframes panelRootOutLeft { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .chrome-exit, .chrome-exit--out, .panel-root, .panel-root--exiting { transition: none; }
+  .chrome-exit, .chrome-exit--out, .panel-root, .panel-root--exiting,
+  .panel-root--out-left, .panel-root--out-right { transition: none; animation: none; }
 }
 
 /* text reveal — a clip-mask rise applied sitewide (the editorial reveal, no dissolve).
@@ -667,7 +685,11 @@
 .pnote:nth-child(3) { animation-delay: 0.16s; }
 .pnote:nth-child(4) { animation-delay: 0.22s; }
 .pnote:nth-child(5) { animation-delay: 0.28s; }
-.legend__row { animation: textRise 0.77s var(--ease-panel) both; }
+/* NOTE: .legend__row's own animation (with its stagger delay) is owned by overlays.css — a
+   duplicate no-delay rule used to live here too and, loading after overlays.css in index.css's
+   documented cascade order, silently zeroed the row's delay via the `animation` shorthand reset.
+   Removed rather than fixed in place, since overlays.css is the sole real definition and this one
+   was dead weight (verified: no other JSX consumer of .legend__row besides Legend.tsx). */
 @keyframes textRise {
   from { clip-path: inset(0 0 105% 0); transform: translateY(0.5em); }
   to { clip-path: inset(0 0 -25% 0); transform: translateY(0); }

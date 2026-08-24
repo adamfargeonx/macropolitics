@@ -62,6 +62,14 @@
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
   white-space: normal; text-align: right; pointer-events: none;
+  /* same entrance language as .hint (base.css) — fade + small rise on the sitewide fast-UI decel.
+     EXIT limitation: this is a plain :hover/:active-triggered ::after, not a JS-mounted element
+     like <Hint>, so there's no way to animate it OUT — the moment :hover stops matching, the
+     generated box and its `content` vanish in the same frame; `transition` doesn't apply to a
+     pseudo-element's appearance/removal tied to a selector match. Entrance-only is the ceiling
+     for a CSS-only fix; converting every [data-hint] call site to <Hint> would fix the exit too
+     but is a larger refactor than this pass calls for. */
+  animation: hintIn 0.16s var(--ease-out-expo) both;
 }
 
 /* ── Evidence overlay — tabbed (sources | calculation); wide, axes side-by-side, low-scroll ── */
@@ -230,13 +238,25 @@
   padding-inline-start: 16px;
   animation: textRise 0.77s 0.30s var(--ease-panel) both;
 }
+/* Stagger widened (0.30 / 0.65 / 1.00 / 1.45) — the prior ~0.16s gaps between row/group/group/hint
+   still read as too tight per this session's feedback; ~0.35s gaps make each stage land as its
+   own readable beat instead of a blur. */
 /* each graphic paired directly beside its own short (2-3 word) label — a "shape" group (state ·
    non-state) and a "colour" group (west · east · neutral), wrapping naturally rather than forcing
    a rigid column count. Same entrance rhythm as .legend__row (which owns the size-ramp row above),
    continuing the cascade into these two groups. */
-.legend__group { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 4px; padding-inline-start: 16px; animation: textRise 0.77s var(--ease-panel) both; }
-.legend__group:nth-of-type(1) { animation-delay: 0.46s; }
-.legend__group:nth-of-type(2) { animation-delay: 0.62s; }
+.legend__group {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 4px; padding-inline-start: 16px;
+  /* base delay covers both "this is the only group" (Relations, no state/non-state row above it)
+     and "this is the first of two groups" (Forces/Dynamics, state/non-state group). */
+  animation: textRise 0.77s 0.65s var(--ease-panel) both;
+}
+/* BUG FIX: :nth-of-type counts <div> siblings by TAG, not by class — .legend__row is also a div
+   and sits before both groups, so `.legend__group:nth-of-type(1/2)` never actually matched either
+   group (verified live: the state/non-state group landed on the delay meant for the colour group,
+   and the colour group got none at all). An adjacent-sibling selector targets the SECOND
+   .legend__group correctly regardless of how many non-group divs (namely .legend__row) precede it. */
+.legend__group + .legend__group { animation-delay: 1.00s; }
 .legend__pair { display: inline-flex; align-items: center; gap: 12px; padding: 8px 0; }
 .legend__swatch--pair { flex: 0 0 40px; height: 40px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
@@ -261,10 +281,11 @@
   margin-top: 18px; padding: 0; font-family: var(--body);
   /* item 8: unified to the primary body size (13px) */
   font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow); opacity: 0.92;
-  animation: textRise 0.77s 0.85s var(--ease-panel) both;
+  animation: textRise 0.77s 1.45s var(--ease-panel) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim, .legend, .about, .evid, .panel, .panelb, .panel--detail { animation: none; }
+  [data-hint]:hover::after, [data-hint]:active::after { animation: none; }
 }
 
 /* index (.panel) + detail (.panelb) share ONE frame — same position, width, padding & surface,

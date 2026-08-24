@@ -59,14 +59,23 @@ export default function App() {
   // the choreographed pre-phase of leaving home: wordmark dissolves letter-by-letter, then nav
   // labels fade — BEFORE the ring itself zooms into the void (see HomeView's `leaving` prop).
   const [homeLeaving, setHomeLeaving] = useState(false)
-  // page → home: the chrome (header/utility nav/tab bar/sound toggle) and the side-panel content
-  // (portaled into #panel-root) sit OUTSIDE .nav-rail, so they never got caught by the per-body
-  // canvas cascade or the nav-rail--mask bloom — they held at full brightness the whole EXIT_MS
-  // window, then hard-cut to nothing the instant `view` flipped to 'home'. That abrupt one-frame
+  // Every navigation that UNMOUNTS the current view's <PanelDock> (page→home, and page→page tab
+  // switches) needs the side panel to visibly leave first, matching whatever the rest of the
+  // screen is doing — it must never just vanish the instant `view` flips underneath it, since
+  // React unmounts it in the same tick `setView` fires with zero warning. `panelExit` is the one
+  // signal that drives that: 'home' when leaving to home (chrome fades with it — see chrome-exit
+  // below), 'left'/'right' when sliding page→page in sync with the rail's own out-left/out-right
+  // direction. It's read by #panel-root's className (panel-root--exiting / panel-root--out-left /
+  // panel-root--out-right in views.css) and cleared the instant the new view actually swaps in, so
+  // the freshly-mounted panel never inherits a stale exit transform.
+  // (page → home specifically: the chrome (header/utility nav/tab bar/sound toggle) and the
+  // side-panel content sit OUTSIDE .nav-rail, so they never got caught by the per-body canvas
+  // cascade or the nav-rail--mask bloom — they held at full brightness the whole EXIT_MS window,
+  // then hard-cut to nothing the instant `view` flipped to 'home'. That abrupt one-frame
   // disappearance (verified via captured video: chrome fully lit one frame, gone the next) was the
-  // "crazy jump" — not the ring/canvas motion itself. Fading them out over the SAME window the
-  // per-body cascade uses closes that gap so nothing hard-cuts at the swap instant.
-  const [homeExiting, setHomeExiting] = useState(false)
+  // "crazy jump" — not the ring/canvas motion itself. Sliding + fading them out over the SAME
+  // window the per-body cascade uses closes that gap so nothing hard-cuts at the swap instant.)
+  const [panelExit, setPanelExit] = useState<'home' | 'left' | 'right' | null>(null)
   // home → page: the destination view the orbit dot is sweeping to (see HomeView's `lockTo`) —
   // set the instant `go()` fires so the dot starts its 900ms rotation right away, before any of
   // the wordmark/ring choreography below begins. Cleared once the page has actually swapped in.
@@ -128,9 +137,9 @@ export default function App() {
       // frozen at this point — each engine's playExit() unfreezes itself so the cascade can run.
       const EXIT_MS = 680
       window.dispatchEvent(new Event('mp-exit'))
-      setHomeExiting(true)
+      setPanelExit('home')
       t.timers.push(window.setTimeout(() => {
-        viewRef.current = v; setView(v); setRail('nav-rail--mask'); setHomeExiting(false)
+        viewRef.current = v; setView(v); setRail('nav-rail--mask'); setPanelExit(null)
         // wait out the full railMask tween (0.66s) before clearing the class, so it isn't pulled
         // mid-motion (which would snap the rail off its transform before it has settled to scale 1)
         t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, 700))
@@ -145,8 +154,12 @@ export default function App() {
     const enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
     const leaveMs = 420, enterMs = 460
     setRail(leaveClass)
+    // the side panel slides off in lockstep with the rail — same direction, same leaveMs window —
+    // so it reads as one coordinated exit instead of the canvas sliding away while the panel just
+    // pops out of existence underneath it.
+    setPanelExit(goingLeft ? 'right' : 'left')
     t.timers.push(window.setTimeout(() => {
-      viewRef.current = v; setView(v); setRail(enterClass)
+      viewRef.current = v; setView(v); setRail(enterClass); setPanelExit(null)
       t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, enterMs))
     }, leaveMs))
   }, [reduceMotion])
@@ -219,16 +232,19 @@ export default function App() {
           descendant of it, so it is never caught in the page-transition zoom/bloom/collapse/mask
           transforms above. Each view's <PanelDock> portals its content into this node (see
           Chrome.tsx) — it animates in/out on its own terms (slide/fade), independent of the
-          page-transition choreography. `homeExiting` fades its portaled content out over the same
-          window as the canvas cascade (see the comment by its declaration above) so it doesn't
-          hard-cut at the swap instant. */}
-      <div id="panel-root" className={`panel-root${homeExiting ? ' panel-root--exiting' : ''}`} />
+          page-transition choreography. `panelExit` slides + fades this whole portal container out
+          over the same window as whatever the rest of the screen is doing (see its declaration
+          above) so it never hard-cuts at the swap instant — for EVERY navigation that unmounts the
+          current view, not just the page→home case. */}
+      <div id="panel-root" className={`panel-root${panelExit === 'home' ? ' panel-root--exiting' : panelExit ? ` panel-root--out-${panelExit}` : ''}`} />
 
-      {/* chrome (header/utility nav/tab bar/sound toggle) — wrapped so `homeExiting` can fade it
+      {/* chrome (header/utility nav/tab bar/sound toggle) — wrapped so leaving home can fade it
           out together with the panel above, instead of it holding full-bright then hard-cutting
-          the instant `view` flips to 'home' (see the comment by `homeExiting`'s declaration). */}
+          the instant `view` flips to 'home' (see the comment by `panelExit`'s declaration). Only
+          the home-exit case touches chrome — it stays static (no transform) through page→page
+          slides, since the header/tabs are persistent chrome across tabs, not part of the canvas. */}
       {view !== 'home' && (
-        <div className={`chrome-exit${homeExiting ? ' chrome-exit--out' : ''}`}>
+        <div className={`chrome-exit${panelExit === 'home' ? ' chrome-exit--out' : ''}`}>
           <Header onHome={() => go('home')} />
           <UtilityNav />
           <TabBar view={navTarget ?? view} onView={go} />
