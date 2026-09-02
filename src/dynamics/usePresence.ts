@@ -25,3 +25,30 @@ export function usePresence(active: boolean, exitMs = 240) {
 
   return { mounted, exiting }
 }
+
+// Same mechanism as usePresence, but for callers that need to keep rendering the LAST truthy
+// value through the exit — not just a mounted/exiting boolean (a hover readout or card whose
+// content itself, not just its presence, must survive past the moment the source goes null).
+// `value` is null/undefined while inactive; passing a non-null value re-arms it. Direct handoff
+// from one non-null value to another (never through null) updates immediately with no exit step —
+// only actually going null triggers the shrink-out window.
+export function usePresenceValue<T>(value: T | null | undefined, exitMs = 240) {
+  const [last, setLast] = useState<T | null>(value ?? null)
+  const [exiting, setExiting] = useState(false)
+  const timer = useRef(0)
+
+  /* eslint-disable react-hooks/set-state-in-effect -- see usePresence above; same pattern. */
+  useEffect(() => {
+    clearTimeout(timer.current)
+    if (value != null) {
+      setLast(value); setExiting(false)
+      return
+    }
+    setExiting(true)
+    timer.current = window.setTimeout(() => { setLast(null); setExiting(false) }, exitMs)
+    return () => clearTimeout(timer.current)
+  }, [value, exitMs])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  return { value: last, exiting }
+}

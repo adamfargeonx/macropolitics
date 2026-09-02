@@ -2,14 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import LoaderView from './dynamics/LoaderView'
 import HomeView from './dynamics/HomeView'
 import DynamicsView from './dynamics/DynamicsView'
-import ForcesView from './dynamics/ForcesView'
 import ForcesGridView from './dynamics/ForcesGridView'
 import RelationsView from './dynamics/RelationsView'
 import { CustomCursor } from './dynamics/CustomCursor'
 import { GlobalField } from './dynamics/GlobalField'
-import { Legend } from './dynamics/Legend'
 import { AboutOverlay } from './dynamics/AboutView'
-import { EvidenceOverlay } from './dynamics/EvidenceOverlay'
 import { Header, UtilityNav, TabBar } from './dynamics/Chrome'
 import type { View } from './dynamics/Chrome'
 import { sound } from './sound'
@@ -33,14 +30,14 @@ function SoundToggle() {
 }
 
 const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relations: '#/relations', dynamics: '#/dynamics' }
-// `#/forces-grid` is a VARIANT of the forces route, not a fourth tab: the alternate grid
-// composition (ForcesGridView) kept alongside the packed field so the two can be compared
-// head-to-head. It deliberately stays out of the `View` union — the tab bar, keyboard shortcuts,
-// home nav and tab order all keep treating it as "הכוחות", and nothing but the composition changes.
-// Drop this constant + FORCES_GRID_HASH's two call sites to retire the experiment.
-const FORCES_GRID_HASH = '#/forces-grid'
+// The forces screen IS the ranked grid composition (ForcesGridView). It and the packed force-field
+// (ForcesView) ran side by side as a two-composition comparison; the grid was chosen, so the field
+// is no longer routed to and the `#/forces-grid` variant hash is retired — `#/forces` resolves
+// straight to the grid. ForcesView.tsx is deliberately left in the tree rather than deleted: the
+// pick is "for now", and it still carries the only mobile sheet/filter chrome — restoring it is a
+// one-line change at the render branch below.
 const hashToView = (h: string): View | null =>
-  h === '#/forces' || h === FORCES_GRID_HASH ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
+  h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
 
 // The orbit dot's dramatic lock-sweep (HomeView's `lockTo`/`LOCK_SWEEP_MS`) rotates all the way to
 // the chosen page title before the page transition proceeds — mirrors HomeView's own constant.
@@ -50,8 +47,6 @@ export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [intro, setIntro] = useState(false)
   const initial = hashToView(window.location.hash) ?? 'home'
-  // which forces composition the '#/forces…' route resolves to — see FORCES_GRID_HASH above
-  const [forcesGrid, setForcesGrid] = useState(() => window.location.hash === FORCES_GRID_HASH)
   const [homeOpen, setHomeOpen] = useState(initial !== 'home')
   const [view, setView] = useState<View>(initial)
   const [rail, setRail] = useState('')
@@ -64,10 +59,12 @@ export default function App() {
   // screen is doing — it must never just vanish the instant `view` flips underneath it, since
   // React unmounts it in the same tick `setView` fires with zero warning. `panelExit` is the one
   // signal that drives that: 'home' when leaving to home (chrome fades with it — see chrome-exit
-  // below), 'left'/'right' when sliding page→page in sync with the rail's own out-left/out-right
-  // direction. It's read by #panel-root's className (panel-root--exiting / panel-root--out-left /
-  // panel-root--out-right in views.css) and cleared the instant the new view actually swaps in, so
-  // the freshly-mounted panel never inherits a stale exit transform.
+  // below), 'right' when leaving page→page — ALWAYS right, independent of which way the canvas
+  // itself is swiping (see the comment at its use site below), since the panel is anchored at the
+  // screen's own right edge and retreating that way is its own short, natural motion. It's read by
+  // #panel-root's className (panel-root--exiting / panel-root--out-right in views.css) and cleared
+  // the instant the new view actually swaps in, so the freshly-mounted panel never inherits a stale
+  // exit transform.
   // (page → home specifically: the chrome (header/utility nav/tab bar/sound toggle) and the
   // side-panel content sit OUTSIDE .nav-rail, so they never got caught by the per-body canvas
   // cascade or the nav-rail--mask bloom — they held at full brightness the whole EXIT_MS window,
@@ -75,7 +72,7 @@ export default function App() {
   // disappearance (verified via captured video: chrome fully lit one frame, gone the next) was the
   // "crazy jump" — not the ring/canvas motion itself. Sliding + fading them out over the SAME
   // window the per-body cascade uses closes that gap so nothing hard-cuts at the swap instant.)
-  const [panelExit, setPanelExit] = useState<'home' | 'left' | 'right' | null>(null)
+  const [panelExit, setPanelExit] = useState<'home' | 'right' | null>(null)
   // home → page: the destination view the orbit dot is sweeping to (see HomeView's `lockTo`) —
   // set the instant `go()` fires so the dot starts its 900ms rotation right away, before any of
   // the wordmark/ring choreography below begins. Cleared once the page has actually swapped in.
@@ -153,46 +150,53 @@ export default function App() {
     const leaveClass = goingLeft ? 'nav-rail--out-right' : 'nav-rail--out-left'
     const enterClass = goingLeft ? 'nav-rail--in-left' : 'nav-rail--in-right'
     const leaveMs = 420, enterMs = 460
-    setRail(leaveClass)
-    // the side panel slides off in lockstep with the rail — same direction, same leaveMs window —
-    // so it reads as one coordinated exit instead of the canvas sliding away while the panel just
-    // pops out of existence underneath it.
-    setPanelExit(goingLeft ? 'right' : 'left')
+    // Was: panel + rail both set in the SAME tick, so they always started moving at the same
+    // instant — even with the panel's own animation being shorter, starting together is what read
+    // as "the whole screen moving as one," not the panel finishing a beat sooner. Genuinely
+    // sequencing it means the rail must not even RECEIVE its leave class until the panel's own
+    // exit has actually finished: delay → panel exits alone (canvas fully static) → THEN the page
+    // swipe begins. PANEL_EXIT_DELAY is the held beat before anything moves; PANEL_EXIT_MS must
+    // match .panel-root--out-left/right's own animation-duration in views.css exactly, or this
+    // timer fires before (rail starts while panel's still visibly sliding) or after (a dead pause
+    // with nothing happening) the panel has actually finished.
+    // The panel ALWAYS exits right, regardless of goingLeft — it lives anchored at the screen's
+    // right edge (.pdock--closed .pdock__panel already parks further right when closed, forces.css)
+    // and retreating that way is its own natural, short motion. Tying it to the canvas's swipe
+    // direction instead sent it left on backward navigation (dynamics → relations/forces), dragging
+    // it the long way across the whole screen — reported live as "pushed hard to the left... opposite".
+    const PANEL_EXIT_DELAY = 80
+    const PANEL_EXIT_MS = 600
     t.timers.push(window.setTimeout(() => {
-      viewRef.current = v; setView(v); setRail(enterClass); setPanelExit(null)
-      t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, enterMs))
-    }, leaveMs))
+      setPanelExit('right')
+      t.timers.push(window.setTimeout(() => {
+        setRail(leaveClass)
+        t.timers.push(window.setTimeout(() => {
+          viewRef.current = v; setView(v); setRail(enterClass); setPanelExit(null)
+          t.timers.push(window.setTimeout(() => { setRail(''); setNavTarget(null); transRef.current = null }, enterMs))
+        }, leaveMs))
+      }, PANEL_EXIT_MS))
+    }, PANEL_EXIT_DELAY))
   }, [reduceMotion])
 
   useEffect(() => {
-    // the grid variant keeps its own hash so the comparison URL survives a reload / can be shared
-    const want = view === 'forces' && forcesGrid ? FORCES_GRID_HASH : VIEW_HASH[view]
+    const want = VIEW_HASH[view]
     if (window.location.hash !== want) history.replaceState(null, '', want || window.location.pathname)
-  }, [view, forcesGrid])
+  }, [view])
 
   useEffect(() => {
     const onHash = () => {
       const v = hashToView(window.location.hash)
       if (!v) return
-      setForcesGrid(window.location.hash === FORCES_GRID_HASH)
       go(v)
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [go])
 
-  // A/B toggle between the two forces compositions (see FORCES_GRID_HASH) — fired from the index
-  // panel's control row on either screen.
-  useEffect(() => {
-    const onSwap = () => setForcesGrid((g) => !g)
-    window.addEventListener('mp-forces-composition', onSwap)
-    return () => window.removeEventListener('mp-forces-composition', onSwap)
-  }, [])
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      const overlayOpen = !!document.querySelector('.legend, .about, .evid')
+      const overlayOpen = !!document.querySelector('.about, .evid')
       if (e.key === '1') go('forces')
       else if (e.key === '2') go('relations')
       else if (e.key === '3') go('dynamics')
@@ -223,7 +227,7 @@ export default function App() {
               onToggle={() => setHomeOpen(o => !o)}
               onView={go}
             />
-          : view === 'forces' ? (forcesGrid ? <ForcesGridView /> : <ForcesView />)
+          : view === 'forces' ? <ForcesGridView />
           : view === 'relations' ? <RelationsView />
           : <DynamicsView />}
       </div>
@@ -252,9 +256,7 @@ export default function App() {
         </div>
       )}
       <CustomCursor />
-      <Legend view={view} />
       <AboutOverlay />
-      <EvidenceOverlay />
       {!loaded && <LoaderView onDone={onLoaderDone} />}
     </>
   )

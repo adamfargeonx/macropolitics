@@ -24,8 +24,31 @@ export const INDEX_BEAT = {
   title: 0,
   desc: 0.30,
   controls: 0.46,
-  ab: 0.54,
   listHeader: 0.62,
   rowsStart: 0.70,
   rowStep: 0.028,
+} as const
+
+// ── The AXIS DRILL-DOWN schedule (ForcesAxisPanel) — the third content state the panel frame can
+// hold, after the ranked list and a body's detail. Reads top-down in the order the eye needs it:
+// where am I (axis + score) → the shape of that score (composition bar) → what makes it up (the
+// criteria groups) → provenance last, because it's the footnote, not the point.
+// rowStep is deliberately half BEAT.rowStep: this list runs 5-7 rows deep, not 3, and the wider
+// spacing that reads as considered on three rows reads as sluggish by the seventh.
+export const AXIS_BEAT = {
+  back: 0,
+  head: 0.14,
+  // analysis (this body's specific read) leads the panel — content, not decoration, so it gets
+  // its own beat ahead of the graph. Used to share this slot with a generic "why this axis
+  // matters" blurb line (removed); analysis took the blurb's own 0.24 slot when that line went,
+  // and bar/groups pulled back by the same 0.10s so the analysis→bar→groups spacing (0.16 between
+  // each) stays exactly what it was tuned to — one beat removed, not the rhythm.
+  analysis: 0.24,
+  bar: 0.40,
+  groups: 0.56,
+  groupStep: 0.16,
+  rowStep: 0.05,
+  // floor only — ForcesAxisPanel derives the real footer delay from the actual last row's beat
+  // (a static number can't be right for every axis: mil has 7 unmodeled rows, eco has 0).
+  foot: 1.02,
 } as const

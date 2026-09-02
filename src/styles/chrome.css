@@ -9,7 +9,9 @@
   transition: color 0.25s ease, opacity 0.25s ease;
   user-select: none;
 }
-.lbl--great    { color: var(--white); font-weight: 700; font-size: var(--text-lg); }
+/* country/entity names are never bold anywhere on the site (house rule) — great-power labels stay
+   distinguished by size and color (white vs. the other tiers' yellow), not weight. */
+.lbl--great    { color: var(--white); font-weight: 400; font-size: var(--text-lg); }
 .lbl--regional { color: var(--yellow); font-weight: 400; font-size: var(--text-lg); }
 .lbl--intermediate { color: var(--yellow); font-weight: 400; font-size: var(--text-sm); }
 .lbl--edge     { color: var(--yellow); font-weight: 400; font-size: var(--text-sm); opacity: 0.9; }
@@ -34,7 +36,29 @@
   will-change: transform, opacity;
   transition: opacity 0.2s ease;
 }
-@media (pointer: coarse) { .cursor, .cursor-dot { display: none; } }
+/* test-only: hides the dot+ring without deleting either — see CURSOR_SHAPE_TEST in
+   CustomCursor.tsx. Flipping that flag back to false stops this class from ever being applied. */
+.cursor--hidden { display: none; }
+/* TEST — solid triangular pointer, swapped in for the dot+ring per the operator's own request.
+   Positioned by the SAME transform loop as the dot/ring (mx,my), just drawn as a shape instead of
+   a circle: a mask (not <img>/background-image) so the fill can stay a plain color, matching the
+   dot's `background: var(--yellow)`-style approach rather than baking a color into the asset.
+   transform-origin matches the JS translate offset (see CustomCursor.tsx) — the tip in
+   cursor-arrow.svg sits at roughly (30%, 4%) of the box, not the center, so both the position
+   offset AND the hover/press scale need to anchor there, or the tip would drift on every scale
+   change even though it's pinned correctly at rest. */
+.cursor-shape {
+  position: fixed; top: 0; left: 0;
+  width: 22px; height: 22px;
+  transform-origin: 30% 4%;
+  background: var(--white);
+  -webkit-mask: url('/cursor-arrow.svg') no-repeat center / contain;
+  mask: url('/cursor-arrow.svg') no-repeat center / contain;
+  pointer-events: none; z-index: 2147483647;
+  will-change: transform, opacity;
+  transition: opacity 0.2s ease, transform 0.15s var(--ease-out-expo);
+}
+@media (pointer: coarse) { .cursor, .cursor-dot, .cursor-shape { display: none; } }
 
 /* Sound toggle (equalizer pulses when on, flat when muted) */
 /* bottom-left on every view (bottom-right is the panel dock's edge; top-right is the logo) —
@@ -142,7 +166,10 @@
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* Hover readout (data revealed on hover) — a tooltip: dark text on the yellow field. */
+/* Hover readout (data revealed on hover) — a tooltip: dark text on the yellow field. Real exit
+   animation, not just entrance — see HoverReadout.tsx's delayed-unmount (`closing`/EXIT_MS): the
+   box keeps rendering at its last known position for one more beat so readoutOut has something to
+   play against, instead of the element vanishing the instant the hover state clears. */
 .readout {
   position: absolute; top: 0; left: 0; z-index: 50;
   pointer-events: none;
@@ -151,10 +178,28 @@
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
-  animation: readoutIn 0.16s ease-out;
+  transform-origin: bottom left;
+  /* was --ease-panel — its extreme decel front-loads ~90% of the scale growth into the first
+     15% of the duration, reading as an instant pop followed by an imperceptible crawl to 100%.
+     ease-in-out-quart starts smooth (no pop), spends the fast middle actually growing, then
+     settles gently — and a shorter duration keeps the growth reading as quick, not slow. */
+  animation: readoutIn 0.32s var(--ease-in-out-quart) both;
 }
-@keyframes readoutIn { from { opacity: 0; transform-origin: bottom left; } to { opacity: 1; } }
-.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-bold); font-size: var(--text-lg); letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
+/* pure resize, no fade, matching .hint (base.css) — opacity dropped from the entrance keyframe
+   entirely; the box exists at full opacity from frame one. Was a uniform scale(0→1) — read as a
+   dot popping/blooming outward from the center, not a "no pop-up" reveal. scaleY alone (height
+   0→1, width already full) anchored at transform-origin's bottom edge reads as the box genuinely
+   OPENING/unfolding out of the hovered node, not growing from nothing in every direction at once.
+   Exit is the entrance in reverse, per direct feedback — same duration/easing, scaleY back to 0
+   instead of a separate fade+shrink-to-0.85. No opacity needed: a box collapsed to scaleY(0) has
+   zero height, so it's already visually gone by the end of the shrink — nothing left to hard-cut
+   on unmount (HoverReadout.tsx's EXIT_MS delays the unmount to outlive this keyframe). */
+.readout--closing { animation: readoutOut 0.32s var(--ease-in-out-quart) both; }
+@keyframes readoutIn { from { transform: scaleY(0); } }
+@keyframes readoutOut { to { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .readout, .readout--closing { animation: none; } }
+/* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
+.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-regular); font-size: var(--text-lg); letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
 .readout__g { font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--tooltip-fg); opacity: 0.75; }
 .readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
@@ -347,7 +392,7 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   body:has(.legend__scrim) .hdr, body:has(.ffilter-scrim) .hdr,
   body:has(.legend__scrim) .unav, body:has(.ffilter-scrim) .unav,
   body:has(.legend__scrim) .soundtoggle, body:has(.ffilter-scrim) .soundtoggle,
-  body:has(.legend__scrim) .tabs, body:has(.ffilter-scrim) .tabs,
+  body:has(.legend__scrim) .tline, body:has(.ffilter-scrim) .tline,
   body:has(.ffilter-scrim) .fmsheet { display: none; }
   /* the Forces sheet at its "full" snap reaches near the very top of the screen — hide the
      top-chrome icons it would otherwise sit behind (z-index-wise) rather than let them float

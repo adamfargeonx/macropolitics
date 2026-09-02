@@ -74,8 +74,28 @@ function SwapLayer({ text, step, variant }: { text: string; step: number; varian
 }
 
 // ── CountUp ───────────────────────────────────────────────────────────────────
-const COUNT_MS = 620
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+// Tail-crawl on the last decimal(s), per the operator's own request. A single power curve
+// (tried easeOutExpo, then easeOutQuad) can't be pushed further: with only 1 decimal displayed,
+// how much of the total duration the visible tail gets is an EMERGENT side effect of the curve's
+// overall shape, and every power curve trades one problem for another — steeper decel arrives at
+// "close enough to round" sooner (shorter visible tail), gentler decel arrives later but compresses
+// the final ticks into a too-abrupt last instant. No single exponent gives both a late arrival AND
+// wide gaps between the last few displayed values.
+// Fix: stop relying on curve shape alone — explicitly RESERVE a fixed share of the total time for
+// the tail, independent of target value. The first PHASE1_TIME of the duration races through
+// PHASE1_VALUE of the distance (quick, so the count doesn't feel sluggish overall); everything
+// after that — half the total duration — is dedicated to just the final fifth of the value, eased
+// the same way but over a much larger time budget, so each of the last few displayed ticks holds
+// for ~100-200ms instead of the ~60-90ms a plain quad curve gave it. Duration lengthened again
+// (1400ms → 1800ms) so that reserved tail window has enough absolute time to read as deliberate.
+const COUNT_MS = 1800
+const PHASE1_TIME = 0.5
+const PHASE1_VALUE = 0.8
+const easeOutQuad = (u: number) => 1 - (1 - u) * (1 - u)
+const easeSettle = (t: number) => {
+  if (t < PHASE1_TIME) return PHASE1_VALUE * easeOutQuad(t / PHASE1_TIME)
+  return PHASE1_VALUE + (1 - PHASE1_VALUE) * easeOutQuad((t - PHASE1_TIME) / (1 - PHASE1_TIME))
+}
 
 export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; decimals?: number; delay?: number }) {
   // reduced-motion is read ONCE into state rather than branched on inside the effect: setting state
@@ -97,7 +117,7 @@ export function CountUp({ value, decimals = 1, delay = 0 }: { value: number; dec
       const t0 = performance.now()
       const tick = (now: number) => {
         const k = Math.min(1, (now - t0) / COUNT_MS)
-        setShown(from + (value - from) * easeOutCubic(k))
+        setShown(from + (value - from) * easeSettle(k))
         if (k < 1) raf = requestAnimationFrame(tick)
         else fromRef.current = value
       }

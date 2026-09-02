@@ -7,7 +7,7 @@ import { useLetterProximity } from './useLetterProximity'
 // Nav anchored around the orbit ring: dynamics top, forces bottom-left, relations bottom-right.
 // `sub` is the brief explainer revealed on hover (and when the orbit dot sweeps near — see below).
 const NAV: { view: View; he: string; sub: string; pos: string }[] = [
-  { view: 'dynamics', he: 'יחסי הכוחות', sub: 'התמונה המלאה', pos: 'top' },
+  { view: 'dynamics', he: 'יחסי הכוחות', sub: 'דינמיקת הכוחות והיחסים', pos: 'top' },
   { view: 'forces', he: 'הכוחות', sub: 'כוח המשיכה של המדינות', pos: 'bl' },
   { view: 'relations', he: 'היחסים', sub: 'מערכות היחסים ביניהן', pos: 'br' },
 ]
@@ -181,7 +181,6 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
           that one stays the title's unique moment. */}
       <p className="home-tagline"><Letters text="תורת היחסות של המזרח התיכון" /></p>
       <h1 className="home-title" ref={titleRef}><Letters text="מאקרופוליטיקה" /></h1>
-      <p className="home-eq" aria-hidden><span>יחסי הכוחות = הכוחות + היחסים</span></p>
 
       <nav className="home-nav" aria-label="כניסה">
         {NAV.map((n, i) => (

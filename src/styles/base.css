@@ -82,9 +82,11 @@
   --warn-border: rgba(255, 157, 110, 0.5);
   --warn-bg:     rgba(255, 157, 110, 0.06);
   --ok-bg:       rgba(143, 227, 136, 0.08);
-  /* relationship-pole red (friction) — a distinct semantic from the data-status pair above
-     (tension/friction/harmony is a relationship-dynamics reading, not a data-quality flag), so it
-     gets its own token rather than reusing --warn's orange. */
+  /* relationship-pole red — the direct-confrontation pole (RelationsView.tsx's `tension` FIELD,
+     Chrome.tsx's `t`; Hebrew label חיכוך — note the TS identifier and the Hebrew word are NOT
+     translations of each other, see the label-swap comments at each consumer). Distinct semantic
+     from the data-status pair above (a relationship-dynamics reading, not a data-quality flag), so
+     it gets its own token rather than reusing --warn's orange. */
   --danger: #ff5c5c;
   --danger-bg: rgba(255, 92, 92, 0.08);
   /* allegiance rims (bloc temperature) — used as rgb() triplets */
@@ -237,9 +239,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
    introduced, don't leave them uncapped. */
 .about__lede, .about__col p,
 .fscore__gen, .fparam__desc-text, .fbacking__text,
-.fnarr__gen, .fnarr__axis-t,
+.axp__analysis,
 .panel__body, .panel__why, .dcard__lede,
-.evid__weights, .info-disclosure__text {
+.info-disclosure__text {
   max-width: 32ch;
 }
 
@@ -294,10 +296,39 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   line-height: var(--leading-loose); letter-spacing: var(--tracking-loose);
   text-align: right; pointer-events: none;
-  animation: hintIn 0.16s var(--ease-out-expo) both;
+  /* anchors at anchor(top) (the box's OWN bottom edge sits against the hovered element) — opening
+     from that fixed edge upward reads as unfurling out of the trigger, not growing from a point. */
+  transform-origin: bottom center;
+  /* real expand IN *and* OUT. Tried the standards-track popover recipe first (transition +
+     @starting-style + transition-behavior:allow-discrete) — verified live it does NOT animate in
+     this environment: isolated from every other moving part, the transition still snapped straight
+     to its end state (or with @starting-style added, stuck permanently at the START state and
+     never reached :popover-open at all). Rather than ship an untested-in-the-wild technique on
+     the strength of "should work per spec," fell back to the mechanism this file already had
+     proof-of-life for: a plain `animation`, which reliably restarts whenever a popover leaves
+     display:none (verified: this is what the ORIGINAL entrance-only version already relied on).
+     `translate` (horizontal centering, set above) and `transform` (this scale) are separate CSS
+     properties, so the two compose without fighting each other. Exit is handled in Hint.tsx —
+     hidePopover() is delayed until the .hint--closing keyframe below has had time to play. */
+  /* was --ease-panel — its extreme decel front-loads ~90% of the scale growth into the first
+     15% of the duration, reading as an instant pop followed by an imperceptible crawl to 100%.
+     ease-in-out-quart starts smooth (no pop), spends the fast middle actually growing, then
+     settles gently — and a shorter duration keeps the growth reading as quick, not slow. */
+  animation: hintIn 0.32s var(--ease-in-out-quart) both;
 }
-@keyframes hintIn { from { opacity: 0; transform: translateY(3px); } }
-@media (prefers-reduced-motion: reduce) { .hint { animation: none; } }
+/* pure resize, no fade — opacity dropped from the keyframes entirely per direct feedback ("no fade
+   in, only resizing"). The box exists at full opacity from frame one. Was a uniform scale(0→1) —
+   read as a dot popping/blooming outward from the center, not the requested "no pop-up" reveal.
+   scaleY alone (height 0→1, width already full) anchored at transform-origin's bottom edge reads
+   as the box OPENING/unfolding out of the hovered node, not growing from nothing all at once. */
+/* exit is the entrance in reverse, per direct feedback — same duration/easing, scaleY back to 0
+   instead of a separate fade+shrink-to-0.85. No opacity needed: a box collapsed to scaleY(0) has
+   zero height, so it's already visually gone by the end of the shrink — nothing left to hard-cut
+   on unmount (Hint.tsx delays hidePopover() to outlive this keyframe, same as before). */
+.hint--closing { animation: hintOut 0.32s var(--ease-in-out-quart) both; }
+@keyframes hintIn { from { transform: scaleY(0); } }
+@keyframes hintOut { to { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .hint, .hint--closing { animation: none; } }
 
 /* 2 · Affordance — a coach line that retires once its gesture is performed (see Affordance.tsx).
    ONE anchored slot, bottom-centre above the tab bar, identical in every view — that fixed
@@ -348,16 +379,6 @@ body {
 /* interactive canvases own their gestures (drag-pan, pinch-zoom, scroll-narrative) — keep the
    browser from hijacking two-finger/drag as page zoom/scroll. Panels (separate elements) still scroll. */
 .field { position: absolute; inset: 0; display: block; touch-action: none; }
-
-/* soft scrim: revolving nodes fade out behind the side panel (depth) — data views only.
-   Fades away when the dock is collapsed (no panel to back). No column-divider line. */
-.stage:not(.home)::before {
-  content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 460px;
-  background: linear-gradient(to left, var(--bg) 22%, rgba(6, 3, 15, 0.66) 50%, transparent);
-  z-index: var(--z-scrim); pointer-events: none; transition: opacity 0.5s ease;
-}
-.stage:has(.pdock--closed)::before { opacity: 0; }
-@media (max-width: 900px) { .stage::before { display: none; } }
 
 /* ── 768px responsive: field goes full-width, scrim removed ──── */
 @media (max-width: 768px) {
