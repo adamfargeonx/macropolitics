@@ -1,7 +1,13 @@
 // Forces drill-down descriptions — deeper per-body interpretation surfaced from the detail panel.
-// ~100 Hebrew words (general) + ~50 each axis (eco/mil/geo). Complementary to POWER_NOTES (≤20w
-// summaries) and the EvidenceOverlay (primary sources + calculation). This is the INTERPRETATION layer.
-// NOTE: real-world geopolitical assertions, model-voiced and current to 2025–2026 — author review advised.
+// ~70-85 Hebrew words (general) + ~25-45 each axis (eco/mil/geo) — measured across all 29 entries
+// (2026-08-31 content audit); the original "~100 / ~50" targets never matched what was actually
+// written, so the number was corrected to the copy rather than the other way around. Complementary
+// to POWER_NOTES (≤20w summaries) and the EvidenceOverlay (primary sources + calculation). This is
+// the INTERPRETATION layer.
+// NOTE: real-world geopolitical assertions, model-voiced — content audit (2026-08-31) found the
+// Iran/Israel/Syria/Lebanon-Hezbollah/Russia entries specifically reading as pre-dating major 2026
+// events; verify against current sources before treating any of the five as current. See the
+// published content-integrity audit for detail. Author review still advised generally.
 // Data module only: depends on nothing; imported by the forces detail panel (graceful no-render if absent).
 
 export interface ForcesDescription {

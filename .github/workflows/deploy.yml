@@ -1,5 +1,12 @@
 name: deploy
 
+# Every push to main — whether a human edit or the refresh-data bot's commit — is gated on
+# scripts/check-content-contracts.ts before it builds or deploys: every non-'sourced' provenance
+# note and every weak-both-axes flags array (see the file's own contract in src/data/empirical.ts)
+# must be present. Born from a content-QA audit + adversarial review that rejected a calendar-based
+# staleness gate as self-defeating but kept this kind — a pure structural fact about the data, not
+# a judgment call, so it can't be satisfied by editing a date.
+
 on:
   push:
     branches: [main]
@@ -26,6 +33,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Gate — content contracts (empirical.ts provenance notes + flags)
+        run: node --experimental-strip-types scripts/check-content-contracts.ts
 
       - run: npm run build
         env:

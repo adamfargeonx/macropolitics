@@ -51,19 +51,26 @@ const SIPRI = 'https://www.sipri.org/databases/milex'
 const IMF = 'https://www.imf.org/external/datamapper/PPPGDP@WEO/OEMDC'
 const EIA = 'https://www.eia.gov/international/analysis/special-topics/world_oil_transit_Chokepoints'
 const CIA = 'https://www.cia.gov/the-world-factbook/'
+const IISS = 'https://www.iiss.org/publications/the-military-balance/'
 
 // provenance constructors (DRY) ──────────────────────────────────────────────
+// `source` names the dataset only — the year is `year`'s job alone. Baking the year into both
+// (e.g. 'IMF WEO 2026') rendered as "IMF WEO 2026 · 2026" wherever a caller shows "{source} · {year}".
 const eco = (figure: string, status: SourceStatus = 'sourced', note?: string): AxisProvenance =>
-  ({ figure, source: 'IMF WEO 2026', year: 2026, url: IMF, status, note })
+  ({ figure, source: 'IMF WEO', year: 2026, url: IMF, status, note })
 // mil: a SIPRI 2025 label only sits on a genuinely SIPRI-sourced figure. Where the figure is an
-// 'estimate' (no clean SIPRI line — e.g. Egypt, UAE, Qatar) or 'no-data' (SIPRI explicitly excludes
-// — e.g. Syria, UAE), the source is the real origin, so the label never overstates the provenance.
+// 'estimate' (no clean SIPRI line — e.g. Egypt, Qatar), the source AND the link both point to
+// IISS, the real origin — a reader following "IISS" to SIPRI's database (the old bug: url was
+// hardcoded to SIPRI regardless of status) landed on the wrong site entirely. Where SIPRI
+// EXPLICITLY excludes the body ('no-data' — Syria, UAE), the source says so directly rather than
+// implying an IISS estimate exists where none was made; the link stays on SIPRI since that's
+// exactly where a reader can verify the exclusion for themselves.
 const mil = (figure: string, status: SourceStatus = 'sourced', note?: string): AxisProvenance =>
   ({
     figure,
-    source: status === 'sourced' ? 'SIPRI 2025' : 'IISS / אומדן ממקורות פתוחים',
+    source: status === 'sourced' ? 'SIPRI' : status === 'no-data' ? 'SIPRI (לא מדווח)' : 'IISS / אומדן ממקורות פתוחים',
     year: 2025,
-    url: SIPRI,
+    url: status === 'estimate' ? IISS : SIPRI,
     status,
     note,
   })
@@ -190,7 +197,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 6, mil: 2, geo: 4 }, stability: 1,
     prov: {
       eco: eco('תמ״ג PPP $0.38 טריליון · התוצר לנפש מהגבוהים בעולם (גז נוזלי)'),
-      mil: mil('צבא זעיר (~$4–6 מיליארד) — אך מארח את בסיס אל-עודייד האמריקני', 'estimate'),
+      mil: mil('צבא זעיר (~$4–6 מיליארד) — אך מארח את בסיס אל-עודייד האמריקני', 'estimate', 'אומדן ממקורות פתוחים; קטאר אינה מדווחת נתון הוצאה צבאית מלא ל-SIPRI'),
       geo: geo('יצוא גז מוביל, דיפלומטיית תיווך, אל-ג׳זירה'),
     },
   },
@@ -199,7 +206,7 @@ const RAW_DATA: Record<string, BodyData> = {
     patron: 'iran', alpha: 0.15,
     prov: {
       eco: eco('תמ״ג PPP $0.70 טריליון · כלכלת נפט כמעט בלעדית'),
-      mil: mil('הוצאה צבאית ~$6 מיליארד · צבא משוקם לצד מיליציות', 'estimate'),
+      mil: mil('הוצאה צבאית ~$6 מיליארד · צבא משוקם לצד מיליציות', 'estimate', 'אומדן ממקורות פתוחים; דיווח התקציב העיראקי לוקה בשקיפות חלקית בלבד'),
       geo: geo('גשר יבשתי בין איראן לסוריה/לבנון — חוליה ב"ציר"'),
     },
     stabilityNote: 'ריבונות חלקית — מיליציות שיעיות מקבילות לצבא הרשמי',
@@ -208,7 +215,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 4, mil: 2, geo: 3 }, stability: 1,
     prov: {
       eco: eco('תמ״ג PPP $0.28 טריליון · עתודות נפט, תוצר לנפש גבוה'),
-      mil: mil('צבא קטן (~$8 מיליארד) · נשען על הגנה אמריקנית', 'estimate'),
+      mil: mil('צבא קטן (~$8 מיליארד) · נשען על הגנה אמריקנית', 'estimate', 'אומדן ממקורות פתוחים; אין שורה נקייה ב-SIPRI לכווית'),
       geo: geo('יושבת בין עיראק, איראן וסעודיה'),
     },
   },
@@ -216,7 +223,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 3, mil: 2, geo: 3 }, stability: 1,
     prov: {
       eco: eco('תמ״ג PPP $0.23 טריליון · נפט/גז בינוני'),
-      mil: mil('צבא צנוע (~$6 מיליארד, נטל גבוה) · אי-הזדהות', 'estimate'),
+      mil: mil('צבא צנוע (~$6 מיליארד, נטל גבוה) · אי-הזדהות', 'estimate', 'אומדן ממקורות פתוחים; דיווח מוגבל של עומאן ל-SIPRI'),
       geo: geo('שולטת בצד הדרומי של מצרי הורמוז', undefined, true),
     },
   },
@@ -224,7 +231,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 2, mil: 3, geo: 3 }, stability: 1,
     prov: {
       eco: eco('תמ״ג PPP $0.15 טריליון · קטן, תלוי סיוע, משאבים דלים'),
-      mil: mil('צבא מקצועי קטן (~$3 מיליארד) ממומן אמריקנית', 'estimate'),
+      mil: mil('צבא מקצועי קטן (~$3 מיליארד) ממומן אמריקנית', 'estimate', 'אומדן ממקורות פתוחים; חלק מהמימון האמריקני אינו נכלל בתקציב הרשמי המדווח'),
       geo: geo('חיץ אסטרטגי בין ישראל, עיראק וסעודיה'),
     },
   },
@@ -232,7 +239,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 3, mil: 1, geo: 3 }, stability: 1,
     prov: {
       eco: eco('תמ״ג PPP $0.11 טריליון · מרכז פיננסי קטן, תלוי סעודיה'),
-      mil: mil('צבא זעיר (~$1.5 מיליארד) · מארח את הצי החמישי האמריקני', 'estimate'),
+      mil: mil('צבא זעיר (~$1.5 מיליארד) · מארח את הצי החמישי האמריקני', 'estimate', 'אומדן ממקורות פתוחים; בחריין אינה מפרסמת נתון הוצאה צבאית מפורט ל-SIPRI'),
       geo: geo('קו חזית סוני מול השפעה איראנית; בסיס הצי החמישי'),
     },
   },
@@ -250,7 +257,7 @@ const RAW_DATA: Record<string, BodyData> = {
     axes: { eco: 2, mil: 2, geo: 3 }, stability: 0.5,
     prov: {
       eco: eco('קריסה פיננסית; תמ״ג PPP ~$0.07 טריליון, מטבע שהתרסק', 'sourced', 'כלכלה בקריסה — הנתון משקף תמונה רעועה'),
-      mil: mil('צבא חלש (~$1.5 מיליארד) לצד חיזבאללה החמוש — "מדינה בתוך מדינה"', 'estimate'),
+      mil: mil('צבא חלש (~$1.5 מיליארד) לצד חיזבאללה החמוש — "מדינה בתוך מדינה"', 'estimate', 'אומדן ממקורות פתוחים; התקציב הרשמי אינו כולל את מסגרת הנשק של חיזבאללה'),
       geo: geo('זירת עימות ישראל–איראן; חזית דרומית פעילה'),
     },
     stabilityNote: 'חיזבאללה חזק מהצבא הרשמי; המדינה משותקת',
@@ -262,16 +269,17 @@ const RAW_DATA: Record<string, BodyData> = {
   hezbollah: {
     axes: { eco: 1, mil: 1, geo: 2 }, stability: 1, patron: 'iran', alpha: 0.15,
     prov: {
-      eco: eco('מימון איראני והברחות; ללא בסיס כלכלי ריבוני', 'estimate'),
+      eco: eco('מימון איראני והברחות; ללא בסיס כלכלי ריבוני', 'estimate', 'אין נתון ריבוני למדוד; אומדן מבוסס דיווחי מודיעין ותקשורת פתוחה על ערוצי מימון'),
       mil: mil('הוכה קשות במלחמת 2024 (חיסול ההנהגה, דלדול הארסנל); הנשק המתקדם איראני (נספר כגיבוי)', 'estimate', 'נחלש מאוד מאז 2024 — שיעור הגיבוי הופחת במודל (α 0.25→0.15)'),
       geo: geo('עדיין אוחז בלבנון ומאיים על ישראל, אך כוחו היחסי ירד'),
     },
+    flags: ['ארגון לא-מדינתי ללא נתונים ריבוניים — שני הצירים אומדן מדיווחי מודיעין ותקשורת פתוחה, לא ממקור סטטיסטי ראשוני'],
   },
   yemen: {
     axes: { eco: 1, mil: 2, geo: 4.5 }, stability: 0.6, patron: 'iran', alpha: 0.08,
     prov: {
       eco: eco('המדינה הענייה באזור; משבר הומניטרי', 'no-data', 'SIPRI מחריג את תימן; מדינה קרועת מלחמה'),
-      mil: mil('החות׳ים: טילים וכטב״מ (חלקם איראניים) — נתוני מדינה אין', 'estimate'),
+      mil: mil('החות׳ים: טילים וכטב״מ (חלקם איראניים) — נתוני מדינה אין', 'estimate', 'אין ישות מדינתית מדווחת; אומדן מבוסס יכולות נצפות (שיגורים, כטב״מים), לא תקציב רשמי'),
       geo: geo('שליטה בפועל במצרי באב אל-מנדב: שיבוש מוכח 2023–2025 — מאות ספינות הוסטו, עלויות ביטוח ועיכובים גלובליים; מינוף קיים גם תחת לחץ צבאי', 'ציון עלה 3→4.5; alpha הופחת 0.12→0.08 — פטרון (איראן) נחלש, חות׳ים מפעילים מינוף גיאו-אסטרטגי עצמאי', true),
     },
     flags: ['אין נתוני SIPRI לתימן; הציונים מתייחסים לחות׳ים כשחקן, באומדן'],
@@ -279,58 +287,65 @@ const RAW_DATA: Record<string, BodyData> = {
   hamas: {
     axes: { eco: 1, mil: 1, geo: 2 }, stability: 1, patron: 'iran', alpha: 0.1,
     prov: {
-      eco: eco('מימון קטארי ואיראני, מסים ומנהור; כלכלת מצור', 'estimate'),
-      mil: mil('רקטות, מנהרות ולוחמת גרילה — נחלש מאז המלחמה', 'estimate'),
+      eco: eco('מימון קטארי ואיראני, מסים ומנהור; כלכלת מצור', 'estimate', 'אין נתון ריבוני מדווח; אומדן מבוסס דיווחים על ערוצי מימון והברחה'),
+      mil: mil('רקטות, מנהרות ולוחמת גרילה — נחלש מאז המלחמה', 'estimate', 'אין תקציב רשמי; אומדן מבוסס יכולות נצפות ודיווחי מודיעין אחרי 2023–2025'),
       geo: geo('הציב את עזה במרכז הסכסוך'),
     },
+    flags: ['ארגון לא-מדינתי ללא נתונים ריבוניים — שני הצירים אומדן מדיווחי מודיעין ותקשורת פתוחה, לא ממקור סטטיסטי ראשוני'],
   },
   militias: {
     axes: { eco: 1, mil: 1, geo: 1 }, stability: 1, patron: 'iran', alpha: 0.1,
     prov: {
-      eco: eco('אחיזה בנמלים, מכס ותקציבי המדינה העיראקית', 'estimate'),
-      mil: mil('כטב״מ ורקטות נגד בסיסים אמריקניים; כפיפות לטהראן', 'estimate'),
+      eco: eco('אחיזה בנמלים, מכס ותקציבי המדינה העיראקית', 'estimate', 'אין נתון ריבוני נפרד מעיראק; אומדן מבוסס דיווחים על אחיזה בנמלים ובתקציבי המדינה'),
+      mil: mil('כטב״מ ורקטות נגד בסיסים אמריקניים; כפיפות לטהראן', 'estimate', 'אין תקציב רשמי; אומדן מבוסס שיגורים ותקיפות מתועדות נגד בסיסים אמריקניים'),
       geo: geo('מקבעות את עיראק כמסדרון איראני'),
     },
+    flags: ['רשת מיליציות, לא מדינה — שני הצירים אומדן מדיווחים פתוחים, לא ממקור סטטיסטי ריבוני'],
   },
   sdf: {
     axes: { eco: 1, mil: 2, geo: 2 }, stability: 0.7, patron: 'usa', alpha: 0.05,
     prov: {
-      eco: eco('שולטים בשדות נפט סוריים; כלכלה מקומית שברירית', 'estimate'),
-      mil: mil('הכוח הקרקעי שהביס את דאעש; תלוי בסיוע אמריקני', 'estimate'),
+      eco: eco('שולטים בשדות נפט סוריים; כלכלה מקומית שברירית', 'estimate', 'אין נתון ריבוני; אומדן מבוסס דיווחים על הכנסות משדות נפט בצפון-מזרח סוריה'),
+      mil: mil('הכוח הקרקעי שהביס את דאעש; תלוי בסיוע אמריקני', 'estimate', 'אין תקציב רשמי; אומדן מבוסס גודל כוח משוער וסיוע צבאי אמריקני מדווח'),
       geo: geo('מחזיקים את המרחב בין טורקיה, אסד ואיראן'),
     },
+    flags: ['כוח מיליציוני ללא ריבונות מוכרת — שני הצירים אומדן, לא נתון ממקור ראשוני'],
   },
   fatah: {
     axes: { eco: 1, mil: 1, geo: 2 }, stability: 0.8, patron: 'saudi', alpha: 0.05,
     prov: {
-      eco: eco('תלויה במסי ישראל ובסיוע זר; כלכלה ללא ריבונות', 'estimate'),
-      mil: mil('כוחות ביטחון מתואמים עם ישראל; ללא צבא של ממש', 'estimate'),
+      eco: eco('תלויה במסי ישראל ובסיוע זר; כלכלה ללא ריבונות', 'estimate', 'אין תקציב ריבוני עצמאי; אומדן מבוסס דיווחי סיוע זר והעברות מס ישראליות'),
+      mil: mil('כוחות ביטחון מתואמים עם ישראל; ללא צבא של ממש', 'estimate', 'אין נתון SIPRI; אומדן מבוסס גודל כוחות הביטחון המדווח בתיאום עם ישראל'),
       geo: geo('הכתובת הרשמית לסוגיה הפלסטינית — והחוליה החלשה בה'),
     },
+    flags: ['רשות ללא ריבונות מלאה — שני הצירים אומדן, לא נתון ממקור סטטיסטי ראשוני'],
   },
   isis: {
     axes: { eco: 1, mil: 2, geo: 2 }, stability: 1,
     prov: {
-      eco: eco('שרידי מימון מסחיטה והברחות; אבד הבסיס הטריטוריאלי', 'estimate'),
-      mil: mil('תאי גרילה בסוריה ובעיראק; פיגועים בהשראתו', 'estimate'),
+      eco: eco('שרידי מימון מסחיטה והברחות; אבד הבסיס הטריטוריאלי', 'estimate', 'אין בסיס טריטוריאלי או תקציב ריבוני; אומדן מבוסס דיווחי מודיעין על מימון שרידי'),
+      mil: mil('תאי גרילה בסוריה ובעיראק; פיגועים בהשראתו', 'estimate', 'אין תקציב מדווח; אומדן מבוסס תדירות פיגועים ותאים פעילים מדווחים'),
       geo: geo('איום מתמשך המצדיק נוכחות צבאית זרה'),
     },
+    flags: ['רשת טרור מבוזרת ללא ריבונות — שני הצירים אומדן גס מדיווחי מודיעין, לא נתון ממקור ראשוני'],
   },
   qaeda: {
     axes: { eco: 1, mil: 1, geo: 2 }, stability: 1,
     prov: {
-      eco: eco('מימון מבוזר דרך תרומות, כופר וכלכלות צל', 'estimate'),
-      mil: mil('שלוחות פעילות בתימן, סוריה ואפריקה; יכולת גלובלית', 'estimate'),
+      eco: eco('מימון מבוזר דרך תרומות, כופר וכלכלות צל', 'estimate', 'אין בסיס טריטוריאלי; אומדן מבוסס דיווחים על תרומות וכלכלות צל'),
+      mil: mil('שלוחות פעילות בתימן, סוריה ואפריקה; יכולת גלובלית', 'estimate', 'אין תקציב מדווח; אומדן מבוסס פעילות שלוחות מתועדת באזורים שונים'),
       geo: geo('הציתה את עידן "המלחמה בטרור"'),
     },
+    flags: ['רשת שלוחות מבוזרת ללא ריבונות — שני הצירים אומדן גס, לא נתון ממקור ראשוני'],
   },
   pij: {
     axes: { eco: 0, mil: 1, geo: 1 }, stability: 1, patron: 'iran', alpha: 0.16,
     prov: {
-      eco: eco('תלות מלאה במימון איראני; ללא בסיס כלכלי', 'estimate'),
-      mil: mil('רקטות וגרילה בעזה — כלי איראני להסלמה מבוקרת', 'estimate'),
+      eco: eco('תלות מלאה במימון איראני; ללא בסיס כלכלי', 'estimate', 'אין בסיס כלכלי עצמאי או נתון ריבוני; תלות מדווחת במימון איראני'),
+      mil: mil('רקטות וגרילה בעזה — כלי איראני להסלמה מבוקרת', 'estimate', 'אין תקציב מדווח; אומדן מבוסס יכולות שיגור נצפות בעזה'),
       geo: geo('ללא אחריות שלטונית; שלוח כמעט-מלא של טהראן'),
     },
+    flags: ['ארגון שלוח ללא בסיס ריבוני — שני הצירים אומדן מדיווחי מודיעין, לא נתון ממקור ראשוני'],
   },
 }
 
