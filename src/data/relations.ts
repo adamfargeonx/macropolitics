@@ -4,10 +4,17 @@
 // back to the derived model (bloc + alliance + disposition) in RelationsView.
 // Interpretive judgment, not a clinical claim — same plan as `power`: empirical later.
 
+// LABEL SWAP (direct feedback, not a naming preference — matches RelationsView.tsx's POLE_HE,
+// Chrome.tsx's POLE, and engine.ts's POLE_HE): the FIELD names below (t/f, "tension"/"friction")
+// and every value assigned to them are UNCHANGED — only the Hebrew word each one displays as was
+// wrong. Corrected: `t` is open/direct confrontation — adversarial pressure, shadow wars, proxies
+// — and displays as חיכוך. `f` is day-to-day grinding WITHOUT direct enmity, opposing interests
+// short of confrontation — and displays as מתח. (The TS identifiers "tension"/"friction" are NOT
+// translations of the Hebrew words they now display as — see each consumer's own comment.)
 export interface AuthoredRelation {
   pair: [string, string]
-  t: number // tension  (מתח)    — adversarial pressure
-  f: number // friction (חיכוך)  — day-to-day grinding without enmity
+  t: number // tension  → displays as חיכוך — adversarial pressure, direct confrontation
+  f: number // friction → displays as מתח   — day-to-day grinding without enmity
   h: number // harmony  (הרמוניה) — alignment and cooperation
   why: string
 }

@@ -7,20 +7,23 @@
 @keyframes relZoomOut { from { transform: scale(1.55); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .rel-field { animation: none; } }
 @media (max-width: 768px) { .rel-field { right: 0; bottom: calc(var(--tabbar-h) + var(--sheet-h)); } }
-.rel-tri { position: absolute; top: 0; left: 0; pointer-events: none; }
+/* persistent at rest (opacity driven inline, 0.6 resting / 0.95 on hover-or-pin) — the triangle
+   these describe is never drawn (no polygon, no filled corners, see the unifiedGeo comment in
+   RelationsView.tsx), so the pole labels are the ONLY cue to what position encodes. Was hover-only
+   (opacity 0 at rest); direct feedback was that this left the encoding undiscoverable until a star
+   was already being interrogated, which is most of why the whole layout read as arbitrary. */
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-title); color: var(--yellow);
-  opacity: 0.78; white-space: nowrap; text-align: center;
+  white-space: nowrap; text-align: center; pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 .rel-vtx i {
   font-style: normal; font-family: var(--body); font-weight: var(--fw-bold);
   font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.45;
 }
-.rel-guides line { transition: stroke-opacity 0.25s ease; }
-@media (prefers-reduced-motion: reduce) { .rel-guides line { transition: none; } }
 .rnode--pin .rnode__disk { box-shadow: 0 0 0 3px rgba(251, 255, 0, 0.25), 0 0 22px rgba(251, 255, 0, 0.3); }
 .rnode--pin .rnode__name { color: var(--yellow); }
 
@@ -53,18 +56,40 @@
 .rel-ref__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 14px var(--yellow-50); }
 .rel-ref__name { font-family: var(--display); font-size: var(--text-lg); letter-spacing: var(--tracking-title); font-weight: 500; color: var(--yellow); }
 .rel-ref__tag { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--white); opacity: 0.5; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
+/* the reference, pinned outside the triangle (see unifiedGeo) — same anatomy as .rel-ref,
+   deliberately un-starlike: a hollow ring instead of the filled glowing dot every .rnode uses, and
+   left-aligned like a caption rather than centred like a plotted point. It should read as chrome
+   framing the constellation, never as a candidate among the stars. */
+.rel-ref--aside { align-items: flex-start; text-align: start; }
+.rel-ref--aside .rel-ref__dot { background: transparent; border: 1.5px solid var(--yellow); box-shadow: none; }
 .rnode {
   position: absolute; transform: translate(-50%, -50%); z-index: 3;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   cursor: none; transition: opacity 0.25s ease;
 }
+/* a star, not a bloc marker — was a flat disk with a border coloured by bloc/axis (AXIS_RIM); that
+   rim was dropped along with all bloc-based positioning (declared irrelevant to this view), and a
+   colour ring around every single node was also the most prominent, most-everywhere use of colour
+   on the field — exactly what "cannot be so prominent" ruled out. A soft radial core + glow reads
+   as a star regardless of what the country is; the seeded twinkle (--tw, set inline per node, same
+   phase-offset idiom as the canvas engines' `pulse`) keeps the field from looking static without
+   any of it being a data encoding. */
 .rnode__disk {
-  border-radius: 50%; background: var(--light); border: 1.5px solid;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #fff 0%, var(--light) 55%, rgba(244, 242, 236, 0.35) 100%);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.85), 0 0 15px rgba(255, 255, 255, 0.3);
+  /* was a plain `ease` — swapped for the token the hovercard's own reveal already uses
+     (relHoverIn, views.css) so the star's grow and the tooltip's expand read as ONE coordinated
+     gesture instead of two independently-timed effects that happen to overlap. */
+  transition: transform 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo);
+  animation: starTwinkle 3.6s ease-in-out infinite;
+  animation-delay: var(--tw, 0s);
 }
+@keyframes starTwinkle { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rnode__disk { animation: none; } }
 .rnode__name { font-size: var(--text-xs); font-weight: 400; color: var(--white); white-space: nowrap; }
 .rnode--hover { z-index: 5; }
-.rnode--hover .rnode__disk { transform: scale(1.15); box-shadow: 0 0 22px rgba(251, 255, 0, 0.3); }
+.rnode--hover .rnode__disk { transform: scale(1.2); box-shadow: 0 0 24px rgba(251, 255, 0, 0.32); }
 .rnode--dim { opacity: 0.28; }
 
 /* hover preview card — a compact YELLOW tooltip (same ink/bg pair as every other tooltip on the
@@ -72,24 +97,53 @@
    full panel surface (dark, bordered, shadowed) — it's a quick glance, not a destination; a click
    is what opens the real stats (panel--detail). Pointer-events:none so it never steals the hover
    off the node sitting right underneath it. */
+/* real exit animation too, not just entrance — RelationsView.tsx holds the card's last content
+   past the moment hoverCardPoint goes undefined (hoverCardLast/hoverCardClosing) specifically so
+   `--closing` has an element to play against instead of the card just disappearing. */
 .rel-hovercard {
-  position: absolute; z-index: 6; transform: translate(-50%, calc(-100% - 14px));
+  position: absolute; z-index: 6;
   width: 236px; padding: 10px 12px; pointer-events: none;
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   display: flex; flex-direction: column; gap: 3px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-  animation: relHoverIn 0.16s var(--ease-out-expo) both;
+  transform-origin: bottom center;
+  /* static fallback matching relHoverIn's settled `to` state — without it, swapping the
+     animation-name mid-flight (entrance → --closing, a fast mouse-out) can paint one frame with
+     no keyframe effect attached yet, falling back to `transform: none` and snapping the card to
+     its raw un-offset left/top anchor (by the star) before the fade-out catches up. */
+  transform: translate(-50%, calc(-100% - 14px)) scale(1);
+  /* was --ease-panel/0.6s — its extreme decel front-loaded ~90% of the growth into the first 15%
+     of the duration, reading as an instant pop then an imperceptible crawl. ease-in-out-quart
+     starts smooth (no pop), grows through its fast middle, settles gently — quick and legible. */
+  animation: relHoverIn 0.32s var(--ease-in-out-quart) both;
 }
+/* matches .hint/.readout's final treatment — no fade on entrance, pure resize. Was a uniform
+   scale(0.7→1) — read as a pop/bloom, not the requested "no pop-up, opens/expands" reveal. scaleY
+   alone (height 0→1, width already full) anchored at transform-origin's bottom edge reads as the
+   card OPENING out of the star it's anchored to. Exit is the entrance in reverse, per direct
+   feedback — same duration/easing, scaleY back to 0 instead of a separate fade+shrink-to-0.85. No
+   opacity needed: a card collapsed to scaleY(0) has zero height, already visually gone by the end
+   of the shrink — nothing left to hard-cut when RelationsView's hoverCardTimer unmounts it. */
+@keyframes relHoverIn {
+  from { transform: translate(-50%, calc(-100% - 14px)) scaleY(0); }
+  to   { transform: translate(-50%, calc(-100% - 14px)) scaleY(1); }
+}
+.rel-hovercard--closing { animation: relHoverOut 0.32s var(--ease-in-out-quart) both; }
+@keyframes relHoverOut { to { transform: translate(-50%, calc(-100% - 14px)) scaleY(0); } }
 /* near the top edge (constellation's strongest powers ride there) — flip below the star instead */
-.rel-hovercard--below { transform: translate(-50%, calc(28px + 14px)); }
-@keyframes relHoverIn { from { opacity: 0; transform: translate(-50%, calc(-100% - 6px)); } }
-.rel-hovercard--below { animation-name: relHoverInBelow; }
-@keyframes relHoverInBelow { from { opacity: 0; transform: translate(-50%, calc(28px + 6px)); } }
-.rel-hovercard__name { font-family: var(--display); font-size: var(--text-md); font-weight: 700; letter-spacing: var(--tracking-title); }
+.rel-hovercard--below { transform-origin: top center; transform: translate(-50%, calc(28px + 14px)) scale(1); animation-name: relHoverInBelow; }
+@keyframes relHoverInBelow {
+  from { transform: translate(-50%, calc(28px + 14px)) scaleY(0); }
+  to   { transform: translate(-50%, calc(28px + 14px)) scaleY(1); }
+}
+.rel-hovercard--below.rel-hovercard--closing { animation-name: relHoverOutBelow; }
+@keyframes relHoverOutBelow { to { transform: translate(-50%, calc(28px + 14px)) scaleY(0); } }
+/* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
+.rel-hovercard__name { font-family: var(--display); font-size: var(--text-md); font-weight: var(--fw-regular); letter-spacing: var(--tracking-title); }
 .rel-hovercard__verdict { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }
 .rel-hovercard__why { font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); opacity: 0.92; }
 .rel-hovercard__stat { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.7; }
-@media (prefers-reduced-motion: reduce) { .rel-hovercard, .rel-hovercard--below { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rel-hovercard, .rel-hovercard--below, .rel-hovercard--closing { animation: none; } }
 .panel__rel-toward { margin-top: 8px; font-size: var(--text-md); font-weight: 700; color: var(--yellow); opacity: 0.85; }
 
 /* ── Relations page-exit cascade (leaving to home) — each node shrinks + fades out INDIVIDUALLY,
@@ -107,87 +161,15 @@
   from { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
   to   { opacity: 0; transform: translate(-50%, -50%) scale(0.16); filter: blur(3px); }
 }
-.rel-field--leaving .rel-tri,
-.rel-field--leaving .rel-constellation,
 .rel-field--leaving .rel-ref,
 .rel-field--leaving .rel-vtx {
   transition: opacity 0.3s ease; opacity: 0; pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .rel-field--leaving .rnode { animation: none; opacity: 0; }
-  .rel-field--leaving .rel-tri,
-  .rel-field--leaving .rel-constellation,
   .rel-field--leaving .rel-ref,
   .rel-field--leaving .rel-vtx { transition: none; opacity: 0; }
 }
-
-/* ── Relations · constellation (network graph) ─────────────────────── */
-.rel-constellation { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
-.rel-edge {
-  stroke-linecap: round;
-  transition: stroke-opacity 0.3s var(--ease-in-out-quart), stroke-width 0.3s var(--ease-in-out-quart);
-}
-.rel-edge--tension { stroke: var(--warn); }
-.rel-edge--friction { stroke: var(--yellow); }
-.rel-edge--harmony { stroke: var(--ok); }
-/* an ego edge gets a soft glow so the focused web reads as one lit structure */
-.rel-edge--ego { filter: drop-shadow(0 0 3px currentColor); }
-@media (prefers-reduced-motion: reduce) { .rel-edge { transition: none; } }
-
-/* constellation panel: hover hint + edge-colour legend */
-.rel-hint {
-  margin-top: 14px; padding: 9px 12px;
-  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body);
-  color: var(--light); opacity: 0.9;
-  background: var(--yellow-06);
-}
-.rel-legend { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
-.rel-legend__row { display: flex; align-items: center; gap: 9px; }
-.rel-legend__swatch { width: 22px; height: 3px; flex: none; }
-.rel-legend__swatch--tension { background: var(--warn); }
-.rel-legend__swatch--friction { background: var(--yellow); }
-.rel-legend__swatch--harmony { background: var(--ok); }
-.rel-legend__lbl { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); color: var(--light); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
-
-/* mode toggle — sits atop the panel; a sliding pair like the bottom tabs. It's a SIBLING of
-   .panel/.panelb inside .pdock__panel (a position:absolute;top:0 box with no padding of its own —
-   see forces.css), not a descendant of either — so left to normal flow it renders flush at the
-   dock's top edge, behind/under the fixed header logo (.hdr, top:24px). Desktop only: give it the
-   exact same box as .panel/.panelb (top:88px, right:44px, width:396px) so its edges align with the
-   panel below, and push that panel down by its own height + a gap (see the `.rel-modeswitch +`
-   rules below) instead of leaving it in flow. Mobile keeps normal flow — the dock becomes a bottom
-   sheet there (.pdock__panel's top:auto override) with no header to collide with. */
-.rel-modeswitch {
-  display: flex; gap: 4px; margin-bottom: 16px; padding: 3px;
-  background: var(--yellow-06); border: var(--panel-border);
-}
-@media (min-width: 769px) {
-  .rel-modeswitch { position: absolute; top: 88px; right: 44px; width: 396px; z-index: var(--z-panel); margin-bottom: 0; }
-  /* the panel/detail that follows the modeswitch clears it (88px + its ~38px height + a 16px gap) */
-  .rel-modeswitch + .panel, .rel-modeswitch + .panelb { top: 142px; height: calc(100dvh - 178px); }
-}
-.rel-modeswitch__btn {
-  flex: 1; padding: 7px 10px; background: none; border: none; cursor: none;
-  font-family: var(--display); font-size: var(--text-base); font-weight: var(--fw-bold); letter-spacing: var(--tracking-title);
-  color: var(--ink-dim);
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
-}
-.rel-modeswitch__btn:hover { color: var(--light); }
-.rel-modeswitch__btn--on { background: var(--yellow); color: var(--bg); }
-.rel-modeswitch__btn--on:hover { color: var(--bg); }
-.rel-modeswitch__btn:active { transform: scale(0.97); }
-
-/* vertex zone glows — fade in after the triangle draws, making the three poles read as regions */
-.rel-zone { opacity: 0; animation: relZoneIn 1s 0.5s ease forwards; }
-@keyframes relZoneIn { to { opacity: 1; } }
-/* the relationship tether — a flowing link from the reference (centre) to the focused body */
-.rel-tether {
-  stroke: var(--yellow); stroke-width: 1.4; stroke-opacity: 0.7; stroke-dasharray: 4 5;
-  animation: relTetherIn 0.35s var(--ease-out-expo) both, relTetherFlow 0.9s linear infinite;
-}
-@keyframes relTetherIn { from { stroke-opacity: 0; } to { stroke-opacity: 0.7; } }
-@keyframes relTetherFlow { to { stroke-dashoffset: -18; } }
-@media (prefers-reduced-motion: reduce) { .rel-tether { animation: none; stroke-opacity: 0.6; } .rel-zone { animation: none; opacity: 1; } }
 
 /* ── Relations drill-down — clearer hierarchy: kicker · name · verdict · why · bars ── */
 .rel-detail__kicker {
@@ -198,7 +180,11 @@
   margin-top: 6px; font-family: var(--display); font-size: var(--text-lg); font-weight: 700; letter-spacing: var(--tracking-title);
   color: var(--yellow); animation: textRise 0.6s 0.08s var(--ease-out-expo) both;
 }
-/* the dominant pole tints the verdict — warm for tension, cool for harmony, neutral for complex */
+/* the dominant pole tints the verdict — warm for the `tension` FIELD (labeled חיכוך: direct
+   clashes/force — the alarm color still fits, arguably better than before the label swap), cool
+   for harmony, neutral yellow for the `friction` FIELD (labeled מתח: opposing interests, no direct
+   confrontation). Classes are keyed by field name, not display word — RelationsView.tsx's POLE_HE
+   owns the word, this file only owns the color. */
 .rel-detail__verdict--tension { color: var(--warn); }
 .rel-detail__verdict--harmony { color: var(--ok); }
 .rel-detail__verdict--friction { color: var(--yellow); }
@@ -414,8 +400,14 @@
    last glyph (the left end in RTL); padding-inline-start = one full letter-spacing balances it so
    the glyph block sits optically centred, not pushed off-axis by the trailing gap. */
 .home-title {
-  /* +4px optical nudge right — the wide trailing kerning pulls the glyph mass left of true centre */
-  position: absolute; top: 50%; left: 50%; transform: translate(calc(-50% + 4px), -50%);
+  /* +11px optical nudge right — the wide trailing kerning pulls the glyph mass left of true
+     centre. Measured directly (not eyeballed): the outer box's own bounding rect is already
+     centred at this nudge, but that box includes the blank letter-spacing/padding regions, not
+     just ink — measuring the actual glyph spans (min-left of the first char to max-right of the
+     last) showed the real ink block still sitting 7px left of the stage centre even at +4px, so
+     the true correction is +4+7. Re-verify by measuring glyph spans directly, not the container
+     rect, if this font/tracking ever changes — the container box is not a reliable proxy here. */
+  position: absolute; top: 50%; left: 50%; transform: translate(calc(-50% + 11px), -50%);
   z-index: var(--z-content); white-space: nowrap; pointer-events: none;
   font-family: var(--display); font-weight: var(--fw-light);
   font-size: clamp(22px, 3.3vw, 50px); letter-spacing: 0.468em; padding-inline-start: 0.468em; color: var(--white);
@@ -483,9 +475,9 @@
   position: absolute; top: 0; left: 0; white-space: nowrap;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   background: none; border: none; cursor: none; color: var(--white); padding: 4px 10px;
-  animation: navBreathe 3.6s var(--ease-in-out-quart) infinite; animation-delay: var(--bd, 0s);
+  /* was an infinite opacity pulse (navBreathe, 0.66↔0.94) — removed per direct feedback: the three
+     home titles stay at a flat, full opacity always, no idle animation on them at all. */
 }
-.home--closed .home-nav__item { animation: none; }
 .home-nav__label {
   font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-regular);
   letter-spacing: 0.02em; transition: color var(--dur-fast) ease, letter-spacing var(--dur-base) var(--ease-out-expo);
@@ -495,14 +487,15 @@
   /* pulled up snug under the label's own line-height (top:100% leaves the label's full line-box
      gap below the glyphs, which read as "too far away") — a small negative top offset closes that
      gap, and the rest/revealed translateY values are shrunk to match, so it sits close under the title */
-  position: absolute; top: calc(100% - 8px); left: 50%; transform: translate(-50%, 0px); white-space: nowrap;
+  position: absolute; top: calc(100% - 8px); left: 50%; transform: translate(-50%, 0px) scale(0.92); white-space: nowrap;
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
   color: var(--tooltip-fg); background: var(--tooltip-bg); padding: 4px 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
   opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
 }
 .home-nav__item:hover .home-nav__sub,
-.home-nav__item--near .home-nav__sub { opacity: 1; transform: translate(-50%, 3px); }
+.home-nav__item--near .home-nav__sub { opacity: 1; transform: translate(-50%, 3px) scale(1); }
 /* hover (or the orbit dot sweeping near) opens the dimension up — colour shift + wider kerning */
 .home-nav__item:hover .home-nav__label,
 .home-nav__item--near .home-nav__label { color: var(--yellow); letter-spacing: 0.12em; }
@@ -515,7 +508,6 @@
 .home-nav__item--top { transform: translate(-50%, -50%) translateY(calc(var(--ring-d) / -2)); }
 .home-nav__item--bl  { transform: translate(-50%, -50%) translate(calc(var(--ring-d) * -0.433), calc(var(--ring-d) * 0.25)); }
 .home-nav__item--br  { transform: translate(-50%, -50%) translate(calc(var(--ring-d) * 0.433), calc(var(--ring-d) * 0.25)); }
-@keyframes navBreathe { 0%, 100% { opacity: 0.66; } 50% { opacity: 0.94; } }
 
 /* hint (closed state only) */
 .home-hint {
@@ -648,26 +640,50 @@
 .chrome-exit--out { opacity: 0; transition: opacity 0.56s ease; pointer-events: none; }
 /* Side-panel exit — #panel-root itself (the whole portal container PanelDock renders into, NOT
    .pdock__panel inside it) carries this transform, so it composes cleanly with .pdock__panel's own
-   open/closed slide (a transform on a different element entirely) instead of fighting it. */
-.panel-root { transition: opacity 0.4s ease, transform 0.4s ease; transform: translateX(0); }
+   open/closed slide (a transform on a different element entirely) instead of fighting it.
+   --panel-exit-dist, NOT translateX(100%): #panel-root spans the FULL viewport (position:fixed;
+   inset:0 in base.css) but the visible panel only occupies its right ~440px — translateX(100%)
+   was moving the entire viewport-width wrapper off-screen in the same duration the panel's own
+   ~440px-wide entrance slide uses, i.e. 3-4x the pixel distance at 3-4x the velocity on a real
+   desktop monitor. That reads as a flash/vanish, not a glide — the actual "pops out of existence"
+   bug. Matches forces.css's .pdock --panel-w + --panel-inset (396+44), redefined at the same
+   900px breakpoint so mobile's narrower panel doesn't overshoot into a needlessly long travel. */
+.panel-root { transform: translateX(0); --panel-exit-dist: 460px; }
+@media (max-width: 900px) { .panel-root { --panel-exit-dist: 360px; } }
 /* page → home: slide off in the SAME direction the dock's own closed state already parks in
-   (translateX(100%), see .pdock--closed .pdock__panel in forces.css) — reads as "the drawer
-   closing itself" rather than a bespoke fade, and shares that transition's ease. Duration matches
-   the EXIT_MS/per-body-cascade window in App.tsx so it's fully settled before the swap unmounts it. */
-.panel-root--exiting {
-  transform: translateX(100%); opacity: 0;
-  transition: transform 0.56s var(--ease-out-expo), opacity 0.56s ease;
-  pointer-events: none;
-}
-/* page → page: slides off in lockstep with .nav-rail's own out-left/out-right (same duration,
-   same ease, same keyframe shape) so the panel and the canvas read as one coordinated exit. */
-.panel-root--out-right { animation: panelRootOutRight 0.42s var(--ease-in-out-quart) both; }
-@keyframes panelRootOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; pointer-events: none; } }
-.panel-root--out-left { animation: panelRootOutLeft 0.42s var(--ease-in-out-quart) both; }
-@keyframes panelRootOutLeft { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; pointer-events: none; } }
+   (translateX(100%), see .pdock--closed .pdock__panel in forces.css) — same slide+fade LANGUAGE
+   and easing family as the panel's own 0.66s entrance (.pdock__panel, forces.css).
+   Was a plain `transition` (chasing the live cascade value) instead of the `animation ... both`
+   keyframe pattern .panel-root--out-left/right already use below — that's the actual bug, not the
+   duration: a transition keeps tracking .panel-root's OWN base rule (transform: translateX(0)), so
+   the instant App.tsx clears `panelExit` (same tick content unmounts), the class reverts and the
+   property snaps back toward 0 mid-flight instead of holding its exited state — read live as "pops
+   out of existence" rather than a completed slide. `animation ... both` plays independently once
+   started and HOLDS its `to` state regardless of the triggering class being removed later, same as
+   the page→page variants. Direct feedback: even at 0.34s it still read as too fast to register as
+   an exit at all — "imagine the entry [0.66s], only a bit faster" — then, after landing at 0.56s,
+   asked to slow further and for stronger easing. 0.6s + --ease-panel (the project's strongest
+   decel, swapped in from --ease-out-expo) — right at the edge of the 680ms window (App.tsx's
+   EXIT_MS) with an 80ms buffer, so it still settles invisible before the swap rather than getting
+   cut off mid-motion. */
+.panel-root--exiting { animation: panelRootExit 0.6s var(--ease-panel) both; }
+/* page → page: was lockstep with .nav-rail's own leave class — SAME instant, SAME 420ms window —
+   which is exactly what made it read as one co-motion rather than the panel's own distinct exit,
+   even after shortening the panel's own duration (a shorter animation that still STARTS at the
+   same moment as the rail still reads as "moving together," just finishing early). Real sequencing
+   now lives in App.tsx's go() — the rail doesn't even get its leave class until this animation has
+   actually finished (PANEL_EXIT_MS there MUST equal this duration exactly, or the two drift out of
+   sync: rail starts too early = panel still visibly sliding when the swipe begins; too late = a
+   dead pause with nothing on screen). 0.6s + --ease-panel — matches .panel-root--exiting above
+   (same feedback: slower, stronger easing) — PANEL_EXIT_MS in App.tsx MUST equal this exactly.
+   Same keyframe body as .panel-root--exiting (tuning converged the two triggers to an identical
+   motion) — kept as separate classes since they mean different things at the call site (home-exit
+   vs page-exit), but sharing one @keyframes below instead of two byte-identical copies. */
+.panel-root--out-right { animation: panelRootExit 0.6s var(--ease-panel) both; }
+@keyframes panelRootExit { from { transform: translateX(0); opacity: 1; } to { transform: translateX(var(--panel-exit-dist)); opacity: 0; pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) {
   .chrome-exit, .chrome-exit--out, .panel-root, .panel-root--exiting,
-  .panel-root--out-left, .panel-root--out-right { transition: none; animation: none; }
+  .panel-root--out-right { transition: none; animation: none; }
 }
 
 /* text reveal — a clip-mask rise applied sitewide (the editorial reveal, no dissolve).
@@ -717,16 +733,23 @@
 }
 /* relations constellation/triangle nodes — a slow, graceful RISE from below (not a quick
    centre-scale pop): every state drifts up into place over more than a second, each offset by its
-   own stagger delay (set inline via animationDelay in RelationsView), so the whole web settles in
-   like stars gradually surfacing rather than materializing all at once. ease-out-expo (a long,
-   soft deceleration tail with no overshoot) reads as considered and calm at this duration — a
-   "back" ease here would fight the slow, settling character this entrance is going for. */
+   own stagger delay (set inline via animationDelay in RelationsView — a flat 0.5s hold before the
+   FIRST star, then +0.045s per star after it, so the sequence reads as a genuine pause-then-reveal
+   rather than starting immediately), so the whole web settles in like stars gradually surfacing
+   rather than materializing all at once. --ease-panel (the project's strongest decel curve — a
+   long soft tail pulled even further toward "arrives slowly, settles decisively" than
+   --ease-out-expo) is what makes each individual star's rise read as deliberate rather than
+   brisk; a "back" ease here would fight the slow, settling character this entrance is going for.
+   Rise distance: 64px → 20px (read as too subtle to register as a rise at all, not travel) →
+   100px (asked for MORE drama than the original 64px, not a return to it) — a real starting
+   position clearly below rest, so --ease-panel's long decel tail has actual distance to visibly
+   decelerate over instead of a small offset that resolves before the eye catches it. */
 .rnode {
-  animation: rnodeRise 1.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: rnodeRise 1s var(--ease-panel) both;
   transition: left 0.6s cubic-bezier(0.16, 1, 0.3, 1), top 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
 }
 @keyframes rnodeRise {
-  from { opacity: 0; transform: translate(-50%, calc(-50% + 64px)); }
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 100px)); }
   to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
@@ -738,12 +761,8 @@
 .fbar__fill { transform-origin: right; animation: barGrow 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-/* relations triangle draws itself in */
-.rel-tri polygon { stroke-dasharray: 2200; stroke-dashoffset: 2200; animation: triDraw 1.2s 0.1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-@keyframes triDraw { to { stroke-dashoffset: 0; } }
-
 /* press feedback */
-.tab:active, .soundtoggle:active { transform: scale(0.93); }
+.tline__stop:active, .soundtoggle:active { transform: scale(0.93); }
 /* item 10: the close ✕ is mid-rotation on hover — keep the spin (plus a small press shrink) while pressed */
 .panel__close:active { transform: rotate(90deg) scale(0.9); }
 .home__lens:active { transform: translateY(-1px) scale(0.98); }
@@ -751,7 +770,7 @@
 @media (prefers-reduced-motion: reduce) {
   .cursor { transition: none; }
   .lbl { transition: none; }
-  .stage, .fnode, .rnode, .fbar__fill, .rel-tri polygon, .labels { animation: none; }
+  .stage, .fnode, .rnode, .fbar__fill, .labels { animation: none; }
   .rnode { transition: none; }
 }
 

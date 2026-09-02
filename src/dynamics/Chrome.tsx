@@ -13,6 +13,8 @@ import { Hint } from './Hint'
 import { LetterSwap, CountUp, Gauge } from './PanelMotion'
 import { BEAT } from './panel-beats'
 import { ForcesIndexPanel, type ForcesIndexPanelProps } from './ForcesIndexPanel'
+import { ForcesAxisPanel } from './ForcesAxisPanel'
+import { hasAxisEvidence, AXIS_BLURB, scoreTier } from './evidence-data'
 
 // Collapsible dock for the side panel. A clearly-labelled drawer tab (chevron + "מידע")
 // at the right edge slides the panel in/out. The tab is pinned (no jitter); hovering it
@@ -108,8 +110,10 @@ export function Header({ onHome }: { onHome?: () => void }) {
   )
 }
 
-// Utility cluster — top-left. "המודל" (the methodology, made prominent) + a crisp info
-// icon (the legend). Both dispatch the global overlay events. Hidden on the closed home.
+// Utility cluster — top-left. "המודל" (the methodology), dispatching the global 'mp-about'
+// overlay event. Hidden on the closed home. (Used to also carry a legend ⓘ icon — the legend's
+// one trigger, ForcesIndexPanel's "מקרא" button, was removed once its content moved inline into
+// the dynamics view's own empty-state panel; see .panel__legend.)
 export function UtilityNav() {
   return (
     <div className="unav" dir="rtl">
@@ -135,53 +139,9 @@ export interface EntityDetail {
   components?: { base: number; intrinsic: number; backing: number; gravity: number; stability: number } // for the methodology drill-down
 }
 
-// The evidence link — opens the sources/calculation overlay. A subtle on-brand text link
-// (not a grey box), consistent with the panel's accent language.
-function EvidenceLink({ detail }: { detail: EntityDetail }) {
-  if (!detail.id) return null
-  return (
-    <button
-      className="fevidence"
-      onClick={() => window.dispatchEvent(new CustomEvent('mp-evidence', { detail: { id: detail.id } }))}
-    >
-      המקורות והחישוב <span aria-hidden>↗</span>
-    </button>
-  )
-}
-
 // FORCES narrative (forces · תיאור mode): the interpretation layer, shown flat (no collapsible).
 // General read plus three axis blocks (eco/mil/geo) drawn from FORCES_DESCRIPTIONS. Falls back to
 // the short POWER_NOTES summaries where a long description is absent, so the mode is never empty.
-function ForcesNarrative({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
-  const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
-  const notes = detail.powerNotes
-  const general = desc?.general ?? notes?.general
-  const axes: { label: string; icon: IconName; text?: string }[] = [
-    { label: 'כלכלי', icon: 'eco', text: desc?.eco ?? notes?.eco },
-    { label: 'צבאי', icon: 'mil', text: desc?.mil ?? notes?.mil },
-    { label: 'גאו-אסטרטגי', icon: 'geo', text: desc?.geo ?? notes?.geo },
-  ]
-  if (!general && axes.every((a) => !a.text)) return null
-  return (
-    <div className="fnarr">
-      {/* the toggle button — sits above the general read now (was: between it and the per-axis
-          blocks). Here it's always in the "open" (full-narrative) state, so it reads "בחזרה לציון". */}
-      {hasNarrative && (
-        <button className="ffull-btn is-open" onClick={onToggleFull} aria-expanded={true}>
-          בחזרה לציון <Icon name="arrow-back" className="ffull-btn__arrow" />
-        </button>
-      )}
-      {general && <p className="fnarr__gen"><Words key={detail.id} text={general} /></p>}
-      {axes.filter((a) => a.text).map((a) => (
-        <div key={a.label} className="fnarr__axis">
-          <span className="fnarr__axis-l"><Icon name={a.icon} className="fnarr__axis-icon" />{a.label}</span>
-          <p className="fnarr__axis-t"><Words key={`${detail.id}-${a.label}`} text={a.text!} /></p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // Authored relations involving a given id, both directions, paired with the OTHER body's id.
 function relationsFor(id: string): { other: string; rel: AuthoredRelation }[] {
   const out: { other: string; rel: AuthoredRelation }[] = []
@@ -194,9 +154,15 @@ function relationsFor(id: string): { other: string; rel: AuthoredRelation }[] {
 }
 
 // The dominant pole of a relation + its display chrome (Hebrew label + token-driven colour).
+// LABEL SWAP (matches RelationsView.tsx's POLE_HE — direct feedback, not a naming preference):
+// `t`/`f` keep their field meaning (AuthoredRelation.t = the opp-bloc/aggressive-disposition
+// axis, .f = the non-aligned messy-middle axis) — only the Hebrew word shown for each was wrong.
+// מתח (tension) = opposing interests/complicated relations, no direct confrontation. חיכוך
+// (friction) = direct clashes, force, open confrontation. `t` is open hostility → חיכוך; `f` is
+// the non-confrontational middle → מתח.
 const POLE: Record<'t' | 'f' | 'h', { he: string; cls: string }> = {
-  t: { he: 'מתח', cls: 'panelb__chip--t' },
-  f: { he: 'חיכוך', cls: 'panelb__chip--f' },
+  t: { he: 'חיכוך', cls: 'panelb__chip--t' },
+  f: { he: 'מתח', cls: 'panelb__chip--f' },
   h: { he: 'הרמוניה', cls: 'panelb__chip--h' },
 }
 function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number } {
@@ -211,13 +177,46 @@ function dominantPole(rel: AuthoredRelation): { key: 't' | 'f' | 'h'; v: number 
 // THAT is the story here: a tight header + a one-line power strip for context, then the centrepiece
 // — each defining tie shown with its tension/friction/harmony makeup (one split bar) and a one-line
 // why — then orbital position and a synthesis line. No duplication of the forces score breakdown.
-const AXIS_SHORT: Record<'eco' | 'mil' | 'geo', string> = { eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
+const AXIS_SHORT: Record<'eco' | 'mil' | 'geo', string> = { eco: 'כלכלה', mil: 'צבא', geo: 'גאו' }
 
 // One relation's tension·friction·harmony makeup, reduced to a single "stance" percentage set —
 // used as the title on the compressed .drel__sq square (see DynamicsCard's Relations category).
 function poleShare(rel: AuthoredRelation): { t: number; f: number; h: number } {
   const total = rel.t + rel.f + rel.h || 1
   return { t: Math.round((rel.t / total) * 100), f: Math.round((rel.f / total) * 100), h: Math.round((rel.h / total) * 100) }
+}
+
+// One accordion stage — CSS grid-rows disclosure (0fr→1fr), no JS height measurement. The MARK
+// leading each header is the per-value icon (TIER_ICON/AXIS_ICON/DISPO_ICON — the exact lookups
+// DynamicsCard already resolves for its chips), not a generic category glyph: it says what the
+// state IS before the tag word does. The tag itself leads the row as a filled accent plate — it
+// used to be a dim bordered chip parked at the row's end, after the category name, so the one
+// word that actually classifies the body read as an afterthought to a label that's identical on
+// every body. `inert` on the collapsed body keeps its buttons/links out of tab order.
+function DynStage({
+  id, mark, tag, cat, meta, open, dimmed, onToggle, children,
+}: {
+  id: string; mark: IconName; tag: string; cat: string; meta: React.ReactNode
+  open: boolean; dimmed: boolean; onToggle: () => void; children: React.ReactNode
+}) {
+  return (
+    <section className={`dstage${open ? ' is-open' : ''}${dimmed ? ' is-dim' : ''}`}>
+      <h3 className="dstage__h">
+        <button type="button" className="dstage__btn" aria-expanded={open} aria-controls={id} onClick={onToggle}>
+          <Icon name={mark} className="dstage__mark" />
+          <span className="dstage__tag">{tag}</span>
+          <span className="dstage__cat">{cat}</span>
+          <span className="dstage__meta">{meta}</span>
+          <span className="dstage__caret" aria-hidden />
+        </button>
+      </h3>
+      <div className="dstage__drawer" id={id}>
+        <div className="dstage__drawer-in">
+          <div className="dstage__drawer-body" inert={!open}>{children}</div>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
@@ -265,6 +264,27 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
   // dominates its ties / a genuinely even mix — so both the sentence's shape AND which fields it
   // pulls differ per body. Where possible it reuses the already-authored `rel.why` line verbatim
   // as the evidence, instead of re-deriving new generic phrasing on top of it.
+  const hasDyn = !!(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0)
+  const hasForces = !!f
+  const hasRels = rels.length > 0 && !!dispoChip
+  // strict one-at-a-time accordion, defaulting to whichever stage is actually present first —
+  // reset (not just initialized) on every body switch: this component is NOT remounted per
+  // selection (no `key` at its call site), so without this a stage left open on the previous
+  // body would still show open on the next one. Same derive-during-render reset idiom
+  // ForcesScore's own local state already uses, rather than an effect.
+  const defaultStage = hasDyn ? 'dyn' : hasForces ? 'forces' : hasRels ? 'rels' : null
+  const [openStage, setOpenStage] = useState<'dyn' | 'forces' | 'rels' | null>(defaultStage)
+  const [lastStageId, setLastStageId] = useState(detail.id)
+  if (detail.id !== lastStageId) { setLastStageId(detail.id); setOpenStage(defaultStage) }
+  const toggle = (stage: 'dyn' | 'forces' | 'rels') => setOpenStage((v) => (v === stage ? null : stage))
+
+  const dynMeta = detail.parentHe
+    ? detail.parentHe
+    : orbit.satellites.length > 0
+      ? `${orbit.satellites.length} גופים במסלולה`
+      : `${orbit.siblings.length} גופים בטבעת`
+  const relsMeta = rels.length === 1 ? 'קשר מגדיר אחד' : `${rels.length} קשרים מגדירים`
+
   const nameOf = (oid: string) => heById.get(oid) ?? oid
   const caption = ((): string => {
     if (all.length === 0) {
@@ -296,13 +316,15 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
       return `${detail.he} נשענת בעיקר על יחסי שיתוף — במובהק מול ${nameOf(byH.other)}: ${byH.rel.why}${rest > 0 ? ` שאר קשריה המוגדרים (${rest}) נותרים תחרותיים או חסרי חום דומה.` : ''}`
     }
     if (nT > nH && nT > nF) {
-      // tension clearly dominates — an embattled body. Name a second adversary if there is one.
+      // `t` field clearly dominates — an embattled body, open hostility (POLE.t = חיכוך). Name a
+      // second adversary if there is one.
       const others = doms.filter((d) => d.dom.key === 't' && d.other !== byT.other).map((d) => nameOf(d.other))
-      return `${detail.he} מוקפת מתח יותר משיתוף — מול ${nameOf(byT.other)} בעיקר: ${byT.rel.why}${others.length ? ` המתח חוזר גם מול ${others.slice(0, 2).join(' ו')}.` : ''}`
+      return `${detail.he} מוקפת בחיכוך יותר משיתוף — מול ${nameOf(byT.other)} בעיקר: ${byT.rel.why}${others.length ? ` החיכוך חוזר גם מול ${others.slice(0, 2).join(' ו')}.` : ''}`
     }
     if (nF > nT && nF > nH) {
-      // friction (chronic grinding, not open enmity) dominates — neither ally nor foe, just abrasion.
-      return `${detail.he} מוגדרת פחות באיבה גלויה ויותר בחיכוך מתמשך — הבולט מול ${nameOf(byF.other)}: ${byF.rel.why}`
+      // `f` field (chronic complication, not open enmity) dominates — neither ally nor foe, a
+      // structural rivalry without direct confrontation (POLE.f = מתח).
+      return `${detail.he} מוגדרת פחות באיבה גלויה ויותר במתח מתמשך — הבולט מול ${nameOf(byF.other)}: ${byF.rel.why}`
     }
     // no clean majority — a genuinely mixed profile. Anchor the read in whatever IS fixed about
     // the body (the patron it orbits, or failing that, the axis carrying its weight), then name
@@ -330,21 +352,23 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
         <h1 className="dcard__title"><LetterSwap text={detail.he} /></h1>
       </header>
 
-      {/* synthesis — moved to the top (was the closing line at the bottom). It's the one-line read
-          of the body's whole shape; the three categories below back it up with the specifics that
-          built it. Mirrors ForcesScore's own "brief read right after the header" placement. */}
-      {caption && <p className="dcard__lede"><Words key={detail.id} text={caption} /></p>}
+      {/* the assessment — not folded into any stage: it's the panel's only zero-click answer (fold
+          it and the rest state shows a name and nothing else), and it isn't ABOUT orbital position
+          specifically — it synthesises across all three categories (it usually names a relation,
+          sometimes the orbit, sometimes the dominant axis), so filing it under "הדינמיקה" would
+          mislabel it. */}
+      {caption && <p className="dcard__assess-v"><Words key={detail.id} text={caption} /></p>}
 
-      {/* ── category: DYNAMICS (orbital position). Written-out section titles were dropped — they
-          restated what the content plainly shows and cost a full row each; the category's own chip
-          now heads it. Badge = the axis/bloc chip: bloc alignment is what actually fixes a body's
-          place in the orbital structure, so it belongs here, not in a generic header row. ── */}
-      {(detail.parentHe || orbit.satellites.length > 0 || orbit.siblings.length > 0) && (
-        <section className="dcat">
-          <header className="dcat__head">
-            <span className="dcat__badge"><Icon name={axisChip.icon} className="dcat__badge-icon" />{axisChip.text}</span>
-          </header>
-          <div className="dcard__orbit">
+      {/* Three stages, one open at a time (a second click on the open one closes it, so "nothing
+          open" is reachable). Each header leads with the per-value icon + the classifying tag —
+          the section name (הדינמיקה/הכוחות/היחסים) demotes to a quiet caption beside it, since it's
+          identical on every body and carries no information the tag doesn't. */}
+      <div className={`dcard__stages${openStage ? ' has-open' : ''}`}>
+        {hasDyn && (
+          <DynStage
+            id={`dyn-${detail.id}`} mark={axisChip.icon} tag={axisChip.text} cat="הדינמיקה" meta={dynMeta}
+            open={openStage === 'dyn'} dimmed={!!openStage && openStage !== 'dyn'} onToggle={() => toggle('dyn')}
+          >
             {detail.parentHe && (
               <div className="dcard__orbit-row">
                 <span className="dcard__orbit-k">במסלול סביב</span>
@@ -363,64 +387,58 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
                 <span className="dcard__orbit-v">{orbit.siblings.join(' · ')}</span>
               </div>
             )}
-          </div>
-        </section>
-      )}
+          </DynStage>
+        )}
 
-      {/* ── category: FORCES — score + eco/mil/geo, on the same compact one-line strip as before
-          (the forces panel still owns the deep breakdown). Badge = the power-tier chip. ── */}
-      {f && (
-        <section className="dcat">
-          <header className="dcat__head">
-            <span className="dcat__badge"><Icon name={tierChip.icon} className="dcat__badge-icon" />{tierChip.text}</span>
-          </header>
-          <div className="dcard__pstrip">
-            <span className="dcard__pstrip-score" key={detail.id}><b>{score}</b><span>כוח משיכה</span></span>
-            <span className="dcard__pstrip-axes">
+        {hasForces && f && (
+          <DynStage
+            id={`forces-${detail.id}`} mark={tierChip.icon} tag={tierChip.text} cat="הכוחות"
+            meta={<><b key={detail.id}>{score}</b>כוח משיכה</>}
+            open={openStage === 'forces'} dimmed={!!openStage && openStage !== 'forces'} onToggle={() => toggle('forces')}
+          >
+            <div className="dcard__axes">
               {(['eco', 'mil', 'geo'] as const).map((k) => (
-                <span key={k} className="dcard__pstrip-ax">
-                  <Icon name={k} className="dcard__pstrip-icon" /><b>{f[k]}</b>{AXIS_SHORT[k]}
-                </span>
+                <div key={k} className="dcard__ax">
+                  <Icon name={k} className="dcard__ax-icon" />
+                  <span className="dcard__ax-k">{AXIS_SHORT[k]}</span>
+                  <Gauge className="dcard__ax-bar" value={f[k] * 10} delay={0} />
+                  <span className="dcard__ax-v">{f[k].toFixed(1)}</span>
+                </div>
               ))}
-            </span>
-          </div>
-        </section>
-      )}
+            </div>
+          </DynStage>
+        )}
 
-      {/* ── category: RELATIONS — defining ties. Each row's tension/friction/harmony makeup, formerly
-          a full-width split bar, is now one small square coloured by the dominant pole (the exact
-          split is still there — hover/focus the square for the percentages — just not spelled out
-          in pixels, since the pole word beside the name already states the headline read). Badge =
-          the disposition chip: how the body BEHAVES toward others belongs with its ties. ── */}
-      {rels.length > 0 && (
-        <section className="dcat">
-          {dispoChip && (
-            <header className="dcat__head">
-              <span className="dcat__badge"><Icon name={dispoChip.icon} className="dcat__badge-icon" />{dispoChip.text}</span>
-            </header>
-          )}
-          <div className="dcard__rels">
-            {rels.map(({ other, rel, dom }) => {
-              const share = poleShare(rel)
-              return (
-                <button key={other} className="drel" onClick={() => onRelSelect?.(other)}>
-                  <span
-                    className={`drel__sq drel__sq--${dom.key}`} aria-hidden
-                    title={`מתח ${share.t}% · חיכוך ${share.f}% · הרמוניה ${share.h}%`}
-                  />
-                  <span className="drel__body">
-                    <span className="drel__head">
-                      <span className="drel__name">{heById.get(other) ?? other}</span>
-                      <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
+        {hasRels && dispoChip && (
+          <DynStage
+            id={`rels-${detail.id}`} mark={dispoChip.icon} tag={dispoChip.text} cat="היחסים" meta={relsMeta}
+            open={openStage === 'rels'} dimmed={!!openStage && openStage !== 'rels'} onToggle={() => toggle('rels')}
+          >
+            <div className="dcard__rels">
+              {rels.map(({ other, rel, dom }) => {
+                const share = poleShare(rel)
+                return (
+                  <button key={other} className="drel" onClick={() => onRelSelect?.(other)}>
+                    <span className={`drel__sq drel__sq--${dom.key}`} aria-hidden />
+                    <span className="drel__body">
+                      <span className="drel__head">
+                        <span className="drel__name">{heById.get(other) ?? other}</span>
+                        <span className={`drel__pole drel__pole--${dom.key}`}>{POLE[dom.key].he}</span>
+                      </span>
+                      <span className="drel__why"><Words key={other} text={rel.why} /></span>
+                      {/* the exact split, spelled out with its pole names — this is what keeps the
+                          colour decorative rather than load-bearing: strip every colour and the
+                          row still states which pole dominates and by how much. Was hover/focus-only
+                          (a `title` attribute), so the exact numbers lived nowhere visible. */}
+                      <span className="drel__split">{POLE.t.he} {share.t} · {POLE.f.he} {share.f} · {POLE.h.he} {share.h}</span>
                     </span>
-                    <span className="drel__why"><Words key={other} text={rel.why} /></span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </section>
-      )}
+                  </button>
+                )
+              })}
+            </div>
+          </DynStage>
+        )}
+      </div>
     </aside>
   )
 }
@@ -450,8 +468,44 @@ const DISPO_ICON: Record<string, IconName> = {
 // The power tier used to live here as a descriptor line below the name — it's since moved down
 // to sit beside the gravity score itself (see .fscore__tier in ForcesScore), which is the number
 // the tier is actually classifying.
+// Shrinks the panel title just enough to keep any name on ONE line.
+// Only three names are wide enough to wrap at the display size (הכוחות הדמוקרטיים, הרשות
+// הפלסטינית, הג׳יהאד האסלאמי — measured at 305–346px against 310px of column). The previous fix
+// reserved a permanent SECOND line so those three couldn't shove the score and breakdown down a
+// line when selected — but that made the other ~30 bodies, every one of which fits on one line,
+// carry a full line (~35px) of dead space under the name. Fitting the three outliers instead costs
+// the common case nothing: the reservation goes away entirely, the space under the name becomes a
+// real margin rather than reserved slack, and the block below is MORE stable than before, since
+// every name now occupies exactly one line.
+// Measured on a detached probe, not the live <h1>: the title hosts LetterSwap, which during a swap
+// holds the outgoing AND incoming names in the DOM at once — measuring the element itself would
+// size to whichever is wider and change its answer mid-transition.
+function useFitTitle(text: string, ref: React.RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState<string>()
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const cs = getComputedStyle(el)
+    const base = parseFloat(cs.fontSize)
+    const avail = el.clientWidth
+    if (!base || !avail) return
+    const probe = document.createElement('span')
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};letter-spacing:${cs.letterSpacing}`
+    probe.textContent = text
+    document.body.appendChild(probe)
+    const w = probe.getBoundingClientRect().width
+    probe.remove()
+    // `flex: 1` fixes the box width independently of its content, so measuring can't feed back
+    // into the width it measured against — no oscillation, no second pass needed.
+    setSize(w > avail ? `${Math.floor(base * (avail / w))}px` : undefined)
+  }, [text, ref])
+  return size
+}
+
 function PanelHeader({ detail }: { detail: EntityDetail }) {
   const [hint, setHint] = useState<string | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const fitSize = useFitTitle(detail.he, titleRef)
   const rankHint = 'הדירוג בכוח המשיכה — מקומו בטבלת העוצמה'
   const bind = (h: string) => ({
     tabIndex: 0,
@@ -464,7 +518,7 @@ function PanelHeader({ detail }: { detail: EntityDetail }) {
         {detail.rank && <span className="phead__rank" {...bind(rankHint)}>{String(detail.rank).padStart(2, '0')}</span>}
         {/* the name is the panel's one genuinely expressive swap — letters of the old drop away as
             the new rise in (see LetterSwap). The <h1> itself never animates or moves. */}
-        <h1 className="phead__title"><LetterSwap text={detail.he} /></h1>
+        <h1 className="phead__title" ref={titleRef} style={fitSize ? { fontSize: fitSize } : undefined}><LetterSwap text={detail.he} /></h1>
       </div>
       <p className="phead__hint" aria-live="polite">{hint ?? ' '}</p>
     </header>
@@ -487,32 +541,65 @@ function firstSentence(t?: string): string | undefined {
 // The row itself, its icon and its label are IDENTICAL for every body, so they are permanently
 // static — no key, no entrance animation. Only the value (counts) and the bar (tweens its width)
 // move, plus the description's own per-word rise.
-function ForceAxisRow({ label, value, icon, hint, text, beat = 0 }: { label: string; value?: number; icon: IconName; hint?: string; text?: string; beat?: number }) {
-  return (
-    <div className="fparam">
+// The whole row is the entry point into that axis's own criteria (see ForcesAxisPanel) — clicking
+// a value drills the panel down into ITS composite, in place, rather than opening a modal over the
+// field. `onOpen` is only passed when there's a real composite to show; otherwise the row is inert.
+function ForceAxisRow({ label, value, icon, hint, text, beat = 0, onOpen }: { label: string; value?: number; icon: IconName; hint?: string; text?: string; beat?: number; onOpen?: () => void }) {
+  const tier = value != null ? scoreTier(value) : undefined
+  const content = (
+    <>
       <div className="fparam__lead">
         <span className="fparam__label" data-hint={hint}><Icon name={icon} className="fparam__icon" />{label}</span>
+        {tier && <span className={`tier-tag tier-tag--${tier.slug}`}>{tier.he}</span>}
         {value != null && <span className="fparam__val"><CountUp value={value} delay={beat} /></span>}
+        {/* persistent (not hover-only) drill-in cue — the row's clickability used to be legible
+            only on hover/focus (a background tint), so it read as inert until you happened to
+            mouse over it. A quiet chevron at rest, brightening on hover/focus like the rest of
+            the row, states it up front without competing with the numeral for attention. */}
+        {onOpen && <span className="fparam__chevron" aria-hidden />}
       </div>
       {value != null && <Gauge value={value * 10} delay={beat} />}
       {/* reserved height (see .fparam__desc-text) so a shorter description can't pull the next row up */}
       <p className="fparam__desc-text">{text && <Words key={text} delay={beat} text={firstSentence(text)!} />}</p>
-    </div>
+    </>
+  )
+  // only bodies with a real sourced composite get the drill-down (see hasAxisEvidence) — a
+  // hand-judged axis value has no criteria behind it, and offering a way into an empty panel is
+  // worse than offering nothing.
+  if (!onOpen) return <div className="fparam">{content}</div>
+  return (
+    <button type="button" className="fparam fparam--link" onClick={onOpen}>{content}</button>
   )
 }
 
 // The grading cluster — a PRIMARY headline score (large numeral, no gauge bar so it doesn't
 // read as a fourth category bar), a brief GENERAL summary paragraph (the single overall read,
-// distinct from the per-axis breakdown beneath it), then the three SUPPORTING eco/mil/geo
-// category rows, each with a sentence-complete description, plus a backing note (if any) and
-// the evidence link. The same `general` text opens ForcesNarrative too (the fuller read) — that's
-// intentional: a brief intro here, the same line reprised as the narrative's opening there.
-function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDetail; hasNarrative: boolean; onToggleFull: () => void }) {
+// distinct from the per-axis breakdown beneath it, expandable in place via its own "קרא עוד"),
+// then the three SUPPORTING eco/mil/geo category rows, each with a sentence-complete description
+// and, when a sourced composite exists, a click-through into that axis's own drill-down.
+function ForcesScore({ detail, onOpenAxis }: { detail: EntityDetail; onOpenAxis: (axis: 'eco' | 'mil' | 'geo') => void }) {
   const scoreNum = detail.scoreLabel ? parseFloat(detail.scoreLabel.split(' ')[0]) : detail.power
   const unit = detail.scoreLabel ? '/ 10' : '/ 100'
   const desc = detail.id ? FORCES_DESCRIPTIONS[detail.id] : undefined
   const notes = detail.powerNotes
   const general = desc?.general ?? notes?.general
+  const short = general && firstSentence(general)
+  // the general read only expands past its first sentence in place — no separate destination.
+  // Resets per body (a fresh selection expanding into the PREVIOUS body's full paragraph, for one
+  // frame before the new detail lands, would be wrong) using the same derive-during-render reset
+  // idiom ForcesPanelContent's own mode state already uses, rather than an effect.
+  const [expanded, setExpanded] = useState(false)
+  const [lastId, setLastId] = useState(detail.id)
+  if (detail.id !== lastId) { setLastId(detail.id); setExpanded(false) }
+  // The REMAINDER after the first sentence — rendered as its own node so expanding APPENDS to the
+  // sentence already on screen instead of replacing it. Keying one <Words> on expanded/collapsed
+  // remounted the whole paragraph, so every word (including the ones the reader was already
+  // reading) re-ran its rise — the text visibly re-spawned from scratch on both "קרא עוד" and
+  // "פחות". Split in two, the short sentence's DOM is never touched by the toggle: only the tail
+  // mounts and animates in, and collapsing only unmounts the tail.
+  const restStart = general && short ? general.indexOf(short) : -1
+  const rest = restStart >= 0 && general ? general.slice(restStart + short!.length).trim() : ''
+  const hasMore = !!rest
   return (
     <div className="fscore">
       {/* the headline ROW never animates or moves — only the numeral inside it counts to its new
@@ -529,24 +616,37 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
           </Hint>
         )}
       </div>
-      {/* reserved 3-line height (see .fscore__gen) — the breakdown below it must sit at the same
-          y for every body, whatever the sentence length. */}
-      <p className="fscore__gen">{general && <Words key={detail.id} delay={BEAT.lede} text={firstSentence(general)!} />}</p>
+      {/* reserved 3-line height while COLLAPSED (see .fscore__gen) — the breakdown below it sits
+          at the same y for every body at a glance. Expanding is a deliberate action, so it's the
+          one state allowed to grow the panel past that reserved height. */}
+      <p className="fscore__gen">
+        {/* keyed on the BODY only, never on `expanded` — the toggle must not remount this */}
+        {short && <Words key={`${detail.id}-short`} delay={BEAT.lede} text={short} />}
+        {expanded && rest && <>{' '}<Words key={`${detail.id}-rest`} text={rest} /></>}
+        {hasMore && (
+          <button type="button" className="fscore__more" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+            {expanded ? 'פחות' : 'קרא עוד'}
+          </button>
+        )}
+      </p>
       <div className="fparams">
         {/* deliberately UNKEYED — see ForceAxisRow. A per-body key remounts the row and resets the
             bar to empty; keeping the instance alive is what lets it slide from the previous body's
             value straight to the new one. */}
         <ForceAxisRow
-          label="כלכלי" icon="eco" value={detail.forces?.eco} beat={BEAT.rows}
-          hint="כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה" text={desc?.eco ?? notes?.eco}
+          label="כלכלה" icon="eco" value={detail.forces?.eco} beat={BEAT.rows}
+          hint={AXIS_BLURB.eco} text={desc?.eco ?? notes?.eco}
+          onOpen={hasAxisEvidence(detail.id, 'eco') ? () => onOpenAxis('eco') : undefined}
         />
         <ForceAxisRow
-          label="צבאי" icon="mil" value={detail.forces?.mil} beat={BEAT.rows + BEAT.rowStep}
-          hint="כוח צבאי — הוצאות ביטחון, יכולות וכוח אש" text={desc?.mil ?? notes?.mil}
+          label="צבא" icon="mil" value={detail.forces?.mil} beat={BEAT.rows + BEAT.rowStep}
+          hint={AXIS_BLURB.mil} text={desc?.mil ?? notes?.mil}
+          onOpen={hasAxisEvidence(detail.id, 'mil') ? () => onOpenAxis('mil') : undefined}
         />
         <ForceAxisRow
-          label="גאו-אסטרטגי" icon="geo" value={detail.forces?.geo} beat={BEAT.rows + BEAT.rowStep * 2}
-          hint="כוח גאו-אסטרטגי — מיקום, בריתות והשפעה אזורית" text={desc?.geo ?? notes?.geo}
+          label="גאו-אסטרטגיה" icon="geo" value={detail.forces?.geo} beat={BEAT.rows + BEAT.rowStep * 2}
+          hint={AXIS_BLURB.geo} text={desc?.geo ?? notes?.geo}
+          onOpen={hasAxisEvidence(detail.id, 'geo') ? () => onOpenAxis('geo') : undefined}
         />
       </div>
       {detail.backing && (
@@ -556,26 +656,17 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
           <p className="fbacking__text">משקל פוליטי מושאל — חלק מכוח המשיכה תלוי בנותן החסות.</p>
         </div>
       )}
-      {/* the toggle button — moved below every metric component (headline, description, eco/mil/geo
-          breakdown, backing note), directly above the sources link, per user placement request. */}
-      {hasNarrative && (
-        <button className="ffull-btn" onClick={onToggleFull} aria-expanded={false}>
-          תיאור מלא <span aria-hidden>↗</span>
-        </button>
-      )}
-      <EvidenceLink detail={detail} />
     </div>
   )
 }
 
 
-// FORCES detail panel (forces view) — grouped header, then ONE of two full-panel-body states:
-// the score/category cluster (default) OR the complete narrative — toggled by a single button
-// whose label names which way it switches. The button sits right below the brief description,
-// ABOVE the eco/mil/geo breakdown (moved up from the old panel-foot position, after the relations
-// section) — its rendering is delegated to ForcesScore/ForcesNarrative (each renders it in the
-// equivalent slot right after their own general-read paragraph) since only one of the two is ever
-// mounted at a time, but the MODE STATE and toggle logic stay owned here, passed down as props.
+// FORCES detail panel (forces view) — grouped header, then ONE of two content states: the score
+// cluster (default) or an axis drill-down (see ForcesAxisPanel), reached by clicking an eco/mil/
+// geo value. The old third state — a separate full-narrative destination behind a "תיאור מלא"
+// toggle — is gone; that content now lives where it's actually about something: the general read
+// expands in place inside ForcesScore (its own inline "קרא עוד"), and each axis's analytical read
+// leads its own drill-down panel, ahead of that axis's graph.
 // Content only — no outer <aside> (see PanelFrame below, and its comment, for why: this used to
 // own its own <aside class="panelb panel--detail">, a SEPARATE element from ForcesIndexPanel's
 // <aside class="panel">, so React fully unmounted/remounted the whole shell every time the ranked
@@ -585,21 +676,29 @@ function ForcesScore({ detail, hasNarrative, onToggleFull }: { detail: EntityDet
 // while ANY detail content (Forces or Dynamics) is showing, regardless of which detail component
 // is rendering.
 function ForcesPanelContent({ detail, onRelSelect }: DetailProps) {
-  const [mode, setMode] = useState<'score' | 'full'>('score')
-  // a fresh selection resets to the score view — it's per-body, not sticky.
+  // two content states inside the ONE persistent shell: the score cluster (default) and an axis
+  // drill-down (see ForcesAxisPanel). `axis` is only meaningful while mode === 'axis'; it's kept
+  // alongside rather than inside the union so returning to the score view and re-entering the
+  // same axis doesn't need to re-derive it.
+  const [mode, setMode] = useState<'score' | 'axis'>('score')
+  const [axis, setAxis] = useState<'eco' | 'mil' | 'geo'>('eco')
+  // a fresh selection resets to the score view — it's per-body, not sticky. Especially true for
+  // the drill-down: a criteria list for the body you just navigated away from is actively wrong.
   const [lastId, setLastId] = useState(detail.id)
   if (detail.id !== lastId) { setLastId(detail.id); setMode('score') }
-  const hasNarrative = !!(detail.id && FORCES_DESCRIPTIONS[detail.id]) || !!detail.powerNotes
-  const toggleMode = () => { sound.play('tab'); setMode((v) => (v === 'score' ? 'full' : 'score')) }
+  const openAxis = (a: 'eco' | 'mil' | 'geo') => { sound.play('open'); setAxis(a); setMode('axis') }
+  const backToScore = () => { sound.play('back'); setMode('score') }
   return (
     <>
       <PanelHeader detail={detail} />
       <div className="fbody">
-        {mode === 'score'
-          ? <ForcesScore detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />
-          : <ForcesNarrative detail={detail} hasNarrative={hasNarrative} onToggleFull={toggleMode} />}
+        {mode === 'axis' && detail.id
+          ? <ForcesAxisPanel key={`${detail.id}-${axis}`} id={detail.id} axis={axis} onBack={backToScore} />
+          : <ForcesScore detail={detail} onOpenAxis={openAxis} />}
       </div>
-      {detail.relations.length > 0 && (
+      {/* the relations list belongs to the body, not to one axis's criteria — inside the
+          drill-down it would read as "relations of the economic score", which is meaningless. */}
+      {mode !== 'axis' && detail.relations.length > 0 && (
         <div className="panel__rels">
           <span className="panel__rels-h">יחסים</span>
           <div className="panel__rels-list">
@@ -643,7 +742,7 @@ export function ForcesPanelFrame({ selected, detail, onClose, onRelSelect, index
     setLastId(curId)
   }
   return (
-    <aside className={`panelb panel--detail${indexProps.compact ? ' panel--compact' : ''}`} dir="rtl" onClick={(ev) => ev.stopPropagation()}>
+    <aside className="panelb panel--detail" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
       {showDetail && <i className="panel-glow" key={glowPulse} aria-hidden />}
       {showDetail && <button className="panel__close" onClick={onClose} aria-label="סגירה">✕</button>}
       {showDetail
@@ -688,7 +787,46 @@ export function SidePanel({ detail, onClose, onRelSelect, view }: { detail?: Ent
       <p className="panel__body panel__body--words">
         <Words delay={0.2} text="במערך יחסי הכוחות ניתן לראות את השילוב של הכוחות והיחסים, ולהבין את הדינמיקות דרך הגופים, מעגלי ההשפעה ומרכזי הכובד. גודלם נקבע על פי כוח משיכתם, והמרחקים ביניהם מעידים על אופי היחסים שלהם." />
       </p>
-      <h2 className="panel__eq">יחסי הכוחות = הכוחות + היחסים</h2>
+      {/* the map's own visual key, inline — was the "יחסי הכוחות = הכוחות + היחסים" formula, which
+          named the relationship between the two other views without helping the reader parse the
+          canvas in front of them. This was also the standalone Legend overlay's entire content
+          (opened via a ⓘ button) — that overlay had exactly one trigger in the whole app
+          (ForcesIndexPanel's "מקרא" button), removed now that this is inline instead of behind a
+          click; the graphics classes (legend__row/group/pair/swatch, the size-ramp dots, the
+          disk/rim marks) survive in overlays.css and are reused verbatim here. */}
+      <div className="panel__legend">
+        <p className="panel__legend-h">איך לקרוא את המפה</p>
+        <div className="legend__rows">
+          <div className="legend__row">
+            <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
+            <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
+          </div>
+          <div className="legend__group">
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--full" /></span>
+              <span className="legend__txt"><b>מלא</b> = מדינה</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--hollow" /></span>
+              <span className="legend__txt"><b>חלולה</b> = לא-מדינתי</span>
+            </div>
+          </div>
+          <div className="legend__group">
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(132,160,196,0.95)' }} /></span>
+              <span className="legend__txt"><b>כחול</b> = מערב</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(198,134,98,0.95)' }} /></span>
+              <span className="legend__txt"><b>חום</b> = מזרח</span>
+            </div>
+            <div className="legend__pair">
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(150,150,150,0.7)' }} /></span>
+              <span className="legend__txt"><b>אפור</b> = ניטרלי</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <p className="panel__note">בחרו גוף במפה כדי לראות את נתוניו.</p>
     </aside>
   )
@@ -704,22 +842,29 @@ const TABS: { he: string; view: View; ready?: boolean }[] = [
   { he: 'יחסי הכוחות', view: 'dynamics', ready: true },
 ]
 
+// A timeline, not a tab strip: one line running under the three destinations, a small circle
+// resting at whichever is active and sliding to the next on switch — the connective thread
+// between the views instead of three separate button chips. Reuses the exact same measured-
+// geometry approach the old solid-marker version used (real offsetLeft/offsetWidth off the live
+// button elements, RTL-correct for free); only the visual language changes, so switching back is
+// a pure CSS revert if this doesn't earn its place.
 export function TabBar({ view, onView }: { view: View; onView: (v: View) => void }) {
   const navRef = useRef<HTMLElement>(null)
-  // a single shared marker that slides (translateX) to the active tab; measured from real
-  // tab geometry so RTL + varying Hebrew widths both stay correct. Re-measures on resize.
-  const [marker, setMarker] = useState<{ x: number; w: number } | null>(null)
+  // the dot centres ON a stop, not across its width — track the stop's horizontal CENTRE, not its
+  // left+width like the old block marker needed (a block covers the tab; a dot sits on a point).
+  const [dotX, setDotX] = useState<number | null>(null)
 
   useLayoutEffect(() => {
     const measure = () => {
       const nav = navRef.current
       if (!nav) return
       const idx = TABS.findIndex((t) => t.view === view)
-      if (idx < 0) { setMarker(null); return }
+      if (idx < 0) { setDotX(null); return }
+      // buttons are the nav's first N children — .tline__track/.tline__dot below are trailing
+      // siblings, so this index still lines up 1:1 with TABS, same as the old marker's lookup.
       const tabEl = nav.children[idx] as HTMLElement | undefined
       if (!tabEl) return
-      // offsetLeft is relative to the nav's padding box — already RTL-correct
-      setMarker({ x: tabEl.offsetLeft, w: tabEl.offsetWidth })
+      setDotX(tabEl.offsetLeft + tabEl.offsetWidth / 2)
     }
     measure()
     window.addEventListener('resize', measure)
@@ -727,23 +872,20 @@ export function TabBar({ view, onView }: { view: View; onView: (v: View) => void
   }, [view])
 
   return (
-    <nav className="tabs" dir="rtl" aria-label="תצוגות" ref={navRef}>
+    <nav className="tline" dir="rtl" aria-label="תצוגות" ref={navRef}>
       {TABS.map((t) => (
         <button
           key={t.he}
-          className={`tab${view === t.view ? ' tab--active' : ''}${t.ready === false ? ' tab--soon' : ''}`}
+          className={`tline__stop${view === t.view ? ' tline__stop--active' : ''}${t.ready === false ? ' tline__stop--soon' : ''}`}
           aria-current={view === t.view ? 'page' : undefined}
           onClick={() => t.ready !== false && onView(t.view)}
         >
           {t.he}
         </button>
       ))}
-      {marker && (
-        <span
-          className="tabs__marker"
-          aria-hidden
-          style={{ width: marker.w, transform: `translateX(${marker.x}px)` }}
-        />
+      <span className="tline__track" aria-hidden />
+      {dotX != null && (
+        <span className="tline__dot" aria-hidden style={{ transform: `translateX(${dotX}px) translateX(-50%)` }} />
       )}
     </nav>
   )

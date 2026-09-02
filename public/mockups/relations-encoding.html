@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מאקרופוליטיקה · קידוד מרחבי — מערכות היחסים</title>
+<style>
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistLight.ttf') format('truetype'); font-weight: 300; font-display: swap; }
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistRegular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistBold.ttf') format('truetype'); font-weight: 700 900; font-display: swap; }
+  @font-face { font-family: 'Futurism'; src: url('/fonts/Futurism-Light.otf') format('opentype'); font-weight: 300; font-display: swap; }
+  @font-face { font-family: 'Futurism'; src: url('/fonts/Futurism-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Futurism'; src: url('/fonts/Futurism-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
+
+  :root {
+    --bg: #06030f; --bg-2: #0a0618; --yellow: #fbff00; --light: #f4f2ec;
+    --ink-dim: rgba(244,242,236,0.72); --ink-faint: rgba(244,242,236,0.60);
+    --yellow-08: rgba(251,255,0,0.08); --yellow-12: rgba(251,255,0,0.12);
+    --yellow-30: rgba(251,255,0,0.3); --yellow-50: rgba(251,255,0,0.5);
+    --display: 'Tel Aviv Brutalist','Heebo','Arial Hebrew',system-ui,sans-serif;
+    --body: 'Futurism','Tel Aviv Brutalist','Heebo',system-ui,sans-serif;
+    --ease-panel: cubic-bezier(0.3,0,0.08,1);
+    --ease-out-expo: cubic-bezier(0.16,1,0.3,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--light); font-family: var(--body);
+    overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  /* faint starfield ground, same register as the live screen */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 78% 14%, rgba(255,255,255,.35), transparent),
+      radial-gradient(1px 1px at 34% 68%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1px 1px at 62% 82%, rgba(255,255,255,.3), transparent),
+      radial-gradient(1px 1px at 88% 56%, rgba(255,255,255,.35), transparent),
+      radial-gradient(1px 1px at 22% 88%, rgba(255,255,255,.25), transparent),
+      radial-gradient(circle at 50% 45%, #0d0722 0%, var(--bg) 62%);
+  }
+
+  /* ── top bar ─────────────────────────────────────────────── */
+  .bar {
+    position: fixed; inset: 0 0 auto 0; z-index: 20;
+    display: flex; align-items: center; gap: 26px;
+    padding: 14px 26px; background: linear-gradient(180deg, rgba(6,3,15,.94), rgba(6,3,15,0));
+  }
+  .bar__brand { font-family: var(--display); font-weight: 400; font-size: 14px; letter-spacing: .06em; opacity: .8; }
+  .seg { display: flex; gap: 2px; background: rgba(244,242,236,.05); padding: 2px; }
+  .seg button {
+    font-family: var(--body); font-size: 11.5px; letter-spacing: .04em; font-weight: 400;
+    padding: 7px 14px; border: 0; background: transparent; color: var(--ink-faint);
+    cursor: pointer; transition: color .3s var(--ease-out-expo), background .3s var(--ease-out-expo);
+  }
+  .seg button:hover { color: var(--light); }
+  .seg button[aria-pressed="true"] { background: var(--yellow); color: var(--bg); font-weight: 700; }
+  .refs { display: flex; gap: 4px; margin-inline-start: auto; flex-wrap: wrap; }
+  .refs button {
+    font-family: var(--body); font-size: 11px; letter-spacing: .03em;
+    padding: 5px 10px; border: 1px solid rgba(244,242,236,.14); background: transparent;
+    color: var(--ink-faint); cursor: pointer; transition: all .3s var(--ease-out-expo);
+  }
+  .refs button:hover { border-color: var(--yellow-50); color: var(--light); }
+  .refs button[aria-pressed="true"] { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
+
+  /* ── field ───────────────────────────────────────────────── */
+  .field { position: fixed; inset: 0; z-index: 5; }
+  .guides { position: absolute; inset: 0; pointer-events: none; }
+
+  .node {
+    position: absolute; transform: translate(-50%,-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: default;
+    /* `translate`, not `transform` — transform carries the centring; see morphTo() */
+    translate: 0 0; transition: translate .9s var(--ease-panel);
+  }
+  @media (prefers-reduced-motion: reduce) { .node { transition: none; } }
+  .node__disk {
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #fff 0%, var(--light) 55%, rgba(244,242,236,.35) 100%);
+    box-shadow: 0 0 5px rgba(255,255,255,.85), 0 0 15px rgba(255,255,255,.3);
+    transition: transform .2s var(--ease-out-expo), box-shadow .2s var(--ease-out-expo);
+  }
+  .node__name { font-size: 11px; color: var(--light); white-space: nowrap; opacity: .9; }
+  .node:hover { z-index: 30; }
+  .node:hover .node__disk { transform: scale(1.2); box-shadow: 0 0 24px rgba(251,255,0,.32); }
+  .node--dim { opacity: .3; }
+
+  /* pole labels — PERSISTENT (the fix): quiet at rest, brighter on focus */
+  .pole {
+    position: absolute; transform: translate(-50%,-50%); pointer-events: none;
+    font-family: var(--display); font-size: 13px; letter-spacing: .06em; color: var(--yellow);
+    text-align: center; opacity: .62; transition: opacity .4s var(--ease-out-expo);
+    white-space: nowrap;
+  }
+  .pole i { display: block; font-family: var(--body); font-style: normal; font-size: 9.5px; letter-spacing: .05em; color: var(--ink-faint); margin-top: 3px; }
+  .pole--hot { opacity: .95; }
+
+  /* reference marker */
+  .ref { position: absolute; transform: translate(-50%,-50%); pointer-events: none; text-align: center; z-index: 12; }
+  .ref__dot { display: block; width: 11px; height: 11px; border-radius: 50%; background: var(--yellow); margin: 0 auto 6px; box-shadow: 0 0 16px var(--yellow-50), 0 0 40px var(--yellow-30); }
+  .ref__name { font-family: var(--display); font-size: 15px; color: var(--yellow); letter-spacing: .05em; display: block; }
+  .ref__tag { font-size: 9.5px; color: var(--ink-faint); letter-spacing: .07em; display: block; margin-top: 2px; }
+  /* the 'aside' marker: same anatomy as .ref, deliberately un-starlike — no glow, a hollow ring
+     instead of a filled dot, and a vertical rule tying the name to its tag like a caption, not a
+     plotted body. It should read as chrome framing the diagram, never as a candidate data point. */
+  .ref--aside { text-align: start; }
+  .ref--aside .ref__dot { background: transparent; border: 1.5px solid var(--yellow); box-shadow: none; margin: 0 0 7px; }
+  .ref--aside .ref__name { text-align: start; }
+  .ref--aside .ref__tag { text-align: start; padding-inline-start: 9px; border-inline-start: 1px solid var(--yellow-30); }
+
+  /* ring band labels (polar mode) */
+  .band { position: absolute; transform: translate(-50%,-50%); pointer-events: none; font-size: 9.5px; letter-spacing: .07em; color: var(--ink-faint); opacity: .5; white-space: nowrap; }
+
+  /* hover card */
+  .card {
+    position: absolute; z-index: 40; width: 236px; padding: 10px 12px; pointer-events: none;
+    background: var(--yellow); color: var(--bg); display: flex; flex-direction: column; gap: 3px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.45); transform-origin: bottom center;
+    transform: translate(-50%, calc(-100% - 16px)) scaleY(1);
+    animation: cardIn .32s cubic-bezier(.76,0,.24,1) both;
+  }
+  @keyframes cardIn { from { transform: translate(-50%, calc(-100% - 16px)) scaleY(0); } }
+  .card--below { transform-origin: top center; transform: translate(-50%, 22px) scaleY(1); animation-name: cardInBelow; }
+  @keyframes cardInBelow { from { transform: translate(-50%, 22px) scaleY(0); } }
+  .card__name { font-family: var(--display); font-size: 14px; letter-spacing: .04em; }
+  .card__verdict { font-weight: 700; font-size: 11px; letter-spacing: .06em; opacity: .85; }
+  .card__why { font-size: 11px; line-height: 1.65; opacity: .92; }
+  .card__stat { font-weight: 700; font-size: 11px; letter-spacing: .06em; opacity: .7; }
+
+  /* explainer */
+  .note {
+    position: fixed; inset: auto 0 0 0; z-index: 20; padding: 16px 26px 20px;
+    background: linear-gradient(0deg, rgba(6,3,15,.94), rgba(6,3,15,0));
+    display: flex; align-items: baseline; gap: 14px;
+  }
+  .note__k { font-family: var(--display); font-size: 12px; color: var(--yellow); letter-spacing: .06em; white-space: nowrap; }
+  .note__v { font-size: 11.5px; color: var(--ink-dim); line-height: 1.7; max-width: 78ch; }
+  .note__v b { color: var(--light); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="bar__brand">מאקרופוליטיקה · קידוד מרחבי</span>
+  <div class="seg" id="modes"></div>
+  <div class="refs" id="refs"></div>
+</div>
+
+<div class="field" id="field">
+  <svg class="guides" id="guides"></svg>
+</div>
+
+<div class="note">
+  <span class="note__k" id="noteK"></span>
+  <span class="note__v" id="noteV"></span>
+</div>
+
+<script>
+// LABEL SWAP (direct feedback, not a design choice): the data fields keep their original names
+// (.tension/.friction, matching AUTHORED_RELATIONS' t/f in the live relations.ts) — only the
+// HEBREW WORD shown for each was wrong. Corrected meaning: מתח (tension) = opposing interests or
+// complicated relations, no direct confrontation. חיכוך (friction) = direct clashes, force, open
+// confrontation. So the .tension FIELD (which the derivation model loads with the opp-bloc +
+// aggressive-disposition bonus — i.e. open hostility, shadow wars, proxies) is what "חיכוך" means;
+// the .friction FIELD (the non-aligned, non-opposed messy middle) is what "מתח" means. Every place
+// below that prints a label for `.tension`/`.friction` swaps which WORD it prints — nothing about
+// which field feeds which vertex, nor any data value, changes.
+const POLE_HE = { tension: 'חיכוך', friction: 'מתח', harmony: 'הרמוניה' }
+const VERDICT  = { tension: 'יחס עוין', friction: 'יחס מורכב', harmony: 'יחס הרמוני' }
+
+const MODES = [
+  { id: 'current', label: 'נוכחי',
+    k: 'משולש · עוגן במרכז',
+    v: 'המצב הקיים. המיקום מקודד את <b>תמהיל</b> היחס (חיכוך/מתח/הרמוניה), אבל סמן מדינת הייחוס יושב במרכז — שהוא בעצמו קואורדינטה אמיתית: "שליש מכל אחד". העין קוראת <b>קרבה למרכז = יחס קרוב</b>, וזה פשוט לא מה שמקודד כאן.' },
+  { id: 'aside', label: 'בצד',
+    k: 'משולש · מדינת הייחוס בצד',
+    v: 'אותה מתמטיקה בדיוק על שאר המדינות — אבל מדינת הייחוס לא מתווכת בתוך המשולש כלל. אין יותר סמן שמתחזה לנתון: היא יושבת בצד, כמסגרת — זו <b>הקונסטלציה שלה</b>, לא נקודה בתוכה. תוויות הקטבים קבועות, לא רק בריחוף.' },
+  { id: 'polar', label: 'קוטבי',
+    k: 'מניפה · מרחק = ריחוק',
+    v: 'שינוי מערכת הצירים. <b>רדיוס = ריחוק</b> (1 מינוס הרמוניה), <b>זווית = אופי הריחוק</b> — מתח משמאל, חיכוך מימין, מאוזן למעלה. הנתונים תומכים בזה: חיכוך והרמוניה הם כמעט תמונת ראי (r=−0.88), ומתח נושא מחצית מהטווח. ככל שהריחוק שואף לאפס הזווית מאבדת משמעות — והגופים מתכנסים לנקודה אחת, בדיוק היכן שהמשתנה המשני חדל לחשוב.' },
+]
+
+const state = { mode: 'current', ref: 'israel', hover: null, data: null }
+const field = document.getElementById('field')
+const guides = document.getElementById('guides')
+
+/* ── geometry ─────────────────────────────────────────────── */
+const sharpen = (r, k = 1.45) => {
+  const t = Math.pow(r.tension, k), f = Math.pow(r.friction, k), h = Math.pow(r.harmony, k)
+  const s = t + f + h
+  return { tension: t / s, friction: f / s, harmony: h / s }
+}
+const hash = (s) => { let h = 2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619) } return h>>>0 }
+const dotSize = (size) => Math.max(8, Math.min(30, size * 0.42))
+
+function triGeo(w, h) {
+  // scaled to leave real margin: the bottom vertices must clear the note bar and the top vertex
+  // the mode bar. The 'aside' mode's reference marker lives OUTSIDE this shape entirely (see
+  // renderChrome) — it doesn't need geometry margin reserved for it the way a merged vertex would.
+  const cx = w/2, cy = h*0.51
+  const sx = w*0.40, sy = h*0.38
+  return {
+    cx, cy,
+    Vt: { x: cx,             y: cy - sy*0.95 },
+    Vf: { x: cx - sx*0.92,   y: cy + sy*0.72 },
+    Vh: { x: cx + sx*0.92,   y: cy + sy*0.72 },
+  }
+}
+
+// barycentric placement — shared by 'current' and 'aside' (identical math for every plotted body;
+// 'aside' only changes whether the reference itself is drawn as one of them — see renderChrome)
+function layoutTriangle(rows, w, h) {
+  const g = triGeo(w, h)
+  const jit = 18
+  return rows.map((e) => {
+    const r = sharpen(e)
+    const jx = ((hash(e.id)%1000)/1000 - .5) * jit
+    const jy = ((hash(e.id+'~')%1000)/1000 - .5) * jit
+    return { e,
+      x: r.tension*g.Vt.x + r.friction*g.Vf.x + r.harmony*g.Vh.x + jx,
+      y: r.tension*g.Vt.y + r.friction*g.Vf.y + r.harmony*g.Vh.y + jy,
+      d: dotSize(e.size) }
+  })
+}
+
+// polar fan — radius = estrangement, angle = flavour of that estrangement
+const FAN_MIN = -15, FAN_MAX = 195   // degrees; >180 so the far field wraps slightly around the anchor
+function polarGeo(w, h) {
+  return { cx: w/2, cy: h*0.78, rMin: 46, rMax: Math.min(h*0.66, w*0.42) }
+}
+function layoutPolar(rows, w, h) {
+  const g = polarGeo(w, h)
+  return rows.map((e) => {
+    const estrange = 1 - e.harmony                       // 0 = perfect harmony, 1 = none
+    const t = Math.min(1, Math.max(0, (estrange - 0.15) / 0.85))
+    const r = g.rMin + t * (g.rMax - g.rMin)
+    const flavour = e.tension / Math.max(1e-6, e.tension + e.friction)  // 0 = friction, 1 = tension
+    const deg = FAN_MAX - flavour * (FAN_MAX - FAN_MIN)
+    const rad = deg * Math.PI / 180
+    return { e, x: g.cx + r*Math.cos(rad), y: g.cy - r*Math.sin(rad), d: dotSize(e.size) }
+  })
+}
+
+// keep labelled bodies from colliding — same relaxation idiom as the live view
+function relax(points, w, h, iters = 26, pad = 22) {
+  for (let it=0; it<iters; it++) {
+    let moved = false
+    for (let i=0;i<points.length;i++) for (let j=i+1;j<points.length;j++) {
+      const a=points[i], b=points[j]
+      const min=(a.d+b.d)/2+pad
+      const dx=b.x-a.x, dy=b.y-a.y
+      const dist=Math.hypot(dx,dy)||0.001
+      if (dist<min) {
+        const push=(min-dist)/2, ux=dx/dist, uy=dy/dist
+        a.x-=ux*push; a.y-=uy*push; b.x+=ux*push; b.y+=uy*push; moved=true
+      }
+    }
+    if (!moved) break
+  }
+  // guard the clamp against a degenerate viewport: if w/h arrive as 0 (first paint, before layout),
+  // Math.min(Math.max(x,52), w-52) collapses to -52 for every body and the whole field lands
+  // off-screen at a negative coordinate.
+  const loX = 52, hiX = Math.max(loX, w - 52)
+  const loY = 78, hiY = Math.max(loY, h - 92)
+  for (const p of points) { p.x=Math.min(Math.max(p.x,loX),hiX); p.y=Math.min(Math.max(p.y,loY),hiY) }
+  return points
+}
+
+/* ── render ───────────────────────────────────────────────── */
+const nodeEls = new Map()
+let current = new Map()   // id → {x,y} currently painted (for morphing)
+let target  = new Map()
+
+function dominantOf(e) {
+  return e.tension >= e.friction && e.tension >= e.harmony ? 'tension'
+       : e.harmony >= e.friction ? 'harmony' : 'friction'
+}
+
+// Measure the FIELD element, not `window` — clientWidth/Height are layout metrics that stay
+// meaningful when innerWidth/innerHeight don't (a hidden tab or background iframe can report a
+// 0x0 window, which would collapse the whole layout onto the clamp bounds). Same reason the live
+// RelationsView measures its own container through a ResizeObserver.
+const viewport = () => ({
+  w: field.clientWidth || document.documentElement.clientWidth || innerWidth,
+  h: field.clientHeight || document.documentElement.clientHeight || innerHeight,
+})
+const HAS_BOX = () => { const { w, h } = viewport(); return w > 200 && h > 200 }
+
+function compute() {
+  const { w, h } = viewport()
+  const rows = state.data.byRef[state.ref]
+  const pts = state.mode === 'polar' ? layoutPolar(rows, w, h) : layoutTriangle(rows, w, h)
+  return relax(pts, w, h)
+}
+
+function renderChrome() {
+  const { w, h } = viewport()
+  field.querySelectorAll('.pole,.ref,.band').forEach(n => n.remove())
+  guides.innerHTML = ''
+  guides.setAttribute('viewBox', `0 0 ${w} ${h}`)
+  const refHe = state.data.refs.find(r => r.id === state.ref).he
+
+  if (state.mode === 'polar') {
+    const g = polarGeo(w, h)
+    // estrangement bands — the reading key, drawn not hidden
+    for (const [frac, label] of [[0.34,'ריחוק נמוך'], [0.67,'ריחוק בינוני'], [1,'ריחוק גבוה']]) {
+      const r = g.rMin + frac*(g.rMax-g.rMin)
+      const a0 = FAN_MIN*Math.PI/180, a1 = FAN_MAX*Math.PI/180
+      const x0 = g.cx + r*Math.cos(a0), y0 = g.cy - r*Math.sin(a0)
+      const x1 = g.cx + r*Math.cos(a1), y1 = g.cy - r*Math.sin(a1)
+      guides.insertAdjacentHTML('beforeend',
+        `<path d="M ${x0} ${y0} A ${r} ${r} 0 0 0 ${x1} ${y1}" fill="none" stroke="rgba(251,255,0,0.09)" stroke-width="1"/>`)
+      // ride the arc's left flank (~168°) rather than its crown — the crown is exactly where the
+      // balanced bodies pile up, so a label there collides with the data it's meant to explain.
+      const la = 168*Math.PI/180
+      add('band', '', { left: g.cx + r*Math.cos(la), top: g.cy - r*Math.sin(la) - 12 }, label)
+    }
+    add('pole', `מתח<i>אינטרסים מתנגשים</i>`,   { left: g.cx - g.rMax*0.99, top: g.cy - 6 })
+    add('pole', `חיכוך<i>עימות ישיר וכוח</i>`,  { left: g.cx + g.rMax*0.99, top: g.cy - 6 })
+    add('pole', `מאוזן<i>ריחוק ללא אופי חד</i>`, { left: g.cx, top: g.cy - g.rMax - 30 })
+    addRef(g.cx, g.cy + 30, refHe, 'נקודת המבט')
+  } else {
+    const g = triGeo(w, h)
+    add('pole', `חיכוך<i>עימות ישיר וכוח</i>`, { left: g.Vt.x, top: g.Vt.y - 32 })
+    add('pole', `מתח<i>אינטרסים מתנגשים</i>`,  { left: g.Vf.x - 6, top: g.Vf.y + 28 })
+    add('pole', `הרמוניה<i>שיתוף פעולה</i>`,   { left: g.Vh.x + 6, top: g.Vh.y + 28 })
+    if (state.mode === 'current') {
+      // faithful to the live screen: the pole labels are hover-only there, so at rest the ONLY
+      // interpretable cue is a labelled country in the middle. Showing them always here would
+      // flatter the current design and make the comparison dishonest.
+      field.querySelectorAll('.pole').forEach(n => { n.style.opacity = '0'; n.dataset.hoverOnly = '1' })
+      addRef(g.cx, g.cy, refHe, 'מדינת ייחוס')
+    } else {
+      // 'aside': the reference is NOT plotted at all — it isn't a data point among the others, it
+      // IS the vantage point the whole triangle is drawn from. Pinned outside the triangle's own
+      // bounding shape, vertically centred on it, at a fixed field-edge position rather than
+      // anything derived from the data — so there's no ambiguity it belongs to the coordinate
+      // system rather than sitting in it. The trailing `true` marks it non-glowing in CSS
+      // (.ref--aside), visibly distinct from a plotted `.node`.
+      addRef(90, g.cy, refHe, `הקונסטלציה של ${refHe}`, true)
+    }
+  }
+
+  function add(cls, html, pos, text) {
+    const el = document.createElement('span')
+    el.className = cls
+    el.innerHTML = text !== undefined ? text : html
+    el.style.left = pos.left+'px'; el.style.top = pos.top+'px'
+    field.appendChild(el)
+  }
+  function addRef(x, y, he, tag, aside) {
+    const el = document.createElement('div')
+    el.className = 'ref' + (aside ? ' ref--aside' : '')
+    el.innerHTML = `<span class="ref__dot"></span><span class="ref__name">${he}</span><span class="ref__tag">${tag}</span>`
+    el.style.left = x+'px'; el.style.top = y+'px'
+    field.appendChild(el)
+  }
+}
+
+function ensureNodes() {
+  const rows = state.data.byRef[state.ref]
+  const seen = new Set(rows.map(r => r.id))
+  for (const [id, el] of nodeEls) if (!seen.has(id)) { el.remove(); nodeEls.delete(id); current.delete(id) }
+  for (const e of rows) {
+    if (nodeEls.has(e.id)) continue
+    const el = document.createElement('div')
+    el.className = 'node'
+    const d = dotSize(e.size)
+    el.innerHTML = `<span class="node__disk" style="width:${d}px;height:${d}px"></span><span class="node__name">${e.he}</span>`
+    el.addEventListener('mouseenter', () => { state.hover = e.id; paintHover() })
+    el.addEventListener('mouseleave', () => { if (state.hover === e.id) { state.hover = null; paintHover() } })
+    field.appendChild(el)
+    nodeEls.set(e.id, el)
+  }
+}
+
+// left/top are ALWAYS the true final position, set synchronously — the mode-change morph is a
+// pure CSS flourish layered on top via the `translate` property (kept off `transform`, which is
+// already spoken for by the -50%/-50% centring). If the transition never plays — a throttled
+// tab, reduced-motion — the field is still laid out correctly; nothing about the reading of the
+// chart depends on an animation completing.
+function morphTo(points) {
+  target = new Map(points.map(p => [p.e.id, { x: p.x, y: p.y }]))
+  for (const [id, tgt] of target) {
+    const el = nodeEls.get(id); if (!el) continue
+    const prev = current.get(id)
+    el.style.left = tgt.x+'px'; el.style.top = tgt.y+'px'
+    if (!prev) { current.set(id, { x: tgt.x, y: tgt.y }); continue }  // first paint — place, don't fly
+    const dx = prev.x - tgt.x, dy = prev.y - tgt.y
+    if (Math.hypot(dx, dy) < 1) { current.set(id, { x: tgt.x, y: tgt.y }); continue }
+    el.style.transition = 'none'
+    el.style.translate = `${dx}px ${dy}px`
+    void el.offsetWidth                                   // commit the start state before easing home
+    el.style.transition = ''
+    el.style.translate = '0px 0px'
+    current.set(id, { x: tgt.x, y: tgt.y })
+  }
+}
+
+let cardEl = null
+function paintHover() {
+  if (cardEl) { cardEl.remove(); cardEl = null }
+  for (const [id, el] of nodeEls) el.classList.toggle('node--dim', !!state.hover && state.hover !== id)
+  field.querySelectorAll('.pole').forEach(n => {
+    n.classList.toggle('pole--hot', !!state.hover)
+    // hover-only poles ('current' mode) fade in with the hover and back out after — the live
+    // behaviour. Persistent poles (the other modes) keep their resting opacity.
+    if (n.dataset.hoverOnly) n.style.opacity = state.hover ? '' : '0'
+  })
+  if (!state.hover) return
+  const e = state.data.byRef[state.ref].find(r => r.id === state.hover)
+  // read the position off the node element itself, not the `current` bookkeeping map — the element
+  // is the single source of truth for where the star actually IS, so the card can never desync
+  // from it (it did: a degenerate first-paint layout left `current` holding stale coordinates
+  // while the DOM had since been re-laid-out correctly).
+  const el = nodeEls.get(state.hover); if (!e || !el) return
+  const p = { x: parseFloat(el.style.left), y: parseFloat(el.style.top) }
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return
+  const refHe = state.data.refs.find(r => r.id === state.ref).he
+  const dom = dominantOf(e)
+  // flip below the star when there isn't room above: the card is ~110px tall, sits 16px clear of
+  // the node, and the mode bar occupies the top ~50px — so it needs ~190px of headroom, not 150.
+  const below = p.y < 195
+  cardEl = document.createElement('div')
+  cardEl.className = 'card' + (below ? ' card--below' : '')
+  cardEl.style.left = p.x+'px'; cardEl.style.top = p.y+'px'
+  cardEl.innerHTML =
+    `<span class="card__name">${e.he}</span>` +
+    `<span class="card__verdict">${VERDICT[dom]} מול ${refHe}</span>` +
+    `<p class="card__why">${e.why ?? `הקשר נשען בעיקר על ${POLE_HE[dom]}, לצד תמהיל של שיוך גושי, בריתות ועמדתה של ${e.he}.`}</p>` +
+    `<span class="card__stat">${POLE_HE.tension} ${Math.round(e.tension*100)}% · ${POLE_HE.friction} ${Math.round(e.friction*100)}% · ${POLE_HE.harmony} ${Math.round(e.harmony*100)}%</span>`
+  field.appendChild(cardEl)
+}
+
+function render() {
+  // never lay out against a degenerate box — bail and let the ResizeObserver re-fire once the
+  // field actually has dimensions, rather than baking nonsense coordinates into the DOM.
+  if (!HAS_BOX()) return
+  ensureNodes()
+  renderChrome()
+  morphTo(compute())
+  const m = MODES.find(m => m.id === state.mode)
+  document.getElementById('noteK').textContent = m.k
+  document.getElementById('noteV').innerHTML = m.v
+  document.querySelectorAll('#modes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === state.mode)))
+  document.querySelectorAll('#refs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === state.ref)))
+}
+
+/* ── boot ─────────────────────────────────────────────────── */
+fetch('./relations-data.json').then(r => r.json()).then(data => {
+  state.data = data
+  const modes = document.getElementById('modes')
+  for (const m of MODES) {
+    const b = document.createElement('button')
+    b.textContent = m.label; b.dataset.id = m.id
+    b.onclick = () => { state.mode = m.id; state.hover = null; paintHover(); render() }
+    modes.appendChild(b)
+  }
+  const refs = document.getElementById('refs')
+  for (const r of data.refs) {
+    const b = document.createElement('button')
+    b.textContent = r.he; b.dataset.id = r.id
+    b.onclick = () => { state.ref = r.id; state.hover = null; paintHover(); render() }
+    refs.appendChild(b)
+  }
+  render()
+  addEventListener('keydown', (ev) => {
+    const i = MODES.findIndex(m => m.id === state.mode)
+    if (ev.key === 'ArrowRight') { state.mode = MODES[(i+1)%MODES.length].id; render() }
+    if (ev.key === 'ArrowLeft')  { state.mode = MODES[(i+MODES.length-1)%MODES.length].id; render() }
+  })
+})
+// ResizeObserver rather than a window 'resize' listener: it also fires when the field FIRST gains
+// a real box (a tab becoming visible, an iframe being laid out), which is exactly the case the
+// render guard above defers on.
+new ResizeObserver(() => { if (state.data) render() }).observe(field)
+</script>
+</body>
+</html>

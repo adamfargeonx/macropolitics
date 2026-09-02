@@ -17,6 +17,13 @@ const TAU = Math.PI * 2
 const DEFAULT_ZOOM = 0.85 // the default framed view
 const FOCUS_ZOOM = 1.35 // gentle zoom-in when a body is selected
 const CAM_DUR = 600 // ms — camera tween duration (pan + zoom), ease-out-expo
+// A beat of stillness before the orrery starts revealing itself — the whole entrance (rings,
+// bodies, starfield fade-in) is driven off `t = (now - this.start)/1000`, so simply pushing
+// `start` this far into the future holds every one of those at its t<=0 (i.e. zero) state for
+// the delay, then lets the existing entrance timing play out exactly as before. Landing on a
+// screen that's already mid-motion read as arriving late to something; a short held beat first
+// gives the view a moment to be SEEN before it starts moving.
+const INTRO_DELAY_MS = 500
 
 // ── Depth / drill-down layer (Tasks 14 + 15) ──
 // One coherent "insight" system: when the camera pushes past INSIGHT_ZOOM onto a focused body it
@@ -34,7 +41,13 @@ const EXIT_BODY_DUR = 300 // ms each body takes to vanish
 
 const INSIGHT_ZOOM = 1.7 // zoom at which the focused-body insight layer begins to reveal
 const INSIGHT_FADE = 0.55 // zoom span over which it fades fully in (→ 2.25)
-const POLE_HE: Record<'t' | 'f' | 'h', string> = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
+// LABEL SWAP (matches RelationsView.tsx's POLE_HE and Chrome.tsx's POLE — direct feedback, not a
+// naming preference): `t`/`f` keep their field meaning, only the Hebrew word was wrong. מתח
+// (tension) = opposing interests/complicated relations, no direct confrontation. חיכוך (friction)
+// = direct clashes, force, open confrontation. `t` is open hostility → חיכוך; `f` is the
+// non-confrontational middle → מתח. POLE_COL is unaffected — it's keyed by field, and warm-for-`t`
+// (open hostility) still reads correctly under the corrected label.
+const POLE_HE: Record<'t' | 'f' | 'h', string> = { t: 'חיכוך', f: 'מתח', h: 'הרמוניה' }
 const POLE_COL: Record<'t' | 'f' | 'h', string> = { t: '214,120,96', f: '150,150,160', h: YELLOW }
 
 // ── Tunable visual config (set a flag false / value 0 to revert that piece) ──
@@ -48,6 +61,74 @@ const VISUALS = {
   greatCorona: true, // superpowers get a faint corona ring
   speedScale: 0.62, // calm the motion (1 = original measured speeds)
 }
+// ── Warp streaks — the zoom effect ───────────────────────────────────────────────────────────
+// While the camera is MOVING, background stars stretch into radial lines pointing at the zoom
+// anchor; when it stops they are points again within a few frames. Deliberately transient: the
+// map's structure (bodies, orbit rings, labels, sizes) is never touched, so this cannot reshape
+// the orbital concept the way a persistent layer would. The starfield is the only surface here
+// that carries no argument — nothing in the model depends on it — which is exactly why it is the
+// one place an effect can be loud without costing meaning.
+//
+// The streak is SYNTHESISED — draw-position only, from scroll intensity (see WARP.deadEnergy) —
+// rather than falling out of geometry: the starfield is screen-space and camera-independent by
+// design (see the file header), so stars do not actually move when the camera zooms. That is what
+// makes this an effect rather than a consequence.
+//
+// Set `on: false` to revert the feature entirely (same flag idiom as VISUALS above).
+const WARP = {
+  on: true,
+  // Streak MAGNITUDE is driven by `wheelEnergy` (below), NOT by zoom velocity. Measured both:
+  // zoomVel spikes to ~5.5 on a single isolated wheel tick and ~3.7 during the smooth 600ms
+  // body-focus tween — nearly the SAME range — because it is dominated by how big one tick's
+  // jump is, not by how fast the user is actually scrolling. Driving the streak from it made
+  // every star peg to maxLen on almost any input, single tick included: no graduation, no "wow".
+  // wheelEnergy is what the WHEEL comment already describes as the real speed signal (it
+  // accumulates over SUSTAINED input and decays over TIME, regardless of one event's size).
+  // Measured: a single tick and a slow, spaced-out scroll both land at energy ≈ 88–93; a real
+  // flick lands at 210–550. `deadEnergy` sits in the gap between those two clusters.
+  deadEnergy: 120, // wheelEnergy below this reads as "not really scrolling" — draws no streak
+  spread: 0.55, // distance-from-anchor lengthens a streak (perspective feel)
+  minLen: 1.2, // px below which a star draws as a dot instead — avoids 1px "dashes" at rest
+  maxLen: 150, // px ceiling, reached once wheelEnergy saturates WHEEL.ref
+  // zoomVel is still used, but ONLY for its SIGN (streak points outward while zooming in, inward
+  // while zooming out) — smoothed so the sign doesn't flicker for one frame at the tail of decay.
+  attack: 0.55,
+  release: 0.12,
+}
+
+// ── Scroll-speed sensitivity ─────────────────────────────────────────────────────────────────
+// A deliberate fast scroll should punch through zoom levels; a single considered tick should stay
+// precise. `wheelEnergy` is a time-decayed accumulator of recent |deltaY| rather than an
+// instantaneous deltaY/dt: instantaneous rate is hopeless across devices (a mouse wheel emits one
+// ~100-unit notch with long gaps, a trackpad emits a stream of small deltas), whereas accumulated
+// scroll over a short window means the same thing on both.
+const WHEEL = {
+  // Retuned after measuring the FIRST attempt against a realistic sustained scroll (not just one
+  // isolated tick, which is what got tuned/verified the first time round): base 0.0014 / maxGain
+  // 2.4 let a normal ~10-notch, ~300ms scroll — a casual "give it a spin", not a deliberate flick
+  // — rocket target zoom from 0.4 straight to the 4.0 ceiling. ZOOM_EASE's per-tick damping was
+  // real (verified: a consistent 0.1–0.6 lag between zoom and target throughout that scroll) but
+  // completely invisible against a target racing the ENTIRE range in 300ms — the acceleration
+  // feature (added earlier for scroll-speed sensitivity) was dominating the weighted-feel fix
+  // added after it. Lower base slows the WHOLE system, not just fast scrolling, so a single tick
+  // is also gentler now (was ~15% zoom change per notch, now ~6%). Lower maxGain keeps fast-vs-
+  // slow scrolling meaningfully different without letting a casual scroll outrun the damping
+  // again. Simulated before shipping (not re-guessed blind a second time): single tick 1.0→1.01,
+  // 10-tick/300ms scroll 1.0→1.5, 20-tick/600ms sustained scroll 1.0→3.1 — gentle by default,
+  // still reaches full zoom on a genuinely sustained scroll, just not inside one casual flick.
+  base: 0.0005,
+  maxGain: 1.5, // multiplier at full energy
+  ref: 420, // accumulated |deltaY| that counts as "full speed"
+  tau: 120, // ms decay constant for the accumulator
+}
+// Per-frame catch-up rate for `zoom`/`pan` toward `targetZoom`/`targetPan` (see the fields'
+// own comment for why this exists at all). Same flat, non-dt-corrected per-frame idiom already
+// used throughout this file (particle drift 0.035, focused-pan-follow 0.12) — assumes ~60fps.
+// Lowered alongside WHEEL (see its comment): 0.08 settles a jump in ~440ms, meaningfully heavier
+// than the first attempt's 0.22 (~200ms) — needed to actually read as weighted once WHEEL itself
+// stopped drowning it out. Raise toward 0.04 for heavier still, toward 0.22+ for snappier.
+const ZOOM_EASE = 0.08
+
 // ── Zoom-driven label LOD — at DEFAULT_ZOOM the field reads as pure shape/scale; names ease in
 // as the camera pushes in, biggest bodies first so the reveal feels like a cartographic zoom
 // rather than a light switch. Each kind gets its own start point + fade span over `this.zoom`.
@@ -74,7 +155,7 @@ const AXIS_COLOR: Record<string, string> = {
 // `power` is the body's CURRENT (animated) gravity; `powerTarget` is where it's headed. Keeping
 // them separate from `sr` (the per-frame screen radius, which also depends on zoom) lets the score
 // ease between scenarios/years while the radius still recomputes against the live camera each frame.
-interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number; exitDelay: number; exitP: number }
+interface NodeState { e: Entity; wx: number; wy: number; sx: number; sy: number; sr: number; appear: number; pulse: number; power: number; powerTarget: number; exitDelay: number; exitP: number; bloom: number }
 
 const idIndex = new Map(NODES.map((n, i) => [n.id, i]))
 // Authored relations indexed BY BODY, precomputed once. Drives the drill-down relation sidenotes
@@ -158,11 +239,43 @@ export class OrbitalField {
   // camera — pan + wheel adjust the framed system; selecting a body eases the camera to centre it
   zoom = DEFAULT_ZOOM
   private pan = { x: 0, y: 0 }
+  // ── Weighted wheel/pinch zoom — `zoom`/`pan` above are what's ACTUALLY applied and drawn every
+  // frame; `targetZoom`/`targetPan` are where a direct setZoom() call (wheel or pinch) wants to
+  // end up. stepCamera() eases the former toward the latter every frame instead of setZoom writing
+  // `zoom`/`pan` directly. This exists because mouse and trackpad feel completely different for a
+  // reason that has nothing to do with intent: a mouse wheel emits a FEW LARGE discrete notches
+  // (~100-120 deltaY each, one per physical click), a trackpad emits MANY SMALL continuous ones —
+  // so trackpad's "heavy" feel was never deliberate easing, it was just fine-grained input landing
+  // across many frames. Applying every notch instantly (the old behaviour) made mouse read as an
+  // abrupt snap. Damping the CATCH-UP, not the input, fixes both at once: a single big mouse jump
+  // now visibly travels over several frames like a real camera move, while trackpad's already-
+  // gradual target barely changes this — the eased-follow was already keeping up with it.
+  private targetZoom = DEFAULT_ZOOM
+  private targetPan = { x: 0, y: 0 }
   // camera tween (pan + zoom) — recenters on a focused body, or eases back to the default frame
   private cam: { fromZoom: number; toZoom: number; fromPan: { x: number; y: number }; toPan: { x: number; y: number }; t0: number; dur: number } | null = null
   private focusedBody: string | null = null
-  // particles (screen space)
-  private particles: { x: number; y: number; vx: number; vy: number; dx: number; dy: number; size: number; b: number }[] = []
+  // ── Warp-streak state — see the WARP config for what this is. `zoomVel` is a SMOOTHED rate of
+  // change of `zoom` (units/sec), not the raw per-frame delta: raw delta is spiky (several wheel
+  // events can land in one animation frame) and would make the streak length flicker frame to
+  // frame instead of reading as one continuous burst. Attack is fast (a flick must tear
+  // immediately) and release is slow (~250ms) so it relaxes rather than snapping off.
+  // `zoomAnchor` is null between zooms and falls back to the field centre in drawStars — wheel/
+  // pinch zoom set it to the cursor/midpoint (setZoom's towardX/Y); a body-focus or reset-view
+  // tween never calls setZoom directly, so those radiate from centre, which is the correct default
+  // for a camera move the user didn't point anywhere.
+  private prevZoom = DEFAULT_ZOOM
+  private zoomVel = 0
+  private zoomAnchor: { x: number; y: number } | null = null
+  private lastFrameT = 0
+  // Time-decayed accumulator of recent |deltaY| — see the WHEEL config for why accumulated energy,
+  // not instantaneous deltaY/dt, is what "scroll speed" has to mean across a mouse wheel (one
+  // ~100-unit notch, long gaps) and a trackpad (a stream of small deltas) alike.
+  private wheelEnergy = 0
+  // particles (screen space) — `dep` is a per-star depth/parallax factor for the warp streak
+  // length (closer stars tear further), unrelated to and never influenced by any body's mass —
+  // see the flatness contract in the WARP comment for why that distinction matters here.
+  private particles: { x: number; y: number; vx: number; vy: number; dx: number; dy: number; size: number; b: number; dep: number }[] = []
   private click: { x: number; y: number; t: number } | null = null
   private readonly linkDist = 104
   private readonly mouseR = 160
@@ -198,7 +311,7 @@ export class OrbitalField {
     this.ctx = ctx
     this.noStarfield = opts.noStarfield ?? false
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power, exitDelay: 0, exitP: 0 }))
+    this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power, exitDelay: 0, exitP: 0, bloom: 1 }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -256,14 +369,31 @@ export class OrbitalField {
   }
 
   setZoom(z: number, towardX?: number, towardY?: number) {
+    // Guard: a container that is mounted but not yet laid out has w/h 0, so maxR and viewScale are
+    // 0 too. toWorld() then divides by zero → ±Infinity, and `wbefore.x * s` is Infinity×0 = NaN,
+    // which lands in `pan`. That corruption is PERMANENT and total: every later toScreen() returns
+    // NaN, so no body or ring ever projects again and the field stays blank until a reload. Since
+    // pan starts finite and setZoom is the only writer that can introduce a non-finite value (every
+    // other camera path multiplies by `s` — at 0 that is a harmless pan of 0), this one check is
+    // what keeps `pan` finite for the whole lifetime of the engine.
+    // Placed before `cam = null` so a zoom that never happened cannot cancel an in-flight tween,
+    // and written `!(x > 0)` rather than `x <= 0` so a NaN viewScale is caught rather than passed.
+    if (!(this.viewScale > 0)) return
     this.cam = null // a direct zoom (wheel) cancels any in-flight camera tween
     const tx = towardX ?? this.cx, ty = towardY ?? this.cy
+    // an explicit toward-point (wheel/pinch) becomes the warp streak's radiating point; an
+    // implicit centre zoom (zoomBy with no anchor) leaves it untouched rather than re-centring it.
+    if (towardX != null && towardY != null) this.zoomAnchor = { x: towardX, y: towardY }
+    // anchor against the CURRENT (actual, possibly still mid-catch-up) camera — "the world point
+    // under the cursor right now", which is what a user pointing at something on screen means,
+    // not wherever a previous target was heading.
     const wbefore = this.toWorld(tx, ty)
-    this.zoom = clamp(z, 0.4, 4)
-    const s = this.viewScale * this.zoom
-    this.pan.x = tx - this.cx - wbefore.x * s
-    this.pan.y = ty - this.cy - wbefore.y * s
-    this.onZoom?.(this.zoom)
+    this.targetZoom = clamp(z, 0.4, 4)
+    const s = this.viewScale * this.targetZoom
+    this.targetPan.x = tx - this.cx - wbefore.x * s
+    this.targetPan.y = ty - this.cy - wbefore.y * s
+    // NOT this.onZoom?.(this.zoom) here — `zoom` hasn't moved yet at this point (only the target
+    // has); stepCamera's catch-up step below fires it every frame with the real, current value.
   }
   zoomBy(f: number) { this.setZoom(this.zoom * f) }
 
@@ -274,6 +404,11 @@ export class OrbitalField {
       fromPan: { x: this.pan.x, y: this.pan.y }, toPan,
       t0: this.now || performance.now(), dur: this.reduced ? 0 : CAM_DUR,
     }
+    // keep the wheel-eased target in sync with the tween's destination — otherwise the INSTANT
+    // this tween finishes, stepCamera's catch-up step would see a STALE wheel target (wherever it
+    // was before this tween started) and yank the camera straight back toward it next frame.
+    this.targetZoom = this.cam.toZoom
+    this.targetPan = { ...toPan }
   }
 
   // Recenter the clicked body to the viewport centre with a gentle zoom-in. Computes the pan that
@@ -304,22 +439,38 @@ export class OrbitalField {
         else { this.pan.x += (targetPan.x - this.pan.x) * 0.12; this.pan.y += (targetPan.y - this.pan.y) * 0.12 }
       }
     }
-    if (!this.cam) return
-    const c = this.cam
-    const k = c.dur <= 0 ? 1 : clamp01((this.now - c.t0) / c.dur)
-    const e = easeOutExpo(k)
-    this.zoom = c.fromZoom + (c.toZoom - c.fromZoom) * e
-    this.pan.x = c.fromPan.x + (c.toPan.x - c.fromPan.x) * e
-    this.pan.y = c.fromPan.y + (c.toPan.y - c.fromPan.y) * e
+    if (this.cam) {
+      const c = this.cam
+      const k = c.dur <= 0 ? 1 : clamp01((this.now - c.t0) / c.dur)
+      const e = easeOutExpo(k)
+      this.zoom = c.fromZoom + (c.toZoom - c.fromZoom) * e
+      this.pan.x = c.fromPan.x + (c.toPan.x - c.fromPan.x) * e
+      this.pan.y = c.fromPan.y + (c.toPan.y - c.fromPan.y) * e
+      this.onZoom?.(this.zoom)
+      if (k >= 1) this.cam = null
+      return
+    }
+    // no tween in flight — ease the applied camera toward wherever the last wheel/pinch call
+    // targeted (see ZOOM_EASE). Pan is skipped here while a body is focused: the branch above
+    // already owns pan in that case (re-centring on the focused body's live position), and easing
+    // it toward `targetPan` too would fight that every frame.
+    if (this.reduced) { this.zoom = this.targetZoom; this.pan.x = this.targetPan.x; this.pan.y = this.targetPan.y; return }
+    this.zoom += (this.targetZoom - this.zoom) * ZOOM_EASE
+    if (!this.focusedBody) {
+      this.pan.x += (this.targetPan.x - this.pan.x) * ZOOM_EASE
+      this.pan.y += (this.targetPan.y - this.pan.y) * ZOOM_EASE
+    }
     this.onZoom?.(this.zoom)
-    if (k >= 1) this.cam = null
   }
 
   private seedStars() {
     const count = this.noStarfield ? 0 : this.reduced ? 70 : Math.min(190, Math.round((this.w * this.h) / 8200))
     this.particles = Array.from({ length: count }, () => {
       const dx = (Math.random() - 0.5) * 0.1, dy = (Math.random() - 0.5) * 0.1
-      return { x: Math.random() * this.w, y: Math.random() * this.h, vx: dx, vy: dy, dx, dy, size: 0.6 + Math.random() * 1.3, b: 0.16 + Math.random() * 0.42 }
+      return {
+        x: Math.random() * this.w, y: Math.random() * this.h, vx: dx, vy: dy, dx, dy,
+        size: 0.6 + Math.random() * 1.3, b: 0.16 + Math.random() * 0.42, dep: 0.35 + Math.random() * 0.65,
+      }
     })
   }
 
@@ -362,7 +513,7 @@ export class OrbitalField {
     }
   }
 
-  start_() { this.start = performance.now(); this.raf = requestAnimationFrame(this.frame) }
+  start_() { this.start = performance.now() + (this.reduced ? 0 : INTRO_DELAY_MS); this.raf = requestAnimationFrame(this.frame) }
   destroy() {
     cancelAnimationFrame(this.raf)
     this.container.removeEventListener('pointermove', this.onMove)
@@ -387,7 +538,18 @@ export class OrbitalField {
     if (this.down) {
       const dx = mx - this.mouse.x, dy = my - this.mouse.y
       if (this.dragging || Math.hypot(mx - this.down.x, my - this.down.y) > 4) {
-        this.dragging = true; this.pan.x += dx; this.pan.y += dy
+        // ONLY the drag TARGET moves by the raw delta — the applied `pan` is left for stepCamera's
+        // per-frame catch-up (`pan += (targetPan - pan) * ZOOM_EASE`) to chase, same damped rate
+        // already used for wheel-zoom's "heavy" feel. This used to move both together 1:1 (the
+        // fix for a real "panning is locked" bug: with pan alone moving, the untouched targetPan
+        // stayed stale and every frame's catch-up dragged the view straight back to it the instant
+        // the pointer stopped). That bug is why `targetPan` must still move — omitting it reintroduces
+        // the rubber-band. But moving `pan` in lockstep made the catch-up a permanent no-op, so drag
+        // always tracked the cursor exactly — zero damping, unlike every other camera motion here.
+        // Leaving `pan` for the easing step to chase gives drag the same weighted, lagging feel as
+        // wheel-zoom, and still can't rubber-band: targetPan already IS the live drag position.
+        this.dragging = true
+        this.targetPan.x += dx; this.targetPan.y += dy
       }
     }
     this.mouse.x = mx; this.mouse.y = my
@@ -436,8 +598,16 @@ export class OrbitalField {
   }
   private onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
+    // scroll-speed sensitivity — see WHEEL: accumulate energy so a deliberate fast flick punches
+    // through zoom levels, while a single considered tick stays at the original, precise rate.
+    // Capped at 1.5× ref so an unbroken long scroll saturates the gain rather than growing forever
+    // (clamp01 below already saturates the GAIN at ref; this caps the ACCUMULATOR itself, which
+    // matters once the decay in frame() is factored in — without it, energy could climb across
+    // many small ticks faster than it decays and stay pinned far above what "full speed" means).
+    this.wheelEnergy = Math.min(WHEEL.ref * 1.5, this.wheelEnergy + Math.abs(ev.deltaY))
+    const gain = 1 + (WHEEL.maxGain - 1) * clamp01(this.wheelEnergy / WHEEL.ref)
     const rect = this.container.getBoundingClientRect()
-    this.setZoom(this.zoom * (1 - ev.deltaY * 0.0014), ev.clientX - rect.left, ev.clientY - rect.top)
+    this.setZoom(this.zoom * (1 - ev.deltaY * WHEEL.base * gain), ev.clientX - rect.left, ev.clientY - rect.top)
   }
 
   private hitTest() {
@@ -488,6 +658,16 @@ export class OrbitalField {
       // ease current power toward its target (snap when reduced-motion); same smoothing idiom as the field
       ns.power += this.reduced ? (ns.powerTarget - ns.power) : (ns.powerTarget - ns.power) * 0.12
       ns.sr = clamp((powerSize(ns.power) / 2) * this.viewScale * this.zoom, 2, 88)
+      // hover/select bloom — was applied as an instant ternary at draw time (r * (isFocus ? 1.18 : 1)),
+      // which jump-cut the radius the exact frame focus changed: no ramp in, no settle out, just a
+      // pop. Eased here instead, same lerp-toward-target idiom as `power` above, and asymmetric
+      // (slower in than out) the same way ForcesSheet's own hover bloom already reads — a "dramatic"
+      // grow with a quicker release so the body doesn't feel sluggish to let go of.
+      {
+        const bloomTarget = this.reduced ? 1 : e.id === this.focusId ? 1.18 : 1
+        if (this.reduced) ns.bloom = bloomTarget
+        else ns.bloom += (bloomTarget - ns.bloom) * (ns.bloom < bloomTarget ? 0.07 : 0.1)
+      }
       // appear factor computed here (was: recomputed later in frame()'s draw loop) so it's fresh
       // for separateBodies() below — entering/barely-visible bodies should exert/absorb near-zero
       // separation force instead of shoving fully-grown neighbours on their very first frame.
@@ -542,7 +722,21 @@ export class OrbitalField {
     ;(window as unknown as { __nodes?: unknown }).__nodes = this.nodes.map((n) => ({ id: n.e.id, sx: n.sx, sy: n.sy }))
     ;(window as unknown as { __rect?: unknown }).__rect = this.container.getBoundingClientRect()
 
+    // real (not simulation-clock) delta time — used only to smooth zoomVel and decay wheelEnergy,
+    // both of which have to track wall-clock speed regardless of `this.reduced`/`speedScale`.
+    const dt = this.lastFrameT ? Math.min(0.05, (now - this.lastFrameT) / 1000) : 0
+    this.lastFrameT = now
+
     this.stepCamera() // advance pan/zoom tween (recenter on focus) before projecting bodies
+
+    // warp-streak velocity — see the field comments for why this is smoothed rather than raw, and
+    // why it has to run AFTER stepCamera (needs this frame's already-advanced `this.zoom`).
+    const rawVel = dt > 0 ? (this.zoom - this.prevZoom) / dt : 0
+    this.prevZoom = this.zoom
+    const smK = Math.abs(rawVel) > Math.abs(this.zoomVel) ? WARP.attack : WARP.release
+    this.zoomVel += (rawVel - this.zoomVel) * smK
+    this.wheelEnergy *= Math.exp((-dt * 1000) / WHEEL.tau)
+
     this.drawStars(t, intro)
     this.resolve(t)
     this.drawOrbits(t)
@@ -566,11 +760,40 @@ export class OrbitalField {
 
   private drawStars(t: number, intro: number) {
     const ctx = this.ctx
+    // Streak magnitude for THIS frame — a scalar 0..1, computed once rather than per star. Below
+    // WARP.minLen every star just falls through to the ordinary dot-draw at the bottom of the
+    // loop, so a still (or merely-ticked) camera costs exactly what it always did. See WARP for
+    // why this reads wheelEnergy rather than zoomVel.
+    const mag = this.reduced || !WARP.on
+      ? 0
+      : clamp01((this.wheelEnergy - WARP.deadEnergy) / (WHEEL.ref - WARP.deadEnergy))
+    const ax = this.zoomAnchor?.x ?? this.cx, ay = this.zoomAnchor?.y ?? this.cy
+    const sign = this.zoomVel >= 0 ? 1 : -1
+
     for (const p of this.particles) {
       p.vx += (p.dx - p.vx) * 0.035; p.vy += (p.dy - p.vy) * 0.035
       p.x += p.vx; p.y += p.vy
       if (p.x < 0) p.x += this.w; else if (p.x > this.w) p.x -= this.w
       if (p.y < 0) p.y += this.h; else if (p.y > this.h) p.y -= this.h
+      if (mag > 0) {
+        // ── the warp streak: a LINE, not a displaced dot — nothing here moves the star's actual
+        // position (p.x/p.y are untouched), so this is pure draw-time embellishment, gone the
+        // instant the camera stops. Length grows with distance from the zoom anchor (perspective:
+        // things at the edge of a dive appear to move faster than things near its centre) and with
+        // the star's own depth factor, so the field reads as layered rather than flat.
+        const dx = p.x - ax, dy = p.y - ay, d = Math.sqrt(dx * dx + dy * dy) || 1
+        const len = Math.min(WARP.maxLen, mag * WARP.spread * d * p.dep)
+        if (len > WARP.minLen) {
+          const ux = dx / d, uy = dy / d
+          ctx.strokeStyle = `rgba(${WHITE},${p.b * intro})`
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(p.x, p.y)
+          ctx.lineTo(p.x + ux * len * sign, p.y + uy * len * sign)
+          ctx.stroke()
+          continue
+        }
+      }
       const tw = 0.6 + 0.4 * Math.sin(t * 1.1 + p.x * 0.04)
       ctx.fillStyle = `rgba(${WHITE},${p.b * tw * intro})`
       ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill()
@@ -663,7 +886,7 @@ export class OrbitalField {
     const isFocus = e.id === focus
     const inWeb = !focus || isFocus || this.connected.has(e.id)
     const pulse = this.reduced ? 1 : 1 + 0.04 * Math.sin(t * 1.6 + ns.pulse)
-    const r = ns.sr * a * (isFocus ? 1.18 : 1) * pulse * exitScale
+    const r = ns.sr * a * ns.bloom * pulse * exitScale
     const nonstate = e.kind === 'nonstate'
     const axisCol = AXIS_COLOR[AXIS[e.id] ?? 'none']
     ctx.save(); ctx.globalAlpha = a * (inWeb ? 1 : 0.2) * exitScale
@@ -739,7 +962,8 @@ export class OrbitalField {
           this.insightChildren.add(ns.e.id)
           const al = insightAlpha * a
           const fs = ns.e.kind === 'nonstate' ? 11 : 12
-          ctx.font = `600 ${fs}px 'Tel Aviv Brutalist', sans-serif`
+          // country/entity names are never bold anywhere on the site (house rule)
+          ctx.font = `400 ${fs}px 'Tel Aviv Brutalist', sans-serif`
           const top = ns.sy + ns.sr * a + 2
           const ly = ns.sy + ns.sr * a + 13
           ctx.strokeStyle = `rgba(${YELLOW},${0.22 * al})`; ctx.lineWidth = 1
@@ -822,7 +1046,7 @@ export class OrbitalField {
       let tries = 0
       while (collides(topY) && tries < 2) { topY = Math.max(pad, topY - (boxH + 8)); tries++ }
       if (collides(topY)) continue
-      // heading — pole word + partner name, coloured by the dominant pole ("מתח עם איראן")
+      // heading — pole word + partner name, coloured by the dominant pole ("חיכוך עם איראן")
       ctx.font = `700 ${headFs}px 'Futurism', 'Tel Aviv Brutalist', sans-serif`
       ctx.fillStyle = `rgba(${POLE_COL[rel.dom]},${0.9 * alpha})`
       ctx.fillText(`${POLE_HE[rel.dom]} עם ${nb.e.he}`, ax, topY + headFs)
