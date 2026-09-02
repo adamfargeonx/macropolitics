@@ -288,7 +288,7 @@ export default function RelationsView() {
       {/* Relations is DOM-rendered, not canvas: its node cascade is done by ~1.4s (see the
           per-node animationDelay below), so it doesn't need the canvas views' 4s entrance window
           before the panel may enter — just that same settle + one beat. */}
-      <PanelDock enterAfter={2400}>
+      <PanelDock enterAfter={2400} reopenOn={pinned}>
       {panelPoint && panelDom ? (
         <aside className="panel panel--detail rel-detail" dir="rtl" key={panelPoint.e.id}>
           <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>

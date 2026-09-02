@@ -32,13 +32,14 @@ const CANVAS_ENTRANCE_MS = 4000
 const PANEL_BEAT_MS = 1000
 export const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
 
-export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number }) {
+export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null }) {
   // mounts closed, then slides in once the screen's entrance has fully landed (see above) — the
   // panel arriving a clear beat later reads as a considered reveal, not a competing animation.
   const [open, setOpen] = useState(false)
   // the portal target may not exist yet on the very first render (App.tsx renders it as a
   // sibling) — fall back to an inline render for that one frame, then re-parent once mounted.
   const [root, setRoot] = useState<HTMLElement | null>(null)
+  const dockRef = useRef<HTMLDivElement>(null)
   /* eslint-disable react-hooks/set-state-in-effect -- portal-target discovery: #panel-root is a
      DOM sibling rendered by App.tsx and isn't guaranteed to exist in the real DOM until after this
      component's own first commit, so finding it necessarily happens a render late. */
@@ -48,6 +49,21 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
     const t = window.setTimeout(() => setOpen(true), enterAfter)
     return () => window.clearTimeout(t)
   }, [enterAfter])
+  // Direct feedback: clicking empty space (unrelated to the panel) should close it; clicking
+  // something that correlates to the panel's content should reopen it, even after a manual close
+  // via the handle. `reopenOn` is whatever id the calling view uses to mean "something is
+  // selected" (RelationsView's `pinned`, ForcesGridView/DynamicsView's `selected`) — a body's own
+  // click handler already calls stopPropagation() before this ever fires, so selecting a body
+  // never closes the panel it's about to populate; only a click that reaches window untouched
+  // (empty canvas/field space, chrome outside the panel) does.
+  useEffect(() => { if (reopenOn != null) setOpen(true) }, [reopenOn])
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (dockRef.current && !dockRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('click', onClick)
+    return () => window.removeEventListener('click', onClick)
+  }, [])
   // mobile map/list toggle drives the sheet: forceClosed (map, nothing selected) keeps the field
   // full-screen; forceOpen (list, or a body selected) pins it open. Desktop passes neither.
   const isOpen = forceClosed ? false : (forceOpen || open)
@@ -62,7 +78,7 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
   const [everMounted, setEverMounted] = useState(false)
   if (isOpen && !everMounted) setEverMounted(true)
   const node = (
-    <div className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
+    <div ref={dockRef} className={`pdock${isOpen ? ' pdock--open' : ' pdock--closed'}`}>
       <div className="pdock__panel">
         {everMounted && children}
         {/* The grip lives INSIDE the panel and rides its transform, so it reads as the panel's own

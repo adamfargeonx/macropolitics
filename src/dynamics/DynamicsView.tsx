@@ -114,7 +114,7 @@ export default function DynamicsView() {
         </ol>
       </div>
 
-      <PanelDock>
+      <PanelDock reopenOn={selected}>
         <SidePanel detail={detail} view="dynamics" onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
       </PanelDock>
     </div>
