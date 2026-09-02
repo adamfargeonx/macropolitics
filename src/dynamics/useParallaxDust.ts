@@ -26,9 +26,9 @@ export function useParallaxDust(canvasRef: RefObject<HTMLCanvasElement | null>) 
       w = window.innerWidth; h = window.innerHeight
       cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      // sparser than either gravity mode (140/260) — this is pure ambience behind a DOM-rendered
-      // constellation, not a field competing for attention with it.
-      const count = Math.min(150, Math.round((w * h) / 8600))
+      // still sparser than the inward mode (260), but denser than the first pass — direct feedback
+      // was that it read as too subtle to register as a field at all.
+      const count = Math.min(190, Math.round((w * h) / 6800))
       ps = Array.from({ length: count }, () => ({
         x0: Math.random() * w, y0: Math.random() * h,
         depth: 0.15 + Math.random() * 0.85,
@@ -64,9 +64,9 @@ export function useParallaxDust(canvasRef: RefObject<HTMLCanvasElement | null>) 
         // desynced opacity breathing — same idiom as the constellation's own per-star twinkle
         // (RelationsView.tsx) and the canvas engines' pulse phase offsets.
         const twinkle = 0.6 + Math.sin(t * 0.6 + p.tw) * 0.4
-        const a = Math.min(0.55, 0.12 + p.depth * 0.22) * p.b * twinkle * intro
+        const a = Math.min(0.8, 0.22 + p.depth * 0.34) * p.b * twinkle * intro
         ctx.fillStyle = `rgba(255,255,255,${a})`
-        ctx.beginPath(); ctx.arc(x, y, 0.6 + p.depth * 0.9, 0, TAU); ctx.fill()
+        ctx.beginPath(); ctx.arc(x, y, 0.75 + p.depth * 1.1, 0, TAU); ctx.fill()
       }
       raf = requestAnimationFrame(loop)
     }

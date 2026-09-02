@@ -22,9 +22,13 @@ export function HoverReadout({ id, screen }: { id: string | null; screen: { x: n
   const e = byId.get(last.id)
   if (!e) return null
   const parent = e.parent !== 'C' ? byId.get(e.parent) : null
+  // flip below the body when there isn't room above — was a fixed up-and-right offset regardless
+  // of screen position, which read as "beside" the body rather than above/below it for anything
+  // not near the vertical centre. ~150px clears the box's own height plus the header chrome.
+  const below = last.screen.y < 150
   return (
     <div
-      className={`readout${closing ? ' readout--closing' : ''}`}
+      className={`readout${below ? ' readout--below' : ''}${closing ? ' readout--closing' : ''}`}
       dir="rtl"
       // `translate` (the CSS property), not `transform` — positioning has to live on a DIFFERENT
       // property than the expand animation below, or the keyframe's `transform: scale(...)` and

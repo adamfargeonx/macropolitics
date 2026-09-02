@@ -106,38 +106,37 @@
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   display: flex; flex-direction: column; gap: 3px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-  transform-origin: bottom center;
+  /* position is now a STATIC transform, untouched by the reveal — a scaleY grow used to also
+     scale the text inside it (transform scales rendered pixels, glyphs included), reading as the
+     card visibly stretching/morphing rather than opening cleanly. clip-path reveals the box at
+     its true, unscaled size instead — nothing inside it ever distorts. */
+  transform: translate(-50%, calc(-100% - 14px));
   /* static fallback matching relHoverIn's settled `to` state — without it, swapping the
      animation-name mid-flight (entrance → --closing, a fast mouse-out) can paint one frame with
-     no keyframe effect attached yet, falling back to `transform: none` and snapping the card to
-     its raw un-offset left/top anchor (by the star) before the fade-out catches up. */
-  transform: translate(-50%, calc(-100% - 14px)) scale(1);
-  /* was --ease-panel/0.6s — its extreme decel front-loaded ~90% of the growth into the first 15%
-     of the duration, reading as an instant pop then an imperceptible crawl. ease-in-out-quart
-     starts smooth (no pop), grows through its fast middle, settles gently — quick and legible. */
+     no keyframe effect attached yet, falling back to the un-clipped default. */
+  clip-path: inset(0 0 0 0);
   animation: relHoverIn 0.32s var(--ease-in-out-quart) both;
 }
-/* matches .hint/.readout's final treatment — no fade on entrance, pure resize. Was a uniform
-   scale(0.7→1) — read as a pop/bloom, not the requested "no pop-up, opens/expands" reveal. scaleY
-   alone (height 0→1, width already full) anchored at transform-origin's bottom edge reads as the
-   card OPENING out of the star it's anchored to. Exit is the entrance in reverse, per direct
-   feedback — same duration/easing, scaleY back to 0 instead of a separate fade+shrink-to-0.85. No
-   opacity needed: a card collapsed to scaleY(0) has zero height, already visually gone by the end
-   of the shrink — nothing left to hard-cut when RelationsView's hoverCardTimer unmounts it. */
+/* opens bottom-up: the card is bottom-anchored (right above the star), so the mask starts fully
+   closed from the TOP edge and shrinks to 0 — the bottom (nearest the star) appears first, the
+   reveal grows upward, exactly "open clean from bottom up." Exit is the entrance in reverse, same
+   duration/easing, clipping back to fully hidden — no opacity needed, a fully-inset clip is
+   already invisible, nothing left to hard-cut when RelationsView's hoverCardTimer unmounts it. */
 @keyframes relHoverIn {
-  from { transform: translate(-50%, calc(-100% - 14px)) scaleY(0); }
-  to   { transform: translate(-50%, calc(-100% - 14px)) scaleY(1); }
+  from { clip-path: inset(100% 0 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
 }
 .rel-hovercard--closing { animation: relHoverOut 0.32s var(--ease-in-out-quart) both; }
-@keyframes relHoverOut { to { transform: translate(-50%, calc(-100% - 14px)) scaleY(0); } }
-/* near the top edge (constellation's strongest powers ride there) — flip below the star instead */
-.rel-hovercard--below { transform-origin: top center; transform: translate(-50%, calc(28px + 14px)) scale(1); animation-name: relHoverInBelow; }
+@keyframes relHoverOut { to { clip-path: inset(100% 0 0 0); } }
+/* near the top edge (constellation's strongest powers ride there) — flip below the star instead;
+   top-anchored now, so it opens top-down: mask from the BOTTOM edge instead. */
+.rel-hovercard--below { transform: translate(-50%, calc(28px + 14px)); animation-name: relHoverInBelow; }
 @keyframes relHoverInBelow {
-  from { transform: translate(-50%, calc(28px + 14px)) scaleY(0); }
-  to   { transform: translate(-50%, calc(28px + 14px)) scaleY(1); }
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0 0); }
 }
 .rel-hovercard--below.rel-hovercard--closing { animation-name: relHoverOutBelow; }
-@keyframes relHoverOutBelow { to { transform: translate(-50%, calc(28px + 14px)) scaleY(0); } }
+@keyframes relHoverOutBelow { to { clip-path: inset(0 0 100% 0); } }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
 .rel-hovercard__name { font-family: var(--display); font-size: var(--text-md); font-weight: var(--fw-regular); letter-spacing: var(--tracking-title); }
 .rel-hovercard__verdict { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }

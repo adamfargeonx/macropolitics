@@ -211,7 +211,11 @@ export default function App() {
   // was gated by `!homeOpen`, so a session that started on a page — homeOpen initializes true —
   // never armed it; returning to a cold, closed home later then showed no thesis at all.)
   // HomeView's own `showThesis = intro && !open` already decides visibility from the ring's state.
-  const onLoaderDone = () => { setLoaded(true); setIntro(true) }
+  // Stable identity (useCallback, no deps — setLoaded/setIntro are guaranteed stable by React):
+  // LoaderView's own effect depends on `onDone` in its dependency array, so a fresh function
+  // reference every App render was resetting that effect's timers (fade/unmount) on every render
+  // instead of only once at mount.
+  const onLoaderDone = useCallback(() => { setLoaded(true); setIntro(true) }, [])
 
   return (
     <>

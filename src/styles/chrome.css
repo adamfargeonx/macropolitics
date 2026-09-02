@@ -174,29 +174,45 @@
   position: absolute; top: 0; left: 0; z-index: 50;
   pointer-events: none;
   display: flex; flex-direction: column; gap: 1px;
-  margin: -62px 0 0 16px; padding: 8px 12px;
+  padding: 8px 12px;
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
-  transform-origin: bottom left;
+  /* centred above the hovered body by default, flipping below near the top edge (.readout--below,
+     HoverReadout.tsx) — was a fixed up-and-right margin offset regardless of where the body sat
+     on screen, which for anything not near the vertical centre read as the tooltip sitting to the
+     SIDE rather than above/below it. `transform` is free for pure positioning now (clip-path
+     drives the reveal), so it composes cleanly with `translate` (the CSS property, set inline —
+     places the box's origin at the body's own screen coordinate). */
+  transform: translate(-50%, calc(-100% - 22px));
   /* was --ease-panel — its extreme decel front-loads ~90% of the scale growth into the first
      15% of the duration, reading as an instant pop followed by an imperceptible crawl to 100%.
      ease-in-out-quart starts smooth (no pop), spends the fast middle actually growing, then
      settles gently — and a shorter duration keeps the growth reading as quick, not slow. */
+  clip-path: inset(0 0 0 0);
   animation: readoutIn 0.32s var(--ease-in-out-quart) both;
 }
+.readout--below { transform: translate(-50%, 22px); }
 /* pure resize, no fade, matching .hint (base.css) — opacity dropped from the entrance keyframe
-   entirely; the box exists at full opacity from frame one. Was a uniform scale(0→1) — read as a
-   dot popping/blooming outward from the center, not a "no pop-up" reveal. scaleY alone (height
-   0→1, width already full) anchored at transform-origin's bottom edge reads as the box genuinely
-   OPENING/unfolding out of the hovered node, not growing from nothing in every direction at once.
-   Exit is the entrance in reverse, per direct feedback — same duration/easing, scaleY back to 0
-   instead of a separate fade+shrink-to-0.85. No opacity needed: a box collapsed to scaleY(0) has
-   zero height, so it's already visually gone by the end of the shrink — nothing left to hard-cut
+   entirely; the box exists at full opacity from frame one. Was `transform: scaleY(0→1)` — a scale
+   transform also scales the TEXT inside the box (transform scales rendered pixels, glyphs
+   included), which read as the tooltip visibly stretching/morphing rather than opening cleanly.
+   clip-path reveals the box at its true size instead: bottom-anchored, so the mask starts fully
+   closed from the top and shrinks to 0 — the bottom edge appears first and the reveal grows
+   upward, unfurling out of the hovered node rather than growing from nothing all at once, with
+   nothing inside ever distorted.
+   Exit is the entrance in reverse, per direct feedback — same duration/easing, clipping back to
+   fully hidden. No opacity needed: a fully-inset clip is already invisible, so nothing hard-cuts
    on unmount (HoverReadout.tsx's EXIT_MS delays the unmount to outlive this keyframe). */
 .readout--closing { animation: readoutOut 0.32s var(--ease-in-out-quart) both; }
-@keyframes readoutIn { from { transform: scaleY(0); } }
-@keyframes readoutOut { to { transform: scaleY(0); } }
+@keyframes readoutIn { from { clip-path: inset(100% 0 0 0); } }
+@keyframes readoutOut { to { clip-path: inset(100% 0 0 0); } }
+/* --below flips the anchor edge (top-anchored now, opens top-down), so it masks from the BOTTOM
+   instead — same pairing as .rel-hovercard--below in views.css. */
+.readout--below { animation-name: readoutInBelow; }
+@keyframes readoutInBelow { from { clip-path: inset(0 0 100% 0); } }
+.readout--below.readout--closing { animation-name: readoutOutBelow; }
+@keyframes readoutOutBelow { to { clip-path: inset(0 0 100% 0); } }
 @media (prefers-reduced-motion: reduce) { .readout, .readout--closing { animation: none; } }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
 .readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-regular); font-size: var(--text-lg); letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }

@@ -126,7 +126,9 @@ function unifiedGeo(refId: string, w: number, h: number): Geo {
   const cx = w / 2, cy = h / 2 + h * 0.02
   const sx = w * (small ? 0.4 : 0.46)
   const sy = h * (small ? 0.4 : 0.5)
-  const Vt = { x: cx, y: cy - sy * 0.95 }            // friction field → מתח label — top
+  // floored so the מתח label always clears the mode bar/wordmark with real headroom, rather than
+  // riding right up against the top edge on tall/narrow viewports where sy*0.95 alone isn't enough.
+  const Vt = { x: cx, y: Math.max(cy - sy * 0.95, small ? 90 : 110) } // friction field → מתח — top
   const Vf = { x: cx - sx * 0.92, y: cy + sy * 0.72 } // tension field → חיכוך label — bottom-left
   const Vh = { x: cx + sx * 0.92, y: cy + sy * 0.72 } // הרמוניה — bottom-right
   const aside = { x: small ? 56 : 78, y: cy }        // fixed field-edge point, outside the triangle
