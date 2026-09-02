@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מאקרופוליטיקה · רשת יחסים — כל המדינות</title>
+<style>
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistLight.ttf') format('truetype'); font-weight: 300; font-display: swap; }
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistRegular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Tel Aviv Brutalist'; src: url('/fonts/TelAviv-BrutalistBold.ttf') format('truetype'); font-weight: 700 900; font-display: swap; }
+  @font-face { font-family: 'Futurism'; src: url('/fonts/Futurism-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Futurism'; src: url('/fonts/Futurism-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
+
+  :root {
+    --bg: #06030f; --yellow: #fbff00; --light: #f4f2ec;
+    --ink-dim: rgba(244,242,236,0.72); --ink-faint: rgba(244,242,236,0.55);
+    --danger: #ff5c5c;
+    --display: 'Tel Aviv Brutalist','Heebo','Arial Hebrew',system-ui,sans-serif;
+    --body: 'Futurism','Tel Aviv Brutalist','Heebo',system-ui,sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--light); font-family: var(--body);
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+  }
+  .bar {
+    position: sticky; top: 0; z-index: 10; display: flex; align-items: baseline; gap: 20px;
+    padding: 18px 28px; background: rgba(6,3,15,0.92); backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(251,255,0,0.08);
+  }
+  .bar__title { font-family: var(--display); font-size: 15px; letter-spacing: .05em; color: var(--yellow); }
+  .bar__note { font-size: 11.5px; color: var(--ink-dim); }
+  .legend { display: flex; gap: 16px; margin-inline-start: auto; font-size: 10.5px; color: var(--ink-faint); }
+  .legend b { color: var(--light); font-weight: 700; }
+  .legend .k1 { color: var(--danger); } .legend .k2 { color: var(--yellow); } .legend .k3 { color: #8fe388; }
+
+  .sort-bar { display: flex; gap: 6px; padding: 12px 28px; align-items: center; }
+  .sort-bar span { font-size: 10.5px; color: var(--ink-faint); margin-inline-end: 6px; }
+  .sort-bar button {
+    font-family: var(--body); font-size: 11px; padding: 5px 11px; border: 1px solid rgba(244,242,236,.14);
+    background: transparent; color: var(--ink-dim); cursor: pointer;
+  }
+  .sort-bar button[aria-pressed="true"] { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 2px; padding: 2px 2px 60px;
+  }
+  .cell {
+    background: #0a0618; padding: 18px 14px 16px; display: flex; flex-direction: column; align-items: center;
+    gap: 10px; opacity: 0; animation: cellIn .5s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes cellIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .cell svg { width: 100%; max-width: 168px; aspect-ratio: 1 / 0.86; }
+  .cell__poly { fill: none; stroke: rgba(251,255,0,0.28); stroke-width: 1; }
+  .cell__dot { fill: var(--light); }
+  .cell__name { font-family: var(--display); font-size: 13.5px; letter-spacing: .02em; color: var(--light); }
+  .cell__pole { font-family: var(--body); font-weight: 700; font-size: 10px; letter-spacing: .08em; }
+  .cell__pole--t { color: var(--danger); } .cell__pole--f { color: var(--yellow); } .cell__pole--h { color: #8fe388; }
+  .cell__cov { font-size: 9px; color: var(--ink-faint); letter-spacing: .04em; }
+
+  .note {
+    padding: 14px 28px 40px; font-size: 11.5px; color: var(--ink-dim); line-height: 1.7; max-width: 90ch;
+  }
+  .note b { color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="bar__title">מאקרופוליטיקה · רשת יחסים</span>
+  <span class="bar__note">כל 20 המדינות כמדינת ייחוס — פרוטוטייפ סטטי, ללא רלקסציית התנגשויות</span>
+  <div class="legend">
+    <span><b class="k1">חיכוך</b> = עימות ישיר</span>
+    <span><b class="k2">מתח</b> = אינטרסים מתנגשים</span>
+    <span><b class="k3">הרמוניה</b> = שיתוף פעולה</span>
+  </div>
+</div>
+<div class="sort-bar">
+  <span>מיון:</span>
+  <div id="sortButtons"></div>
+</div>
+<div class="grid" id="grid"></div>
+<p class="note" id="note"></p>
+
+<script>
+const POLE_HE = { tension: 'חיכוך', friction: 'מתח', harmony: 'הרמוניה' }
+const POLE_CLASS = { tension: 't', friction: 'f', harmony: 'h' }
+
+function dominantOf(r) {
+  return r.tension >= r.friction && r.tension >= r.harmony ? 'tension'
+       : r.harmony >= r.friction ? 'harmony' : 'friction'
+}
+// sharpen — same power-law push toward the dominant vertex as the live screen (display only)
+function sharpen(r, k = 1.45) {
+  const t = Math.pow(r.tension, k), f = Math.pow(r.friction, k), h = Math.pow(r.harmony, k)
+  const s = t + f + h
+  return { tension: t / s, friction: f / s, harmony: h / s }
+}
+
+const VT = { x: 50, y: 4 }, VF = { x: 6, y: 82 }, VH = { x: 94, y: 82 }
+const hash = (s) => { let h = 2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619) } return h>>>0 }
+
+function miniSVG(rows, refId) {
+  const pts = rows.map((e) => {
+    const r = sharpen(e)
+    // small seeded jitter so exact-duplicate positions (identical derived-model output) don't
+    // literally overlap into one dot — same idiom as the live screen's per-node jitter, scaled down.
+    const jx = ((hash(refId + e.id) % 1000) / 1000 - .5) * 3
+    const jy = ((hash(refId + e.id + '~') % 1000) / 1000 - .5) * 3
+    return {
+      x: r.tension * VT.x + r.friction * VF.x + r.harmony * VH.x + jx,
+      y: r.tension * VT.y + r.friction * VF.y + r.harmony * VH.y + jy,
+      d: Math.max(1.2, Math.min(3.4, (e.size || 40) * 0.018)),
+    }
+  })
+  const dots = pts.map(p => `<circle class="cell__dot" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${p.d.toFixed(2)}"/>`).join('')
+  return `<svg viewBox="0 0 100 86"><polygon class="cell__poly" points="${VT.x},${VT.y} ${VF.x},${VF.y} ${VH.x},${VH.y}"/>${dots}</svg>`
+}
+
+fetch('./relations-data.json').then(r => r.json()).then(data => {
+  // Per-country label: the MEAN of its own 19 relations, reduced to a dominant pole — not DISPO
+  // (which already feeds INTO the relation formula, so printing it as the caption would be
+  // circular: it would partly describe why the picture looks the way it does, not what the
+  // picture itself shows). This makes label and picture one assertion, and gives the grid a
+  // sortable spine no other screen in the app has.
+  const rows = data.refs.map(({ id, he }) => {
+    const items = data.byRef[id]
+    const mean = items.reduce((a, e) => ({ tension: a.tension + e.tension, friction: a.friction + e.friction, harmony: a.harmony + e.harmony }), { tension: 0, friction: 0, harmony: 0 })
+    const n = items.length
+    const meanR = { tension: mean.tension / n, friction: mean.friction / n, harmony: mean.harmony / n }
+    const dom = dominantOf(meanR)
+    const covered = items.filter(e => e.why).length
+    return { id, he, items, meanR, dom, covered, total: n }
+  })
+
+  const SORTS = {
+    power: { label: 'לפי עוצמה', fn: (a, b) => 0 }, // dumped order is already power-desc
+    harmony: { label: 'הרמוניה יורדת', fn: (a, b) => b.meanR.harmony - a.meanR.harmony },
+    hostile: { label: 'עוינות יורדת (חיכוך)', fn: (a, b) => b.meanR.tension - a.meanR.tension },
+    coverage: { label: 'כיסוי עריכתי', fn: (a, b) => b.covered - a.covered },
+  }
+  let sortKey = 'power'
+
+  const sortBar = document.getElementById('sortButtons')
+  for (const [key, { label }] of Object.entries(SORTS)) {
+    const b = document.createElement('button')
+    b.textContent = label; b.dataset.key = key
+    b.onclick = () => { sortKey = key; render() }
+    sortBar.appendChild(b)
+  }
+
+  function render() {
+    const sorted = rows.slice().sort(SORTS[sortKey].fn)
+    document.getElementById('grid').innerHTML = sorted.map((row, i) => `
+      <div class="cell" style="animation-delay:${Math.min(i * 0.02, 0.5)}s">
+        ${miniSVG(row.items, row.id)}
+        <span class="cell__name">${row.he}</span>
+        <span class="cell__pole cell__pole--${POLE_CLASS[row.dom]}">${POLE_HE[row.dom]}</span>
+        <span class="cell__cov">${row.covered}/${row.total} מאופיין עריכתית</span>
+      </div>
+    `).join('')
+    sortBar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.key === sortKey)))
+  }
+
+  const fullyCovered = rows.filter(r => r.covered === r.total).length
+  document.getElementById('note').innerHTML =
+    `<b>${fullyCovered}/20</b> מדינות בכיסוי עריכתי מלא (ישראל, ארה״ב, איראן, סעודיה). השאר נשענות על המודל הנגזר ` +
+    `(שיוך גוש + בריתות + אופי) — בדקו אם המשולשים שלהן עדיין נבדלים זה מזה, או מתכנסים לכמה צורות חוזרות.`
+  render()
+})
+</script>
+</body>
+</html>

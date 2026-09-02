@@ -18,7 +18,9 @@ interface Node { id: string; he: string; kind: string; dispo: string; power: num
 const nodes = NODES as Node[]
 const byId = new Map(nodes.map((n) => [n.id, n]))
 const STATES = nodes.filter((n) => n.kind !== 'nonstate')
-const REF_CHOICES = ['israel', 'usa', 'iran', 'saudi', 'turkey', 'egypt', 'russia', 'qatar']
+// ALL states, not just the live screen's 8-button REF_CHOICES — the relations-grid prototype
+// needs every country as its own reference to test whether coverage now holds up broadly.
+const REF_CHOICES = STATES.map((n) => n.id)
 
 const hash = (s: string) => {
   let h = 2166136261
