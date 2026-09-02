@@ -262,6 +262,11 @@ class GravityWell {
   // rank of each body under the ACTIVE metric (0 = strongest) — drives BOTH the grid's reading
   // order and each body's offset in the reveal wave. Kept in sync by setLayout().
   private gridRank: Int32Array
+  // precomputed from gridRank by setGridLayout() — a pure function of rank, so it only needs
+  // recomputing when rank changes (a sort/filter change), not every frame. gridDepthFor() used to
+  // recompute + reallocate this per body, per call site (gridBodyR, hitTest, drawBody's glow), up
+  // to 3x/body/frame at 60fps for values that never change between layout changes.
+  private gridDepth: { scale: number; glow: number }[] = []
   private revealProg: Float32Array
   // last (filter, order, grav) handed to setLayout — replayed on resize, since the grid's column
   // count depends on the canvas aspect and must re-solve when the box changes shape.
@@ -408,6 +413,10 @@ class GravityWell {
       this.nxTarget[i] = cells[rank].nx
       this.nyTarget[i] = cells[rank].ny
     }
+    for (let i = 0; i < n; i++) {
+      const t = n > 1 ? 1 - this.gridRank[i] / (n - 1) : 1 // 1 = strongest (rank 0) → 0 = weakest
+      this.gridDepth[i] = { scale: 0.86 + t * 0.14, glow: 0.35 + t * 0.5 }
+    }
   }
 
   // Set the tour focus (called from the wheel step / mobile tier pick in the component). -1 clears
@@ -546,20 +555,34 @@ class GravityWell {
     return this.narrow ? Math.max(r, 9) : r
   }
 
-  // Grid mode radius for body `i`: the shared uniform cell radius at rest, easing toward this
-  // body's TRUE power-proportional radius as the reveal wave passes over it — the one moment the
-  // grid admits the hierarchy. Power radii are normalized against the strongest body so the biggest
-  // reveal still fits its cell instead of spilling into its neighbours.
+  // ── Static rank-based depth (grid composition only) ─────────────────────────────────────────
+  // A PERMANENT, NON-ANIMATED scale/glow falloff by rank: rank 0 (strongest) reads full-size with
+  // the strongest glow, easing smoothly toward a floor for the weakest. Pure function of rank —
+  // no timers, no eased/interpolated state of its own — so the uniform grid states a real resting
+  // hierarchy even with zero motion, instead of relying entirely on the one-shot reveal wave
+  // (`revealAt`, forces-grid.ts) to ever show it. Composes with hoverProg's bloom rather than
+  // replacing it (see gridBodyR and the glow computation in drawBody). Precomputed in
+  // setGridLayout() into `gridDepth` — this just indexes it.
+  private gridDepthFor(i: number): { scale: number; glow: number } {
+    return this.gridDepth[i] ?? { scale: 1, glow: 0.35 }
+  }
+
+  // Grid mode radius for body `i`: the shared uniform cell radius, scaled by its permanent rank
+  // depth at rest, easing toward this body's TRUE power-proportional radius as the reveal wave
+  // passes over it — the one moment the grid admits the full hierarchy. Power radii are normalized
+  // against the strongest body so the biggest reveal still fits its cell instead of spilling into
+  // its neighbours.
   private gridBodyR(i: number) {
     const uniform = gridRadius(BODIES.length, Math.max(1, this.w), Math.max(1, this.h))
+    const base = uniform * this.gridDepthFor(i).scale
     const rev = this.revealProg[i]
-    if (rev <= 0.001) return uniform
+    if (rev <= 0.001) return base
     let peak = 0
     for (let k = 0; k < BODIES.length; k++) peak = Math.max(peak, this.mass[k])
     const share = peak > 0 ? Math.max(0, this.mass[i]) / peak : 0
     // floor at 0.42 so even the weakest body still reads as a deliberate reveal, not a vanishing act
     const powered = uniform * (0.42 + share * 1.18)
-    return uniform + (powered - uniform) * rev
+    return base + (powered - base) * rev
   }
 
   private bodyToScreen(nx: number, ny: number): [number, number] {
@@ -572,8 +595,15 @@ class GravityWell {
     if (this.frozen) { this.raf = requestAnimationFrame(this.frame); return }
     const t = (now - this.start) / 1000
     const labelIntro = Math.max(0, Math.min(1, t / 2.5))
+    // Entrance order: the grid composition stacks bodies by RANK (strongest first, top-right in
+    // RTL) — the array's own insertion order has no relationship to that, so staggering off `i`
+    // made the entrance sequence arbitrary relative to what's actually on screen. `gridRank[i]`
+    // is the same rank used to place the body, so the entrance now visibly sweeps strongest→
+    // weakest in reading order (ארה"ב, סין, רוסיה, אירופה...). Left as raw `i` outside grid mode —
+    // the packed field composition was never part of this ask and has its own cluster logic.
     for (let i = 0; i < BODIES.length; i++) {
-      this.bodyAppear[i] = Math.max(0, Math.min(1, (t - i * 0.12) / 0.6))
+      const order = this.gridMode ? this.gridRank[i] : i
+      this.bodyAppear[i] = Math.max(0, Math.min(1, (t - order * 0.12) / 0.6))
     }
     const ctx = this.ctx
 
@@ -649,7 +679,7 @@ class GravityWell {
       // stacking the two would fight over the same radius. Reduced-motion holds the grid uniform
       // and never runs the wave.
       if (this.gridMode && !this.reduced) {
-        const raw = revealAt(this.gridRank[i], t, BODIES.length)
+        const raw = revealAt(this.gridRank[i], t)
         this.revealProg[i] = raw * (1 - this.hoverProg[i])
       } else {
         this.revealProg[i] = 0
@@ -687,7 +717,6 @@ class GravityWell {
     for (let i = 0; i < BODIES.length; i++) {
       this.drawBody(i, t)
     }
-
     this.raf = requestAnimationFrame(this.frame)
   }
 
@@ -745,13 +774,17 @@ class GravityWell {
       // at its outer radius, so keeping that radius inside the canvas guarantees the glow has faded
       // to fully transparent BEFORE it meets the boundary — no more hard straight-line clip when a
       // bloomed body (hover/select/tour-focus) sits against the top/left/bottom/right edge.
+      // permanent rank-depth glow boost (grid composition only) — layers ON TOP of the existing
+      // hoverProg-driven bloom rather than replacing it, so a hovered/selected/tour-focused body
+      // still blooms further from wherever its rank-depth baseline sits.
+      const depthGlow = this.gridMode ? this.gridDepthFor(i).glow : 0
       const edgeDist = Math.min(sx, sy, this.w - sx, this.h - sy)
-      const glowR = Math.min(rr * (2.0 + (bloom - 1) * 1.1), edgeDist)
+      const glowR = Math.min(rr * (2.0 + (bloom - 1) * 1.1 + depthGlow * 0.5), edgeDist)
       if (glowR > 0) {
         // a hollow non-state body casts a softer, more diffuse glow — no solid mass behind it
         const glowMul = hollow ? 0.55 : 1
         const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-        grd.addColorStop(0, `rgba(${glowCol},${(0.1 + (bloom - 1) * 0.14) * glowMul})`)
+        grd.addColorStop(0, `rgba(${glowCol},${(0.1 + (bloom - 1) * 0.14 + depthGlow * 0.12) * glowMul})`)
         grd.addColorStop(1, `rgba(${glowCol},0)`)
         ctx.fillStyle = grd
         ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
@@ -779,7 +812,7 @@ class GravityWell {
       // hoverProg (the same eased 0→1 value that grows the body's radius) rather than the hard
       // isFocus boolean, so it sweeps/fades in and back out smoothly instead of popping instantly —
       // hoverProg already accounts for all three focus conditions (hover, select, tour-focus).
-      if (this.hoverProg[i] > 0.001) this.drawAxisGraph(sx, sy, rr, i, bodyA * tAlpha, this.hoverProg[i])
+      if (this.hoverProg[i] > 0.001) this.drawAxisSegmentedRing(sx, sy, rr, i, bodyA * tAlpha, this.hoverProg[i])
 
       // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
       // "ledger" set (top-N by active metric + whatever's focused) attempts a label. Every body's
@@ -873,80 +906,90 @@ class GravityWell {
     ctx.restore()
   }
 
-  // ── In-circle axis graph (Task: "bring back the inner circular graphs, but clear this time") ──
-  // Three concentric value-arcs — eco (outer) · mil (middle) · geo (inner), each 0–10 — drawn in
-  // dark ink on top of the focused body's solid yellow fill (same legibility trick as the name
-  // label). Designed to be self-evidently readable WITHOUT the tooltip:
-  //   · a faint full-circle TRACK marks each ring's 0–10 range;
-  //   · the VALUE ARC sweeps clockwise from 12 o'clock, so more sweep = more score, at a glance;
-  //   · a tiny fixed one-letter tick (כ/צ/ג) sits just outside each ring's own 12-o'clock start —
-  //     baked-in legend that ties a specific ring to a specific axis, not a floating key elsewhere;
-  //   · a small dot marks the arc's live tip, with the exact numeral sitting just OUTSIDE the ring
-  //     at that same angle (not on top of the stroke itself — an earlier pass drew the numeral
-  //     right on the arc's rounded tip and it visually fused into an unreadable blob; sitting
-  //     clear of the ring reads as a clean value flag instead).
-  // Skipped below a legibility floor (rr), same spirit as the name label's own gate.
-  // `prog` (0→1) is the body's eased hoverProg — the SAME value that eases the radius to its
-  // hover floor — so the graph reveals in lockstep with the grow/shrink instead of on the hard
-  // isFocus gate. It drives two things at once: (1) the whole graph's alpha, so it fades in/out,
-  // and (2) each ring's live fraction, so the value arcs visibly SWEEP from nothing up to their
-  // true reading as focus arrives, and sweep back down symmetrically on the way out.
-  private drawAxisGraph(sx: number, sy: number, rr: number, i: number, alpha: number, prog: number) {
-    if (rr < 34 || alpha <= 0.01 || prog <= 0.001) return
+  // ── In-circle axis gauge — ONE ring split into three proportional arc segments (Task: "single
+  // ring split into three proportional arc segments, replacing the three-concentric-ring gauge") ──
+  // The old gauge swept three independently-scaled 0–10 rings (eco/mil/geo) nested inside one
+  // small hover circle — flagged as illegible: too much crammed into too little room, arcs
+  // overlapping. This gauge is ONE stroke at ONE radius; each axis's ANGULAR SPAN is its own share
+  // of (eco+mil+geo) rather than an independent 0–10 sweep, so "which axis dominates" reads as a
+  // proportion of the circle at a glance, and a small fixed gap (radians) between segments keeps
+  // the boundaries unambiguous even at small hover size:
+  //   · a faint full-circle TRACK marks the ring's baseline;
+  //   · the DOMINANT axis's segment is the file's own YELLOW accent — no new hue — with a thin
+  //     DARK casing stroke behind it, since a plain yellow arc would vanish into the focused
+  //     body's own solid-yellow fill; the other two segments stay the plain dark-ink-on-yellow
+  //     convention the rings being replaced already used;
+  //   · the כ/צ/ג tick + its numeral sit TOGETHER at the segment's own arc MIDPOINT, just outside
+  //     the ring — adapted from the old rings' "tick at a fixed start / numeral near the live tip"
+  //     pair into one legible anchor point, since a proportional segment has no single fixed start.
+  // `prog` (0→1) is the body's eased hoverProg — the SAME value that eases the radius to its hover
+  // floor — so the gauge reveals in lockstep with the grow/shrink instead of on a hard isFocus
+  // gate: it drives the whole gauge's alpha AND each segment's own angular sweep-in from nothing.
+  private drawAxisSegmentedRing(sx: number, sy: number, rr: number, i: number, alpha: number, prog: number) {
+    if (rr < 26 || alpha <= 0.01 || prog <= 0.001) return
     const ctx = this.ctx
     const AX: { v: number; k: string }[] = [
       { v: this.axisEco[i], k: 'כ' },
       { v: this.axisMil[i], k: 'צ' },
       { v: this.axisGeo[i], k: 'ג' },
     ]
-    const FRACS = [0.72, 0.55, 0.38]
+    const total = AX.reduce((s, ax) => s + Math.max(0, ax.v), 0)
+    const maxV = Math.max(...AX.map((ax) => ax.v))
     const a = alpha * prog
+    const ringR = rr * 0.7
+    const lw = Math.max(1.6, Math.min(4, rr * 0.06))
+    const GAP = 0.06 // radians — small fixed gap between segments, not pixels
+    const labelFont = Math.max(8, Math.min(12, rr * 0.13))
+
     ctx.save()
     ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.clip()
-    const tickFont = Math.max(7, Math.min(11, rr * 0.13))
-    const numFont = Math.max(8, Math.min(12, rr * 0.13))
-    const start = -Math.PI / 2
-    AX.forEach((ax, k) => {
-      const ringR = rr * FRACS[k]
-      const lw = Math.max(1.2, Math.min(3, rr * 0.045))
-      // sweep-in: the live fraction itself scales by `prog`, so the value arc sweeps from zero
-      // up to its true reading as the reveal eases in (and sweeps back to zero on the way out) —
-      // an intentional animated reveal, not just a fade.
-      const frac = Math.max(0, Math.min(1, ax.v / 10)) * prog
-      const end = start + frac * TAU
-      // track — the ring's full 0–10 range, faint (fades in/out with the same reveal)
-      ctx.strokeStyle = `rgba(${DARK},${0.16 * a})`
-      ctx.lineWidth = lw
-      ctx.beginPath(); ctx.arc(sx, sy, ringR, 0, TAU); ctx.stroke()
-      // value arc — sweeps clockwise from 12 o'clock. Flat (butt) caps — a clean line whose tip
-      // doesn't balloon into a blob the numeral would otherwise have to sit on top of.
-      if (frac > 0.003) {
-        ctx.strokeStyle = `rgba(${DARK},${0.88 * a})`
-        ctx.lineWidth = lw
+
+    // baseline track — the ring's full range, faint (fades in/out with the same reveal)
+    ctx.strokeStyle = `rgba(${DARK},${0.16 * a})`
+    ctx.lineWidth = lw
+    ctx.beginPath(); ctx.arc(sx, sy, ringR, 0, TAU); ctx.stroke()
+
+    let start = -Math.PI / 2
+    AX.forEach((ax) => {
+      // sweep-in: the proportional fraction itself scales by `prog`, so each segment sweeps from
+      // zero up to its true angular share as the reveal eases in (and back to zero on the way out).
+      const frac = total > 0 ? (Math.max(0, ax.v) / total) * prog : 0
+      const span = Math.max(0, frac * TAU - GAP)
+      const end = start + span
+      const isDominant = total > 0 && ax.v === maxV
+      if (span > 0.003) {
         ctx.lineCap = 'butt'
-        ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
-        // small tip dot — a clear "you are here" marker at the arc's live end
-        ctx.fillStyle = `rgba(${DARK},${0.92 * a})`
-        ctx.beginPath(); ctx.arc(sx + Math.cos(end) * ringR, sy + Math.sin(end) * ringR, lw * 0.62, 0, TAU); ctx.fill()
+        if (isDominant) {
+          // a plain yellow stroke here would sit on the body's own solid-yellow focus fill and
+          // vanish (confirmed: a thin casing left only a ~4% tonal shift — imperceptible). A bold
+          // DARK channel with a bright yellow centre line reads as a distinct "racetrack" groove
+          // instead — legible contrast while the accent colour itself is still literally YELLOW.
+          ctx.strokeStyle = `rgba(${DARK},${0.9 * a})`
+          ctx.lineWidth = lw * 2.4
+          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
+          ctx.strokeStyle = `rgba(${YELLOW},${a})`
+          ctx.lineWidth = lw * 0.85
+          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
+        } else {
+          ctx.strokeStyle = `rgba(${DARK},${0.82 * a})`
+          ctx.lineWidth = lw
+          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
+        }
       }
-      // fixed one-letter tick — baked-in "which ring is which axis" legend
-      if (rr >= 40) {
-        ctx.font = `700 ${tickFont}px 'Tel Aviv Brutalist', sans-serif`
-        ctx.fillStyle = `rgba(${DARK},${0.72 * a})`
+      // tick + value TOGETHER at the segment's own arc midpoint, just outside the ring — gated on
+      // rr so the label never has to spill past the body's own rim (matches the old rings' room-
+      // dependent tick/numeral floors, now a single combined floor for the merged label).
+      if (frac > 0.02 && rr >= 42) {
+        const mid = start + span / 2
+        const labelR = ringR + lw + labelFont * 0.9
+        const tx = sx + Math.cos(mid) * labelR
+        const ty = sy + Math.sin(mid) * labelR
+        ctx.font = `700 ${labelFont}px 'Tel Aviv Brutalist', sans-serif`
+        ctx.fillStyle = isDominant ? `rgba(${YELLOW},${0.95 * a})` : `rgba(${DARK},${0.85 * a})`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-        ctx.fillText(ax.k, sx, sy - ringR - tickFont * 0.9)
+        ctx.fillText(`${ax.k} ${ax.v.toFixed(1)}`, tx, ty)
       }
-      // live numeral — just OUTSIDE the ring at the arc's tip angle, clear of the stroke/dot.
-      // Skipped for a near-zero value (its tip sits right at the tick's own position).
-      if (rr >= 50 && frac > 0.05) {
-        const numR = ringR + lw + numFont * 0.62
-        const nx = sx + Math.cos(end) * numR
-        const ny = sy + Math.sin(end) * numR
-        ctx.font = `700 ${numFont}px 'Tel Aviv Brutalist', sans-serif`
-        ctx.fillStyle = `rgba(${DARK},${0.95 * a})`
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-        ctx.fillText(String(Math.round(ax.v)), nx, ny)
-      }
+      start += frac * TAU
     })
     ctx.restore()
   }

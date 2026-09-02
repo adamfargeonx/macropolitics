@@ -31,11 +31,10 @@
    own surface + border tokens and drops the border on the side that meets the panel, so the two
    read as one continuous piece of chrome. Label-free: the chevron carries the affordance. */
 .pdock__handle {
-  /* vertically centred on the PANEL, not the viewport: the panel is inset --panel-top from the top
-     and --panel-bottom from the bottom, so its midpoint sits half that difference below 50%. */
-  position: absolute; right: 100%;
-  top: calc(50% + (var(--panel-top) - var(--panel-bottom)) / 2);
-  transform: translateY(-50%);
+  /* pinched to the panel's own TOP-left corner — top: var(--panel-top) matches .panel/.panelb's own
+     top offset exactly (see overlays.css), so the grip sits flush with the visible panel's top edge
+     instead of floating at its vertical midpoint. */
+  position: absolute; right: 100%; top: var(--panel-top);
   width: 22px; height: 74px; cursor: none; pointer-events: auto;
   display: flex; align-items: center; justify-content: center;
   background: var(--panel-surface); color: var(--yellow);
@@ -43,7 +42,7 @@
   transition: color var(--dur-fast) ease, width var(--dur-fast) var(--ease-out-expo);
 }
 .pdock__handle:hover { width: 27px; color: var(--white); }
-.pdock__handle:active { transform: translateY(-50%) scale(0.96); }
+.pdock__handle:active { transform: scale(0.96); }
 .pdock__chev { width: 13px; height: 13px; transition: transform var(--dur-base) var(--ease-out-expo); }
 .pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
@@ -84,47 +83,57 @@
   from { clip-path: inset(50% 0 50% 0); opacity: 0; }
   to   { clip-path: inset(0 0 0 0);     opacity: 1; }
 }
-.tabs {
+/* the timeline nav — a line running under the three destinations, a small circle marking
+   whichever is active. Track sits BELOW the labels (bottom of the nav box), reserved space via
+   padding-bottom on the whole nav rather than on each label, so the line is one continuous run
+   behind all three stops instead of getting cut into segments by each button's own box. */
+.tline {
   position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 2px; z-index: var(--z-persistent);
-  border: 1px solid rgba(251, 255, 0, 0.4);
+  display: flex; gap: 28px; z-index: var(--z-persistent);
+  padding: 4px 6px 14px;
   animation: tabsExpand 0.6s 0.35s var(--ease-out-expo) both;
 }
-.tab {
-  position: relative; z-index: 1; padding: 9px 22px; font-size: var(--text-lg); font-weight: 700; font-family: var(--display);
-  color: var(--yellow); background: none; border: none; cursor: none; letter-spacing: var(--tracking-numeral);
-  transition: color 0.42s var(--ease-out-expo), background 0.42s var(--ease-out-expo), transform 0.18s ease;
-  display: flex; align-items: center; gap: 8px;
+.tline__stop {
+  position: relative; padding: 5px 2px; font-size: var(--text-lg); font-weight: 700; font-family: var(--display);
+  color: var(--ink-dim); background: none; border: none; cursor: none; letter-spacing: var(--tracking-numeral);
+  transition: color 0.42s var(--ease-out-expo), transform 0.18s ease;
 }
-/* hover = a soft filled container behind the label, matching the ranked-row hover
-   (.gindex__row:hover) — one hover language sitewide. NOT a colour swap to white: that competed
-   with the active tab's own colour change and read as a second "selected" state. */
-.tab:hover:not(.tab--active) { background: var(--yellow-06); }
-.tab--active { color: var(--bg); }
-.tab:active { transform: scale(0.96); }
-/* the single yellow marker slides (translateX) to the active tab — one shared element, RTL-correct,
-   square (no rounded rect, per project rule). Width + transform are set inline from measured geometry. */
-.tabs__marker {
-  position: absolute; top: 0; bottom: 0; left: 0; z-index: 0;
-  background: var(--yellow); border-radius: 0; pointer-events: none;
-  transition: transform 0.4s var(--ease-out-expo), width 0.4s var(--ease-out-expo);
+.tline__stop:hover:not(.tline__stop--active) { color: var(--light); }
+.tline__stop--active { color: var(--yellow); }
+.tline__stop:active { transform: scale(0.96); }
+.tline__stop:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+/* the line itself — one continuous run behind every stop, not per-segment */
+.tline__track { position: absolute; left: 6px; right: 6px; bottom: 8px; height: 1px; background: var(--line-yellow); pointer-events: none; }
+/* the dot — centred ON its stop (translateX to the stop's midpoint, then -50% of the dot's own
+   width), sliding along the SAME track line rather than a detached indicator floating above it. */
+.tline__dot {
+  position: absolute; bottom: 4px; left: 0; z-index: 1; pointer-events: none;
+  width: 9px; height: 9px; border-radius: 50%; background: var(--yellow);
+  box-shadow: 0 0 8px 1px rgba(251, 255, 0, 0.5);
+  /* slight delay (80ms) before the dot commits to the move — reads as "acknowledging the click,
+     then travelling" rather than starting instantly — and --ease-panel (the project's strongest
+     decel, not --ease-out-expo) for a more dramatic, considered slide along the track. */
+  transition: transform 0.55s var(--ease-panel) 0.08s;
 }
-@media (prefers-reduced-motion: reduce) { .tabs__marker { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tline__dot { transition: none; } }
 
 /* ── Mobile (≤768px): the tab bar becomes a full-width bottom FOOTER so it never
    floats over the bottom sheet. The sliding marker still measures real geometry. ── */
 @media (max-width: 768px) {
-  .tabs {
+  /* mechanical rename only (.tabs→.tline, .tab→.tline__stop, .tabs__marker→.tline__dot) to keep
+     this block targeting real elements after the desktop redesign — NOT a mobile-specific pass on
+     the new timeline visual itself (per standing rule: mobile gets its own dedicated pass later). */
+  .tline {
     left: 0; right: 0; bottom: 0; transform: none; width: 100%;
-    gap: 0; height: var(--tabbar-h);
+    gap: 0; height: var(--tabbar-h); padding: 0;
     border: none; border-top: 1px solid var(--line-yellow);
     background: rgba(8, 4, 18, 0.97); z-index: var(--z-persistent);
   }
-  .tab {
+  .tline__stop {
     flex: 1 1 0; padding: 0; font-size: var(--text-lg);
     display: flex; align-items: center; justify-content: center;
   }
-  .tabs__marker { top: 0; bottom: 0; }
+  .tline__track, .tline__dot { display: none; }
 }
 
 /* ── Forces view ───────────────────────────────────────────── */
@@ -183,29 +192,6 @@
 .gctl__opt { position: relative; cursor: none; background: none; border: 1px solid transparent; padding: 4px 9px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
 .gctl__opt:hover:not(.is-on) { color: var(--light); }
 .gctl__opt.is-on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
-/* מקרא — sits at the row's far end (where the ⚙ כלים button used to), same quiet treatment as the
-   sort options beside it so the row reads as one control group. */
-.gctl__legend { position: relative; margin-inline-start: auto; cursor: none; background: none; border: 1px solid transparent; padding: 4px 10px; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); display: inline-flex; align-items: center; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
-.gctl__legend:hover { color: var(--yellow); border-color: var(--yellow-30); }
-
-/* ── Forces composition A/B (field ⇄ ranked grid) ──────────────────────────────
-   A full-width row under the sort controls rather than another chip inside them: it does not
-   filter or sort the SAME picture the way every control beside it does — it swaps the picture
-   entirely — so it reads as its own act. Retire with the experiment (see FORCES_GRID_HASH). */
-.gctl__ab {
-  margin-top: 10px; width: 100%; cursor: none;
-  background: none; border: 1px dashed var(--line-yellow); padding: 6px 10px;
-  animation: textRise 0.7s var(--ease-panel) both;
-  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
-  color: var(--yellow); opacity: 0.62;
-  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
-}
-.gctl__ab:hover { opacity: 1; background: var(--yellow-06); }
-
-/* the grid screen drops the panel's metric title + description, so the control row is the panel's
-   first element and needs the top offset the title used to provide */
-.panel--compact .gctl { margin-top: 0; }
 
 /* per-metric description transitions when filter changes */
 .panel__body--metric { transition: opacity 0.3s ease; }
@@ -249,7 +235,7 @@
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }
 .gindex__row--ns .gindex__bar i { opacity: 0.38; }
 .gindex__score { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-numeral); color: var(--light); opacity: 0.6; text-align: left; }
-@media (prefers-reduced-motion: reduce) { .gindex__row, .gctl, .gctl__ab, .gindex__h { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .gindex__row, .gctl, .gindex__h { animation: none; } }
 /* index expand/collapse */
 /* item 10: floats — box removed. item 5b: hover is a direct color swap (below). */
 .gindex__more {
@@ -474,18 +460,6 @@
   -webkit-line-clamp: unset;
   overflow: visible;
 }
-
-/* ── Forces panel — full-description button moved to the panel FOOTER (last element, after the
-   relations section) and now SWITCHES the panel body (score ⇄ narrative) instead of appending
-   inline below itself. A hairline top rule reads as a footer action, separate from whatever
-   content sits above it (score cluster or narrative, depending on the button's own state). New
-   declarations for an EXISTING class (.ffull-btn, in overlays.css) via the modifier below. */
-.ffull-btn--foot {
-  margin-top: 18px; padding: 14px 0 0; width: 100%;
-  border: none; border-top: 1px solid var(--line-yellow);
-  justify-content: center;
-}
-.ffull-btn--foot:hover { background: none; }
 
 /* ── Forces panel header — power-tier tooltip opens BELOW instead of above ─────────────────────
    Root-cause of the remaining tooltip-overlap: the shared [data-hint] tooltip (overlays.css) is

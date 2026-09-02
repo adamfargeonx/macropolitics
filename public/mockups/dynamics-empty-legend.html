@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Dynamics empty-state · legend inline vs. formula</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ══ MOCK: dynamics view's empty-state panel — replacing the "יחסי הכוחות = הכוחות + היחסים"
+   formula with the map's own visual legend, inline. The opening title + intro paragraph are
+   UNCHANGED (the operator said that part is fine) — only what comes after it is up for revision.
+   Legend swatch markup/CSS below is copied verbatim from Legend.tsx / overlays.css so this reads
+   exactly as the real thing would, not an approximation. Every selector is .mk- prefixed. ═══════ */
+
+.mk-page {
+  min-height: 100vh; margin: 0; padding: var(--sp-7) var(--sp-5) var(--sp-9);
+  background: var(--bg); color: var(--light); font-family: var(--body);
+}
+.mk-h1 {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-display); color: var(--yellow); text-align: center; margin: 0;
+}
+.mk-sub {
+  margin: var(--sp-3) auto 0; max-width: 70ch; text-align: center;
+  font-size: var(--text-xs); font-weight: var(--fw-bold); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-row { display: flex; gap: var(--sp-6); flex-wrap: wrap; align-items: flex-start; justify-content: center; margin-top: var(--sp-8); }
+.mk-slot { flex: none; width: 396px; }
+.mk-slot-h {
+  margin: 0 0 var(--sp-2); text-align: center; font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* ══ THE PANEL (real .panel shell, real dimensions) ═══════════════════════════════════════════ */
+.mk-panel {
+  position: relative; width: 396px; height: 560px; padding: 28px;
+  background: var(--panel-surface); border: var(--panel-border); box-shadow: var(--panel-shadow);
+  text-align: right; display: flex; flex-direction: column; overflow: hidden;
+}
+.mk-close {
+  position: absolute; top: 8px; inset-inline-end: 8px; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--yellow); opacity: 0.6; font-size: 14px; cursor: pointer;
+}
+.mk-title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); margin: 0; }
+.mk-body { margin-top: 18px; font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
+
+/* ── A: current — the formula ──────────────────────────────────────────────────────────────── */
+.mk-eq { margin-top: 26px; font-family: var(--display); font-size: var(--text-2xl); font-weight: 900; letter-spacing: var(--tracking-title); color: var(--yellow); }
+.mk-note { margin-top: 10px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
+
+/* ── B: replacement — the map's own legend, inline ─────────────────────────────────────────────
+   Verbatim from Legend.tsx / overlays.css: same swatches, same graphics, same copy — the same
+   component people already reach via the ⓘ button, just surfaced here instead of behind a click,
+   at the one moment (nothing selected yet) it's more useful here than tucked away. ── */
+.mk-legend { margin-top: 28px; }
+.mk-legend-h {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-wide); color: var(--yellow); opacity: 0.85;
+  padding-bottom: 6px; border-bottom: 1px solid var(--line-yellow);
+}
+.mk-legend-rows { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.mk-legend-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; }
+.mk-legend-group { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 2px; }
+.mk-legend-pair { display: inline-flex; align-items: center; gap: 10px; padding: 5px 0; }
+.mk-legend-swatch { flex: 0 0 46px; height: 28px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.mk-legend-swatch--pair { flex: 0 0 30px; height: 30px; }
+.mk-legend-txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
+.mk-legend-txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
+.mk-sizeramp i { display: block; border-radius: 50%; background: var(--light); }
+.mk-sizeramp i:nth-child(1) { width: 6px; height: 6px; opacity: 0.55; }
+.mk-sizeramp i:nth-child(2) { width: 10px; height: 10px; opacity: 0.75; }
+.mk-sizeramp i:nth-child(3) { width: 15px; height: 15px; }
+.mk-disk { display: block; width: 13px; height: 13px; border-radius: 50%; }
+.mk-disk--full { background: var(--light); }
+.mk-disk--hollow { background: transparent; border: 2px solid var(--light); }
+.mk-rim { display: block; width: 12px; height: 12px; border-radius: 50%; background: rgba(244, 242, 236, 0.1); border: 2px solid; }
+.mk-legend-note { margin-top: 14px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.7; }
+</style>
+</head>
+<body>
+<main class="mk-page">
+  <h1 class="mk-h1">מקרא מוטמע — במקום הנוסחה</h1>
+  <p class="mk-sub">
+    הפתיחה (כותרת + פסקת המבוא) נשארת בדיוק כפי שהיא. הנוסחה «יחסי הכוחות = הכוחות + היחסים»
+    מוחלפת במקרא החזותי של המפה עצמה — אותו רכיב שכבר קיים מאחורי כפתור ה-ⓘ, מוצג כאן ישירות,
+    ברגע היחיד שבו אין עדיין גוף נבחר.
+  </p>
+
+  <div class="mk-row">
+    <div class="mk-slot">
+      <p class="mk-slot-h">א · היום</p>
+      <div class="mk-panel">
+        <button class="mk-close">✕</button>
+        <h1 class="mk-title">יחסי הכוחות</h1>
+        <p class="mk-body">
+          במערך יחסי הכוחות ניתן לראות את השילוב של הכוחות והיחסים, ולהבין את הדינמיקות דרך
+          הגופים, מעגלי ההשפעה ומרכזי הכובד. גודלם נקבע על פי כוח משיכתם, והמרחקים ביניהם מעידים
+          על אופי היחסים שלהם.
+        </p>
+        <h2 class="mk-eq">יחסי הכוחות = הכוחות + היחסים</h2>
+        <p class="mk-note">בחרו גוף במפה כדי לראות את נתוניו.</p>
+      </div>
+    </div>
+
+    <div class="mk-slot">
+      <p class="mk-slot-h">ב · מוצע — מקרא מוטמע</p>
+      <div class="mk-panel">
+        <button class="mk-close">✕</button>
+        <h1 class="mk-title">יחסי הכוחות</h1>
+        <p class="mk-body">
+          במערך יחסי הכוחות ניתן לראות את השילוב של הכוחות והיחסים, ולהבין את הדינמיקות דרך
+          הגופים, מעגלי ההשפעה ומרכזי הכובד. גודלם נקבע על פי כוח משיכתם, והמרחקים ביניהם מעידים
+          על אופי היחסים שלהם.
+        </p>
+
+        <div class="mk-legend">
+          <p class="mk-legend-h">איך לקרוא את המפה</p>
+          <div class="mk-legend-rows">
+            <div class="mk-legend-row">
+              <span class="mk-legend-swatch"><span class="mk-sizeramp" style="display:flex;align-items:flex-end;gap:5px"><i></i><i></i><i></i></span></span>
+              <span class="mk-legend-txt"><b>גודל</b> = כוח משיכה</span>
+            </div>
+            <div class="mk-legend-group">
+              <div class="mk-legend-pair">
+                <span class="mk-legend-swatch mk-legend-swatch--pair"><i class="mk-disk mk-disk--full"></i></span>
+                <span class="mk-legend-txt"><b>מלא</b> = מדינה</span>
+              </div>
+              <div class="mk-legend-pair">
+                <span class="mk-legend-swatch mk-legend-swatch--pair"><i class="mk-disk mk-disk--hollow"></i></span>
+                <span class="mk-legend-txt"><b>חלולה</b> = לא-מדינתי</span>
+              </div>
+            </div>
+            <div class="mk-legend-group">
+              <div class="mk-legend-pair">
+                <span class="mk-legend-swatch mk-legend-swatch--pair"><i class="mk-rim" style="border-color:rgba(132,160,196,0.95)"></i></span>
+                <span class="mk-legend-txt"><b>כחול</b> = מערב</span>
+              </div>
+              <div class="mk-legend-pair">
+                <span class="mk-legend-swatch mk-legend-swatch--pair"><i class="mk-rim" style="border-color:rgba(198,134,98,0.95)"></i></span>
+                <span class="mk-legend-txt"><b>חום</b> = מזרח</span>
+              </div>
+              <div class="mk-legend-pair">
+                <span class="mk-legend-swatch mk-legend-swatch--pair"><i class="mk-rim" style="border-color:rgba(150,150,150,0.7)"></i></span>
+                <span class="mk-legend-txt"><b>אפור</b> = ניטרלי</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="mk-legend-note">בחרו גוף במפה כדי לראות את נתוניו.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

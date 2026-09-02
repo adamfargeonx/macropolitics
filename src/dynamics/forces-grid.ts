@@ -67,30 +67,32 @@ export function gridRadius(n: number, w: number, h: number): number {
 
 // ── Reveal wave ──────────────────────────────────────────────────────────────
 // "Intermittent animations that show their size and power": at rest every body is identical. A wave
-// travels down the ranking; as it reaches each body that body swells toward its TRUE power-
-// proportional radius and surfaces its score, then eases back to uniform. Continuous but unhurried —
-// it re-states the hierarchy every cycle without ever freezing the grid into it.
+// travels down the ranking ONCE — as it reaches each body that body swells toward its TRUE power-
+// proportional radius and surfaces its score, then eases back to uniform and stays there. Was a
+// repeating cycle (wave, rest, wave again, forever); the operator flagged the perpetual looping
+// itself as the problem, independent of the wave's own shape — a state that never stops replaying
+// reads as restless rather than "revealed", however unhurried any single pass is. `t` is now used
+// directly (no modulo), so once a body's pass completes it simply never fires again.
 
 const STAGGER = 0.16 // s between consecutive bodies entering the wave
 const GROW = 0.45    // s to swell out
 const HOLD = 0.5     // s at full reveal
 const FALL = 0.6     // s to settle back
-const REST = 3.2     // s of stillness after the wave clears, before it runs again
 
 const SPAN = GROW + HOLD + FALL
 
-/** Full cycle length (s) for `n` bodies — one pass down the ranking plus the rest beat. */
+/** Time (s) for the one-shot wave to finish crossing all `n` bodies. */
 export function revealCycle(n: number): number {
-  return Math.max(1, n - 1) * STAGGER + SPAN + REST
+  return Math.max(1, n - 1) * STAGGER + SPAN
 }
 
 /**
- * Reveal amount 0→1 for the body at rank `rank` at cycle-relative time `t` seconds.
+ * Reveal amount 0→1 for the body at rank `rank` at time `t` seconds since mount. Fires exactly
+ * once per body (when the wave reaches its rank) and returns 0 forever before and after.
  * 0 = uniform grid size; 1 = fully swelled to its true power radius with its score shown.
  */
-export function revealAt(rank: number, t: number, n: number): number {
-  const cycle = revealCycle(n)
-  const local = ((t % cycle) + cycle) % cycle - rank * STAGGER
+export function revealAt(rank: number, t: number): number {
+  const local = t - rank * STAGGER
   if (local <= 0 || local >= SPAN) return 0
   if (local < GROW) return easeOutCubic(local / GROW)
   if (local < GROW + HOLD) return 1

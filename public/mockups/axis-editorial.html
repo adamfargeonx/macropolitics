@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForcesAxisPanel — גישה עיתונאית</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOCKUP — "EDITORIAL": the axis drill-down as a broadsheet column.
+   Every selector is .mk-* prefixed. Nothing here touches the real app.
+
+   THE IDEA: hierarchy comes from type, rules and negative space. There are
+   exactly three rules in the whole panel that aren't hairline dividers — the
+   masthead double-rule, the fraction rule under the score, and the composition
+   scale. No chips, no boxes, no progress tracks, no icons.
+
+   Sizes/leading base.css doesn't own live as --mk-* tokens, never as loose
+   literals. Colour, spacing and easing come from base.css only.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mk-panel {
+  /* type sizes above the app's ramp (a masthead figure has no token — it is a
+     display-tier size that exists nowhere else in the product) */
+  --mk-figure: 88px;         /* the masthead numeral */
+  --mk-figure-lh: 0.80;
+  --mk-lede: var(--text-xl); /* the raised lead-in on the analysis */
+  --mk-prose-lh: 1.66;       /* editorial leading — prose is the lead, not a label */
+  --mk-break: var(--sp-6);   /* the ONE gap between clusters (26px) */
+  --mk-tight: var(--sp-2);   /* the ONE gap within a cluster (8px) */
+}
+
+/* ── page chrome (not part of the design) ─────────────────────────────────── */
+body.mk-body {
+  height: auto; min-height: 100%; overflow-y: auto; overflow-x: hidden;
+  background: var(--bg); color: var(--light);
+}
+.mk-stage {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: var(--sp-4);
+  padding-block: var(--sp-8);
+}
+.mk-caption {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
+  color: var(--ink-faint); opacity: 0.55; text-align: center; max-width: 396px;
+}
+
+/* ── the panel shell — the app's real geometry: 396 wide, 28 padding ──────── */
+.mk-panel {
+  width: 396px; padding: 28px; text-align: start;
+  height: calc(100dvh - 114px); max-height: 940px;
+  overflow-y: auto; scrollbar-width: none;
+  background: var(--panel-surface); border: var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  display: flex; flex-direction: column;
+  animation: mkPanelIn 0.64s var(--ease-panel) both;
+}
+.mk-panel::-webkit-scrollbar { display: none; }
+.mk-panel--frag { height: auto; max-height: none; }
+
+/* ── entrance: the app's own clip-path reveal, one beat per block ─────────── */
+.mk-in { animation: mkRise 0.58s var(--ease-panel) both; animation-delay: var(--mk-d, 0s); }
+@keyframes mkRise {
+  from { clip-path: inset(0 0 105% 0); transform: translateY(0.5em); }
+  to   { clip-path: inset(0 0 -30% 0); transform: translateY(0); }
+}
+@keyframes mkPanelIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(7px); }
+  55%  { filter: blur(0); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* ── 1 · the kicker (back) — a text line, no button box ───────────────────── */
+.mk-back {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; cursor: pointer;
+  /* no box — but the hit area still clears the 24px minimum, paid for in padding
+     and taken back in margin so the optical position is unchanged */
+  padding-block: 6px; margin-block: -6px;
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+.mk-back__arrow { width: 12px; height: 12px; flex: none; transition: transform var(--dur-fast) var(--ease-out-expo); }
+.mk-back:hover { color: var(--yellow); }
+.mk-back:hover .mk-back__arrow { transform: translateX(3px); }
+
+/* ── 2 · the masthead ─────────────────────────────────────────────────────── */
+/* the newspaper double rule: thick over thin, opening the page */
+.mk-rule2 {
+  height: 6px; margin-block-start: var(--mk-break);
+  border-block-start: 2px solid var(--yellow-50);
+  border-block-end: 1px solid var(--line);
+}
+.mk-rule2--foot {
+  margin-block-start: var(--sp-5);
+  border-block-start: 1px solid var(--line);
+  border-block-end: 2px solid var(--yellow-50);
+}
+.mk-rule { height: 1px; background: var(--line-2); margin-block-start: var(--mk-break); }
+
+.mk-slug {
+  margin-block-start: var(--sp-2);
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
+}
+.mk-slug__axis {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title); color: var(--white);
+}
+/* the tier reads as a printed sub-head, not a chip: accent hairline, no border box */
+.mk-slug__tier {
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--yellow);
+  padding-block-end: 3px; border-block-end: 1px solid var(--line-yellow);
+}
+
+/* the score set as a printed fraction: figure over rule over denominator.
+   The rule takes the numeral's own width because the column shrink-wraps it. */
+.mk-mast { margin-block-start: var(--sp-4); display: flex; align-items: flex-end; gap: var(--sp-4); }
+.mk-fig { display: inline-flex; flex-direction: column; flex: none; }
+.mk-fig__n {
+  font-family: var(--display); font-weight: var(--fw-light); font-size: var(--mk-figure);
+  line-height: var(--mk-figure-lh); letter-spacing: var(--tracking-display);
+  color: var(--yellow); font-variant-numeric: tabular-nums;
+}
+.mk-fig__d {
+  margin-block-start: var(--sp-1); padding-block-start: 6px;
+  border-block-start: 1px solid var(--yellow-30);
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--ink-faint); text-align: center;
+}
+/* the deck sits on the figure's baseline — the broadsheet's standfirst */
+.mk-deck {
+  flex: 1 1 auto; padding-block-end: 4px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
+  color: var(--ink-faint);
+}
+
+/* ── 3 · the lead — prose, at editorial leading and measure ───────────────── */
+.mk-analysis {
+  margin-block-start: var(--mk-break); max-width: 32ch;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); line-height: var(--mk-prose-lh); color: var(--ink-dim);
+}
+/* a raised lead-in rather than a drop cap — Hebrew opens on words, not letters */
+.mk-analysis__lede {
+  font-family: var(--display); font-weight: var(--fw-light); font-size: var(--mk-lede);
+  letter-spacing: var(--tracking-title); color: var(--light);
+}
+
+/* ── 4 · composition, as a ledger line + one scale rule ───────────────────── */
+.mk-comp { margin-block-start: var(--mk-break); }
+.mk-terms { margin-block-start: var(--sp-3); display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-3); }
+.mk-term { display: flex; flex-direction: column; gap: 3px; }
+.mk-term--end { text-align: end; }
+.mk-term__l {
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--ink-faint);
+}
+.mk-term__v {
+  font-family: var(--display); font-weight: var(--fw-light); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title); color: var(--light);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+/* ONE hairline doing two jobs: the ledger's underline AND the proportion. The lit
+   run is the score; the tick past it is the reach the spine had before fiscal
+   health took it back. Flex lays out from the reading edge — no directional inset. */
+.mk-scale {
+  margin-block-start: var(--sp-3); display: flex; align-items: flex-end;
+  height: 9px; border-block-end: 1px solid var(--line);
+}
+.mk-scale__lit {
+  height: 2px; background: var(--yellow); opacity: 0.85;
+  width: var(--mk-lit); animation: mkGrow 1.1s var(--ease-panel) both; animation-delay: var(--mk-d, 0s);
+}
+.mk-scale__over { align-self: stretch; width: var(--mk-over); position: relative; }
+.mk-scale__over::after {
+  content: ''; position: absolute; inset-block: 0; inset-inline-end: 0;
+  width: 1px; background: var(--yellow-50);
+}
+@keyframes mkGrow { from { width: 0; } }
+
+/* ── 5 · criteria — a quiet typographic table, crossheads and leader dots ─── */
+.mk-group { margin-block-start: var(--mk-break); }
+.mk-cross { display: flex; align-items: center; gap: var(--sp-3); }
+.mk-cross__t {
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--light); white-space: nowrap;
+}
+.mk-cross::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--line); }
+.mk-cross__note {
+  margin-block-start: 7px; max-width: 32ch;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-table { margin-block-start: var(--sp-3); }
+.mk-row { display: flex; align-items: baseline; gap: var(--mk-tight); }
+.mk-row + .mk-row { margin-block-start: 6px; }
+.mk-row__k {
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); color: var(--light); white-space: nowrap;
+  transition: color var(--dur-fast) ease;
+}
+.mk-row__lead {
+  flex: 1 1 auto; min-width: 14px; align-self: center;
+  border-block-end: 1px dotted var(--ink-faint); opacity: 0.28;
+  transition: opacity var(--dur-fast) ease;
+}
+.mk-row__v {
+  min-width: 32px; text-align: end;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-base);
+  letter-spacing: var(--tracking-numeral); color: var(--light);
+  font-variant-numeric: tabular-nums; transition: color var(--dur-fast) ease;
+}
+.mk-row:hover .mk-row__v { color: var(--yellow); }
+.mk-row:hover .mk-row__lead { opacity: 0.6; }
+/* unscored rubric criteria — the label greys and the figure is an em-dash. No
+   dashed track needed: an empty column already says "never measured". */
+.mk-row--none .mk-row__k, .mk-row--none .mk-row__v { color: var(--ink-faint); }
+.mk-row--none:hover .mk-row__v { color: var(--ink-faint); }
+.mk-row--none .mk-row__lead { opacity: 0.18; }
+
+/* ── 6 · the colophon ─────────────────────────────────────────────────────── */
+.mk-colophon { margin-block-start: auto; }
+.mk-col__line {
+  margin-block-start: var(--sp-3); display: flex; align-items: baseline;
+  justify-content: space-between; gap: var(--sp-3);
+}
+.mk-col__status {
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide); color: var(--light);
+}
+.mk-col__src {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint); text-decoration: none;
+  padding-block: 6px; margin-block: -6px;   /* 24px hit area, zero visual cost */
+  transition: color var(--dur-fast) ease;
+}
+.mk-col__src:hover { color: var(--yellow); }
+.mk-col__figure {
+  margin-block-start: var(--mk-tight); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--light); font-variant-numeric: tabular-nums;
+}
+.mk-col__pct { color: var(--yellow); }
+.mk-col__yrs { color: var(--ink-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-panel, .mk-in, .mk-scale__lit { animation: none; }
+  .mk-scale__lit { width: var(--mk-lit); }
+  .mk-back__arrow { transition: none; }
+}
+</style>
+</head>
+<body class="mk-body">
+
+<!-- ════ the panel, at true width, on the app's ground ════ -->
+<section class="mk-stage">
+  <div class="mk-panel" id="mk-panel">
+
+    <!-- 1 · back -->
+    <button class="mk-back mk-in" style="--mk-d:0s" type="button">
+      <svg class="mk-back__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12 H19" /><path d="M13 6 L19 12 L13 18" />
+      </svg>
+      בחזרה לציון
+    </button>
+
+    <!-- 2 · masthead: double rule, slug line, the score as a printed fraction -->
+    <div class="mk-rule2 mk-in" style="--mk-d:0.10s"></div>
+
+    <div class="mk-slug mk-in" style="--mk-d:0.16s">
+      <span class="mk-slug__axis">כלכלי</span>
+      <span class="mk-slug__tier">משמעותי</span>
+    </div>
+
+    <div class="mk-mast">
+      <div class="mk-fig mk-in" style="--mk-d:0.24s">
+        <span class="mk-fig__n" id="mk-score">6.6</span>
+        <span class="mk-fig__d">מתוך 10</span>
+      </div>
+      <p class="mk-deck mk-in" style="--mk-d:0.36s">
+        כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה
+      </p>
+    </div>
+
+    <!-- 3 · the lead: the country read, set as prose with a raised lead-in -->
+    <p class="mk-analysis mk-in" style="--mk-d:0.48s">
+      <span class="mk-analysis__lede">כלכלה גדולה, מגוונת ומתועשת</span>
+      עם בסיס ייצוא וייצור איתן וגיאוגרפיה מסחרית מצוינת. אך אינפלציה כרונית,
+      פיחות מתמשך וחוסר יציבות מוניטרית שוחקים את היציבות ומגבילים את תרגום
+      הגודל הכלכלי לעוצמה אסטרטגית.
+    </p>
+
+    <!-- 4 · composition: a ledger line, and one rule carrying the proportion -->
+    <div class="mk-comp">
+      <div class="mk-cross mk-in" style="--mk-d:0.62s"><span class="mk-cross__t">ההרכב</span></div>
+      <div class="mk-terms mk-in" style="--mk-d:0.70s">
+        <span class="mk-term">
+          <span class="mk-term__l">עמוד שדרה</span>
+          <span class="mk-term__v">7.0</span>
+        </span>
+        <span class="mk-term mk-term--end">
+          <span class="mk-term__l">התאמה</span>
+          <!-- bdi/ltr or the neutral minus resolves to the RTL paragraph direction and lands
+               AFTER the digits — "0.4−" instead of "−0.4". Measured, not theoretical. -->
+          <span class="mk-term__v"><bdi dir="ltr">−0.4</bdi></span>
+        </span>
+      </div>
+      <div class="mk-scale" style="--mk-lit:66%; --mk-over:4%; --mk-d:0.80s" aria-hidden="true">
+        <i class="mk-scale__lit" style="--mk-lit:66%; --mk-d:0.80s"></i>
+        <i class="mk-scale__over" style="--mk-over:4%"></i>
+      </div>
+    </div>
+
+    <!-- 5 · criteria: crossheads and a leader-dot table -->
+    <section class="mk-group">
+      <div class="mk-cross mk-in" style="--mk-d:0.94s"><span class="mk-cross__t">עמוד השדרה</span></div>
+      <p class="mk-cross__note mk-in" style="--mk-d:0.99s">מסה כלכלית ורמת פיתוח לנפש — קובעות את רוב הציון.</p>
+      <div class="mk-table">
+        <div class="mk-row mk-in" style="--mk-d:1.06s">
+          <span class="mk-row__k">מסה (PPP)</span><span class="mk-row__lead"></span><span class="mk-row__v">6.8</span>
+        </div>
+        <div class="mk-row mk-in" style="--mk-d:1.11s">
+          <span class="mk-row__k">לנפש</span><span class="mk-row__lead"></span><span class="mk-row__v">7.6</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="mk-group">
+      <div class="mk-cross mk-in" style="--mk-d:1.20s"><span class="mk-cross__t">התאמות</span></div>
+      <p class="mk-cross__note mk-in" style="--mk-d:1.25s">בריאות פיסקלית: יתרות, השקעות, חוב ואשראי. מעלה או מורידה את הבסיס.</p>
+      <div class="mk-table">
+        <div class="mk-row mk-in" style="--mk-d:1.32s">
+          <span class="mk-row__k">יתרות</span><span class="mk-row__lead"></span><span class="mk-row__v">6.2</span>
+        </div>
+        <div class="mk-row mk-in" style="--mk-d:1.37s">
+          <span class="mk-row__k">FDI</span><span class="mk-row__lead"></span><span class="mk-row__v">4.9</span>
+        </div>
+        <div class="mk-row mk-in" style="--mk-d:1.42s">
+          <span class="mk-row__k">חשבון שוטף</span><span class="mk-row__lead"></span><span class="mk-row__v">4.9</span>
+        </div>
+        <div class="mk-row mk-in" style="--mk-d:1.47s">
+          <span class="mk-row__k">חוב/תוצר</span><span class="mk-row__lead"></span><span class="mk-row__v">8.4</span>
+        </div>
+        <div class="mk-row mk-in" style="--mk-d:1.52s">
+          <span class="mk-row__k">אשראי</span><span class="mk-row__lead"></span><span class="mk-row__v">3.2</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 · colophon -->
+    <footer class="mk-colophon mk-in" style="--mk-d:1.62s">
+      <div class="mk-rule2 mk-rule2--foot"></div>
+      <div class="mk-col__line">
+        <span class="mk-col__status">מקור ראשי</span>
+        <a class="mk-col__src" href="https://www.imf.org/en/Publications/WEO" target="_blank" rel="noreferrer"><bdi>IMF WEO · 2026</bdi> ↗</a>
+      </div>
+      <p class="mk-col__figure">
+        <bdi dir="ltr">$2.4T → $3.8T</bdi>
+        <span class="mk-col__pct"><bdi dir="ltr">+55%</bdi></span>
+        <span class="mk-col__yrs"><bdi dir="ltr">’20 → ’25</bdi></span>
+      </p>
+    </footer>
+
+  </div>
+  <p class="mk-caption">טורקיה · ציר כלכלי · 6.6 — לחצו על הרקע להרצה חוזרת של הכניסה</p>
+</section>
+
+<!-- ════ variant: the third group ("לא נמדד"), as it sets on the military axis ════ -->
+<section class="mk-stage">
+  <div class="mk-panel mk-panel--frag">
+    <section class="mk-group" style="margin-block-start:0">
+      <div class="mk-cross"><span class="mk-cross__t">לא נמדד</span></div>
+      <p class="mk-cross__note">קריטריונים מהרוביק המקורי שלא כומתו למספר — שיקול דעת, לא נתון חסר.</p>
+      <div class="mk-table">
+        <div class="mk-row mk-row--none"><span class="mk-row__k">לוגיסטיקה</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">ניסיון קרבי</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">תעשייה ביטחונית</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">ציוד וטכנולוגיה</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">בריתות</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">מודיעין</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+        <div class="mk-row mk-row--none"><span class="mk-row__k">אימונים</span><span class="mk-row__lead"></span><span class="mk-row__v">—</span></div>
+      </div>
+    </section>
+  </div>
+  <p class="mk-caption">וריאנט — הקבוצה השלישית, «לא נמדד», כפי שהיא נערכת בציר הצבאי</p>
+</section>
+
+<script>
+(function () {
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  var el = document.getElementById('mk-score')
+  var panel = document.getElementById('mk-panel')
+  var TARGET = 6.6, DELAY = 240, DUR = 900
+
+  function count() {
+    if (reduced) { el.textContent = TARGET.toFixed(1); return }
+    el.textContent = '0.0'
+    var t0 = null
+    setTimeout(function () {
+      requestAnimationFrame(function step(t) {
+        if (t0 === null) t0 = t
+        var p = Math.min(1, (t - t0) / DUR)
+        var e = 1 - Math.pow(1 - p, 4)          // expo-ish decel, matches --ease-out-expo's feel
+        el.textContent = (TARGET * e).toFixed(1)
+        if (p < 1) requestAnimationFrame(step)
+      })
+    }, DELAY)
+  }
+
+  function replay() {
+    var nodes = panel.querySelectorAll('.mk-in, .mk-scale__lit')
+    panel.style.animation = 'none'
+    nodes.forEach(function (n) { n.style.animation = 'none' })
+    void panel.offsetWidth
+    panel.style.animation = ''
+    nodes.forEach(function (n) { n.style.animation = '' })
+    count()
+  }
+
+  count()
+  document.body.addEventListener('click', function (e) {
+    if (e.target.closest('.mk-panel')) return
+    replay()
+  })
+})()
+</script>
+</body>
+</html>

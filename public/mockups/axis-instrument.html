@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForcesAxisPanel · INSTRUMENT</title>
+<link rel="stylesheet" href="/src/styles/base.css" />
+<style>
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   AXIS DRILL-DOWN — "INSTRUMENT"
+   Every selector is .mk-* so nothing here can collide with the live app.
+
+   The single idea: the panel is ONE instrument face, not a document with widgets stacked in it.
+   All seven criteria, the composition, and the score share ONE horizontal 0–10 scale with ONE
+   datum line at the final score (6.6). Each criterion is a NEEDLE at its absolute position plus
+   a bar measuring its DEVIATION from the datum — so "who holds this score up / who drags it
+   down" is a spatial read, not seven separate percentages to convert in your head.
+
+   Scale runs 0 at inline-start → 10 at inline-end, the same direction the app's existing bars
+   already grow. Everything is positioned with logical properties, so RTL is structural, not
+   patched.
+
+   Column grid (fixed, shared by the ruler, the composition row, every criterion row and every
+   group header, so the numerals form one hard column):
+       10px status · 74px label · 1fr plot · 30px value      gap 7px
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── page: the app's own ground, so the panel reads in situ.
+      The app's base.css locks `body { overflow: hidden }` (it is a fixed-viewport SPA), so this
+      page scrolls INSIDE its own container rather than overriding a global element rule — which
+      would be reaching outside the .mk-* namespace this file is confined to. ──────────────── */
+.mk-page {
+  height: 100%; overflow-y: auto;
+  background:
+    radial-gradient(120% 90% at 31% 44%, rgba(40, 20, 70, 0.22), transparent 60%),
+    radial-gradient(120% 90% at 69% 56%, rgba(60, 55, 10, 0.12), transparent 55%),
+    var(--bg);
+  display: flex; flex-direction: column; align-items: center;
+  padding-block: 88px 26px; padding-inline: var(--sp-6);
+  gap: 64px;
+}
+
+/* ── the panel shell — the live geometry, unchanged: 396px, 28px padding, fixed height ────── */
+.mk-panel {
+  position: relative;
+  width: 396px; padding: 28px;
+  /* the live geometry: a FIXED panel height, not a content height (see overlays.css .panel) */
+  flex: none; height: calc(100dvh - 114px); min-height: 620px; max-height: 900px;
+  background: var(--panel-surface);
+  border: var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  display: flex; flex-direction: column;
+  text-align: right;
+}
+
+/* ── entrance beats ───────────────────────────────────────────────────────────────────────── */
+/* fill-mode is BACKWARDS everywhere, never `both`: the entrance holds the "before" state until
+   its beat lands and then hands the element straight back to the cascade — so a hover state
+   written in CSS is never locked out by a finished animation. Every animated property therefore
+   also carries a real declared resting value. */
+@keyframes mkRise { from { opacity: 0; transform: translateY(7px); filter: blur(3px); } }
+@keyframes mkGrow { from { width: 0; } }
+@keyframes mkDrop { from { transform: scaleY(0); } }
+@keyframes mkPop  { from { opacity: 0; transform: scaleY(0.2); } }
+/* direct children only — the bars and needles inside a row carry their own --d for their own
+   animations, and a loose [style*="--d"] would hijack those with the block-level rise. */
+.mk-panel > [style*="--d"], .mk-plot > [style*="--d"] {
+  animation: mkRise 0.55s var(--ease-panel) backwards; animation-delay: var(--d);
+}
+
+/* ── back ─────────────────────────────────────────────────────────────────────────────────── */
+.mk-back {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: 0; padding: 0;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+.mk-back:hover { color: var(--yellow); }
+.mk-back svg { width: 15px; height: 15px; }
+.mk-back:hover svg { transform: translateX(3px); }
+.mk-back svg { transition: transform var(--dur-fast) var(--ease-out-expo); }
+
+/* ── header: identity on one line, the reading in a bordered cell at the inline-end ───────── */
+.mk-head {
+  margin-block-start: var(--sp-6);
+  display: flex; align-items: flex-end; gap: var(--sp-2);
+}
+.mk-axis {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title); color: var(--white); line-height: 1;
+}
+.mk-tier {
+  display: inline-block; padding: 1px 5px; border: 1px solid var(--yellow-30);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--yellow); white-space: nowrap;
+}
+/* the readout cell — an instrument window, hairline-boxed, tabular, flush to the panel edge.
+   The reading itself is an LTR run (6.6 / 10) on an INNER box: putting dir on the outer box
+   would re-resolve its own margin-inline-start:auto and throw it to the wrong edge. */
+.mk-readout {
+  margin-inline-start: auto;
+  padding: 4px 8px 3px; border: 1px solid var(--line-yellow); background: var(--yellow-06);
+}
+.mk-readout > span { display: flex; align-items: baseline; gap: 4px; }
+.mk-readout b {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-title);
+  letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.9;
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+.mk-readout i {
+  font-style: normal; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* ── prose, demoted to caption ────────────────────────────────────────────────────────────── */
+.mk-def {
+  margin-block-start: 10px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
+  max-width: 42ch;
+}
+.mk-read {
+  margin-block-start: 7px;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--ink-dim);
+  max-width: 36ch;
+}
+
+/* ══ THE INSTRUMENT ════════════════════════════════════════════════════════════════════════ */
+/* One grid. One scale. One datum. The plot is position:relative so every vertical rule is drawn
+   ONCE, spanning every row, instead of being re-implied inside each bar's own track.
+   Offsets are exact: the plot column starts 98px in (10+7+74+7) and ends 37px before the
+   inline-end edge (7+30) — see .mk-field, which is laid over exactly that column. */
+.mk-plot {
+  --c-status: 10px; --c-label: 74px; --c-value: 30px; --gap: 7px;
+  --lead-s: 98px;                  /* status + gap + label + gap */
+  --lead-e: 37px;                  /* gap + value */
+  --datum: 0.66;                   /* the final score, 6.6 / 10 */
+  position: relative;
+  margin-block-start: var(--sp-6);
+  padding-block-start: 2px;
+  /* fills the panel: the instrument face runs from the top ruler down to the closing ruler
+     just above the provenance plate, so the datum is a full-height line and the leftover
+     vertical space becomes ruled field rather than a gap the layout forgot about. */
+  flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
+}
+.mk-plot > *:not(.mk-field) {
+  display: grid;
+  grid-template-columns: var(--c-status) var(--c-label) 1fr var(--c-value);
+  column-gap: var(--gap); align-items: center;
+}
+
+/* THE FACE — one box laid exactly over the plot column, carrying every vertical rule. The
+   graticule sits on exactly the three points the ruler prints (0 · 5 · 10) so there is never a
+   rule you cannot name; the datum is the whole argument of this layout (every criterion is
+   measured against it), so it is the one rule drawn in the accent. Together with the closing
+   ruler they bound the field, which is what stops the headroom below the last row reading as a
+   gap the layout forgot rather than as instrument face. */
+.mk-field {
+  position: absolute; inset-inline: var(--lead-s) var(--lead-e); inset-block: 20px 13px;
+  pointer-events: none;
+}
+.mk-field i {
+  position: absolute; inset-block: 0; width: 1px; background: var(--line);
+  transform-origin: top; animation: mkDrop 0.7s 0.44s var(--ease-panel) backwards;
+}
+.mk-field i.mk-datum { background: var(--yellow-30); }
+
+/* ── the ruler ────────────────────────────────────────────────────────────────────────────── */
+.mk-ruler { margin-block-end: 9px; }
+/* the closing edge of the instrument face — ticks and the datum restated, no numerals; a chart
+   is bounded top and bottom, and this is what stops the field reading as unfilled space. */
+.mk-ruler--close { margin-block-start: auto; margin-block-end: 0; padding-block-start: 4px; }
+.mk-ruler--close .mk-scale { height: 9px; }
+.mk-ruler--close .mk-tick { inset-block-end: auto; inset-block-start: 0; }
+.mk-scale { grid-column: 3; position: relative; height: 19px; }
+.mk-tick { position: absolute; inset-block-end: 0; width: 1px; height: 4px; background: var(--line); }
+.mk-tick--major { height: 6px; background: var(--line-yellow); }
+.mk-num {
+  position: absolute; inset-block-start: 0;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-numeral); color: var(--ink-faint);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+.mk-num--mid { translate: 50% 0; }
+.mk-num--flag { translate: 50% 0; color: var(--yellow); }
+.mk-ruler-cap {
+  grid-column: 2; justify-self: start;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* ── the composition row — the SAME scale, so it is row zero of the chart, not a second widget.
+      Lit extent = the score (invariant kept from the live panel); the hatch past the datum is
+      the reach the spine had before fiscal health took it back. ───────────────────────────── */
+.mk-comp { margin-block-end: 5px; }
+.mk-comp .mk-trk { height: 17px; }
+.mk-fill {
+  position: absolute; inset-block-start: 50%; translate: 0 -50%;
+  inset-inline-start: 0; height: 5px; width: var(--w);
+  background: var(--yellow); opacity: 0.3;
+  animation: mkGrow 0.95s 0.5s var(--ease-panel) backwards;
+}
+.mk-hatch {
+  position: absolute; inset-block-start: 50%; translate: 0 -50%;
+  inset-inline-start: calc(var(--datum) * 100%); height: 5px; width: var(--w);
+  background: repeating-linear-gradient(45deg, var(--light) 0 1px, transparent 1px 3px);
+  opacity: 0.6;
+  animation: mkGrow 0.95s 0.62s var(--ease-panel) backwards;
+}
+/* the two composition numbers, placed WHERE THEY ARE ON THE SCALE — the spine caption sits
+   directly under its own needle at 7.0 rather than in a detached key. */
+.mk-legend { margin-block-start: 4px; margin-block-end: 13px; }
+.mk-legend > span {
+  grid-column: 3; position: relative; display: block; height: 12px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-legend i { font-style: normal; position: absolute; inset-block-start: 0; white-space: nowrap; }
+.mk-lg-spine { inset-inline-start: 70%; translate: 50% 0; }
+.mk-lg-delta { inset-inline-start: 0; }
+.mk-legend b {
+  color: var(--light); font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+
+/* ── group header — title spans the status+label columns, a rule runs the plot column, and the
+      group's own subtotal lands in the SAME value column as every criterion beneath it. That is
+      what welds the composition numbers (7.0 / −0.4) to the rows that produce them. ───────── */
+.mk-gh { margin-block: 16px 8px; }
+.mk-gh:first-of-type { margin-block-start: 4px; }
+.mk-gt {
+  grid-column: 1 / 3; position: relative;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim); white-space: nowrap;
+}
+.mk-gt[data-note] { border-block-end: 1px dotted var(--line); cursor: help; }
+.mk-gt[data-note]::after {
+  content: attr(data-note);
+  position: absolute; inset-block-start: calc(100% + 6px); inset-inline-start: 0;
+  width: 280px; padding: 6px 8px; z-index: 5;
+  background: var(--yellow); color: var(--bg); border: 1px solid var(--yellow);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); text-align: right;
+  opacity: 0; visibility: hidden; transition: opacity var(--dur-fast) ease;
+}
+.mk-gt[data-note]:hover::after, .mk-gt[data-note]:focus-visible::after { opacity: 1; visibility: visible; }
+.mk-grule { grid-column: 3; height: 1px; background: var(--line-2); }
+.mk-gv {
+  grid-column: 4; text-align: end;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--ink-dim);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+
+/* ── a criterion row ──────────────────────────────────────────────────────────────────────── */
+.mk-row { position: relative; }
+.mk-row + .mk-row { margin-block-start: 8px; }
+.mk-st {
+  font-size: 10px; line-height: 1; text-align: center; color: var(--ink-faint);
+  font-family: var(--latin);
+}
+.mk-lbl {
+  min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--dur-fast) ease;
+}
+.mk-val {
+  text-align: end; font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--light);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+  transition: color var(--dur-fast) ease;
+}
+.mk-trk { position: relative; height: 15px; }
+
+/* the deviation bar: anchored ON the datum and grown outward, so every bar starts from the same
+   line and its length IS the distance from the score. Above the score reads in the accent;
+   below it reads in plain ink — one hue, two weights of meaning. */
+.mk-bar {
+  position: absolute; inset-block-start: 50%; translate: 0 -50%; height: 3px;
+  width: var(--w); animation: mkGrow 0.85s var(--ease-panel) backwards; animation-delay: var(--d);
+}
+.mk-bar--up { inset-inline-start: calc(var(--datum) * 100%); background: var(--yellow); opacity: 0.8; }
+.mk-bar--dn { inset-inline-end: calc(100% - var(--datum) * 100%); background: var(--light); opacity: 0.26; }
+
+/* the needle: absolute position on the shared scale. It is what keeps a 0.2 deviation legible —
+   the bar may be four pixels long, but the needle is always a full, findable mark. */
+.mk-ndl {
+  position: absolute; inset-block-start: 50%; translate: 0 -50%;
+  inset-inline-start: var(--p); width: 2px; height: 13px; margin-inline-start: -1px;
+  animation: mkPop 0.4s var(--ease-out-back) backwards; animation-delay: var(--d);
+  transition: height var(--dur-fast) ease;
+}
+.mk-ndl--up { background: var(--yellow); }
+.mk-ndl--dn { background: var(--light); opacity: 0.72; }
+.mk-ndl--spine { background: var(--light); opacity: 0.9; height: 17px; }
+
+/* reading one row: the rest of the instrument steps back and the hovered row states its own
+   deviation as a number, in the dead space between the scale's zero and its own needle (a
+   region that is provably empty for every row, since the bar always runs value→datum).
+   Interaction as measurement, not decoration. */
+.mk-row { transition: opacity var(--dur-fast) ease; }
+.mk-body:hover .mk-row { opacity: 0.42; }
+.mk-body:hover .mk-row:hover { opacity: 1; }
+.mk-row:hover .mk-lbl, .mk-row:hover .mk-val { color: var(--white); }
+.mk-row:hover .mk-ndl { height: 17px; }
+.mk-row:hover .mk-trk::after {
+  content: "\200E" attr(data-dev);
+  position: absolute; inset-inline-start: 0; inset-block-start: 50%; translate: 0 -50%;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-numeral); color: var(--yellow);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+.mk-row--none:hover .mk-trk::after { color: var(--ink-faint); }
+
+/* unscored rubric rows — no needle, no bar, a dotted empty track. "No reading", never "reads
+   zero". Same distinction the live panel makes, carried into the instrument language. */
+.mk-row--none .mk-lbl, .mk-row--none .mk-val, .mk-row--none .mk-st { color: var(--ink-faint); opacity: 0.7; }
+.mk-none {
+  position: absolute; inset-block-start: 50%; translate: 0 -50%; inset-inline: 0;
+  height: 0; border-block-start: 1px dashed var(--line);
+}
+
+/* ── provenance plate — pinned to the panel's base. The instrument SHOWS its raw datum rather
+      than folding it behind a hover: three labelled cells on one baseline, hairline-divided. ── */
+.mk-foot { margin-block-start: auto; padding-block-start: 12px; border-block-start: 1px solid var(--line-2); }
+.mk-cells { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+.mk-cell { padding-inline-end: 10px; }
+.mk-cell + .mk-cell { padding-inline-start: 10px; border-inline-start: 1px solid var(--line-2); }
+.mk-cell dt {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-cell dd {
+  margin-block-start: 2px;
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-base);
+  letter-spacing: var(--tracking-numeral); color: var(--light);
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
+.mk-cell dd.mk-up { color: var(--yellow); }
+.mk-prov { margin-block-start: 11px; display: flex; align-items: center; gap: var(--sp-2); }
+/* the provenance verdict stays neutral ink: in this panel the accent is reserved for the
+   reading itself (the score, the datum, the criteria that sit above it). A footnote that
+   shouts in a second colour is exactly the hierarchy inversion this redesign is undoing. */
+.mk-tag {
+  display: inline-block; padding: 1px 5px; border: 1px solid var(--line);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim); white-space: nowrap;
+}
+.mk-src {
+  margin-inline-start: auto; text-decoration: none;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+.mk-src:hover { color: var(--yellow); }
+
+/* ── spec annotation (page furniture, NOT part of the panel) ──────────────────────────────── */
+.mk-note { flex: none; width: 396px; }
+.mk-note-h {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
+  max-width: 42ch;
+}
+.mk-note-box {
+  margin-block-start: 12px; padding: 16px 28px 18px;
+  border: 1px dashed var(--line); background: var(--surface-1);
+}
+.mk-note-box .mk-plot { margin-block-start: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-panel > [style*="--d"], .mk-plot > [style*="--d"],
+  .mk-bar, .mk-ndl, .mk-fill, .mk-hatch, .mk-field i { animation: none; }
+  .mk-back svg, .mk-row, .mk-ndl { transition: none; }
+}
+</style>
+</head>
+<body>
+<main class="mk-page">
+
+  <!-- ══ THE PANEL ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="mk-panel" aria-label="פירוט הציר הכלכלי — טורקיה">
+
+    <button class="mk-back" type="button" style="--d:0s">
+      בחזרה לציון
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">
+        <path d="M4 12 H19" /><path d="M13 6 L19 12 L13 18" />
+      </svg>
+    </button>
+
+    <header class="mk-head" style="--d:.12s">
+      <span class="mk-axis">כלכלי</span>
+      <span class="mk-tier">משמעותי</span>
+      <span class="mk-readout" role="img" aria-label="ציון 6.6 מתוך 10"><span dir="ltr" aria-hidden="true"><b>6.6</b><i>/ 10</i></span></span>
+    </header>
+
+    <p class="mk-def" style="--d:.2s">כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה</p>
+    <p class="mk-read" style="--d:.28s">מסה גדולה מחזיקה את הציון גבוה, אבל הצד הפיננסי שביר. אשראי וחשבון שוטף גוררים מטה; חוב ממשלתי נמוך הוא הקיזוז היחיד.</p>
+
+    <div class="mk-plot mk-body">
+
+      <!-- the face: every vertical rule the instrument reads against -->
+      <span class="mk-field" aria-hidden="true">
+        <i style="inset-inline-start:0"></i>
+        <i style="inset-inline-start:50%"></i>
+        <i style="inset-inline-start:calc(100% - 1px)"></i>
+        <i class="mk-datum" style="inset-inline-start:66%"></i>
+      </span>
+
+      <!-- the shared scale -->
+      <div class="mk-ruler" style="--d:.38s">
+        <span class="mk-ruler-cap">סולם</span>
+        <span class="mk-scale" aria-hidden="true">
+          <i class="mk-tick" style="inset-inline-start:0%"></i>
+          <i class="mk-tick" style="inset-inline-start:10%"></i>
+          <i class="mk-tick" style="inset-inline-start:20%"></i>
+          <i class="mk-tick" style="inset-inline-start:30%"></i>
+          <i class="mk-tick" style="inset-inline-start:40%"></i>
+          <i class="mk-tick mk-tick--major" style="inset-inline-start:50%"></i>
+          <i class="mk-tick" style="inset-inline-start:60%"></i>
+          <i class="mk-tick" style="inset-inline-start:70%"></i>
+          <i class="mk-tick" style="inset-inline-start:80%"></i>
+          <i class="mk-tick" style="inset-inline-start:90%"></i>
+          <i class="mk-tick" style="inset-inline-start:calc(100% - 1px)"></i>
+          <i class="mk-tick mk-tick--major" style="inset-inline-start:66%;height:8px;background:var(--yellow-50)"></i>
+          <span class="mk-num" style="inset-inline-start:0">0</span>
+          <span class="mk-num mk-num--mid" style="inset-inline-start:50%">5</span>
+          <span class="mk-num mk-num--flag" style="inset-inline-start:66%">6.6</span>
+          <span class="mk-num" style="inset-inline-end:0">10</span>
+        </span>
+      </div>
+
+      <!-- row zero: the composition, on the same scale as everything below it -->
+      <div class="mk-comp" style="--d:.46s">
+        <span class="mk-st" aria-hidden="true">◆</span>
+        <span class="mk-lbl">ציון מורכב</span>
+        <span class="mk-trk" role="img" aria-label="ציון 6.6, עמוד שדרה 7.0, התאמות מינוס 0.4">
+          <i class="mk-fill" style="--w:66%"></i>
+          <i class="mk-hatch" style="--w:4%"></i>
+          <i class="mk-ndl mk-ndl--spine" style="--p:70%;--d:.66s"></i>
+        </span>
+        <span class="mk-val" style="color:var(--yellow)">6.6</span>
+      </div>
+      <div class="mk-legend" style="--d:.56s">
+        <span>
+          <i class="mk-lg-delta">התאמות <b>&lrm;−0.4</b></i>
+          <i class="mk-lg-spine">עמוד שדרה <b>7.0</b></i>
+        </span>
+      </div>
+
+      <!-- ── group: spine ───────────────────────────────────────────────────────────────── -->
+      <div class="mk-gh" style="--d:.62s">
+        <span class="mk-gt" tabindex="0" data-note="מסה כלכלית ורמת פיתוח לנפש — קובעות את רוב הציון.">עמוד השדרה</span>
+        <span class="mk-grule"></span>
+        <span class="mk-gv">7.0</span>
+      </div>
+
+      <div class="mk-row" style="--d:.68s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="לנפש">לנפש</span>
+        <span class="mk-trk" role="img" aria-label="לנפש 7.6, אחד נקודה אפס מעל הציון" data-dev="+1.0">
+          <i class="mk-bar mk-bar--up" style="--w:10%;--d:.68s"></i>
+          <i class="mk-ndl mk-ndl--up" style="--p:76%;--d:.68s"></i>
+        </span>
+        <span class="mk-val">7.6</span>
+      </div>
+
+      <div class="mk-row" style="--d:.73s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="מסה (PPP)">מסה (PPP)</span>
+        <span class="mk-trk" role="img" aria-label="מסה 6.8, אפס נקודה שתיים מעל הציון" data-dev="+0.2">
+          <i class="mk-bar mk-bar--up" style="--w:2%;--d:.73s"></i>
+          <i class="mk-ndl mk-ndl--up" style="--p:68%;--d:.73s"></i>
+        </span>
+        <span class="mk-val">6.8</span>
+      </div>
+
+      <!-- ── group: adjustments ─────────────────────────────────────────────────────────── -->
+      <div class="mk-gh" style="--d:.8s">
+        <span class="mk-gt" tabindex="0" data-note="בריאות פיסקלית: יתרות, השקעות, חוב ואשראי. מעלה או מורידה את הבסיס.">התאמות</span>
+        <span class="mk-grule"></span>
+        <span class="mk-gv">&lrm;−0.4</span>
+      </div>
+
+      <div class="mk-row" style="--d:.86s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="חוב/תוצר">חוב/תוצר</span>
+        <span class="mk-trk" role="img" aria-label="חוב תוצר 8.4, אחד נקודה שמונה מעל הציון" data-dev="+1.8">
+          <i class="mk-bar mk-bar--up" style="--w:18%;--d:.86s"></i>
+          <i class="mk-ndl mk-ndl--up" style="--p:84%;--d:.86s"></i>
+        </span>
+        <span class="mk-val">8.4</span>
+      </div>
+
+      <div class="mk-row" style="--d:.91s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="יתרות">יתרות</span>
+        <span class="mk-trk" role="img" aria-label="יתרות 6.2, אפס נקודה ארבע מתחת לציון" data-dev="−0.4">
+          <i class="mk-bar mk-bar--dn" style="--w:4%;--d:.91s"></i>
+          <i class="mk-ndl mk-ndl--dn" style="--p:62%;--d:.91s"></i>
+        </span>
+        <span class="mk-val">6.2</span>
+      </div>
+
+      <div class="mk-row" style="--d:.96s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl">FDI</span>
+        <span class="mk-trk" role="img" aria-label="FDI 4.9, אחד נקודה שבע מתחת לציון" data-dev="−1.7">
+          <i class="mk-bar mk-bar--dn" style="--w:17%;--d:.96s"></i>
+          <i class="mk-ndl mk-ndl--dn" style="--p:49%;--d:.96s"></i>
+        </span>
+        <span class="mk-val">4.9</span>
+      </div>
+
+      <div class="mk-row" style="--d:1.01s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="חשבון שוטף">חשבון שוטף</span>
+        <span class="mk-trk" role="img" aria-label="חשבון שוטף 4.9, אחד נקודה שבע מתחת לציון" data-dev="−1.7">
+          <i class="mk-bar mk-bar--dn" style="--w:17%;--d:1.01s"></i>
+          <i class="mk-ndl mk-ndl--dn" style="--p:49%;--d:1.01s"></i>
+        </span>
+        <span class="mk-val">4.9</span>
+      </div>
+
+      <div class="mk-row" style="--d:1.06s">
+        <span class="mk-st" title="מקור ראשי">✓</span>
+        <span class="mk-lbl" title="אשראי">אשראי</span>
+        <span class="mk-trk" role="img" aria-label="אשראי 3.2, שלוש נקודה ארבע מתחת לציון" data-dev="−3.4">
+          <i class="mk-bar mk-bar--dn" style="--w:34%;--d:1.06s"></i>
+          <i class="mk-ndl mk-ndl--dn" style="--p:32%;--d:1.06s"></i>
+        </span>
+        <span class="mk-val">3.2</span>
+      </div>
+
+      <!-- the closing edge of the face -->
+      <div class="mk-ruler mk-ruler--close" aria-hidden="true">
+        <span></span><span></span>
+        <span class="mk-scale">
+          <i class="mk-tick" style="inset-inline-start:0%"></i>
+          <i class="mk-tick" style="inset-inline-start:10%"></i>
+          <i class="mk-tick" style="inset-inline-start:20%"></i>
+          <i class="mk-tick" style="inset-inline-start:30%"></i>
+          <i class="mk-tick" style="inset-inline-start:40%"></i>
+          <i class="mk-tick mk-tick--major" style="inset-inline-start:50%"></i>
+          <i class="mk-tick" style="inset-inline-start:60%"></i>
+          <i class="mk-tick" style="inset-inline-start:70%"></i>
+          <i class="mk-tick" style="inset-inline-start:80%"></i>
+          <i class="mk-tick" style="inset-inline-start:90%"></i>
+          <i class="mk-tick" style="inset-inline-start:calc(100% - 1px)"></i>
+          <i class="mk-tick mk-tick--major" style="inset-inline-start:66%;height:8px;background:var(--yellow-50)"></i>
+        </span>
+      </div>
+    </div>
+
+    <!-- ── provenance plate ─────────────────────────────────────────────────────────────── -->
+    <footer class="mk-foot" style="--d:1.2s">
+      <dl class="mk-cells">
+        <div class="mk-cell"><dt>2020</dt><dd dir="ltr">$2.4T</dd></div>
+        <div class="mk-cell"><dt>2025</dt><dd dir="ltr">$3.8T</dd></div>
+        <div class="mk-cell"><dt>שינוי</dt><dd class="mk-up" dir="ltr">+55%</dd></div>
+      </dl>
+      <p class="mk-prov">
+        <span class="mk-tag">מקור ראשי</span>
+        <a class="mk-src" href="#"><bdi>IMF WEO · 2026</bdi> ↗</a>
+      </p>
+    </footer>
+
+  </section>
+
+  <!-- ══ SPEC ANNOTATION — the third group, which the economic axis does not have ═══════════ -->
+  <aside class="mk-note">
+    <p class="mk-note-h">מצב נוסף: כך נראית הקבוצה „לא נמדד” בצירים שבהם יש קריטריונים שאינם מנוקדים (צבאי, גאו־אסטרטגי). לציר הכלכלי אין כאלה, ולכן הקבוצה אינה מופיעה בפאנל למעלה.</p>
+    <div class="mk-note-box">
+      <div class="mk-plot">
+        <span class="mk-field" aria-hidden="true">
+          <i style="inset-inline-start:0"></i>
+          <i style="inset-inline-start:50%"></i>
+          <i style="inset-inline-start:calc(100% - 1px)"></i>
+          <i class="mk-datum" style="inset-inline-start:66%"></i>
+        </span>
+
+        <div class="mk-gh">
+          <span class="mk-gt" tabindex="0" data-note="קריטריונים מהרוביק המקורי שלא כומתו למספר — שיקול דעת, לא נתון חסר.">לא נמדד</span>
+          <span class="mk-grule"></span>
+          <span class="mk-gv">—</span>
+        </div>
+
+        <div class="mk-row mk-row--none">
+          <span class="mk-st">·</span><span class="mk-lbl" title="לוגיסטיקה">לוגיסטיקה</span>
+          <span class="mk-trk" data-dev="אין קריאה"><i class="mk-none"></i></span><span class="mk-val">—</span>
+        </div>
+        <div class="mk-row mk-row--none">
+          <span class="mk-st">·</span><span class="mk-lbl" title="ניסיון קרבי">ניסיון קרבי</span>
+          <span class="mk-trk" data-dev="אין קריאה"><i class="mk-none"></i></span><span class="mk-val">—</span>
+        </div>
+        <div class="mk-row mk-row--none">
+          <span class="mk-st">·</span><span class="mk-lbl" title="תעשייה ביטחונית">תעשייה ביטחונית</span>
+          <span class="mk-trk" data-dev="אין קריאה"><i class="mk-none"></i></span><span class="mk-val">—</span>
+        </div>
+        <div class="mk-row mk-row--none">
+          <span class="mk-st">·</span><span class="mk-lbl" title="בריתות">בריתות</span>
+          <span class="mk-trk" data-dev="אין קריאה"><i class="mk-none"></i></span><span class="mk-val">—</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</main>
+</body>
+</html>

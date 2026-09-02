@@ -1,0 +1,185 @@
+<title>Forces Grid — Prototype</title>
+<style>
+  :root{ --bg:#0b0026; --dark:11,0,38; --light:244,242,236; --yellow:251,255,0; }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); font-family:'Segoe UI',sans-serif; overflow:hidden; height:100vh; }
+  .note{
+    position:fixed; top:16px; left:16px; z-index:5; color:rgba(var(--light),0.55); font-size:12px;
+    max-width:420px; line-height:1.5; pointer-events:none;
+  }
+  .note b{ color:rgb(var(--yellow)); }
+  canvas{ display:block; cursor:default; }
+</style>
+<div class="note">
+  <b>Prototype — not wired into the live app.</b><br>
+  Ambient: static rank-based depth (no motion at rest). Hover: single ring, 3 proportional
+  arc segments (replaces 3 concentric rings). Hover any circle.
+</div>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c')
+const ctx = canvas.getContext('2d')
+const DARK = '11,0,38', LIGHT = '244,242,236', YELLOW = '251,255,0'
+const TAU = Math.PI * 2
+
+// representative roster — rank order (strongest first), plausible eco/mil/geo (0-10)
+const BODIES = [
+  { he: 'ארה"ב', eco: 10, mil: 10, geo: 10 },
+  { he: 'סין', eco: 10, mil: 8, geo: 9 },
+  { he: 'רוסיה', eco: 6, mil: 9, geo: 8 },
+  { he: 'אירופה', eco: 9, mil: 6, geo: 7 },
+  { he: 'הודו', eco: 7, mil: 6, geo: 5 },
+  { he: 'סעודיה', eco: 7, mil: 5, geo: 7 },
+  { he: 'ישראל', eco: 6, mil: 8, geo: 6.8 },
+  { he: 'טורקיה', eco: 6, mil: 6, geo: 6 },
+  { he: 'איראן', eco: 4, mil: 6, geo: 5.5 },
+  { he: 'מצרים', eco: 4, mil: 5, geo: 6 },
+  { he: 'פקיסטן', eco: 3, mil: 6, geo: 6 },
+  { he: 'איחוד האמירויות', eco: 6, mil: 4, geo: 5.5 },
+  { he: 'עיראק', eco: 4, mil: 3, geo: 5 },
+  { he: 'קטאר', eco: 6, mil: 2, geo: 4 },
+  { he: 'ירדן', eco: 2, mil: 3, geo: 3 },
+  { he: 'כווית', eco: 4, mil: 2, geo: 3 },
+  { he: 'עומאן', eco: 3, mil: 2, geo: 3 },
+  { he: 'בחריין', eco: 3, mil: 1, geo: 3 },
+]
+const N = BODIES.length
+
+let W = 0, H = 0, DPR = 1
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1)
+  W = window.innerWidth; H = window.innerHeight
+  canvas.width = W * DPR; canvas.height = H * DPR
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px'
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
+}
+resize()
+window.addEventListener('resize', resize)
+
+// ── uniform grid layout (RTL: rank 0 top-right, fill leftward, wrap down) ──
+function layout() {
+  const padX = 90, padY = 90
+  const fieldW = W - padX * 2, fieldH = H - padY * 2
+  const ratio = fieldW / Math.max(1, fieldH)
+  const cols = Math.max(1, Math.round(Math.sqrt(N * ratio)))
+  const rows = Math.ceil(N / cols)
+  const cell = Math.min(fieldW / cols, fieldH / rows)
+  const r = cell * 0.32
+  return BODIES.map((b, i) => {
+    const row = Math.floor(i / cols), col = i % cols
+    const inRow = Math.min(cols, N - row * cols)
+    const rowPad = (cols - inRow) / 2
+    const cx = padX + (cols - 1 - (col + rowPad) + 0.5) / cols * fieldW
+    const cy = padY + (row + 0.5) / rows * fieldH
+    return { ...b, x: cx, y: cy, r, rank: i }
+  })
+}
+let nodes = layout()
+window.addEventListener('resize', () => { nodes = layout() })
+
+// ── static rank-based depth gradient (ambient, NO motion at rest) ──
+// top rank: full scale + strongest glow. Falls off smoothly to a floor by rank — a permanent
+// compositional read of "uniform grid, real hierarchy," not an animation.
+function depthFor(rank) {
+  const t = 1 - rank / (N - 1) // 1 = strongest, 0 = weakest
+  return { scale: 0.86 + t * 0.14, glow: 0.35 + t * 0.5 }
+}
+
+let hoverIdx = -1
+let hoverProg = new Array(N).fill(0)
+const mouse = { x: -9999, y: -9999 }
+
+canvas.addEventListener('mousemove', (e) => {
+  mouse.x = e.clientX; mouse.y = e.clientY
+  let best = -1, bestD = Infinity
+  for (const n of nodes) {
+    const d = Math.hypot(n.x - mouse.x, n.y - mouse.y)
+    if (d < n.r + 14 && d < bestD) { bestD = d; best = n.rank }
+  }
+  hoverIdx = best
+  canvas.style.cursor = best >= 0 ? 'pointer' : 'default'
+})
+canvas.addEventListener('mouseleave', () => { hoverIdx = -1 })
+
+function glow(x, y, radius, alpha) {
+  const rad = Math.min(radius, x, y, W - x, H - y)
+  if (rad <= 0) return
+  const g = ctx.createRadialGradient(x, y, 0, x, y, rad)
+  g.addColorStop(0, `rgba(${LIGHT},${alpha})`); g.addColorStop(1, `rgba(${LIGHT},0)`)
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rad, 0, TAU); ctx.fill()
+}
+
+// ── the hover gauge: ONE ring, three proportional arc segments (eco/mil/geo share of total) —
+// replaces three concentric rings. One stroke, no overlap, still all three values at a glance.
+const TICKS = ['כ', 'צ', 'ג']
+function drawSegmentedRing(x, y, r, body, alpha, prog) {
+  if (r < 26 || alpha <= 0.01 || prog <= 0.001) return
+  const vals = [body.eco, body.mil, body.geo]
+  const total = vals[0] + vals[1] + vals[2]
+  const ringR = r * 0.78
+  const lw = Math.max(2, Math.min(5, r * 0.09))
+  const gapRad = 0.05 // small visual gap between segments so boundaries are unambiguous
+  let start = -Math.PI / 2
+  ctx.save()
+  // track
+  ctx.strokeStyle = `rgba(${DARK},${0.18 * alpha})`
+  ctx.lineWidth = lw
+  ctx.beginPath(); ctx.arc(x, y, ringR, 0, TAU); ctx.stroke()
+  vals.forEach((v, k) => {
+    const frac = (v / total) * prog
+    const span = Math.max(0, frac * TAU - gapRad)
+    const end = start + span
+    // segment k gets a distinct WEIGHT (not hue — single accent only): dominant axis in solid
+    // yellow, the other two in dim ink-on-light, so "which is biggest" reads instantly without
+    // adding a second color.
+    const isDominant = v === Math.max(...vals)
+    ctx.strokeStyle = isDominant ? `rgba(${YELLOW},${0.95 * alpha})` : `rgba(${DARK},${0.82 * alpha})`
+    ctx.lineWidth = lw
+    ctx.lineCap = 'butt'
+    ctx.beginPath(); ctx.arc(x, y, ringR, start, end); ctx.stroke()
+    // tick label at segment midpoint, outside the ring
+    if (frac > 0.02) {
+      const mid = start + span / 2
+      const tx = x + Math.cos(mid) * (ringR + lw + 9)
+      const ty = y + Math.sin(mid) * (ringR + lw + 9)
+      ctx.font = `700 ${Math.max(9, r * 0.15)}px sans-serif`
+      ctx.fillStyle = `rgba(${isDominant ? YELLOW : LIGHT},${0.9 * alpha})`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(TICKS[k] + ' ' + v.toFixed(1), tx, ty)
+    }
+    start += frac * TAU
+  })
+  ctx.restore()
+}
+
+function frame() {
+  ctx.clearRect(0, 0, W, H)
+  ctx.fillStyle = `rgb(${DARK})`
+  ctx.fillRect(0, 0, W, H)
+
+  for (const n of nodes) {
+    const target = n.rank === hoverIdx ? 1 : 0
+    hoverProg[n.rank] += (target - hoverProg[n.rank]) * (target > hoverProg[n.rank] ? 0.09 : 0.07)
+  }
+
+  for (const n of nodes) {
+    const d = depthFor(n.rank)
+    const hp = hoverProg[n.rank]
+    const scale = d.scale * (1 + hp * 0.22)
+    const r = n.r * scale
+    glow(n.x, n.y, r * (1.6 + d.glow * 0.6), d.glow * 0.16 + hp * 0.1)
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU)
+    ctx.fillStyle = `rgba(${LIGHT},${0.92})`
+    ctx.fill()
+    if (hp > 0.001) drawSegmentedRing(n.x, n.y, r, n, 1, hp)
+    // name label
+    ctx.font = `600 ${Math.max(10, r * 0.34)}px sans-serif`
+    ctx.fillStyle = `rgba(${LIGHT},${hp > 0.3 ? 0.3 : 0.85})`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.direction = 'rtl'
+    ctx.fillText(n.he, n.x, n.y + r + 16)
+  }
+  requestAnimationFrame(frame)
+}
+frame()
+</script>

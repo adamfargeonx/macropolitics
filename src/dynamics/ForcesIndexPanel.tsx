@@ -28,12 +28,10 @@ export type ForcesIndexPanelProps = {
   indexRows: typeof NODES[number][]
   showAllIndex: boolean
   setShowAllIndex: (fn: (v: boolean) => boolean) => void
-  /** Drop the panel's top block (metric title + description) — the grid screen's composition
-   *  leads with the field itself, so the explanatory header is dead weight there. */
-  compact?: boolean
-  /** Which forces composition is on screen. When set, the control row grows a toggle that flips
-   *  between the packed field and the alternate ranked grid, so the two can be compared without
-   *  hand-editing the URL. Omit to hide the toggle entirely (retires the experiment). */
+  /** Which forces composition is on screen — ForcesGridView still passes 'grid'. No longer read
+   *  here: it used to grow a field⇄grid A/B toggle in the control row, removed now that the grid
+   *  composition is the pick rather than one side of a comparison. Left in the type/call sites as
+   *  accurate, harmless metadata rather than threaded out everywhere. */
   composition?: 'field' | 'grid'
 }
 
@@ -101,22 +99,21 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
   // toolsOpen / setToolsOpen / stateActive are still in the props type (ForcesView owns that
   // state and the ForcesTools sheet it drives) but this panel no longer renders a trigger for
   // them — the ⚙ כלים button was removed and מקרא took its slot. See the note in ForcesView.
-  const { orderBy, setOrderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex, compact, composition } = props
+  // `composition` stays in the props type below (still-accurate metadata, still passed by both
+  // call sites) even though nothing here reads it anymore — it only ever drove the field/grid A/B
+  // toggle, which is gone now that the grid composition is the pick, not a comparison partner.
+  const { orderBy, setOrderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
 
   return (
     <>
-      {!compact && (
-        <h1 className="panel__title" style={{ animationDelay: `${INDEX_BEAT.title}s` }}>
-          <LetterSwap text={METRIC_TITLE[orderBy]} />
-        </h1>
-      )}
+      <h1 className="panel__title" style={{ animationDelay: `${INDEX_BEAT.title}s` }}>
+        <LetterSwap text={METRIC_TITLE[orderBy]} />
+      </h1>
       {/* short (1–2 line) metric description — shown in full, no read-more toggle. Same Words
           per-word rise every other body-text line on the site uses, not a plain block fade. */}
-      {!compact && (
-        <p className="panel__body panel__body--metric" style={{ animationDelay: `${INDEX_BEAT.desc}s` }}>
-          <Words key={orderBy} text={METRIC_DESC[orderBy]} />
-        </p>
-      )}
+      <p className="panel__body panel__body--metric" style={{ animationDelay: `${INDEX_BEAT.desc}s` }}>
+        <Words key={orderBy} text={METRIC_DESC[orderBy]} />
+      </p>
       {/* unified controls — sort the index + open the tools disclosure */}
       <div className="gctl" role="group" aria-label="מיון וכלים" style={{ animationDelay: `${INDEX_BEAT.controls}s` }}>
         <span className="gctl__lbl">מיון</span>
@@ -130,23 +127,7 @@ export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
             <span>{ORDER_SHORT[o]}</span>
           </button>
         ))}
-        {/* מקרא takes the slot the tools (⚙ כלים) button held — it moved out of the panel shell's
-            floating corner button into the panel's own control row, where it sits with the sort
-            controls instead of hovering beside the panel. */}
-        <button
-          className="gctl__legend"
-          onClick={() => { sound.play('tab'); window.dispatchEvent(new Event('mp-legend')) }}
-        >מקרא</button>
       </div>
-      {/* composition A/B — names the OTHER composition (what you'd switch to), the same way a
-          toggle labels its destination rather than its current state. */}
-      {composition && (
-        <button
-          className="gctl__ab"
-          style={{ animationDelay: `${INDEX_BEAT.ab}s` }}
-          onClick={() => { sound.play('tab'); window.dispatchEvent(new Event('mp-forces-composition')) }}
-        >{composition === 'grid' ? 'תצוגת שדה' : 'תצוגת רשת'}</button>
-      )}
       <RankedList
         orderBy={orderBy} filterBloc={filterBloc} year={year} scenario={scenario} grav={grav}
         hovered={hovered} setHovered={setHovered} onHoverId={onHoverId} onSelect={onSelect}

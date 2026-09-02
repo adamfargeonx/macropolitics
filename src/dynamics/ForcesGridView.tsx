@@ -70,7 +70,7 @@ export default function ForcesGridView() {
         <ForcesPanelFrame
           selected={selected} detail={detail} onClose={() => setSelected(null)}
           indexProps={{
-            compact: true, composition: 'grid',
+            composition: 'grid',
             orderBy, setOrderBy,
             toolsOpen: false, setToolsOpen: () => false, stateActive: false,
             filterBloc, year, scenario, grav,

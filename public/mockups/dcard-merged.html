@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>DynamicsCard · מיזוג — חשיפה מדורגת + תגיות מובילות</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ══ MERGE: "staged disclosure" skeleton + "dossier" assessment line ═════════════════════════
+   Changes against the staged mockup, all three from the operator's own read:
+     1. the category TAG leads each stage row and is its most prominent element (was a dim chip
+        parked at the inline-end, read as an afterthought)
+     2. relation pole COLOUR restored — reusing production's own three tokens verbatim
+        (--yellow / --danger / --ok, see .drel__sq--t/f/h in overlays.css), not a new palette
+     3. the lede is LABELLED ("הערכה") rather than folded away — see the note in the page header
+   Every selector is .mk- prefixed so nothing here can leak into the real app. ══════════════ */
+
+.mk-page {
+  min-height: 100vh; margin: 0; padding: var(--sp-7) var(--sp-5) var(--sp-9);
+  background: var(--bg); color: var(--light);
+  font-family: var(--body);
+}
+.mk-h1 {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-display); color: var(--yellow); text-align: center; margin: 0;
+}
+.mk-sub {
+  margin: var(--sp-3) auto 0; max-width: 76ch; text-align: center;
+  font-size: var(--text-xs); font-weight: var(--fw-bold); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-band {
+  margin-block-start: var(--sp-9); padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--line-2);
+}
+.mk-band-h {
+  font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose);
+  color: var(--yellow); margin: 0 0 var(--sp-1);
+}
+.mk-band-note {
+  margin: 0 0 var(--sp-5); max-width: 80ch;
+  font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-row { display: flex; gap: var(--sp-6); flex-wrap: wrap; align-items: flex-start; }
+.mk-slot { flex: none; width: 396px; }
+.mk-slot-h {
+  margin: 0 0 var(--sp-2); font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* ══ THE CARD ═══════════════════════════════════════════════════════════════════════════════ */
+.mk-card {
+  position: relative; width: 396px; padding: 28px;
+  background: var(--panel-surface); border: var(--panel-border); box-shadow: var(--panel-shadow);
+  text-align: right;
+}
+.mk-close {
+  position: absolute; inset-block-start: 14px; inset-inline-start: 14px;
+  width: 22px; height: 22px; padding: 0; background: none; border: 0;
+  color: var(--ink-faint); font-size: var(--text-md); line-height: 1; cursor: pointer;
+  transition: color var(--dur-fast) ease;
+}
+.mk-close:hover { color: var(--yellow); }
+.mk-close:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+.mk-rank {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.55;
+}
+/* entity names are NEVER bold anywhere on this site (house rule) */
+.mk-name {
+  margin: 2px 0 0; font-family: var(--display); font-weight: var(--fw-regular);
+  font-size: var(--text-3xl); letter-spacing: var(--tracking-display);
+  color: var(--white); line-height: 1.08;
+}
+
+/* ── the assessment line (from "dossier") ──────────────────────────────────────────────────
+   NOT folded into 01. This is the panel's only zero-click answer — folding it leaves the rest
+   state showing nothing but a name — and it is not ABOUT orbital position: it synthesises across
+   all three categories (it usually names a relation, sometimes the orbit, sometimes the dominant
+   axis), so filing it under "הדינמיקה" would mislabel it. Labelling it fixes the real problem —
+   that unlabelled, it read as loose body copy rather than a stated verdict. */
+.mk-assess { margin-block-start: var(--sp-4); display: flex; gap: var(--sp-2); align-items: baseline; }
+.mk-assess-k {
+  flex: none; font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-wide); color: var(--yellow); opacity: 0.85;
+  padding-block-end: 2px; border-block-end: 1px solid var(--line-yellow);
+}
+.mk-assess-v {
+  margin: 0; font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+
+/* ══ STAGES ═════════════════════════════════════════════════════════════════════════════════ */
+.mk-stages { margin-block-start: var(--sp-6); }
+.mk-stage { border-block-start: 1px solid var(--line-2); }
+.mk-stage:last-child { border-block-end: 1px solid var(--line-2); }
+.mk-stage.is-open { border-block-start-color: var(--yellow-30); }
+
+.mk-stage-btn {
+  width: 100%; display: flex; align-items: center; gap: var(--sp-2);
+  padding: 13px 0; background: none; border: 0; cursor: pointer;
+  text-align: start; color: inherit; font: inherit;
+  transition: opacity var(--dur-base) ease;
+}
+.mk-stage-btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+/* one thing at a time, made literal — while a stage is open its siblings recede */
+.mk-stages.has-open .mk-stage:not(.is-open) .mk-stage-btn { opacity: 0.4; }
+.mk-stages.has-open .mk-stage:not(.is-open) .mk-stage-btn:hover,
+.mk-stages.has-open .mk-stage:not(.is-open) .mk-stage-btn:focus-visible { opacity: 0.85; }
+
+/* the stage's own mark — the per-VALUE icon from the project's Iconization system (Icon.tsx),
+   not a generic ordinal. Was 01/02/03, which numbered the stages but said nothing about them;
+   these glyphs are already the designated marks for these exact values (axis-neutral for
+   גוש ניטרלי, tier-mid for כוח ביניים, dispo-caut for זהירה — the same TIER_ICON/AXIS_ICON/
+   DISPO_ICON lookups the live DynamicsCard already uses for its badge chips), so the row now
+   opens with something that IS the state rather than a counter for it.
+   Sized to the tag beside it and inheriting the tag's own accent, so mark + word read as one
+   unit rather than an icon parked next to a chip. */
+.mk-mark {
+  flex: none; width: 15px; height: 15px; color: var(--yellow);
+  transition: opacity var(--dur-base) ease;
+}
+.mk-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ── THE TAG — now the row's lead element and its loudest one ───────────────────────────────
+   Was a dim, bordered chip sitting at the inline-END of the row, after the section name and the
+   meta value: last in reading order and lowest in contrast, so the one word that actually
+   classifies the body ("גוש ניטרלי", "כוח אזורי", "אגרסיבית") read as a footnote to a generic
+   section label. Now it leads: filled accent plate, dark ink, first thing after the ordinal.
+   The section name demotes to a quiet caption beside it — it is the SAME three words on every
+   body, so it carries no information the tag doesn't. */
+.mk-tag {
+  flex: none; padding: 3px 8px; background: var(--yellow); color: var(--bg);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); white-space: nowrap;
+}
+.mk-stages.has-open .mk-stage:not(.is-open) .mk-tag { background: var(--yellow); }
+/* the mark recedes with its row when another stage is open, matching the button's own dimming */
+.mk-stages.has-open .mk-stage:not(.is-open) .mk-mark { opacity: 0.75; }
+.mk-cat {
+  flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-wide); color: var(--ink-faint); white-space: nowrap;
+}
+.mk-meta {
+  margin-inline-start: auto; white-space: nowrap;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-meta b {
+  font-family: var(--display); font-weight: var(--fw-light); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display); color: var(--yellow);
+  font-variant-numeric: tabular-nums; margin-inline-end: 4px;
+}
+/* CSS-drawn caret — two rotated borders, no icon set involved.
+   PHYSICAL border-right/border-bottom on purpose, not the logical border-inline-end: this is a
+   rotated glyph, and in RTL the logical property resolves to border-LEFT, which rotates the
+   arrowhead onto its side (it rendered as ‹ / › instead of ⌄ / ⌃). A caret pointing "down" is a
+   symmetric, non-directional shape — it must not mirror with text direction, unlike the back-arrow
+   beside it, which genuinely does. Same call already made for .axp__caret in production. */
+.mk-caret {
+  flex: none; width: 6px; height: 6px; margin-inline-start: var(--sp-2);
+  border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint);
+  transform: rotate(45deg);
+  transition: transform var(--dur-base) var(--ease-out-expo), border-color var(--dur-fast) ease;
+}
+.mk-stage-btn:hover .mk-caret { border-color: var(--yellow); }
+.mk-stage.is-open .mk-caret { transform: rotate(225deg); border-color: var(--yellow); }
+
+/* ── drawer ────────────────────────────────────────────────────────────────────────────────── */
+.mk-drawer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.42s var(--ease-in-out-quart); }
+.mk-drawer-in { overflow: hidden; min-height: 0; opacity: 0; transition: opacity 0.24s ease; }
+.mk-stage.is-open .mk-drawer { grid-template-rows: 1fr; }
+.mk-stage.is-open .mk-drawer-in { opacity: 1; transition-delay: 0.1s; }
+.mk-drawer-body { padding-block: 2px 20px; }
+
+.mk-k {
+  font-size: 10px; font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose);
+  color: var(--ink-faint); margin: 0 0 3px;
+}
+.mk-v {
+  margin: 0; font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--light);
+}
+
+/* forces strip */
+.mk-axes { margin-block-start: var(--sp-3); display: flex; flex-direction: column; gap: 7px; }
+.mk-ax { display: grid; grid-template-columns: 14px 46px 1fr 30px; align-items: center; gap: 8px; }
+.mk-ax svg { width: 13px; height: 13px; color: var(--yellow); opacity: 0.8; }
+.mk-ax-k { font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); color: var(--ink-dim); }
+.mk-ax-bar { height: 5px; background: var(--line-2); overflow: hidden; }
+.mk-ax-bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.75; }
+.mk-ax-v {
+  text-align: start; font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--light); font-variant-numeric: tabular-nums;
+}
+
+/* ── relations, WITH pole colour restored ──────────────────────────────────────────────────
+   Reuses production's own three tokens verbatim (.drel__sq--t/f/h in overlays.css):
+     מתח → --yellow · חיכוך → --danger · הרמוניה → --ok
+   Colour is never the sole carrier: the pole WORD is always spelled out beside it, and the exact
+   t/f/h split sits in the row's own line, so the coding survives colour-blindness and greyscale. */
+.mk-rels { display: flex; flex-direction: column; }
+.mk-rel {
+  width: 100%; display: flex; gap: var(--sp-2); align-items: flex-start;
+  padding: 10px 0; background: none; border: 0; border-block-start: 1px solid var(--line-2);
+  text-align: start; color: inherit; font: inherit; cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.mk-rel:first-child { border-block-start: 0; }
+.mk-rel:hover { background: rgba(255, 255, 255, 0.04); }
+.mk-rel:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+.mk-sq { flex: none; width: 4px; align-self: stretch; }
+.mk-sq--t { background: var(--yellow); }
+.mk-sq--f { background: var(--danger); }
+.mk-sq--h { background: var(--ok); }
+.mk-rel-body { flex: 1; min-width: 0; }
+.mk-rel-head { display: flex; align-items: baseline; gap: var(--sp-2); }
+/* entity name — not bold, per the house rule */
+.mk-rel-name {
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); color: var(--white);
+}
+.mk-pole {
+  margin-inline-start: auto; font-size: var(--text-xs); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-loose); white-space: nowrap;
+}
+.mk-pole--t { color: var(--yellow); }
+.mk-pole--f { color: var(--danger); }
+.mk-pole--h { color: var(--ok); }
+/* display:block — these are <span>s inside a <span> wrapper, so without it the why-sentence and
+   the split ran together as one inline flow ("…ורב-זירתית. 4 · 10 · 86" on a single line). */
+.mk-why {
+  display: block; margin: 3px 0 0; font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+/* the exact t/f/h split, spelled out with its pole names — this is what makes the colour coding
+   redundant rather than load-bearing: strip every colour and the row still states which pole
+   dominates and by how much. */
+.mk-split {
+  display: block; margin: 4px 0 0; font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint); font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-drawer, .mk-drawer-in, .mk-caret, .mk-stage-btn, .mk-rel { transition: none; }
+}
+</style>
+</head>
+<body>
+<main class="mk-page">
+  <h1 class="mk-h1">מיזוג · חשיפה מדורגת + תגיות מובילות</h1>
+  <p class="mk-sub">
+    שלד «החשיפה המדורגת» — נקי, סרוק, שלב אחד פתוח בכל רגע. שלושה שינויים: התגית מובילה כל שורה
+    ומקבלת את מלוא הבולטות; צבע הקטבים ביחסים חוזר (אותם שלושה טוקנים של הפרודקשן); ומשפט הפתיחה
+    מקבל תווית «הערכה» במקום להיקפל פנימה.
+  </p>
+
+  <section class="mk-band">
+    <p class="mk-band-h">א · מומלץ — «הערכה» נשארת למעלה</p>
+    <p class="mk-band-note">
+      משפט הפתיחה הוא התשובה היחידה שלא דורשת קליק; קיפול שלו משאיר את מצב-המנוחה עם שם ומספר בלבד.
+      הוא גם לא «דינמיקה» — הוא מסכם את שלוש הקטגוריות יחד (לרוב נוקב בשם יחס), ולכן תיוקו תחת
+      «הדינמיקה» היה ממסגר אותו לא נכון. התווית פותרת את הבעיה האמיתית: בלעדיה הוא נקרא כטקסט חופשי.
+      לחצו על שלב כדי לפתוח אותו · Tab / Enter / Space עובדים.
+    </p>
+    <div class="mk-row" id="mk-row-keep"></div>
+  </section>
+
+  <section class="mk-band">
+    <p class="mk-band-h">ב · חלופה — «הערכה» מקופלת לתוך 01 הדינמיקה</p>
+    <p class="mk-band-note">
+      אותו קלף בדיוק, רק שמשפט הפתיחה עבר לתוך המגירה של «הדינמיקה». שימו לב מה קורה למצב המנוחה:
+      הקלף נפתח בלי שום אמירה על הגוף — רק שם, דירוג ושלוש שורות תגיות. השוו בעצמכם.
+    </p>
+    <div class="mk-row" id="mk-row-fold"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  /* verbatim from src/dynamics/Icon.tsx — the project's own bespoke marks, not a library set */
+  var ICON = {
+    eco: '<ellipse cx="12" cy="18" rx="8" ry="2.6"/><ellipse cx="12" cy="13.5" rx="8" ry="2.6"/><ellipse cx="12" cy="9" rx="8" ry="2.6"/><path d="M4 9 V18"/><path d="M20 9 V18"/>',
+    mil: '<path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z"/>',
+    geo: '<circle cx="12" cy="12" r="8.2"/><path d="M12 3.8 C7.4 7.5 7.4 16.5 12 20.2 C16.6 16.5 16.6 7.5 12 3.8 Z"/><path d="M3.8 12 H20.2"/>',
+    // per-value axis (bloc) marks
+    'axis-neutral': '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/>',
+    'axis-east': '<path d="M4 22V4"/><path d="M4 4l14 4-14 4"/>',
+    // per-value tier marks
+    'tier-mid': '<polygon points="12 3 21 12 12 21 3 12"/>',
+    'tier-regional': '<polygon points="12 3 20.5 7.5 20.5 16.5 12 21 3.5 16.5 3.5 7.5"/>',
+    // per-value disposition marks
+    'dispo-caut': '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    'dispo-agg': '<path d="M5 19 L19 5"/><path d="M19 19 L5 5"/><path d="M6 15 L9 18"/><path d="M15 18 L18 15"/><circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none"/>'
+  }
+  function svg(name) {
+    return '<span class="mk-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">' + ICON[name] + '</svg></span>'
+  }
+  var POLE = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
+
+  var OMAN = {
+    rank: '15', name: 'עומאן',
+    lede: 'עומאן מוגדרת פחות באיבה גלויה ויותר בחיכוך מתמשך — הבולט מול ישראל: ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.',
+    bloc: 'גוש ניטרלי', blocIcon: 'axis-neutral', orbitK: 'משתפת מסלול עם', orbitV: 'טורקיה · קטאר · סוריה · לבנון', orbitMeta: '4 גופים בטבעת',
+    tier: 'כוח ביניים', tierIcon: 'tier-mid', score: '3.8', eco: 4.2, mil: 2.0, geo: 5.3,
+    dispo: 'זהירה', dispoIcon: 'dispo-caut', relMeta: 'קשר מגדיר אחד',
+    rels: [ { o: 'ישראל', p: 'f', why: 'ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.', t: 24, f: 57, h: 19 } ]
+  }
+  var IRAN = {
+    rank: '12', name: 'איראן',
+    lede: 'איראן מעגנת מערכת שלמה של 4 גופים סביבה — אך מוגדרת לא פחות ביחסה עם ישראל: עוינות ותיקה ורב-זירתית.',
+    bloc: 'הציר המזרחי', blocIcon: 'axis-east', orbitK: 'גופים במסלולה', orbitV: 'חיזבאללה · חמאס · הג׳יהאד האסלאמי · מיליציות עיראקיות', orbitMeta: '4 גופים במסלולה',
+    tier: 'כוח אזורי', tierIcon: 'tier-regional', score: '4.6', eco: 2.1, mil: 3.4, geo: 5.8,
+    dispo: 'אגרסיבית', dispoIcon: 'dispo-agg', relMeta: '5 קשרים מגדירים',
+    rels: [
+      { o: 'ישראל', p: 't', why: 'עוינות ותיקה ורב-זירתית.', t: 86, f: 10, h: 4 },
+      { o: 'ערב הסעודית', p: 't', why: 'יריבות אזורית על הגמוניה.', t: 68, f: 22, h: 10 },
+      { o: 'רוסיה', p: 'h', why: 'שותפות אסטרטגית מול המערב.', t: 12, f: 16, h: 72 },
+      { o: 'סוריה', p: 'h', why: 'בעלת ברית מרכזית מאז שנות ה-80.', t: 8, f: 11, h: 81 },
+      { o: 'תורכיה', p: 'f', why: 'מתחרות על השפעה בעיראק וסוריה.', t: 27, f: 55, h: 18 }
+    ]
+  }
+
+  var uid = 0
+  function axRow(k, he, v) {
+    return '<div class="mk-ax">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">' + ICON[k] + '</svg>' +
+      '<span class="mk-ax-k">' + he + '</span>' +
+      '<span class="mk-ax-bar"><i style="width:' + (v * 10) + '%"></i></span>' +
+      '<span class="mk-ax-v" dir="ltr">' + v.toFixed(1) + '</span>' +
+      '</div>'
+  }
+  function relRow(r) {
+    return '<button type="button" class="mk-rel">' +
+      '<span class="mk-sq mk-sq--' + r.p + '" aria-hidden="true"></span>' +
+      '<span class="mk-rel-body">' +
+        '<span class="mk-rel-head">' +
+          '<span class="mk-rel-name">' + r.o + '</span>' +
+          '<span class="mk-pole mk-pole--' + r.p + '">' + POLE[r.p] + '</span>' +
+        '</span>' +
+        '<span class="mk-why">' + r.why + '</span>' +
+        '<span class="mk-split">מתח ' + r.t + ' · חיכוך ' + r.f + ' · הרמוניה ' + r.h + '</span>' +
+      '</span>' +
+    '</button>'
+  }
+
+  function stage(id, mark, tag, cat, meta, bodyHtml, open) {
+    return '<section class="mk-stage' + (open ? ' is-open' : '') + '">' +
+      '<h3 style="margin:0">' +
+        '<button type="button" class="mk-stage-btn" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + id + '">' +
+          svg(mark) +
+          '<span class="mk-tag">' + tag + '</span>' +
+          '<span class="mk-cat">' + cat + '</span>' +
+          '<span class="mk-meta">' + meta + '</span>' +
+          '<span class="mk-caret" aria-hidden="true"></span>' +
+        '</button>' +
+      '</h3>' +
+      '<div class="mk-drawer" id="' + id + '"><div class="mk-drawer-in"><div class="mk-drawer-body"' + (open ? '' : ' inert') + '>' +
+        bodyHtml +
+      '</div></div></div>' +
+    '</section>'
+  }
+
+  function card(d, foldLede) {
+    var n = ++uid
+    var dynBody =
+      (foldLede ? '<p class="mk-k">הערכה</p><p class="mk-v" style="margin-bottom:16px">' + d.lede + '</p>' : '') +
+      '<p class="mk-k">' + d.orbitK + '</p><p class="mk-v">' + d.orbitV + '</p>'
+    var forcesBody =
+      '<div class="mk-axes">' + axRow('eco', 'כלכלה', d.eco) + axRow('mil', 'צבא', d.mil) + axRow('geo', 'גאו', d.geo) + '</div>'
+    var relsBody = '<div class="mk-rels">' + d.rels.map(relRow).join('') + '</div>'
+
+    return '<div class="mk-card">' +
+      '<button class="mk-close" aria-label="סגירה">✕</button>' +
+      '<span class="mk-rank">' + d.rank + '</span>' +
+      '<h2 class="mk-name">' + d.name + '</h2>' +
+      (foldLede ? '' :
+        '<div class="mk-assess"><span class="mk-assess-k">הערכה</span><p class="mk-assess-v">' + d.lede + '</p></div>') +
+      '<div class="mk-stages has-open">' +
+        stage('d' + n, d.blocIcon, d.bloc, 'הדינמיקה', d.orbitMeta, dynBody, true) +
+        stage('f' + n, d.tierIcon, d.tier, 'הכוחות', '<b>' + d.score + '</b>כוח משיכה', forcesBody, false) +
+        stage('r' + n, d.dispoIcon, d.dispo, 'היחסים', d.relMeta, relsBody, false) +
+      '</div>' +
+    '</div>'
+  }
+
+  function slot(label, html) {
+    return '<div class="mk-slot"><p class="mk-slot-h">' + label + '</p>' + html + '</div>'
+  }
+
+  document.getElementById('mk-row-keep').innerHTML =
+    slot('דליל · עומאן', card(OMAN, false)) + slot('צפוף · איראן', card(IRAN, false))
+  document.getElementById('mk-row-fold').innerHTML =
+    slot('דליל · עומאן — מקופל', card(OMAN, true)) + slot('צפוף · איראן — מקופל', card(IRAN, true))
+
+  // strict one-at-a-time; a second click on the open stage closes it, so "nothing open" is reachable
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.mk-stage-btn')
+    if (!btn) return
+    var stageEl = btn.closest('.mk-stage')
+    var wrap = btn.closest('.mk-stages')
+    var wasOpen = stageEl.classList.contains('is-open')
+    wrap.querySelectorAll('.mk-stage').forEach(function (s) {
+      s.classList.remove('is-open')
+      s.querySelector('.mk-stage-btn').setAttribute('aria-expanded', 'false')
+      s.querySelector('.mk-drawer-body').setAttribute('inert', '')
+    })
+    if (!wasOpen) {
+      stageEl.classList.add('is-open')
+      btn.setAttribute('aria-expanded', 'true')
+      stageEl.querySelector('.mk-drawer-body').removeAttribute('inert')
+    }
+    wrap.classList.toggle('has-open', !wasOpen)
+  })
+})()
+</script>
+</body>
+</html>

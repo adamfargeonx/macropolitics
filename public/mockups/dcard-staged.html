@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DynamicsCard · חשיפה מדורגת</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   MOCKUP — "STAGED DISCLOSURE" DynamicsCard.
+   Every selector is .mk-* prefixed; nothing here can collide with the app.
+   All colour / type / spacing / easing values come from base.css tokens.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── page scaffold (mockup chrome only, not part of the design) ─────────── */
+.mk-page {
+  min-height: 100vh; background: var(--bg); color: var(--light);
+  padding: var(--sp-8) var(--sp-7) var(--sp-9);
+  overflow-y: auto;
+}
+html, body { height: auto; overflow: auto; }
+.mk-page__title {
+  font-family: var(--display); font-weight: var(--fw-black);
+  font-size: var(--text-title); letter-spacing: var(--tracking-display); color: var(--white);
+}
+.mk-page__sub {
+  margin-top: var(--sp-2); max-width: 62ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-faint);
+}
+.mk-band { margin-top: var(--sp-8); }
+.mk-band__label {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
+  color: var(--yellow); opacity: 0.7; padding-bottom: var(--sp-2);
+  border-block-end: 1px solid var(--line-yellow); margin-bottom: var(--sp-5);
+}
+.mk-row { display: flex; gap: var(--sp-7); align-items: flex-start; flex-wrap: wrap; }
+.mk-row--scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: var(--sp-4); }
+.mk-slot { flex: none; }
+.mk-slot__cap {
+  margin-bottom: var(--sp-3); max-width: 396px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-slot__cap b { color: var(--yellow); font-weight: var(--fw-bold); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE CARD
+   Rest state = identity + lede + a three-line ledger. Nothing else.
+   Each ledger line is a stage: a number, a title, and a QUANTIFIED STUB —
+   so "closed" is never "empty", it is a one-line answer with the evidence
+   folded away behind it.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mk-card {
+  position: relative; width: 396px; padding: 28px; text-align: right;
+  background: var(--panel-surface); border: var(--panel-border); box-shadow: var(--panel-shadow);
+}
+.mk-card__close {
+  position: absolute; top: 8px; inset-inline-end: 8px;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--yellow); opacity: 0.6;
+  font-size: var(--text-md); cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.3s var(--ease-out-expo);
+}
+.mk-card__close:hover { opacity: 1; transform: rotate(90deg); }
+
+/* ── identity ──────────────────────────────────────────────────────────── */
+.mk-head { display: flex; align-items: baseline; gap: 10px; }
+.mk-head__rank {
+  flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
+  color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
+}
+/* NOT bold — a body's own name is never bold anywhere on this site. */
+.mk-head__title {
+  font-family: var(--display); font-weight: var(--fw-regular); font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-display); color: var(--white); line-height: 1;
+}
+.mk-lede {
+  margin-top: 14px; max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92;
+}
+
+/* ── the ledger of stages ──────────────────────────────────────────────── */
+.mk-stages { margin-top: 22px; }
+.mk-stage {
+  position: relative;
+  /* full-bleed to the panel edges so an OPEN stage becomes a banded slab,
+     not an indented sub-box floating inside the column. */
+  margin-inline: -28px; padding-inline: 28px;
+  border-block-start: 1px solid var(--line-2);
+}
+.mk-stage:last-child { border-block-end: 1px solid var(--line-2); }
+.mk-stage.is-open { background: var(--yellow-018); }
+/* the stage marker rail — a 2px yellow edge at the panel's reading edge,
+   drawn only on the open stage: "you are here in the stack". */
+.mk-stage.is-open::before {
+  content: ""; position: absolute; inset-block: -1px auto; inset-inline-start: 0;
+  width: 2px; height: calc(100% + 1px); background: var(--yellow);
+}
+
+.mk-stage__btn {
+  width: 100%; display: flex; align-items: flex-start; gap: 12px;
+  padding-block: 14px 13px; background: none; border: none; color: inherit;
+  text-align: start; cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.mk-stage__btn:hover { background: var(--yellow-06); }
+.mk-stage__btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+.mk-stage__num {
+  flex: none; margin-top: 2px; width: 18px;
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.45;
+  transition: opacity var(--dur-fast) ease;
+}
+.mk-stage.is-open .mk-stage__num,
+.mk-stage__btn:hover .mk-stage__num { opacity: 1; }
+.mk-stage__txt { flex: 1; min-width: 0; }
+.mk-stage__name {
+  display: block;
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-lg);
+  letter-spacing: var(--tracking-title); color: var(--white); line-height: 1.15;
+}
+/* the stub — the one-line answer visible while the stage is shut */
+.mk-stub { margin-top: 7px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mk-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line); padding: 3px 9px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim);
+}
+.mk-chip .icon { color: var(--yellow); opacity: 0.65; font-size: 12px; flex-shrink: 0; }
+.mk-stub__note {
+  font-family: var(--body); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-stub__score {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1;
+}
+
+/* chevron — CSS-drawn (two rotated borders), never an icon glyph.
+   RTL: border-inline-start resolves to the physical right edge, so the "L"
+   opens toward the top-left; +45deg reads as "v", +225deg as "^". */
+.mk-chev {
+  flex: none; align-self: center; width: 8px; height: 8px; margin-inline-start: 2px;
+  border-block-end: 1.5px solid var(--yellow); border-inline-start: 1.5px solid var(--yellow);
+  opacity: 0.55; transform: rotate(45deg);
+  transition: transform var(--dur-base) var(--ease-out-expo), opacity var(--dur-fast) ease;
+}
+.mk-stage.is-open .mk-chev { transform: rotate(225deg); opacity: 1; }
+.mk-stage__btn:hover .mk-chev { opacity: 1; }
+
+/* disclosure mechanics — 0fr→1fr grid row, so height animates with no JS
+   measurement and no max-height guesswork. */
+.mk-stage__wrap {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-out-expo);
+}
+.mk-stage.is-open .mk-stage__wrap { grid-template-rows: 1fr; }
+.mk-stage__panel { overflow: hidden; min-height: 0; }
+.mk-stage.is-open .mk-stage__panel > * { animation: mkRise 0.44s var(--ease-panel) both 0.08s; }
+.mk-stage__inner { padding-block: 2px 20px; }
+@keyframes mkRise { from { opacity: 0; transform: translateY(7px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-stage__wrap, .mk-chev, .mk-card__close, .mk-stage__btn, .mk-rel { transition: none; }
+  .mk-stage.is-open .mk-stage__panel > * { animation: none; }
+}
+
+/* ── stage 01 payload · orbital position ───────────────────────────────── */
+.mk-orbit { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--surface-1); }
+.mk-orbit__k {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-orbit__v {
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--light);
+}
+
+/* ── stage 02 payload · forces ─────────────────────────────────────────── */
+.mk-force { padding: 14px; background: var(--surface-1); }
+.mk-force__top { display: flex; align-items: baseline; gap: 6px; }
+.mk-force__score {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--display-md);
+  letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.9;
+}
+.mk-force__unit {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim);
+}
+.mk-axes { margin-top: 14px; display: flex; flex-direction: column; gap: 9px; }
+.mk-ax { display: flex; align-items: center; gap: 8px; }
+.mk-ax .icon { color: var(--yellow); opacity: 0.7; font-size: 12px; flex: none; }
+.mk-ax__k {
+  flex: none; width: 34px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim);
+}
+.mk-ax__bar { flex: 1; height: 3px; background: var(--yellow-12); }
+.mk-ax__bar i { display: block; height: 100%; background: var(--yellow); }
+.mk-ax__v {
+  flex: none; width: 26px; text-align: start;
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--white);
+}
+
+/* ── stage 03 payload · relations ──────────────────────────────────────── */
+/* Pole coding is SHAPE, not hue — one accent only, and never colour-alone:
+   solid = מתח, half = חיכוך, hollow = הרמוניה, and the word is always spelled out. */
+.mk-key { display: flex; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; }
+.mk-key__i {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-pole { flex: none; width: 13px; height: 13px; border: 1.5px solid var(--yellow); position: relative; }
+.mk-pole--t { background: var(--yellow); }
+.mk-pole--f::after {
+  content: ""; position: absolute; inset: 0; background: var(--yellow);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.mk-rels { display: flex; flex-direction: column; gap: 8px; }
+.mk-rel {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: start;
+  padding: 9px 11px; background: var(--surface-1); border: none; color: inherit; cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.mk-rel:hover { background: var(--yellow-06); }
+.mk-rel:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.mk-rel .mk-pole { width: 18px; height: 18px; margin-top: 3px; }
+.mk-rel__body { min-width: 0; flex: 1; }
+.mk-rel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+/* NOT bold — a body's own name is never bold anywhere on this site. */
+.mk-rel__name {
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--white);
+}
+.mk-rel__pole {
+  flex: none; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--yellow);
+}
+.mk-rel__why {
+  display: block; margin-top: 3px; max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.mk-rel__split {
+  display: block; margin-top: 5px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
+  color: var(--ink-faint); opacity: 0; max-height: 0; overflow: hidden;
+  transition: opacity var(--dur-fast) ease;
+}
+.mk-rel:hover .mk-rel__split, .mk-rel:focus-visible .mk-rel__split { opacity: 1; max-height: 2em; }
+@media (prefers-reduced-motion: reduce) { .mk-rel__split { transition: none; } }
+
+/* static demo slabs are display-only */
+.mk-static .mk-card { pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="mk-page">
+
+  <h1 class="mk-page__title">DynamicsCard · חשיפה מדורגת</h1>
+  <p class="mk-page__sub">
+    במנוחה הכרטיס מציג זהות + משפט־סינתזה בלבד. שלוש הקטגוריות נפתחות אחת בכל רגע —
+    כל שלב סגור נושא תשובה בשורה אחת (שיוך גוש · ציון כוח · מספר קשרים), כך שסגור אף פעם אינו ריק.
+  </p>
+
+  <section class="mk-band">
+    <div class="mk-band__label">אינטראקטיבי — לחצו על שלב כדי לפתוח אותו (Tab / Enter / Space עובדים)</div>
+    <div class="mk-row" id="mk-live"></div>
+  </section>
+
+  <section class="mk-band">
+    <div class="mk-band__label">מצבים סטטיים — כל המצבים גלויים בלי ללחוץ</div>
+    <div class="mk-row mk-row--scroll mk-static" id="mk-states" inert></div>
+  </section>
+
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────────────────
+   ICONS — reused verbatim from src/dynamics/Icon.tsx. No new glyphs.
+   ──────────────────────────────────────────────────────────────────────────── */
+const PATHS = {
+  eco: '<ellipse cx="12" cy="18" rx="8" ry="2.6"/><ellipse cx="12" cy="13.5" rx="8" ry="2.6"/><ellipse cx="12" cy="9" rx="8" ry="2.6"/><path d="M4 9 V18"/><path d="M20 9 V18"/>',
+  mil: '<path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z"/>',
+  geo: '<circle cx="12" cy="12" r="8.2"/><path d="M12 3.8 C7.4 7.5 7.4 16.5 12 20.2 C16.6 16.5 16.6 7.5 12 3.8 Z"/><path d="M3.8 12 H20.2"/>',
+  'axis-neutral': '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/>',
+  'axis-east': '<path d="M4 22V4"/><path d="M4 4l14 4-14 4"/>',
+  'tier-mid': '<polygon points="12 3 21 12 12 21 3 12"/>',
+  'tier-regional': '<polygon points="12 3 20.5 7.5 20.5 16.5 12 21 3.5 16.5 3.5 7.5"/>',
+  'dispo-caut': '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  'dispo-agg': '<path d="M5 19 L19 5"/><path d="M19 19 L5 5"/><path d="M6 15 L9 18"/><path d="M15 18 L18 15"/><circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none"/>',
+}
+const icon = (n) => '<svg class="icon icon--' + n + '" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">' + PATHS[n] + '</svg>'
+
+const POLE_HE = { t: 'מתח', f: 'חיכוך', h: 'הרמוניה' }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   REFERENCE CASES
+   ──────────────────────────────────────────────────────────────────────────── */
+const OMAN = {
+  key: 'oman', rank: '15', he: 'עומאן',
+  lede: 'עומאן מוגדרת פחות באיבה גלויה ויותר בחיכוך מתמשך — הבולט מול ישראל: ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.',
+  bloc: { icon: 'axis-neutral', text: 'גוש ניטרלי' },
+  orbit: { k: 'משתפת מסלול עם', v: 'טורקיה · קטאר · סוריה · לבנון', n: 4, note: '4 גופים בטבעת' },
+  tier: { icon: 'tier-mid', text: 'כוח ביניים' },
+  score: '3.8', axes: [['eco','כלכלי',4.2], ['mil','צבאי',2.0], ['geo','גאו',5.3]],
+  dispo: { icon: 'dispo-caut', text: 'זהירה' },
+  rels: [
+    { name: 'ישראל', pole: 'f', why: 'ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.', t: 30, f: 52, h: 18 },
+  ],
+}
+const IRAN = {
+  key: 'iran', rank: '12', he: 'איראן',
+  lede: 'איראן מעגנת מערכת שלמה של 4 גופים סביבה — אך מוגדרת לא פחות ביחסה עם ישראל: עוינות ותיקה ורב-זירתית.',
+  bloc: { icon: 'axis-east', text: 'הציר המזרחי' },
+  orbit: { k: 'גופים במסלולה', v: 'חיזבאללה · חמאס · הג’יהאד האסלאמי · מיליציות עיראקיות', n: 4, note: '4 גופים במסלולה' },
+  tier: { icon: 'tier-regional', text: 'כוח אזורי' },
+  score: '4.6', axes: [['eco','כלכלי',2.1], ['mil','צבאי',3.4], ['geo','גאו',5.8]],
+  dispo: { icon: 'dispo-agg', text: 'אגרסיבית' },
+  rels: [
+    { name: 'ישראל', pole: 't', why: 'עוינות ותיקה ורב-זירתית.', t: 74, f: 18, h: 8 },
+    { name: 'ערב הסעודית', pole: 't', why: 'יריבות אזורית על הגמוניה', t: 61, f: 27, h: 12 },
+    { name: 'רוסיה', pole: 'h', why: 'שותפות אסטרטגית מול המערב', t: 9, f: 21, h: 70 },
+    { name: 'סוריה', pole: 'h', why: 'בעלת ברית מרכזית מאז שנות ה-80', t: 6, f: 15, h: 79 },
+    { name: 'תורכיה', pole: 'f', why: 'מתחרות על השפעה בעיראק וסוריה', t: 24, f: 55, h: 21 },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   RENDER
+   `open` = which stage index (1|2|3) is expanded, or 0 for all-closed.
+   ──────────────────────────────────────────────────────────────────────────── */
+function relRow(d, r) {
+  const split = 'מתח ' + r.t + '% · חיכוך ' + r.f + '% · הרמוניה ' + r.h + '%'
+  const label = r.name + ' — ' + POLE_HE[r.pole] + '. ' + split + '. ' + r.why
+  return '' +
+    '<button type="button" class="mk-rel" aria-label="' + label + '" title="' + split + '">' +
+      '<span class="mk-pole mk-pole--' + r.pole + '" aria-hidden="true"></span>' +
+      '<span class="mk-rel__body">' +
+        '<span class="mk-rel__head">' +
+          '<span class="mk-rel__name">' + r.name + '</span>' +
+          '<span class="mk-rel__pole">' + POLE_HE[r.pole] + '</span>' +
+        '</span>' +
+        '<span class="mk-rel__why">' + r.why + '</span>' +
+        '<span class="mk-rel__split" aria-hidden="true">' + split + '</span>' +
+      '</span>' +
+    '</button>'
+}
+
+function stage(d, n, open, opts) {
+  const id = 'mk-' + d.key + '-' + opts.uid + '-' + n
+  const isOpen = open === n
+  return '' +
+  '<section class="mk-stage' + (isOpen ? ' is-open' : '') + '" data-stage="' + n + '">' +
+    '<h3>' +
+      '<button type="button" class="mk-stage__btn" id="' + id + '-btn" aria-expanded="' + isOpen + '" aria-controls="' + id + '-panel">' +
+        '<span class="mk-stage__num" aria-hidden="true">0' + n + '</span>' +
+        '<span class="mk-stage__txt">' +
+          '<span class="mk-stage__name">' + opts.name + '</span>' +
+          '<span class="mk-stub">' + opts.stub + '</span>' +
+        '</span>' +
+        '<span class="mk-chev" aria-hidden="true"></span>' +
+      '</button>' +
+    '</h3>' +
+    '<div class="mk-stage__wrap"' + (isOpen ? '' : ' inert') + '>' +
+      '<div class="mk-stage__panel">' +
+        '<div class="mk-stage__inner" id="' + id + '-panel" role="region" aria-labelledby="' + id + '-btn">' +
+          opts.body +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</section>'
+}
+
+function card(d, open, uid) {
+  const chip = (c) => '<span class="mk-chip">' + icon(c.icon) + c.text + '</span>'
+  const relCount = d.rels.length === 1 ? 'קשר מגדיר אחד' : d.rels.length + ' קשרים מגדירים'
+
+  const s1 = stage(d, 1, open, {
+    uid, name: 'הדינמיקה',
+    stub: chip(d.bloc) + '<span class="mk-stub__note">' + d.orbit.note + '</span>',
+    body: '<div class="mk-orbit"><div><span class="mk-orbit__k">' + d.orbit.k + '</span></div>' +
+          '<div class="mk-orbit__v">' + d.orbit.v + '</div></div>',
+  })
+
+  const s2 = stage(d, 2, open, {
+    uid, name: 'הכוחות',
+    stub: chip(d.tier) + '<span class="mk-stub__score">' + d.score + '</span>' +
+          '<span class="mk-stub__note">כוח משיכה</span>',
+    body: '<div class="mk-force">' +
+            '<div class="mk-force__top"><span class="mk-force__score">' + d.score + '</span>' +
+            '<span class="mk-force__unit">כוח משיכה</span></div>' +
+            '<div class="mk-axes">' + d.axes.map(([k, he, v]) =>
+              '<div class="mk-ax">' + icon(k) +
+                '<span class="mk-ax__k">' + he + '</span>' +
+                '<span class="mk-ax__bar" aria-hidden="true"><i style="width:' + (v * 10) + '%"></i></span>' +
+                '<span class="mk-ax__v">' + v.toFixed(1) + '</span>' +
+              '</div>').join('') +
+            '</div>' +
+          '</div>',
+  })
+
+  const s3 = stage(d, 3, open, {
+    uid, name: 'היחסים',
+    stub: chip(d.dispo) + '<span class="mk-stub__note">' + relCount + '</span>',
+    body: '<div class="mk-key">' +
+            '<span class="mk-key__i"><span class="mk-pole mk-pole--t" aria-hidden="true"></span>מתח</span>' +
+            '<span class="mk-key__i"><span class="mk-pole mk-pole--f" aria-hidden="true"></span>חיכוך</span>' +
+            '<span class="mk-key__i"><span class="mk-pole mk-pole--h" aria-hidden="true"></span>הרמוניה</span>' +
+          '</div>' +
+          '<div class="mk-rels">' + d.rels.map((r) => relRow(d, r)).join('') + '</div>',
+  })
+
+  return '' +
+  '<article class="mk-card" dir="rtl">' +
+    '<button type="button" class="mk-card__close" aria-label="סגירה">✕</button>' +
+    '<header class="mk-head">' +
+      '<span class="mk-head__rank">' + d.rank + '</span>' +
+      '<h2 class="mk-head__title">' + d.he + '</h2>' +
+    '</header>' +
+    '<p class="mk-lede">' + d.lede + '</p>' +
+    '<div class="mk-stages">' + s1 + s2 + s3 + '</div>' +
+  '</article>'
+}
+
+/* ── mount: interactive pair (stage 01 open by default) ─────────────────── */
+document.getElementById('mk-live').innerHTML =
+  '<div class="mk-slot"><div class="mk-slot__cap">דליל · <b>עומאן</b> — קשר מגדיר אחד</div>' + card(OMAN, 1, 'a') + '</div>' +
+  '<div class="mk-slot"><div class="mk-slot__cap">צפוף · <b>איראן</b> — חמישה קשרים מגדירים</div>' + card(IRAN, 1, 'b') + '</div>'
+
+/* ── mount: static state row ────────────────────────────────────────────── */
+document.getElementById('mk-states').innerHTML =
+  '<div class="mk-slot"><div class="mk-slot__cap"><b>הכל סגור</b> — זהות + סינתזה + שלוש תשובות בשורה</div>' + card(OMAN, 0, 'c') + '</div>' +
+  '<div class="mk-slot"><div class="mk-slot__cap"><b>01 פתוח</b> — ברירת המחדל, גובה קבוע בכל הגופים</div>' + card(OMAN, 1, 'd') + '</div>' +
+  '<div class="mk-slot"><div class="mk-slot__cap"><b>03 פתוח · דליל</b> — שורת יחסים אחת</div>' + card(OMAN, 3, 'e') + '</div>' +
+  '<div class="mk-slot"><div class="mk-slot__cap"><b>03 פתוח · צפוף</b> — חמש שורות יחסים</div>' + card(IRAN, 3, 'f') + '</div>' +
+  '<div class="mk-slot"><div class="mk-slot__cap"><b>02 פתוח</b> — פירוק הצירים מתחת לציון</div>' + card(IRAN, 2, 'g') + '</div>'
+
+/* ────────────────────────────────────────────────────────────────────────────
+   BEHAVIOUR — strict accordion: exactly one stage open at a time, and a
+   second click on the open stage closes it (so "nothing open" is reachable).
+   Collapsed regions are made `inert`, so their contents leave the tab order
+   entirely and are hidden from assistive tech.
+   ──────────────────────────────────────────────────────────────────────────── */
+document.getElementById('mk-live').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.mk-stage__btn')
+  if (!btn) return
+  const card = btn.closest('.mk-card')
+  const me = btn.closest('.mk-stage')
+  const willOpen = btn.getAttribute('aria-expanded') !== 'true'
+  card.querySelectorAll('.mk-stage').forEach((st) => {
+    const open = st === me && willOpen
+    st.classList.toggle('is-open', open)
+    st.querySelector('.mk-stage__btn').setAttribute('aria-expanded', String(open))
+    st.querySelector('.mk-stage__wrap').inert = !open
+  })
+})
+</script>
+</body>
+</html>

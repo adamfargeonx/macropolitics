@@ -11,12 +11,16 @@ export type Raw = { eco: number; mil: number; geo: number }
 
 export const AXIS_RIM: Record<string, string> = { west: '132,160,196', east: '198,134,98', neutral: '150,150,160', none: '120,120,128' }
 export const ORDERS: Order[] = ['total', 'eco', 'mil', 'geo']
+// ORDER_LABEL stays ADJECTIVAL ('כלכלי' not 'כלכלה') — every consumer embeds it in a compound
+// phrase ("מדד X", "מיון: X") where the noun form would be ungrammatical ("מדד כלכלה" reads as
+// "index economy", not "economic index"). ORDER_SHORT/SB_AXES below are the bare, standalone axis
+// names (sort-tab text, sandbox slider labels) — those got the noun-form house rename.
 export const ORDER_LABEL: Record<Order, string> = { total: 'כוח משיכה', eco: 'כלכלי', mil: 'צבאי', geo: 'גאו-אסטרטגי' }
-export const ORDER_SHORT: Record<Order, string> = { total: 'סה״כ', eco: 'כלכלי', mil: 'צבאי', geo: 'גאו' }
+export const ORDER_SHORT: Record<Order, string> = { total: 'סה״כ', eco: 'כלכלה', mil: 'צבא', geo: 'גאו' }
 export const BLOCS: Bloc[] = ['all', 'west', 'east', 'neutral']
 export const BLOC_LABEL: Record<Bloc, string> = { all: 'הכל', west: 'מערב', east: 'מזרח', neutral: 'ניטרלי' }
 export const DEFAULT_RAW: Raw = { eco: 36, mil: 34, geo: 30 }
-export const SB_AXES: { k: keyof Raw; he: string }[] = [{ k: 'eco', he: 'כלכלי' }, { k: 'mil', he: 'צבאי' }, { k: 'geo', he: 'גאו' }]
+export const SB_AXES: { k: keyof Raw; he: string }[] = [{ k: 'eco', he: 'כלכלה' }, { k: 'mil', he: 'צבא' }, { k: 'geo', he: 'גאו' }]
 
 // interaction tuning
 export const REACT_R = 210

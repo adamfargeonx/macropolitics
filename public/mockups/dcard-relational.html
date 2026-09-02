@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DynamicsCard — גישה יחסית (מארג הקשרים)</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   MOCKUP — DynamicsCard, "RELATIONAL / CONNECTIONS-FIRST"
+   Every selector is .mk-* so nothing can collide with the live app.
+   Colour/type/space/motion come ONLY from base.css custom properties.
+
+   THESIS
+   This panel is not a content card with three categories — it is a NODE
+   DOSSIER. The body is a node; everything else about it is an EDGE. So
+   "dynamics" (bloc + orbit) and "relations" (bilateral ties) are merged into
+   ONE structure — המארג — a single ranked edge bundle hanging off a literal
+   vertical spine, read top-to-bottom by binding strength. FORCES is demoted
+   from a section to a two-line identity stamp directly under the name, the
+   way a specimen label carries mass before you read what the specimen does.
+
+   EDGE ENCODING (one hue only)
+   The old design coded poles with three hues (yellow / red / green). Here the
+   single accent is the only colour, and the three poles are told apart by
+   CABLE SHAPE instead: hollow = מתח, dashed = חיכוך, solid = הרמוניה, plus a
+   thin dotted cable for structural (orbital) edges. Cable OPACITY carries the
+   edge weight, mirroring the numeral at the row's end. The pole WORD and the
+   why-sentence still state the meaning in language, so nothing is carried by
+   colour — or by shape — alone.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── mockup page chrome (not part of the design) ───────────────────────── */
+.mk-page {
+  min-height: 100vh; background: var(--bg); color: var(--light);
+  padding: var(--sp-8) var(--sp-6) var(--sp-9);
+  font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-body);
+}
+.mk-page__title {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-title);
+  letter-spacing: var(--tracking-display); color: var(--light); text-align: center;
+}
+.mk-page__sub {
+  margin-top: var(--sp-2); text-align: center; color: var(--ink-faint);
+  font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose);
+}
+.mk-rail {
+  margin-top: var(--sp-8); display: flex; flex-wrap: wrap; gap: var(--sp-7);
+  align-items: flex-start; justify-content: center;
+}
+.mk-slot { width: 396px; flex: none; }
+.mk-slot__label {
+  margin-bottom: var(--sp-3); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--line);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--yellow);
+}
+.mk-slot__label span { color: var(--ink-faint); font-weight: var(--fw-regular); }
+
+/* ── the panel shell — matches the live .panelb footprint (396px / 28px) ── */
+.mk-card {
+  position: relative; width: 396px; padding: 28px; text-align: right;
+  background: var(--panel-surface); border: var(--panel-border); box-shadow: var(--panel-shadow);
+  animation: mkPanelIn 0.64s var(--ease-panel) both;
+}
+@keyframes mkPanelIn {
+  from { opacity: 0; transform: translateY(20px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.mk-close {
+  position: absolute; top: 8px; inset-inline-end: 8px; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--yellow); opacity: 0.6;
+  font-size: var(--text-md); cursor: pointer; z-index: 3;
+  transition: opacity 0.15s ease, transform var(--dur-base) var(--ease-out-expo);
+}
+.mk-close:hover { opacity: 1; transform: rotate(90deg); }
+
+/* ── identity: rank + name ─────────────────────────────────────────────── */
+.mk-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.mk-rank {
+  flex: none; font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xs);
+  color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
+}
+/* NOT bold — a body's own name is never bold anywhere on this site. */
+.mk-title {
+  font-family: var(--display); font-weight: var(--fw-regular); font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-display); color: var(--white); line-height: 1;
+}
+
+/* ── FORCES, demoted to an identity stamp ──────────────────────────────────
+   MOVE 3: forces stops being a category. It is two hairline-bound lines of
+   metadata sitting with the rank and the name, because in THIS panel the raw
+   eco/mil/geo triple is an attribute of the node, not a subject in its own
+   right — the Forces panel already owns the deep read. Cost: ~46px instead of
+   the ~96px the boxed section used to take, and it never competes with המארג
+   for the reader's eye.                                                    */
+.mk-stamp {
+  margin-top: var(--sp-4); padding-block: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--line-yellow); border-bottom: 1px solid var(--line-2);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.mk-stamp__row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.mk-score { display: inline-flex; align-items: baseline; gap: 5px; flex: none; }
+.mk-score b {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1;
+}
+.mk-score span {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-axes { display: flex; gap: var(--sp-4); }
+.mk-ax {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-ax b { font-family: var(--display); font-weight: 700; color: var(--light); }
+.mk-ax .mk-i { color: var(--yellow); opacity: 0.55; }
+
+/* ── the lede — the one-line read the whole web supports ────────────────── */
+.mk-lede {
+  margin-top: var(--sp-4);
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92;
+}
+
+/* ══ המארג — ONE unified edge bundle on a spine ═══════════════════════════
+   MOVE 1: bloc, orbit and bilateral ties stop being two boxed sections and
+   become one continuous run down a single hairline spine. The chips are no
+   longer section badges floating above boxes — they are NODES ON THE WIRE:
+   the bloc chip opens the spine (the ring the body sits in), the disposition
+   chip sits mid-spine as the hinge between structural edges above and
+   bilateral edges below. Reading order IS the argument: ring → who it shares
+   an orbit with → who it is tied to, strongest tie first.                  */
+.mk-web { position: relative; margin-top: var(--sp-6); }
+.mk-web::before {
+  content: ''; position: absolute; z-index: 0;
+  /* the accent hairline, not the neutral one — the spine has to read as a WIRE
+     the cables attach to, and at 8% white it disappeared entirely. */
+  inset-block: 11px 0; inset-inline-start: 4px; width: 1px; background: var(--line-yellow);
+}
+/* a chip straddling the spine — its own ground masks the wire behind it */
+.mk-node { position: relative; z-index: 1; }
+.mk-node + .mk-orb, .mk-node + .mk-edges { margin-top: var(--sp-3); }
+.mk-chip {
+  display: inline-flex; align-items: center; gap: 5px; background: var(--bg-2);
+  border: 1px solid var(--line-yellow); padding: 3px 9px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light);
+}
+.mk-chip .mk-i { color: var(--yellow); opacity: 0.75; }
+.mk-chip--flat { background: none; border-color: var(--line); color: var(--ink-dim); }
+
+/* every row on the spine shares one gutter geometry: 9px cable column */
+.mk-row { display: grid; grid-template-columns: 9px 1fr auto; gap: 0 var(--sp-2); align-items: start; }
+
+/* the cable — a node's edge, drawn ON the spine.
+   SHAPE carries the pole (never colour alone); OPACITY carries the weight. */
+.mk-cable {
+  grid-column: 1; align-self: stretch; justify-self: start;
+  width: 5px; margin-inline-start: 2px; box-sizing: border-box;
+  opacity: calc(0.42 + var(--w, 0.6) * 0.58);
+}
+.mk-cable--t { border: 1px solid var(--yellow); background: transparent; }          /* מתח — hollow */
+.mk-cable--f { background: repeating-linear-gradient(180deg, var(--yellow) 0 4px, transparent 4px 8px); } /* חיכוך — dashed */
+.mk-cable--h { background: var(--yellow); }                                          /* הרמוניה — solid */
+.mk-cable--orb {                                                                     /* structural, not bilateral */
+  width: 3px; margin-inline-start: 3px; opacity: 1;
+  background: repeating-linear-gradient(180deg, var(--yellow-50) 0 1px, transparent 1px 4px);
+}
+
+/* ── structural edges: the orbital set ─────────────────────────────────── */
+.mk-orb { position: relative; z-index: 1; padding-block: 2px; }
+.mk-orb__k {
+  display: block; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-orb__v { display: block; margin-top: 2px; }
+/* MOVE 2 (part): every body named anywhere in this panel is navigable — the
+   orbital set is not a static string of names, it is four more edges. */
+.mk-inline {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--light);
+  border-bottom: 1px solid transparent; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.mk-inline:hover { color: var(--yellow); border-bottom-color: var(--line-yellow); }
+.mk-sep { color: var(--ink-faint); padding-inline: 5px; }
+
+/* ── bilateral edges — the centrepiece ─────────────────────────────────── */
+.mk-edges { list-style: none; display: flex; flex-direction: column; }
+.mk-edge { position: relative; z-index: 1; animation: mkEdgeIn 0.5s var(--ease-panel) both; }
+.mk-edge:nth-child(1) { animation-delay: 0.06s; }
+.mk-edge:nth-child(2) { animation-delay: 0.12s; }
+.mk-edge:nth-child(3) { animation-delay: 0.18s; }
+.mk-edge:nth-child(4) { animation-delay: 0.24s; }
+.mk-edge:nth-child(5) { animation-delay: 0.30s; }
+@keyframes mkEdgeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.mk-edge__btn {
+  width: 100%; text-align: start; background: none; border: none; cursor: pointer;
+  padding-block: var(--sp-2); padding-inline: 0 var(--sp-1);
+  transition: background var(--dur-fast) ease;
+}
+.mk-edge__btn:hover { background: var(--yellow-06); }
+.mk-edge__btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.mk-edge__main { grid-column: 2; min-width: 0; }
+.mk-edge__meta {
+  grid-column: 3; display: inline-flex; align-items: baseline; gap: var(--sp-2);
+  padding-block-start: 2px;
+}
+/* NOT bold — a body's own name is never bold anywhere on this site. */
+.mk-edge__name {
+  display: block; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base);
+  letter-spacing: var(--tracking-body); line-height: var(--leading-loose); color: var(--white);
+}
+.mk-edge__pole {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim);
+}
+/* edge weight — the network-tool numeral that explains why the list is in
+   this order. Same information the cable's opacity carries, stated exactly. */
+.mk-edge__w {
+  font-family: var(--display); font-weight: 700; font-size: var(--text-lg);
+  letter-spacing: var(--tracking-numeral); color: var(--yellow); line-height: 1;
+}
+
+/* animated disclosure — 0fr → 1fr, so the row grows instead of snapping */
+.mk-edge__detail {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s var(--ease-in-out-quart);
+}
+.mk-edge.is-open .mk-edge__detail { grid-template-rows: 1fr; }
+.mk-edge__detail-in { overflow: hidden; }
+.mk-edge__why {
+  display: block; padding-block-start: 3px;
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.mk-edge__split {
+  display: block; padding-block-start: 5px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+.mk-edge__split b { font-family: var(--display); font-weight: 700; color: var(--light); }
+
+/* ── the disclosure control ────────────────────────────────────────────── */
+.mk-more {
+  margin-top: var(--sp-3); padding: 5px 0 0 0; width: 100%; text-align: start;
+  background: none; border: none; border-top: 1px solid var(--line-2); cursor: pointer;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.mk-more:hover { color: var(--yellow); border-top-color: var(--line-yellow); }
+.mk-more:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.mk-more b { font-family: var(--display); font-weight: 700; color: var(--yellow); letter-spacing: var(--tracking-numeral); }
+
+.mk-i { display: inline-block; width: 1.6em; height: 1.6em; vertical-align: -0.13em; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-card, .mk-edge { animation: none; }
+  .mk-edge__detail, .mk-edge__btn, .mk-inline, .mk-more, .mk-close { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="mk-page">
+  <h1 class="mk-page__title">מארג הקשרים — DynamicsCard</h1>
+  <p class="mk-page__sub">גישה יחסית · הגוף כצומת, כל השאר כקשתות · שלוש מצבים: דליל · צפוף (מכווץ, לחיץ) · צפוף (פרוש)</p>
+
+  <div class="mk-rail">
+
+    <!-- ══════════════ CASE A — SPARSE: עומאן ══════════════════════════════
+         The sparse case needs no disclosure control at all: it has exactly one
+         bilateral edge, and that edge IS the defining edge, so it is expanded
+         from the start. The design degrades to "everything visible" on its own
+         rather than by a special case.                                      -->
+    <div class="mk-slot">
+      <div class="mk-slot__label">דליל · עומאן <span>— קשת דו-צדדית אחת, ללא פקד גילוי</span></div>
+
+      <article class="mk-card" dir="rtl">
+        <button class="mk-close" aria-label="סגירה">✕</button>
+
+        <header class="mk-head">
+          <span class="mk-rank">15</span>
+          <h1 class="mk-title">עומאן</h1>
+        </header>
+
+        <div class="mk-stamp">
+          <div class="mk-stamp__row">
+            <span class="mk-chip mk-chip--flat">
+              <svg class="mk-i" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true"><polygon points="12 3 21 12 12 21 3 12"/></svg>
+              כוח ביניים
+            </span>
+            <span class="mk-score"><b>3.8</b><span>כוח משיכה</span></span>
+          </div>
+          <div class="mk-axes">
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="12" cy="18" rx="8" ry="2.6"/><ellipse cx="12" cy="13.5" rx="8" ry="2.6"/><ellipse cx="12" cy="9" rx="8" ry="2.6"/><path d="M4 9 V18"/><path d="M20 9 V18"/></svg><b>4.2</b>כלכלי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z"/></svg><b>2.0</b>צבאי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8 C7.4 7.5 7.4 16.5 12 20.2 C16.6 16.5 16.6 7.5 12 3.8 Z"/><path d="M3.8 12 H20.2"/></svg><b>5.3</b>גאו</span>
+          </div>
+        </div>
+
+        <p class="mk-lede">עומאן מוגדרת פחות באיבה גלויה ויותר בחיכוך מתמשך — הבולט מול ישראל: ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.</p>
+
+        <div class="mk-web">
+          <div class="mk-node">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>
+              גוש ניטרלי
+            </span>
+          </div>
+
+          <div class="mk-orb mk-row">
+            <span class="mk-cable mk-cable--orb" aria-hidden="true"></span>
+            <div class="mk-edge__main">
+              <span class="mk-orb__k">משתפת מסלול עם</span>
+              <span class="mk-orb__v">
+                <button class="mk-inline">טורקיה</button><span class="mk-sep">·</span><button class="mk-inline">קטאר</button><span class="mk-sep">·</span><button class="mk-inline">סוריה</button><span class="mk-sep">·</span><button class="mk-inline">לבנון</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="mk-node" style="margin-top:var(--sp-5)">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              זהירה
+            </span>
+          </div>
+
+          <ul class="mk-edges">
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 24% · חיכוך 57% · הרמוניה 19%">
+                <span class="mk-cable mk-cable--f" style="--w:.57" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">ישראל</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">ערוץ שקט ופרגמטי — בלי נורמליזציה רשמית.</span>
+                    <span class="mk-edge__split">מתח <b>24</b> · חיכוך <b>57</b> · הרמוניה <b>19</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta">
+                  <span class="mk-edge__pole">חיכוך</span>
+                  <b class="mk-edge__w">57</b>
+                </span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </article>
+    </div>
+
+    <!-- ══════════════ CASE B — DENSE: איראן, COLLAPSED (interactive) ═══════
+         DISCLOSURE DECISION (the cut, justified):
+         VISIBLE ALWAYS — name, rank, the forces stamp, the lede, the bloc, the
+         whole orbital set, and EVERY bilateral edge's name + pole + weight.
+         The complete shape of the node's entanglement is never hidden: all 5
+         edges are on screen, ranked, in five single lines.
+         REVEALED ON DEMAND — the why-sentence and the exact tension/friction/
+         harmony split for edges 2..n.
+         WHY THIS CUT: the why-lines are the only element that scales with the
+         body — 5 of them turn a 9-line edge bundle into a 20-line wall of
+         prose, and at that length the ranking (the whole point of the list)
+         stops being visible in one glance. They are also homogeneous: you are
+         either scanning the web or reading it, so one list-level control beats
+         five accordions on a 340px column (five extra hit targets, five
+         reflows, and constant vertical jitter).
+         WHY THE FIRST EDGE STAYS OPEN: the lede asserts the defining tie by
+         name; hiding its evidence one row below the claim would be a worse
+         panel, not a tidier one. The strongest edge is the lede's footnote.  -->
+    <div class="mk-slot">
+      <div class="mk-slot__label">צפוף · איראן <span>— מכווץ (ברירת מחדל, לחיץ)</span></div>
+
+      <article class="mk-card" dir="rtl">
+        <button class="mk-close" aria-label="סגירה">✕</button>
+
+        <header class="mk-head">
+          <span class="mk-rank">12</span>
+          <h1 class="mk-title">איראן</h1>
+        </header>
+
+        <div class="mk-stamp">
+          <div class="mk-stamp__row">
+            <span class="mk-chip mk-chip--flat">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><polygon points="12 3 20.5 7.5 20.5 16.5 12 21 3.5 16.5 3.5 7.5"/></svg>
+              כוח אזורי
+            </span>
+            <span class="mk-score"><b>4.6</b><span>כוח משיכה</span></span>
+          </div>
+          <div class="mk-axes">
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="12" cy="18" rx="8" ry="2.6"/><ellipse cx="12" cy="13.5" rx="8" ry="2.6"/><ellipse cx="12" cy="9" rx="8" ry="2.6"/><path d="M4 9 V18"/><path d="M20 9 V18"/></svg><b>2.1</b>כלכלי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z"/></svg><b>3.4</b>צבאי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8 C7.4 7.5 7.4 16.5 12 20.2 C16.6 16.5 16.6 7.5 12 3.8 Z"/><path d="M3.8 12 H20.2"/></svg><b>5.8</b>גאו</span>
+          </div>
+        </div>
+
+        <p class="mk-lede">איראן מעגנת מערכת שלמה של 4 גופים סביבה — אך מוגדרת לא פחות ביחסה עם ישראל: עוינות ותיקה ורב-זירתית.</p>
+
+        <div class="mk-web">
+          <div class="mk-node">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 22V4"/><path d="M4 4l14 4-14 4"/></svg>
+              הציר המזרחי
+            </span>
+          </div>
+
+          <div class="mk-orb mk-row">
+            <span class="mk-cable mk-cable--orb" aria-hidden="true"></span>
+            <div class="mk-edge__main">
+              <span class="mk-orb__k">גופים במסלולה</span>
+              <span class="mk-orb__v">
+                <button class="mk-inline">חיזבאללה</button><span class="mk-sep">·</span><button class="mk-inline">חמאס</button><span class="mk-sep">·</span><button class="mk-inline">הג'יהאד האסלאמי</button><span class="mk-sep">·</span><button class="mk-inline">מיליציות עיראקיות</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="mk-node" style="margin-top:var(--sp-5)">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 19 L19 5"/><path d="M19 19 L5 5"/><path d="M6 15 L9 18"/><path d="M15 18 L18 15"/><circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>
+              אגרסיבית
+            </span>
+          </div>
+
+          <!-- ordered by binding strength, strongest first — the numeral column
+               at the inline-end is what makes that ordering legible. -->
+          <ul class="mk-edges" id="mk-edges-iran">
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 86% · חיכוך 10% · הרמוניה 4%">
+                <span class="mk-cable mk-cable--t" style="--w:.86" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">ישראל</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">עוינות ותיקה ורב-זירתית.</span>
+                    <span class="mk-edge__split">מתח <b>86</b> · חיכוך <b>10</b> · הרמוניה <b>4</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">מתח</span><b class="mk-edge__w">86</b></span>
+              </button>
+            </li>
+            <li class="mk-edge">
+              <button class="mk-edge__btn mk-row" title="מתח 4% · חיכוך 15% · הרמוניה 81%">
+                <span class="mk-cable mk-cable--h" style="--w:.81" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">סוריה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">בעלת ברית מרכזית מאז שנות ה-80</span>
+                    <span class="mk-edge__split">מתח <b>4</b> · חיכוך <b>15</b> · הרמוניה <b>81</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">הרמוניה</span><b class="mk-edge__w">81</b></span>
+              </button>
+            </li>
+            <li class="mk-edge">
+              <button class="mk-edge__btn mk-row" title="מתח 6% · חיכוך 22% · הרמוניה 72%">
+                <span class="mk-cable mk-cable--h" style="--w:.72" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">רוסיה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">שותפות אסטרטגית מול המערב</span>
+                    <span class="mk-edge__split">מתח <b>6</b> · חיכוך <b>22</b> · הרמוניה <b>72</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">הרמוניה</span><b class="mk-edge__w">72</b></span>
+              </button>
+            </li>
+            <li class="mk-edge">
+              <button class="mk-edge__btn mk-row" title="מתח 68% · חיכוך 24% · הרמוניה 8%">
+                <span class="mk-cable mk-cable--t" style="--w:.68" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">ערב הסעודית</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">יריבות אזורית על הגמוניה</span>
+                    <span class="mk-edge__split">מתח <b>68</b> · חיכוך <b>24</b> · הרמוניה <b>8</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">מתח</span><b class="mk-edge__w">68</b></span>
+              </button>
+            </li>
+            <li class="mk-edge">
+              <button class="mk-edge__btn mk-row" title="מתח 28% · חיכוך 55% · הרמוניה 17%">
+                <span class="mk-cable mk-cable--f" style="--w:.55" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">תורכיה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">מתחרות על השפעה בעיראק וסוריה</span>
+                    <span class="mk-edge__split">מתח <b>28</b> · חיכוך <b>55</b> · הרמוניה <b>17</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">חיכוך</span><b class="mk-edge__w">55</b></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <button class="mk-more" id="mk-more-iran" aria-expanded="false" aria-controls="mk-edges-iran">
+          נימוקים לשאר הקשתות <b>4</b>
+        </button>
+      </article>
+    </div>
+
+    <!-- ══════════════ CASE C — DENSE: איראן, EXPANDED (static) ═══════════ -->
+    <div class="mk-slot">
+      <div class="mk-slot__label">צפוף · איראן <span>— פרוש (מצב הגילוי המלא)</span></div>
+
+      <article class="mk-card" dir="rtl">
+        <button class="mk-close" aria-label="סגירה">✕</button>
+
+        <header class="mk-head">
+          <span class="mk-rank">12</span>
+          <h1 class="mk-title">איראן</h1>
+        </header>
+
+        <div class="mk-stamp">
+          <div class="mk-stamp__row">
+            <span class="mk-chip mk-chip--flat">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><polygon points="12 3 20.5 7.5 20.5 16.5 12 21 3.5 16.5 3.5 7.5"/></svg>
+              כוח אזורי
+            </span>
+            <span class="mk-score"><b>4.6</b><span>כוח משיכה</span></span>
+          </div>
+          <div class="mk-axes">
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="12" cy="18" rx="8" ry="2.6"/><ellipse cx="12" cy="13.5" rx="8" ry="2.6"/><ellipse cx="12" cy="9" rx="8" ry="2.6"/><path d="M4 9 V18"/><path d="M20 9 V18"/></svg><b>2.1</b>כלכלי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3.5 L19.5 6.5 V12 L12 20.5 L4.5 12 V6.5 Z"/></svg><b>3.4</b>צבאי</span>
+            <span class="mk-ax"><svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8 C7.4 7.5 7.4 16.5 12 20.2 C16.6 16.5 16.6 7.5 12 3.8 Z"/><path d="M3.8 12 H20.2"/></svg><b>5.8</b>גאו</span>
+          </div>
+        </div>
+
+        <p class="mk-lede">איראן מעגנת מערכת שלמה של 4 גופים סביבה — אך מוגדרת לא פחות ביחסה עם ישראל: עוינות ותיקה ורב-זירתית.</p>
+
+        <div class="mk-web">
+          <div class="mk-node">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 22V4"/><path d="M4 4l14 4-14 4"/></svg>
+              הציר המזרחי
+            </span>
+          </div>
+
+          <div class="mk-orb mk-row">
+            <span class="mk-cable mk-cable--orb" aria-hidden="true"></span>
+            <div class="mk-edge__main">
+              <span class="mk-orb__k">גופים במסלולה</span>
+              <span class="mk-orb__v">
+                <button class="mk-inline">חיזבאללה</button><span class="mk-sep">·</span><button class="mk-inline">חמאס</button><span class="mk-sep">·</span><button class="mk-inline">הג'יהאד האסלאמי</button><span class="mk-sep">·</span><button class="mk-inline">מיליציות עיראקיות</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="mk-node" style="margin-top:var(--sp-5)">
+            <span class="mk-chip">
+              <svg class="mk-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 19 L19 5"/><path d="M19 19 L5 5"/><path d="M6 15 L9 18"/><path d="M15 18 L18 15"/><circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>
+              אגרסיבית
+            </span>
+          </div>
+
+          <ul class="mk-edges">
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 86% · חיכוך 10% · הרמוניה 4%">
+                <span class="mk-cable mk-cable--t" style="--w:.86" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">ישראל</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">עוינות ותיקה ורב-זירתית.</span>
+                    <span class="mk-edge__split">מתח <b>86</b> · חיכוך <b>10</b> · הרמוניה <b>4</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">מתח</span><b class="mk-edge__w">86</b></span>
+              </button>
+            </li>
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 4% · חיכוך 15% · הרמוניה 81%">
+                <span class="mk-cable mk-cable--h" style="--w:.81" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">סוריה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">בעלת ברית מרכזית מאז שנות ה-80</span>
+                    <span class="mk-edge__split">מתח <b>4</b> · חיכוך <b>15</b> · הרמוניה <b>81</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">הרמוניה</span><b class="mk-edge__w">81</b></span>
+              </button>
+            </li>
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 6% · חיכוך 22% · הרמוניה 72%">
+                <span class="mk-cable mk-cable--h" style="--w:.72" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">רוסיה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">שותפות אסטרטגית מול המערב</span>
+                    <span class="mk-edge__split">מתח <b>6</b> · חיכוך <b>22</b> · הרמוניה <b>72</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">הרמוניה</span><b class="mk-edge__w">72</b></span>
+              </button>
+            </li>
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 68% · חיכוך 24% · הרמוניה 8%">
+                <span class="mk-cable mk-cable--t" style="--w:.68" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">ערב הסעודית</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">יריבות אזורית על הגמוניה</span>
+                    <span class="mk-edge__split">מתח <b>68</b> · חיכוך <b>24</b> · הרמוניה <b>8</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">מתח</span><b class="mk-edge__w">68</b></span>
+              </button>
+            </li>
+            <li class="mk-edge is-open">
+              <button class="mk-edge__btn mk-row" title="מתח 28% · חיכוך 55% · הרמוניה 17%">
+                <span class="mk-cable mk-cable--f" style="--w:.55" aria-hidden="true"></span>
+                <span class="mk-edge__main">
+                  <span class="mk-edge__name">תורכיה</span>
+                  <span class="mk-edge__detail"><span class="mk-edge__detail-in">
+                    <span class="mk-edge__why">מתחרות על השפעה בעיראק וסוריה</span>
+                    <span class="mk-edge__split">מתח <b>28</b> · חיכוך <b>55</b> · הרמוניה <b>17</b></span>
+                  </span></span>
+                </span>
+                <span class="mk-edge__meta"><span class="mk-edge__pole">חיכוך</span><b class="mk-edge__w">55</b></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <button class="mk-more" aria-expanded="true">הסתרת הנימוקים</button>
+      </article>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Disclosure — one list-level control, not five per-row accordions. The
+// defining edge (index 0) is never collapsed: the lede names it by name, so
+// its evidence has to stay under the claim.
+(function () {
+  var btn = document.getElementById('mk-more-iran')
+  var list = document.getElementById('mk-edges-iran')
+  if (!btn || !list) return
+  var rows = Array.prototype.slice.call(list.children, 1) // skip the defining edge
+  btn.addEventListener('click', function () {
+    var open = btn.getAttribute('aria-expanded') === 'true'
+    rows.forEach(function (li) { li.classList.toggle('is-open', !open) })
+    btn.setAttribute('aria-expanded', String(!open))
+    btn.innerHTML = open ? 'נימוקים לשאר הקשתות <b>4</b>' : 'הסתרת הנימוקים'
+  })
+})()
+</script>
+</body>
+</html>

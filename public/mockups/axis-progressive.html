@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" class="mk-root">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForcesAxisPanel · מפלסים</title>
+<link rel="stylesheet" href="/src/styles/base.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   MOCKUP — "מפלסים" (levels). Approach: progressive / one thing at a time.
+   Every selector is .mk- prefixed. No new hues: --yellow on --bg, plus the neutral ink ramp.
+   Data-status is encoded by BORDER STYLE + WEIGHT, never by a second hue.
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+
+/* the app's base.css locks the document to a non-scrolling SPA shell — this is a standalone
+   page, so the shell is released here (prefixed classes on <html>/<body>, never bare tags). */
+.mk-root { height: auto; overflow: auto; }
+.mk-body {
+  height: auto; overflow: visible; background: var(--bg); color: var(--light);
+  padding: var(--sp-8) var(--sp-6) var(--sp-9);
+}
+
+/* ── page chrome (mockup only, not part of the design) ─────────────────────────────────── */
+.mk-page-head { max-width: 760px; margin: 0 auto var(--sp-8); }
+.mk-page-title {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-title);
+  letter-spacing: var(--tracking-display); color: var(--yellow);
+}
+.mk-page-sub {
+  margin-top: var(--sp-2); max-width: 46ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-faint);
+}
+.mk-rule {
+  max-width: 760px; margin: var(--sp-8) auto var(--sp-5);
+  border-top: 1px solid var(--line-2); padding-top: var(--sp-3);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-live-wrap { display: flex; justify-content: center; }
+
+/* the states row — five frozen specimens, side by side, scrolling on the inline axis */
+.mk-states {
+  display: flex; gap: var(--sp-6); align-items: flex-start;
+  overflow-x: auto; padding-bottom: var(--sp-4); scrollbar-width: thin;
+}
+.mk-state { flex: none; }
+.mk-state-cap {
+  margin-bottom: var(--sp-3); display: flex; align-items: baseline; gap: var(--sp-2);
+}
+.mk-state-idx {
+  font-family: var(--latin); font-size: var(--text-xs); letter-spacing: var(--tracking-numeral);
+  color: var(--yellow);
+}
+.mk-state-name {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   THE PANEL
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+.mk-panel {
+  width: 396px; height: 720px; padding: 28px; text-align: start;
+  display: flex; flex-direction: column;
+  background: var(--panel-surface); border: var(--panel-border); box-shadow: var(--panel-shadow);
+}
+
+/* ── back ─────────────────────────────────────────────────────────────────────────────── */
+.mk-back {
+  align-self: flex-start; display: inline-flex; align-items: center;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink-faint);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose);
+  transition: color var(--dur-fast) ease;
+}
+.mk-back:hover { color: var(--yellow); }
+.mk-back:focus-visible { outline: 2px solid var(--yellow); outline-offset: 4px; }
+/* the existing back-arrow, redrawn in CSS (line + head) rather than imported as an icon —
+   same geometry as the app's arrow-back path: a rule with the head at its far end. */
+.mk-arrow {
+  position: relative; display: inline-block; width: 15px; height: 1px;
+  margin-inline-start: var(--sp-2); background: currentColor;
+  transition: width var(--dur-fast) var(--ease-out-expo);
+}
+.mk-arrow::after {
+  content: ''; position: absolute; inset-inline-start: -1px; top: 50%;
+  width: 6px; height: 6px; border-top: 1px solid currentColor; border-right: 1px solid currentColor;
+  transform: translateY(-50%) rotate(45deg);
+}
+.mk-back:hover .mk-arrow { width: 21px; }
+
+/* ── depth 0 · THE ANSWER — the only thing on screen at rest ───────────────────────────── */
+.mk-answer { margin-top: 30px; }
+.mk-ident { display: flex; align-items: baseline; gap: var(--sp-2); }
+.mk-axis {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title); color: var(--white);
+}
+.mk-tier {
+  padding: 2px 7px; border: 1px solid var(--yellow-30); color: var(--yellow);
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
+  letter-spacing: var(--tracking-loose); white-space: nowrap;
+}
+/* the headline numeral. Its ONE job is to be the whole panel at rest — so when a level
+   opens it visibly recedes (46px → 20px) and hands the panel over to the content.
+   font-size + margin only: no reflow snap, no layout swap, nothing to get wrong in RTL. */
+/* dir="ltr" lives on this element so "6.6" precedes "/ 10"; text-align:end therefore
+   resolves to the panel's own leading (right) edge. No auto margin here, so flipping the
+   element's own inline axis is safe — see .mk-delta / .mk-seam-note for where it is NOT. */
+.mk-score {
+  display: block; margin-top: 22px; direction: ltr; text-align: end;
+  transition: font-size 0.46s var(--ease-in-out-quart), margin-top 0.46s var(--ease-in-out-quart);
+  font-size: var(--display-md);
+}
+.mk-score b {
+  font-family: var(--display); font-weight: var(--fw-black); font-size: 1em;
+  letter-spacing: var(--tracking-display); color: var(--yellow);
+  line-height: 0.86; font-variant-numeric: tabular-nums;
+}
+.mk-score i {
+  font-style: normal; margin-inline-start: 6px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim);
+}
+.mk-panel--open .mk-score { font-size: var(--text-2xl); margin-top: 12px; }
+
+.mk-blurb {
+  margin-top: 16px; max-width: 32ch;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-faint);
+}
+
+/* the deliberate emptiness. Shrinks first when a level opens, so the stack rises to meet
+   the reader instead of the content spilling off the bottom edge. */
+.mk-void { flex: 1 1 auto; min-height: 0; }
+
+/* ── the stack of levels ───────────────────────────────────────────────────────────────── */
+/* the 28px "loose" break the panel uses at every real content boundary — kept as a hard
+   margin so the eyebrow never runs into the blurb once the void has fully collapsed. */
+.mk-stack { display: flex; flex-direction: column; min-height: 0; margin-block-start: 28px; }
+.mk-stack-eyebrow {
+  margin-bottom: var(--sp-3); flex: none;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-seams { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.mk-seams::-webkit-scrollbar { display: none; }
+
+.mk-seam { border-top: 1px solid var(--line-2); transition: border-color var(--dur-fast) ease; }
+.mk-seams > .mk-seam:last-child { border-bottom: 1px solid var(--line-2); }
+.mk-seam.mk-is-open { border-top-color: var(--yellow-30); }
+
+.mk-seam-h { margin: 0; }
+.mk-seam-btn {
+  width: 100%; display: flex; align-items: baseline; gap: var(--sp-2);
+  padding: 15px 0; background: none; border: 0; cursor: pointer;
+  text-align: start; color: inherit; font: inherit;
+  transition: opacity var(--dur-base) ease;
+}
+.mk-seam-btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+/* ONE THING AT A TIME, made literal: while a level is open its siblings recede. */
+.mk-has-open > .mk-seam:not(.mk-is-open) > .mk-seam-h > .mk-seam-btn { opacity: 0.34; }
+.mk-has-open > .mk-seam:not(.mk-is-open) > .mk-seam-h > .mk-seam-btn:hover,
+.mk-has-open > .mk-seam:not(.mk-is-open) > .mk-seam-h > .mk-seam-btn:focus-visible { opacity: 0.8; }
+
+.mk-seam-idx {
+  flex: none; font-family: var(--latin); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+.mk-seam-label {
+  font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-xl);
+  letter-spacing: var(--tracking-title); color: var(--light);
+  transition: color var(--dur-fast) ease;
+}
+/* NOTE: the auto margin is what parks this at the panel's inline-end, and logical margins
+   resolve against the ELEMENT'S OWN direction — so a numeric preview must carry its
+   dir="ltr" on an inner <bdi>, never here. Putting it on this element makes
+   margin-inline-start resolve to margin-LEFT and the preview never reaches the edge. */
+.mk-seam-note {
+  margin-inline-start: auto; white-space: nowrap;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+/* the provenance verdict survives collapse — the honesty signal is never behind a click */
+.mk-seam-note--chip {
+  padding: 2px 7px; border: 1px solid var(--line); font-size: 10px;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.mk-seam-btn:hover .mk-seam-label,
+.mk-seam-btn:hover .mk-seam-idx { color: var(--yellow); }
+.mk-is-open > .mk-seam-h > .mk-seam-btn .mk-seam-label,
+.mk-is-open > .mk-seam-h > .mk-seam-btn .mk-seam-idx { color: var(--yellow); }
+.mk-is-open > .mk-seam-h > .mk-seam-btn .mk-seam-note { color: var(--ink-dim); }
+.mk-is-open > .mk-seam-h > .mk-seam-btn .mk-seam-note--chip { color: var(--yellow); border-color: var(--yellow-30); }
+
+/* CSS-drawn caret — two borders on a rotated square. No icon set involved. */
+.mk-caret {
+  flex: none; align-self: center; width: 7px; height: 7px; margin-inline-start: var(--sp-3);
+  border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint);
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform var(--dur-base) var(--ease-out-expo), border-color var(--dur-fast) ease;
+}
+.mk-seam-btn:hover .mk-caret { border-color: var(--yellow); }
+.mk-is-open > .mk-seam-h > .mk-seam-btn .mk-caret {
+  transform: rotate(225deg) translate(-1px, -1px); border-color: var(--yellow);
+}
+
+/* ── the drawer ────────────────────────────────────────────────────────────────────────── */
+.mk-drawer {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.44s var(--ease-in-out-quart);
+}
+.mk-drawer-in {
+  overflow: hidden; min-height: 0; opacity: 0;
+  transition: opacity 0.26s ease;
+}
+.mk-is-open > .mk-drawer { grid-template-rows: 1fr; }
+.mk-is-open > .mk-drawer > .mk-drawer-in { opacity: 1; transition-delay: 0.12s; }
+.mk-drawer-body { padding-block: 2px 24px; }
+
+@keyframes mkRise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+/* ── level 01 · the read ───────────────────────────────────────────────────────────────── */
+.mk-analysis {
+  max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.mk-is-open .mk-analysis { animation: mkRise 0.55s var(--ease-panel) both; }
+
+/* ── level 02 · the composition ────────────────────────────────────────────────────────── */
+.mk-comp-track {
+  position: relative; display: flex; width: 100%; height: 8px; background: var(--line-2);
+}
+.mk-comp-track i { display: block; flex: none; height: 100%; width: 0; transition: width 1.05s var(--ease-panel); }
+.mk-comp-spine { background: var(--yellow); opacity: 0.42; }
+/* a NEGATIVE adjustment is drawn as hatched reach PAST the score, never as extra length —
+   the lit extent always equals the final score. Hatched yellow, not a second hue. */
+.mk-comp-retract { background: repeating-linear-gradient(45deg, var(--yellow-30) 0 2px, transparent 2px 5px); }
+/* the score's own position, so the hatched tail can't be misread as part of the value */
+.mk-comp-mark {
+  position: absolute; top: -4px; bottom: -4px; inset-inline-start: 66%;
+  width: 1px; background: var(--light); opacity: 0;
+  transition: opacity var(--dur-base) ease 0.75s;
+}
+.mk-is-open .mk-comp-track i:nth-child(1) { width: 66%; transition-delay: 0.14s; }
+.mk-is-open .mk-comp-track i:nth-child(2) { width: 4%; transition-delay: 0.34s; }
+.mk-is-open .mk-comp-mark { opacity: 0.75; }
+
+.mk-comp-legend { display: flex; gap: var(--sp-3); margin-top: var(--sp-3); }
+.mk-comp-legend span {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+.mk-comp-legend b { color: var(--light); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+/* same auto-margin rule as .mk-seam-note — dir="ltr" belongs on the inner <bdi>, not here */
+.mk-delta { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+.mk-comp-read {
+  margin-top: var(--sp-3); max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.mk-is-open > .mk-drawer .mk-comp { animation: mkRise 0.55s var(--ease-panel) both; }
+
+/* nested level — the criteria groups. Same seam component, one step quieter. */
+.mk-subs { margin-top: 24px; border-top: 1px solid var(--line-2); }
+.mk-subs > .mk-seam { border-top: none; }
+.mk-subs > .mk-seam + .mk-seam { border-top: 1px solid var(--line-2); }
+.mk-seam--sub > .mk-seam-h > .mk-seam-btn { padding: 12px 0; }
+.mk-seam--sub .mk-seam-label {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim);
+}
+.mk-seam--sub .mk-caret { width: 5px; height: 5px; border-width: 1.2px; }
+.mk-seam--sub .mk-drawer-body { padding-block: 2px 16px; }
+
+.mk-note {
+  max-width: 32ch; margin-bottom: 14px;
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* criteria row — the deepest measured layer */
+.mk-row {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr) 30px;
+  align-items: center; gap: var(--sp-2);
+}
+.mk-row + .mk-row { margin-top: 9px; }
+.mk-row-k {
+  min-width: 0; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mk-row-bar { display: block; height: 4px; background: var(--line-2); overflow: hidden; }
+.mk-row-bar i { display: block; height: 100%; width: 0; background: var(--yellow); opacity: 0.7; transition: width 0.95s var(--ease-panel); }
+.mk-row-v {
+  text-align: end; font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--light); font-variant-numeric: tabular-nums;
+}
+.mk-is-open > .mk-drawer .mk-row { animation: mkRise 0.5s var(--ease-panel) both; animation-delay: calc(var(--i) * 55ms); }
+.mk-is-open > .mk-drawer .mk-row-bar i { width: var(--w); transition-delay: calc(var(--i) * 55ms + 0.14s); }
+/* a criterion the rubric names but the model does NOT score: a dashed, unfilled track —
+   0% would read as "measured, scored zero". Distinct language, no second hue. */
+.mk-empty {
+  border: 1px dashed var(--line); padding: 14px; max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+}
+
+/* ── level 03 · the evidence ───────────────────────────────────────────────────────────── */
+.mk-prov-fig {
+  max-width: 32ch;
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-dim);
+}
+.mk-trend {
+  margin-top: 14px; display: flex; align-items: baseline; gap: var(--sp-2);
+  font-family: var(--latin); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral); color: var(--light); font-variant-numeric: tabular-nums;
+}
+.mk-trend-arrow, .mk-trend-yr { color: var(--ink-faint); }
+.mk-trend-pct { color: var(--yellow); }
+.mk-src {
+  display: inline-block; margin-top: 16px; text-decoration: none; color: var(--ink-faint);
+  border-bottom: 1px solid var(--line); padding-bottom: 3px;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose);
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.mk-src:hover { color: var(--yellow); border-bottom-color: var(--yellow-30); }
+.mk-src:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+.mk-is-open > .mk-drawer .mk-prov { animation: mkRise 0.55s var(--ease-panel) both; }
+
+/* ── reduced motion — every expand/collapse and every growth becomes instant ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .mk-drawer, .mk-drawer-in, .mk-score, .mk-caret, .mk-arrow,
+  .mk-comp-track i, .mk-row-bar i, .mk-comp-mark, .mk-seam-btn { transition: none; }
+  .mk-is-open .mk-analysis,
+  .mk-is-open > .mk-drawer .mk-comp,
+  .mk-is-open > .mk-drawer .mk-row,
+  .mk-is-open > .mk-drawer .mk-prov { animation: none; }
+}
+</style>
+</head>
+<body class="mk-body">
+
+<header class="mk-page-head">
+  <h1 class="mk-page-title">מפלסים</h1>
+  <p class="mk-page-sub">
+    גרסה לפאנל הציר — התשובה קודם, ההנמקה בלחיצה, הראיות מפלס אחד עמוק יותר.
+    בכל רגע נתון פתוח דבר אחד בלבד.
+  </p>
+</header>
+
+<div class="mk-live-wrap"><div id="mk-live"></div></div>
+
+<p class="mk-rule">מצבים · טורקיה · ציר כלכלי</p>
+<div class="mk-states" id="mk-states"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── markup ────────────────────────────────────────────────────────────────────────────
+  // One template, five instances. __ID__ is replaced per instance so every aria-controls /
+  // aria-labelledby pair stays unique across the page.
+  var TPL = [
+'<div class="mk-panel">',
+'  <button type="button" class="mk-back">בחזרה לציון<span class="mk-arrow" aria-hidden="true"></span></button>',
+
+'  <div class="mk-answer">',
+'    <div class="mk-ident">',
+'      <span class="mk-axis">כלכלי</span>',
+'      <span class="mk-tier">משמעותי</span>',
+'    </div>',
+'    <span class="mk-score" dir="ltr"><b>6.6</b><i>/ 10</i></span>',
+'    <p class="mk-blurb">כוח כלכלי — תמ״ג, סחר, פיננסים ומשקל בשרשראות האספקה</p>',
+'  </div>',
+
+'  <div class="mk-void" aria-hidden="true"></div>',
+
+'  <div class="mk-stack">',
+'    <p class="mk-stack-eyebrow" id="__ID__-eyebrow">מאחורי הציון</p>',
+'    <div class="mk-seams" role="group" aria-labelledby="__ID__-eyebrow">',
+
+// ── 01 · the read ──────────────────────────────────────────────────────────────────────
+'      <section class="mk-seam" data-key="read">',
+'        <h3 class="mk-seam-h">',
+'          <button type="button" class="mk-seam-btn" id="__ID__-read-b" aria-expanded="false" aria-controls="__ID__-read-d">',
+'            <span class="mk-seam-idx">01</span>',
+'            <span class="mk-seam-label">הקריאה</span>',
+'            <span class="mk-seam-note">טורקיה</span>',
+'            <span class="mk-caret" aria-hidden="true"></span>',
+'          </button>',
+'        </h3>',
+'        <div class="mk-drawer" id="__ID__-read-d" role="region" aria-labelledby="__ID__-read-b" inert>',
+'          <div class="mk-drawer-in"><div class="mk-drawer-body">',
+'            <p class="mk-analysis">כלכלה גדולה, מגוונת ומתועשת עם בסיס ייצוא וייצור איתן וגיאוגרפיה מסחרית מצוינת. אך אינפלציה כרונית, פיחות מתמשך וחוסר יציבות מוניטרית שוחקים את היציבות ומגבילים את תרגום הגודל הכלכלי לעוצמה אסטרטגית.</p>',
+'          </div></div>',
+'        </div>',
+'      </section>',
+
+// ── 02 · the composition (carries the nested criteria level) ───────────────────────────
+'      <section class="mk-seam" data-key="comp">',
+'        <h3 class="mk-seam-h">',
+'          <button type="button" class="mk-seam-btn" id="__ID__-comp-b" aria-expanded="false" aria-controls="__ID__-comp-d">',
+'            <span class="mk-seam-idx">02</span>',
+'            <span class="mk-seam-label">ההרכב</span>',
+'            <span class="mk-seam-note"><bdi dir="ltr">7.0 · −0.4</bdi></span>',
+'            <span class="mk-caret" aria-hidden="true"></span>',
+'          </button>',
+'        </h3>',
+'        <div class="mk-drawer" id="__ID__-comp-d" role="region" aria-labelledby="__ID__-comp-b" inert>',
+'          <div class="mk-drawer-in"><div class="mk-drawer-body">',
+
+'            <div class="mk-comp">',
+'              <span class="mk-comp-track">',
+'                <i class="mk-comp-spine"></i>',
+'                <i class="mk-comp-retract"></i>',
+'                <span class="mk-comp-mark" aria-hidden="true"></span>',
+'              </span>',
+'              <p class="mk-comp-legend">',
+'                <span>עמוד שדרה <b>7.0</b></span>',
+'                <span class="mk-delta"><bdi dir="ltr">−0.4</bdi></span>',
+'              </p>',
+'              <p class="mk-comp-read">המסה והתוצר לנפש מעמידים בסיס של 7.0; בריאות פיסקלית גורעת ממנו 0.4.</p>',
+'            </div>',
+
+'            <div class="mk-subs">',
+
+'              <section class="mk-seam mk-seam--sub" data-key="spine">',
+'                <h4 class="mk-seam-h">',
+'                  <button type="button" class="mk-seam-btn" id="__ID__-spine-b" aria-expanded="false" aria-controls="__ID__-spine-d">',
+'                    <span class="mk-seam-label">עמוד השדרה</span>',
+'                    <span class="mk-seam-note"><bdi dir="ltr">2 · 7.0</bdi></span>',
+'                    <span class="mk-caret" aria-hidden="true"></span>',
+'                  </button>',
+'                </h4>',
+'                <div class="mk-drawer" id="__ID__-spine-d" role="region" aria-labelledby="__ID__-spine-b" inert>',
+'                  <div class="mk-drawer-in"><div class="mk-drawer-body">',
+'                    <p class="mk-note">מסה כלכלית ורמת פיתוח לנפש — קובעות את רוב הציון.</p>',
+'                    <div class="mk-row" style="--i:0; --w:68%"><span class="mk-row-k">מסה (PPP)</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">6.8</span></div>',
+'                    <div class="mk-row" style="--i:1; --w:76%"><span class="mk-row-k">לנפש</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">7.6</span></div>',
+'                  </div></div>',
+'                </div>',
+'              </section>',
+
+'              <section class="mk-seam mk-seam--sub" data-key="adj">',
+'                <h4 class="mk-seam-h">',
+'                  <button type="button" class="mk-seam-btn" id="__ID__-adj-b" aria-expanded="false" aria-controls="__ID__-adj-d">',
+'                    <span class="mk-seam-label">התאמות</span>',
+'                    <span class="mk-seam-note"><bdi dir="ltr">5 · −0.4</bdi></span>',
+'                    <span class="mk-caret" aria-hidden="true"></span>',
+'                  </button>',
+'                </h4>',
+'                <div class="mk-drawer" id="__ID__-adj-d" role="region" aria-labelledby="__ID__-adj-b" inert>',
+'                  <div class="mk-drawer-in"><div class="mk-drawer-body">',
+'                    <p class="mk-note">בריאות פיסקלית: יתרות, השקעות, חוב ואשראי. מעלה או מורידה את הבסיס.</p>',
+'                    <div class="mk-row" style="--i:0; --w:62%"><span class="mk-row-k">יתרות</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">6.2</span></div>',
+'                    <div class="mk-row" style="--i:1; --w:49%"><span class="mk-row-k">FDI</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">4.9</span></div>',
+'                    <div class="mk-row" style="--i:2; --w:49%"><span class="mk-row-k">חשבון שוטף</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">4.9</span></div>',
+'                    <div class="mk-row" style="--i:3; --w:84%"><span class="mk-row-k">חוב/תוצר</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">8.4</span></div>',
+'                    <div class="mk-row" style="--i:4; --w:32%"><span class="mk-row-k">אשראי</span><span class="mk-row-bar"><i></i></span><span class="mk-row-v">3.2</span></div>',
+'                  </div></div>',
+'                </div>',
+'              </section>',
+
+'              <section class="mk-seam mk-seam--sub" data-key="un">',
+'                <h4 class="mk-seam-h">',
+'                  <button type="button" class="mk-seam-btn" id="__ID__-un-b" aria-expanded="false" aria-controls="__ID__-un-d">',
+'                    <span class="mk-seam-label">לא נמדד</span>',
+'                    <span class="mk-seam-note">0</span>',
+'                    <span class="mk-caret" aria-hidden="true"></span>',
+'                  </button>',
+'                </h4>',
+'                <div class="mk-drawer" id="__ID__-un-d" role="region" aria-labelledby="__ID__-un-b" inert>',
+'                  <div class="mk-drawer-in"><div class="mk-drawer-body">',
+'                    <p class="mk-empty">אין קריטריונים לא-מכומתים בציר הכלכלי. כל שורה ברוביק מתורגמת לציון.</p>',
+'                  </div></div>',
+'                </div>',
+'              </section>',
+
+'            </div>',
+'          </div></div>',
+'        </div>',
+'      </section>',
+
+// ── 03 · the evidence ──────────────────────────────────────────────────────────────────
+'      <section class="mk-seam" data-key="prov">',
+'        <h3 class="mk-seam-h">',
+'          <button type="button" class="mk-seam-btn" id="__ID__-prov-b" aria-expanded="false" aria-controls="__ID__-prov-d">',
+'            <span class="mk-seam-idx">03</span>',
+'            <span class="mk-seam-label">הראיות</span>',
+'            <span class="mk-seam-note mk-seam-note--chip">מקור ראשי</span>',
+'            <span class="mk-caret" aria-hidden="true"></span>',
+'          </button>',
+'        </h3>',
+'        <div class="mk-drawer" id="__ID__-prov-d" role="region" aria-labelledby="__ID__-prov-b" inert>',
+'          <div class="mk-drawer-in"><div class="mk-drawer-body">',
+'            <div class="mk-prov">',
+'              <p class="mk-prov-fig">תמ״ג PPP $3.8 טריליון · תעשייתי אך תנודתי (אינפלציה)</p>',
+'              <p class="mk-trend" dir="ltr">',
+'                <span>$2.4T</span><span class="mk-trend-arrow">→</span><span>$3.8T</span>',
+'                <span class="mk-trend-pct">+55%</span><span class="mk-trend-yr">’20→’25</span>',
+'              </p>',
+'              <a class="mk-src" href="https://www.imf.org/en/Publications/WEO" target="_blank" rel="noreferrer"><bdi>IMF WEO · 2026</bdi> ↗</a>',
+'            </div>',
+'          </div></div>',
+'        </div>',
+'      </section>',
+
+'    </div>',
+'  </div>',
+'</div>'
+  ].join('\n');
+
+  function panelHTML(id) { return TPL.split('__ID__').join(id); }
+
+  // ── state ─────────────────────────────────────────────────────────────────────────────
+  function head(seam) { return seam.querySelector(':scope > .mk-seam-h > .mk-seam-btn'); }
+  function drawer(seam) { return seam.querySelector(':scope > .mk-drawer'); }
+
+  function setOpen(seam, open) {
+    seam.classList.toggle('mk-is-open', open);
+    head(seam).setAttribute('aria-expanded', open ? 'true' : 'false');
+    var d = drawer(seam);
+    if (open) { d.removeAttribute('inert'); } else { d.setAttribute('inert', ''); }
+    if (!open) {
+      // collapsing a level resets the level beneath it — reopening always returns to that
+      // level's own summary, never to somebody else's half-open state.
+      seam.querySelectorAll('.mk-seam.mk-is-open').forEach(function (child) { setOpen(child, false); });
+      seam.querySelectorAll('.mk-has-open').forEach(function (g) { g.classList.remove('mk-has-open'); });
+    }
+  }
+
+  function refresh(group, panel) {
+    var any = !!group.querySelector(':scope > .mk-seam.mk-is-open');
+    group.classList.toggle('mk-has-open', any);
+    if (group.classList.contains('mk-seams')) {
+      panel.classList.toggle('mk-panel--open', any);
+    }
+  }
+
+  function toggle(seam, panel) {
+    var group = seam.parentElement;
+    var willOpen = !seam.classList.contains('mk-is-open');
+    // exclusive: one thing at a time, at every level
+    group.querySelectorAll(':scope > .mk-seam.mk-is-open').forEach(function (s) {
+      if (s !== seam) setOpen(s, false);
+    });
+    setOpen(seam, willOpen);
+    refresh(group, panel);
+    if (willOpen) {
+      window.requestAnimationFrame(function () {
+        head(seam).scrollIntoView({ block: 'nearest', behavior: REDUCED ? 'auto' : 'smooth' });
+      });
+    }
+  }
+
+  function applyState(panel, keys) {
+    keys.forEach(function (k) {
+      var seam = panel.querySelector('[data-key="' + k + '"]');
+      if (!seam) return;
+      setOpen(seam, true);
+      refresh(seam.parentElement, panel);
+    });
+  }
+
+  // ── wiring ────────────────────────────────────────────────────────────────────────────
+  function wire(panel) {
+    var buttons = Array.prototype.slice.call(panel.querySelectorAll('.mk-seam-btn'));
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () { toggle(btn.closest('.mk-seam'), panel); });
+      btn.addEventListener('keydown', function (e) {
+        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].indexOf(e.key) === -1) return;
+        var seam = btn.closest('.mk-seam');
+        var siblings = Array.prototype.slice.call(seam.parentElement.children)
+          .map(head).filter(Boolean);
+        var i = siblings.indexOf(btn);
+        var next = e.key === 'ArrowDown' ? siblings[(i + 1) % siblings.length]
+          : e.key === 'ArrowUp' ? siblings[(i - 1 + siblings.length) % siblings.length]
+            : e.key === 'Home' ? siblings[0] : siblings[siblings.length - 1];
+        if (next) { e.preventDefault(); next.focus(); }
+      });
+    });
+    panel.querySelector('.mk-back').addEventListener('click', function () {
+      // no destination in a mockup — collapse every level instead, so the control still
+      // demonstrates the "return to the answer" gesture.
+      panel.querySelectorAll('.mk-seams > .mk-seam.mk-is-open').forEach(function (s) { setOpen(s, false); });
+      refresh(panel.querySelector('.mk-seams'), panel);
+    });
+  }
+
+  // ── mount ─────────────────────────────────────────────────────────────────────────────
+  var live = document.getElementById('mk-live');
+  live.innerHTML = panelHTML('live');
+  var livePanel = live.querySelector('.mk-panel');
+  wire(livePanel);
+
+  var STATES = [
+    ['01', 'במנוחה', []],
+    ['02', '«הקריאה» פתוחה', ['read']],
+    ['03', '«ההרכב» פתוח', ['comp']],
+    ['04', 'מפלס עמוק · «התאמות»', ['comp', 'adj']],
+    ['05', '«הראיות» פתוחות', ['prov']]
+  ];
+
+  var row = document.getElementById('mk-states');
+  STATES.forEach(function (state, n) {
+    var fig = document.createElement('figure');
+    fig.className = 'mk-state';
+    fig.innerHTML =
+      '<figcaption class="mk-state-cap">' +
+      '<span class="mk-state-idx" dir="ltr">' + state[0] + '</span>' +
+      '<span class="mk-state-name">' + state[1] + '</span>' +
+      '</figcaption>' + panelHTML('s' + n);
+    row.appendChild(fig);
+    var panel = fig.querySelector('.mk-panel');
+    applyState(panel, state[2]);
+    // frozen specimens: unfocusable and unclickable, so they read as reference, not as UI
+    fig.setAttribute('inert', '');
+  });
+})();
+</script>
+</body>
+</html>
