@@ -195,6 +195,86 @@
 .fbar--on .fbar__fill { box-shadow: 0 0 10px rgba(251, 255, 0, 0.5); }
 .fbar--on .fbar__v { color: var(--yellow); }
 
+/* ── Relations overview grid — the entry point: every state as its own thumbnail constellation
+   (same barycentric placement as the single-reference field, at unit-triangle scale), so picking
+   a country here is picking which state's own field to open next. No PanelDock in this mode — the
+   grid IS the whole screen; RelationsView.tsx swaps this out for the field on selection. ── */
+.rel-grid {
+  position: absolute; inset: 0; overflow-y: auto;
+  padding: 88px 40px 64px; animation: textRise 0.7s var(--ease-out-expo) both;
+}
+@media (prefers-reduced-motion: reduce) { .rel-grid { animation: none; } }
+@media (max-width: 768px) { .rel-grid { padding: 88px 18px calc(var(--tabbar-h) + 24px); } }
+.rel-grid__title { animation: textRise 0.6s var(--ease-out-expo) both; }
+.rel-grid__sub {
+  margin-top: 8px; max-width: 62ch; font-family: var(--body); font-size: var(--text-base);
+  line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light);
+  opacity: 0.72; animation: textRise 0.6s 0.05s var(--ease-out-expo) both;
+}
+.rel-grid__sortbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 22px;
+  animation: textRise 0.6s 0.1s var(--ease-out-expo) both;
+}
+.rel-grid__sort-l {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  color: var(--ink-faint); letter-spacing: var(--tracking-loose); margin-inline-end: 3px;
+}
+.rel-grid__sort-btn {
+  background: none; border: 1px solid var(--yellow-30); padding: 5px 12px; cursor: none;
+  font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose);
+  color: var(--ink-dim); transition: background var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.rel-grid__sort-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+.rel-grid__sort-btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.rel-grid__sort-btn--on { background: var(--yellow); color: var(--bg); border-color: var(--yellow); font-weight: 700; }
+.rel-grid__cells {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 1px;
+  margin-top: 20px; background: var(--yellow-08);
+}
+.rel-grid__cell {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  background: var(--surface-1); border: 0; padding: 18px 12px 15px; cursor: none;
+  opacity: 0; animation: relGridCellIn 0.5s var(--ease-out-expo) both; animation-delay: var(--cd, 0s);
+  transition: background var(--dur-fast) ease;
+}
+.rel-grid__cell:hover, .rel-grid__cell:focus-visible { background: var(--yellow-06); }
+.rel-grid__cell:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+@keyframes relGridCellIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.rel-grid__svg { width: 100%; max-width: 150px; aspect-ratio: 1 / 0.9; }
+.rel-grid__poly { fill: none; stroke: var(--yellow-30); stroke-width: 1; }
+.rel-grid__dot { fill: var(--light); }
+/* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
+.rel-grid__name { font-family: var(--display); font-size: var(--text-lg); letter-spacing: var(--tracking-title); color: var(--white); }
+.rel-grid__pole { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); }
+/* same field→color mapping as .rel-detail__verdict-- above: `t` (tension field, labeled חיכוך)
+   warm, `h` (harmony) cool, `f` (friction field, labeled מתח) neutral yellow. */
+.rel-grid__pole--t { color: var(--warn); }
+.rel-grid__pole--f { color: var(--yellow); }
+.rel-grid__pole--h { color: var(--ok); }
+.rel-grid__cov { font-family: var(--body); font-size: 10px; letter-spacing: var(--tracking-loose); color: var(--ink-faint); }
+.rel-grid__note {
+  margin-top: 22px; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-body); color: var(--ink-faint);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rel-grid__title, .rel-grid__sub, .rel-grid__sortbar, .rel-grid__cell { animation: none; opacity: 1; }
+}
+/* back-to-grid — same quiet-text-plus-arrow language as .axp__back */
+.rel-back {
+  position: absolute; top: 24px; inset-inline-start: 28px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: 0; padding: 0; cursor: none;
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-loose); color: var(--ink-faint);
+  transition: color var(--dur-fast) ease;
+}
+.rel-back:hover, .rel-back:focus-visible { color: var(--yellow); }
+.rel-back:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+.rel-back__arrow { font-size: 12px; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out-expo); }
+.rel-back:hover .rel-back__arrow, .rel-back:focus-visible .rel-back__arrow { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .rel-back__arrow { transition: none; } }
+@media (max-width: 768px) { .rel-back { top: 16px; inset-inline-start: 16px; } }
+
 /* ── Home — one circle, two states: breathing (closed) ↔ open ── */
 .home { cursor: none; --ring-d: min(62vmin, 640px); }
 .home .field { z-index: var(--z-field); }

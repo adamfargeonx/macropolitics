@@ -1,70 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NODES, LINKS, AXIS, AXIS_LABEL, DISPO, powerSize } from '../data/entities'
-import { authoredRelation } from '../data/relations'
+import { AXIS, AXIS_LABEL, powerSize } from '../data/entities'
 import { PanelDock } from './Chrome'
 import { Words } from './Words'
 import { Affordance } from './Affordance'
+import { Icon } from './Icon'
+import { RelationsGrid } from './RelationsGrid'
 import { sound } from '../sound'
 import { usePresenceValue } from './usePresence'
+import { byId, STATES, hash, relation, sharpen, dominantOf, POLE_HE, VERDICT, type Rel, type Pole } from './relations-model'
 
-const byId = new Map(NODES.map((n) => [n.id, n]))
-const STATES = NODES.filter((n) => n.kind !== 'nonstate')
-// reference picker — the states whose constellations matter most
-const REF_CHOICES = ['israel', 'usa', 'iran', 'saudi', 'turkey', 'egypt', 'russia', 'qatar']
 // entrance stagger (seconds) — see the comment at its use site (the .rnode map) for why there's a
 // held beat before the first star at all, rather than starting immediately.
 const ENTRANCE_HOLD = 0.5
 const ENTRANCE_STEP = 0.045
-
-const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
-
-export interface Rel { harmony: number; tension: number; friction: number; why?: string }
-type Pole = 'tension' | 'friction' | 'harmony'
-// LABEL SWAP (direct feedback, not a naming preference): the FIELD names below (tension/friction)
-// and every formula that fills them are unchanged — only the Hebrew word shown for each was wrong.
-// Corrected meaning: מתח (tension) = opposing interests or complicated relations, no direct
-// confrontation. חיכוך (friction) = direct clashes, force, open confrontation. The `tension` field
-// (opp-bloc + aggressive-disposition bonus below — open hostility, shadow wars, proxies) is what
-// "חיכוך" means; the `friction` field (the non-aligned, non-opposed messy middle) is what "מתח"
-// means. Every render site below reads POLE_HE/VERDICT rather than hardcoding the word, so this is
-// the one place that needs to change.
-const POLE_HE: Record<Pole, string> = { tension: 'חיכוך', friction: 'מתח', harmony: 'הרמוניה' }
-const VERDICT: Record<Pole, string> = { tension: 'יחס עוין', friction: 'יחס מורכב', harmony: 'יחס הרמוני' }
-const dominantOf = (r: Rel): Pole =>
-  r.tension >= r.friction && r.tension >= r.harmony ? 'tension' : r.harmony >= r.friction ? 'harmony' : 'friction'
-
-// Relationship of target toward reference. Authored pairs first (the editorial layer);
-// otherwise derived from bloc alignment + alliances + the target's disposition.
-function relation(refId: string, tId: string): Rel {
-  const authored = authoredRelation(refId, tId)
-  if (authored) {
-    const s = authored.t + authored.f + authored.h
-    return { tension: authored.t / s, friction: authored.f / s, harmony: authored.h / s, why: authored.why }
-  }
-  const ax = AXIS[refId], at = AXIS[tId]
-  const same = ax !== 'none' && ax === at
-  const opp = (ax === 'west' && at === 'east') || (ax === 'east' && at === 'west')
-  const allied = LINKS.some(([a, b]) => (a === refId && b === tId) || (a === tId && b === refId))
-  const t = byId.get(tId)!
-  let harmony = 0.28 + (same ? 0.5 : 0) + (allied ? 0.4 : 0)
-  let tension = 0.28 + (opp ? 0.5 : 0) + (t.dispo === DISPO.agg ? 0.22 : 0)
-  let friction = 0.32 + (!same && !opp ? 0.28 : 0.05) + (t.dispo === DISPO.assert ? 0.18 : 0)
-  const j = hash(`${refId}|${tId}`)
-  harmony += ((j % 9) - 4) * 0.018
-  tension += (((j >> 3) % 9) - 4) * 0.018
-  friction += (((j >> 6) % 9) - 4) * 0.018
-  harmony = Math.max(0.06, harmony); tension = Math.max(0.06, tension); friction = Math.max(0.06, friction)
-  const s = harmony + tension + friction
-  return { harmony: harmony / s, tension: tension / s, friction: friction / s }
-}
-
-// Sharpen barycentric coords toward the dominant vertex so points use the whole
-// triangle instead of clustering at its centre (display only — panel shows raw values).
-function sharpen(r: Rel, k = 1.45): Rel {
-  const t = Math.pow(r.tension, k), f = Math.pow(r.friction, k), h = Math.pow(r.harmony, k)
-  const s = t + f + h
-  return { tension: t / s, friction: f / s, harmony: h / s, why: r.why }
-}
 
 interface NodePoint { e: (typeof STATES)[number]; r: Rel; x: number; y: number; d: number }
 
@@ -155,6 +103,9 @@ export default function RelationsView() {
   const [refId, setRefId] = useState('israel')
   const [hovered, setHovered] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
+  // grid: the aggregate overview (every state as a thumbnail constellation) — the entry point.
+  // field: today's single-reference view, entered by picking a state off the grid.
+  const [mode, setMode] = useState<'grid' | 'field'>('grid')
   // page-exit cascade (leaving to home): on `mp-exit` each .rnode shrinks+fades out individually,
   // staggered by its per-node --exit-d delay, mirroring the canvas views' body-by-body exit.
   const [leaving, setLeaving] = useState(false)
@@ -171,7 +122,10 @@ export default function RelationsView() {
     // so the layout solves at true size (getBoundingClientRect would be transform-shrunk).
     const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el); return () => ro.disconnect()
-  }, [])
+    // re-runs on mode: .rel-field only exists in the DOM in 'field' mode (grid mode returns before
+    // rendering it at all), so fieldRef.current is null until the mode switch mounts it — a
+    // mount-once effect would observe nothing and leave size (and therefore geo) stuck at zero.
+  }, [mode])
 
   const geo = useMemo(() => {
     const { w, h } = size
@@ -197,11 +151,23 @@ export default function RelationsView() {
   // solves the same way (shared usePresenceValue hook). A direct hover handoff (star A → star B,
   // never through undefined) updates this immediately with no closing step.
   const { value: hoverCardLast, exiting: hoverCardClosing } = usePresenceValue(hoverCardPoint, 320)
-  const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null) }
+  const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null); setMode('field') }
+  const backToGrid = () => { sound.play('select'); setPinned(null); setHovered(null); setMode('grid') }
+
+  if (mode === 'grid') {
+    return (
+      <div className="stage relations" dir="rtl">
+        <RelationsGrid onSelect={setReference} />
+      </div>
+    )
+  }
 
   return (
     <div className="stage relations" dir="rtl">
       <div className={`rel-field${leaving ? ' rel-field--leaving' : ''}`} ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>
+        <button className="rel-back" onClick={(ev) => { ev.stopPropagation(); backToGrid() }}>
+          כל המדינות <Icon name="arrow-back" className="rel-back__arrow" />
+        </button>
         {geo && (
           <>
             {/* pole labels — persistent (not hover-only): the encoding needs to be legible at rest,
@@ -322,25 +288,12 @@ export default function RelationsView() {
         </aside>
       ) : (
         <aside className="panel" dir="rtl">
-          <h1 className="panel__title">מערכות היחסים</h1>
+          <h1 className="panel__title">{refNode.he}</h1>
           <p className="panel__body">
-            <Words text="כל מדינה ממוקמת לפי היחס שלה מול מדינת הייחוס — מתח, חיכוך או הרמוניה. קווים מסמנים קשרים אמיתיים בין מדינות." />
+            <Words text="כל מדינה ממוקמת לפי היחס שלה מול מדינת הייחוס — מתח, חיכוך או הרמוניה." />
           </p>
           <Affordance id="rel-hover" text="רחפו על כוכב כדי לחשוף את הקשרים והמיקום שלו" done={!!hovered || !!pinned} />
-          <div className="panel__refpick">
-            <span className="panel__rels-h">מדינת הייחוס</span>
-            <div className="panel__rels-list">
-              {REF_CHOICES.map((id) => {
-                const n = byId.get(id)!
-                return (
-                  <button key={id} className={`panel__rel${id === refId ? ' panel__rel--on' : ''}`} onClick={() => setReference(id)}>
-                    {n.he}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <p className="panel__note">רחפו לבחינת יחס · לחיצה מקבעת אותו וגם פותחת פרטים.</p>
+          <p className="panel__note">רחפו לבחינת יחס · לחיצה מקבעת אותו וגם פותחת פרטים · ״כל המדינות״ חוזר לרשת המלאה.</p>
         </aside>
       )}
       </PanelDock>
