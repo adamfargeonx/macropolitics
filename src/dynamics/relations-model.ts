@@ -7,7 +7,19 @@ import { NODES, LINKS, AXIS, DISPO } from '../data/entities'
 import { authoredRelation } from '../data/relations'
 
 export const byId = new Map(NODES.map((n) => [n.id, n]))
+// Two different rosters, and the distinction matters everywhere below.
+//
+// MEMBERS is what gets PLACED IN a constellation — every state plus every non-state actor. The
+// relations screen used to show states only, which quietly asserted that Israel's field contains
+// Lebanon but not Hezbollah, or that Iraq's contains Iran but not the militias operating inside
+// Iraq. For most of this roster the non-state actor IS the relationship.
+export const MEMBERS = NODES
+// STATES is what a constellation can be drawn FROM — the vantage point. Actors are objects in a
+// state's field, not vantages of their own: "the constellation of חמאס" would need an actor↔actor
+// reading for all eight others, and the grid that indexes references is a one-fold block tuned to
+// exactly 20 cells (29 is prime — see useEvenColumns' own caveat in RelationsGrid.tsx).
 export const STATES = NODES.filter((n) => n.kind !== 'nonstate')
+export const isActor = (id: string): boolean => byId.get(id)?.kind === 'nonstate'
 
 export const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 
@@ -27,6 +39,36 @@ export const VERDICT: Record<Pole, string> = { tension: 'יחס עוין', frict
 export const dominantOf = (r: Rel): Pole =>
   r.tension >= r.friction && r.tension >= r.harmony ? 'tension' : r.harmony >= r.friction ? 'harmony' : 'friction'
 
+// ── Stance ─────────────────────────────────────────────────────────────────────────────────
+// A country's overall posture, computed from the MEAN of its own relations rather than read off
+// the static DISPO field. Deliberately not `dominantOf(mean)` re-labelled: across the roster the
+// חיכוך pole never wins a country's mean (0 of 20), because no state is in open confrontation
+// with a majority of the other nineteen — so a dominant-pole mapping would leave אגרסיבית
+// permanently empty and collapse a three-way label into two.
+//
+// Instead: how much of a country's relational mass is confrontational or competitive. חיכוך
+// (direct clashes) counts fully, מתח (competing interests, no confrontation) at half, הרמוניה
+// not at all.
+//
+// The cut points are calibrated to the roster's ACTUAL spread, which is now 0.30–0.56: every one
+// of the 380 ordered pairs is authored, so this reads the editorial layer, not the derived
+// formula. (They were first set against the derived model's wider spread and had to be redone —
+// hand-written values are markedly more moderate than the formula's, and the old thresholds
+// pushed 12 of 20 countries into זהירה.) Recalibrate again if the authored layer shifts.
+//
+// Caveat worth knowing when reading the label: this measures how CONTESTED a country's
+// relationships are, not how much agency it has in making them so. Lebanon and Syria score high
+// largely because they are fought over, not because they are the ones doing the fighting.
+export type Stance = 'agg' | 'dom' | 'caut'
+export const STANCE_HE: Record<Stance, string> = { agg: 'אגרסיבית', dom: 'אסרטיבית', caut: 'זהירה' }
+export const postureOf = (mean: Rel): number => mean.tension + mean.friction * 0.5
+export function stanceOf(mean: Rel): Stance {
+  const p = postureOf(mean)
+  if (p >= 0.44) return 'agg'
+  if (p >= 0.38) return 'dom'
+  return 'caut'
+}
+
 // Relationship of target toward reference. Authored pairs first (the editorial layer);
 // otherwise derived from bloc alignment + alliances + the target's disposition.
 export function relation(refId: string, tId: string): Rel {
@@ -35,14 +77,34 @@ export function relation(refId: string, tId: string): Rel {
     const s = authored.t + authored.f + authored.h
     return { tension: authored.t / s, friction: authored.f / s, harmony: authored.h / s, why: authored.why }
   }
-  const ax = AXIS[refId], at = AXIS[tId]
-  const same = ax !== 'none' && ax === at
+  // `?? 'none'` matches all eleven other AXIS call sites. AXIS is Record<string, Axis>, so TS hands
+  // back a non-optional Axis for a key that may not exist — an entity added without an AXIS entry
+  // would silently compute same/opp as false for every pair it touches, with no crash and no type
+  // error. This was the only unguarded lookup, and it sits in the formula every reading flows through.
+  const ax = AXIS[refId] ?? 'none', at = AXIS[tId] ?? 'none'
+  // Sharing a bloc means sharing an ACTUAL allegiance — west with west, east with east. It used
+  // to be `ax !== 'none' && ax === at`, which counted two 'neutral' states as bloc partners even
+  // though neutral is the ABSENCE of alignment: india↔pakistan drew a full same-bloc harmony
+  // bonus for both being unaligned, and the seven neutrals (turkey, qatar, oman, syria, lebanon,
+  // india, pakistan) formed a phantom third bloc of 42 mutually-harmonious pairs.
+  const same = ax === at && (ax === 'west' || ax === 'east')
   const opp = (ax === 'west' && at === 'east') || (ax === 'east' && at === 'west')
   const allied = LINKS.some(([a, b]) => (a === refId && b === tId) || (a === tId && b === refId))
   const t = byId.get(tId)!
-  let harmony = 0.28 + (same ? 0.5 : 0) + (allied ? 0.4 : 0)
-  let tension = 0.28 + (opp ? 0.5 : 0) + (t.dispo === DISPO.agg ? 0.22 : 0)
-  let friction = 0.32 + (!same && !opp ? 0.28 : 0.05) + (t.dispo === DISPO.assert ? 0.18 : 0)
+  // Equal bases. `friction` previously started at 0.32 against 0.28 for the other two AND took the
+  // whole +0.28 "neither aligned nor opposed" bonus, which put that category at f=0.517 — a
+  // landslide. Since 120 of the 234 non-authored pairs fall there (every neutral-vs-bloc pairing),
+  // מתח became the default answer whenever the model had no signal, and 16 of 20 countries
+  // labelled מתח. Absence of evidence shouldn't read as a finding.
+  //
+  // Now all three poles start level and each bonus has to be earned by an actual signal. "Neither"
+  // still leans friction (+0.14 → f≈0.42 vs 0.29/0.29), because "complicated / competing
+  // interests" genuinely is the honest reading of an unaligned pair — but it leans, it no longer
+  // dictates. Measured across the roster this moves the country labels from 4 הרמוניה / 16 מתח to
+  // 9 / 11, and near-tie labels (<0.03 margin) from 7 to 4.
+  let harmony = 0.30 + (same ? 0.42 : 0) + (allied ? 0.40 : 0)
+  let tension = 0.30 + (opp ? 0.46 : 0) + (t.dispo === DISPO.agg ? 0.20 : 0)
+  let friction = 0.30 + (!same && !opp ? 0.14 : 0) + (t.dispo === DISPO.assert ? 0.16 : 0)
   const j = hash(`${refId}|${tId}`)
   harmony += ((j % 9) - 4) * 0.018
   tension += (((j >> 3) % 9) - 4) * 0.018

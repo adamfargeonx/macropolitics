@@ -5,7 +5,9 @@
    rather than the panel's own pinched edge. */
 .pdock {
   position: absolute; inset: 0; pointer-events: none; z-index: var(--z-panel);
-  --panel-w: 396px; --panel-inset: 44px; --panel-top: 88px; --panel-bottom: 26px;
+  /* --panel-w / --panel-inset now come from :root (base.css) so the canvases can reserve the same
+     column; only the dock's own vertical insets stay local. */
+  --panel-top: 88px; --panel-bottom: 26px;
 }
 .pdock__panel {
   position: absolute; top: 0; right: 0; bottom: 0;
@@ -35,7 +37,8 @@
      top offset exactly (see overlays.css), so the grip sits flush with the visible panel's top edge
      instead of floating at its vertical midpoint. */
   position: absolute; right: 100%; top: var(--panel-top);
-  width: 22px; height: 74px; cursor: none; pointer-events: auto;
+  /* 24 wide, not 22 — 2.5.8 applies per-axis, so a tall grip still fails on the narrow one. */
+  width: 24px; height: 74px; cursor: none; pointer-events: auto;
   display: flex; align-items: center; justify-content: center;
   background: var(--panel-surface); color: var(--yellow);
   border: var(--panel-border); border-right: none; border-radius: 0;
@@ -46,7 +49,7 @@
 .pdock__chev { width: 13px; height: 13px; transition: transform var(--dur-base) var(--ease-out-expo); }
 .pdock__chev polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pdock--closed .pdock__chev { transform: rotate(180deg); }   /* › collapse  ↔  ‹ expand */
-@media (max-width: 900px) { .pdock { --panel-w: 296px; } }
+@media (max-width: 900px) { :root { --panel-w: 296px; } }
 /* ── 768px: side dock becomes a bottom sheet ──────────────────── */
 /* REVIEW NOTE: verify visually — the bottom sheet stacks over the tab bar at bottom. */
 @media (max-width: 768px) {
@@ -137,46 +140,48 @@
 }
 
 /* ── Forces view ───────────────────────────────────────────── */
-.forces-field { position: absolute; top: 20px; bottom: 70px; left: 0; right: 0; z-index: 2; }
-.forces-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
 
 /* Full-bleed: the scene is composed against the WHOLE viewport and the side panel floats over it
    (see .stage::before for the scrim that keeps the panel legible). It used to be inset by the
    panel's width, which squeezed every composition into the left ~2/3 and left a dead column on
    the right whenever the dock was closed. */
 .sheet-embed { position: absolute; top: 20px; bottom: 70px; left: 0; right: 0; z-index: 2; }
-.fnode {
-  position: absolute; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  cursor: none; z-index: 3; transition: opacity 0.25s ease;
+/* ── The panel sits BESIDE the data, not on top of it ──────────────────────────────────────────
+   Every canvas used to span the full width with a 440px opaque panel dropped over its right edge,
+   so on each screen the thing hidden was the thing the screen exists to show: the two strongest
+   bodies here, the הרמוניה pole in Relations, the hover readout in Dynamics. The field now gives
+   up that column while the dock is open and takes it straight back when the dock is collapsed.
+   `body:has()` because #panel-root and .nav-rail are siblings — the dock's state is not reachable
+   by a descendant selector from either side. The transition matches .pdock__panel's own slide, so
+   the field widens exactly as the panel leaves rather than snapping ahead of it. */
+@media (min-width: 769px) {
+  body:has(.pdock--open) .sheet-embed,
+  body:has(.pdock--open) .rel-field,
+  body:has(.pdock--open) .dyn-field { right: var(--dock-w); }
+  .sheet-embed, .rel-field, .dyn-field { transition: right 0.66s var(--ease-out-expo); }
+  @media (prefers-reduced-motion: reduce) {
+    .sheet-embed, .rel-field, .dyn-field { transition: none; }
+  }
 }
-.fnode__disk {
-  border-radius: 50%; background: var(--light); border: 1.5px solid;
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.12); transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.fnode--ns .fnode__disk { background: rgba(11, 0, 36, 0.55); box-shadow: none; }
+/* The orrery's drawing area. It exists ONLY so the engine has a container that actually changes
+   width when the dock opens — it used to measure .stage, which is fixed to the viewport and never
+   moves, so its ResizeObserver could never fire and the composition stayed centred behind the
+   panel. Wrapping the canvas, the label layer and the hover readout together also keeps all three
+   in one coordinate space, which is what stops the readout clipping at the panel edge. */
+.dyn-field { position: absolute; inset: 0; }
 /* names hidden by default (a clean constellation); revealed by zoom-gate, hover or proximity.
    transition-delay scales with --rk so names cascade in most-important → least-important. */
-.fnode__name { font-size: 12px; font-weight: 400; color: var(--white); white-space: nowrap; opacity: 0; letter-spacing: 0.08em; transition: opacity 0.45s ease, color 0.2s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
-.fnode__score { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); color: var(--yellow); opacity: 0; margin-top: -2px; letter-spacing: var(--tracking-numeral); transition: opacity 0.45s ease; transition-delay: calc(var(--rk, 0) * 0.02s); }
-.forces--names .fnode__name { opacity: 0.92; }
-.forces--names .fnode__score { opacity: 0.7; }
-.forces--clean .fnode__name, .forces--clean .fnode__score { opacity: 0 !important; transition-delay: 0s; }
-.fnode--focus { z-index: 5; }
-/* the nearest body (cursor-as-mass proximal) reads as focused: a measured glow, not a flare */
-.fnode--focus .fnode__disk { transform: scale(1.14); box-shadow: 0 0 26px rgba(251, 255, 0, 0.32); }
-.fnode--dim { opacity: 0.25; }
-/* nodes glide to new positions when the arrangement changes (order/filter), and ease the
-   cursor-mass lean (inline `translate`). One authoritative .fnode transition lives here. */
-.fnode { transition: opacity 0.25s ease, left 0.6s var(--ease-out-expo), top 0.6s var(--ease-out-expo), translate 0.18s ease-out; }
-@media (prefers-reduced-motion: reduce) { .fnode { transition: opacity 0.25s ease; } }
 
-/* force breakdown bars (panel) */
+/* force breakdown bars (RelationsView's panel — despite living in this file, this class isn't
+   rendered anywhere in Forces itself; Forces' own equivalents are .axp__bar/.dcard__ax-bar below
+   in overlays.css). Kept here rather than moved only because it predates that split — the fill
+   mechanism now matches those two exactly: <Gauge className="fbar__track" .../> renders the
+   width-transitioning <i>, not a bespoke scaleX keyframe with its own --bd custom property. */
 .panel__forces { margin-top: 24px; display: flex; flex-direction: column; gap: 13px; }
 .fbar { display: flex; align-items: center; gap: 10px; }
 .fbar__k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.7; width: 86px; text-align: right; letter-spacing: var(--tracking-label); line-height: var(--leading-loose); }
-.fbar__track { flex: 1; height: 4px; background: rgba(251, 255, 0, 0.12); }
-.fbar__fill { display: block; height: 100%; background: var(--yellow); animation: barGrow 1.15s 0.28s cubic-bezier(0.25, 1, 0.5, 1) both; transform-origin: right; }
+.fbar__track { display: block; flex: 1; height: 4px; background: rgba(251, 255, 0, 0.12); overflow: hidden; }
+.fbar__track i { display: block; height: 100%; background: var(--yellow); transition: width 1.15s var(--ease-panel); }
 .fbar__v { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--white); width: 18px; letter-spacing: var(--tracking-numeral); }
 
 /* unified controls strip (in-panel) — sort the index + open the tools disclosure */
@@ -246,11 +251,6 @@
   transition: color var(--dur-fast) ease;
 }
 .gindex__more:hover { color: var(--light); }
-/* top-N bodies: names always legible at rest (not just on zoom/hover) */
-.fnode--toplabel .fnode__name { opacity: 0.72; }
-.fnode--toplabel .fnode__score { opacity: 0.5; }
-.forces--clean .fnode--toplabel .fnode__name,
-.forces--clean .fnode--toplabel .fnode__score { opacity: 0 !important; }
 
 /* power profile — intro line + three component notes (economic/military/geostrategic). No dividers. */
 .pnotes { margin-top: 32px; }
@@ -285,17 +285,8 @@
 
 /* ── Forces entrance — the "mini loader": rings expand from the centre and every body
    flies out from the centre of gravity to its rank position (staggered cascade). ── */
-.forces-ring { animation: ringExpand 0.85s var(--ease-out-expo) both, ringBreath 7s ease-in-out infinite; }
-.forces-ring:nth-of-type(1) { animation-delay: 0s, 0.9s; }
-.forces-ring:nth-of-type(2) { animation-delay: 0.1s, 1.5s; }
-.forces-ring:nth-of-type(3) { animation-delay: 0.2s, 2.1s; }
-.forces-ring:nth-of-type(4) { animation-delay: 0.3s, 2.7s; }
-.forces-ring:nth-of-type(5) { animation-delay: 0.4s, 3.3s; }
-@keyframes ringExpand { from { opacity: 0; transform: translate(-50%, -50%) scale(0.12); } to { opacity: 0.6; transform: translate(-50%, -50%) scale(1); } }
-@keyframes ringBreath { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 /* nodes fly out from the centre (--fx/--fy = vector from node to centre, set inline) */
-.forces .fnode { animation: forcesReveal 0.85s var(--ease-out-expo) both; }
 @keyframes forcesReveal {
   0% { opacity: 0; transform: translate(calc(-50% + var(--fx, 0px)), calc(-50% + var(--fy, 0px))) scale(0.2); filter: blur(2px); }
   55% { filter: blur(0); }
@@ -303,22 +294,8 @@
 }
 
 /* every body breathes (a gentle scale loop); the focused one gets a ripple instead */
-.fnode__disk { position: relative; }
-.fnode:not(.fnode--focus) .fnode__disk { animation: diskBreathe 4.2s ease-in-out infinite; }
 @keyframes diskBreathe { 0%, 100% { transform: scale(0.93); } 50% { transform: scale(1.07); } }
-.fnode--focus .fnode__disk::after {
-  content: ''; position: absolute; inset: -3px; border-radius: 50%;
-  border: 1px solid rgba(251, 255, 0, 0.6); animation: fnodeRipple 1.5s ease-out infinite;
-}
-@keyframes fnodeRipple { from { transform: scale(1); opacity: 0.85; } to { transform: scale(2.2); opacity: 0; } }
-/* hover / proximity always reveals the focused star's name + score (overrides the gate) */
-.fnode--focus .fnode__name { opacity: 1; color: var(--yellow); transition-delay: 0s; }
-.fnode--focus .fnode__score { opacity: 0.95; transition-delay: 0s; }
-.forces--clean .fnode--focus .fnode__name, .forces--clean .fnode--focus .fnode__score { opacity: 1 !important; }
 
-@media (prefers-reduced-motion: reduce) {
-  .fnode__disk, .fnode--focus .fnode__disk::after, .pnote__fill, .forces .fnode { animation: none; }
-}
 
 /* ── Mobile (≤768px): the forces canvas sits ABOVE the bottom sheet + footer so no
    bodies hide behind the sheet. Placed after the base .sheet-embed/.forces-field
@@ -327,7 +304,7 @@
   /* the field is ALWAYS full height above the footer on mobile — there is no separate "map
      mode"; the field never resizes, the mobile sheet below just slides up and covers more of
      it as it grows (the same relationship a native map app has between its map and its sheet) */
-  .forces-field, .sheet-embed { right: 0; bottom: var(--tabbar-h); }
+  .sheet-embed { right: 0; bottom: var(--tabbar-h); }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -336,104 +313,16 @@
    Peek = a slim strip (handle + one-line summary + the filter button); drag or
    tap the handle to grow toward near-full-screen. See ForcesMobileSheet.tsx.
    ════════════════════════════════════════════════════════════════ */
-.fmsheet { display: none; }
 @media (max-width: 768px) {
-  .fmsheet {
-    display: flex; flex-direction: column;
-    position: fixed; left: 0; right: 0; bottom: var(--tabbar-h); z-index: 7;
-    background: var(--panel-surface); border-top: 1px solid var(--line-yellow);
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
-    transition: height 0.32s var(--ease-out-expo);
-    overflow: hidden;
-  }
-  .fmsheet--dragging { transition: none; }
-  .fmsheet__handle {
-    flex: none; height: 22px; display: flex; align-items: center; justify-content: center;
-    cursor: none; touch-action: none;
-  }
-  .fmsheet__grip { width: 36px; height: 4px; background: var(--line-yellow); }
-  .fmsheet__header {
-    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 0 16px 12px;
-  }
-  .fmsheet__summary {
-    flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light);
-  }
-  .fmsheet__filter-btn {
-    flex: none; cursor: none; background: none; border: 1px solid var(--line-yellow);
-    padding: 6px 13px; display: inline-flex; align-items: center; gap: 5px;
-    font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--yellow);
-    transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
-  }
-  .fmsheet__filter-btn.is-on { background: var(--yellow); color: var(--bg); }
-  .fmsheet__body {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch; padding: 0 16px calc(16px + env(safe-area-inset-bottom));
-  }
   /* the ranked list / detail panel render inside the sheet body, not as a standalone .panel —
      drop the positioning that assumed it was an absolutely-placed desktop side panel */
-  .fmsheet__body > .panel, .fmsheet__body > .panelb {
-    position: static; width: 100%; padding: 0; max-height: none; overflow: visible; background: none;
-    border: none; box-shadow: none; animation: none;
-  }
 }
-@media (prefers-reduced-motion: reduce) { .fmsheet { transition: none; } }
 
 /* ════════════════════════════════════════════════════════════════
    MOBILE FILTER SHEET — the single entry point for sort + tier-focus + bloc +
    threshold + year + scenario weights. Replaces every standing chip/tab row
    with one settings-style list the user opens, picks from, and closes.
    ════════════════════════════════════════════════════════════════ */
-.ffilter-scrim {
-  position: fixed; inset: 0; z-index: 61; cursor: none;
-  background: rgba(6, 3, 15, 0.58); backdrop-filter: blur(3px);
-  display: flex; align-items: flex-end; justify-content: center;
-  animation: scrimIn 0.2s ease-out;
-}
-.ffilter {
-  position: relative; width: 100%; max-height: 92dvh; overflow-y: auto; scrollbar-width: none;
-  background: var(--panel-surface); border-top: 1px solid var(--line-yellow);
-  box-shadow: var(--panel-shadow);
-  display: flex; flex-direction: column;
-  animation: ffilterIn 0.28s var(--ease-out-expo) both;
-}
-.ffilter::-webkit-scrollbar { display: none; }
-@keyframes ffilterIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.ffilter__head {
-  position: sticky; top: 0; z-index: 2; background: var(--panel-surface);
-  display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 14px;
-}
-.ffilter__title { font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-title); }
-.ffilter__body { padding: 0 20px 8px; }
-.ffilter__group { margin-bottom: 22px; }
-.ffilter__group-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--ink-dim); margin-bottom: 4px; }
-.ffilter__row {
-  width: 100%; display: flex; align-items: center; gap: 10px; cursor: none;
-  background: none; border: none; border-bottom: 1px solid var(--line-2);
-  padding: 13px 2px; text-align: right;
-  font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light);
-  transition: color var(--dur-fast) ease;
-}
-.ffilter__row.is-on { color: var(--yellow); font-weight: 700; }
-.ffilter__row-lbl { flex: 1 1 auto; }
-.ffilter__row-count { flex: none; font-family: var(--latin); font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--ink-faint); }
-.ffilter__row-check { flex: none; width: 16px; text-align: center; color: var(--yellow); }
-.ffilter__slider { width: 100%; margin-top: 8px; }
-.ffilter__foot {
-  position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px;
-  padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); background: var(--panel-surface); border-top: 1px solid var(--line-2);
-}
-.ffilter__reset {
-  flex: 1 1 auto; cursor: none; background: none; border: 1px solid var(--line);
-  padding: 12px 0; font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
-}
-.ffilter__apply {
-  flex: 1 1 auto; cursor: none; background: var(--yellow); border: none;
-  padding: 12px 0; font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--bg);
-}
-@media (prefers-reduced-motion: reduce) { .ffilter-scrim, .ffilter { animation: none; } }
-@media (min-width: 769px) { .ffilter-scrim { display: none; } }
 
 /* ── Forces panel — general description (score view) ─────────────────────────────────────────
    The single overall description, re-added above the eco/mil/geo breakdown so the score view

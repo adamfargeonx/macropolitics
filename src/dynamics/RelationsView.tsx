@@ -1,20 +1,42 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize } from '../data/entities'
 import { PanelDock } from './Chrome'
+import { AXIS_ICON, DISPO_ICON } from './panel-icons'
 import { Words } from './Words'
+import { CountUp, LetterSwap, Seg } from './PanelMotion'
 import { Affordance } from './Affordance'
 import { Icon } from './Icon'
 import { RelationsGrid } from './RelationsGrid'
+import { REL_BEAT, FIELD_BEAT } from './panel-beats'
+import { useDeCollide } from './useDeCollide'
 import { sound } from '../sound'
 import { usePresenceValue } from './usePresence'
-import { byId, STATES, hash, relation, sharpen, dominantOf, POLE_HE, VERDICT, type Rel, type Pole } from './relations-model'
+import { byId, MEMBERS, isActor, hash, relation, sharpen, dominantOf, POLE_HE, VERDICT, type Rel, type Pole } from './relations-model'
 
 // entrance stagger (seconds) — see the comment at its use site (the .rnode map) for why there's a
 // held beat before the first star at all, rather than starting immediately.
 const ENTRANCE_HOLD = 0.5
 const ENTRANCE_STEP = 0.045
+// grid → field handoff: the grid cross-fades out for exactly this long, then the field mounts and
+// plays its own relZoomOut entrance — timed back-to-back (not simultaneously mounted) so the switch
+// reads as one continuous beat instead of a hard cut. Matches .rel-grid--selecting's own duration
+// in views.css; keep the two in sync if either changes.
+const GRID_EXIT_MS = 340
+// Reference switch (picking a new state from the panel while already in field mode) — distinct
+// from GRID_EXIT_MS above, which is the grid→field handoff. Two numbers, kept here rather than
+// only in CSS, because the newly-JOINING star's entrance delay (below) has to land in the same
+// beat as the CSS glide's own pause+duration (views.css's .rnode transition), not the unrelated
+// initial-cascade schedule (ENTRANCE_HOLD/ENTRANCE_STEP) it would otherwise inherit.
+// Raised from 0.12/0.9 — read back as still too quick even with the pause+ease-panel swap. The
+// pause alone needs to actually register as a held beat (0.28s, not 0.12s — closer to a deliberate
+// intake of breath than a blip), and the glide needs enough runway for ease-panel's long decel
+// tail to visibly decelerate over, the same lesson rnodeRise's own comment already states for its
+// rise distance — 0.9s wasn't quite there for a move that can cross the whole triangle.
+const REF_SWITCH_PAUSE = 0.28  // seconds — matches .rnode's transition-delay in views.css
+const REF_SWITCH_GLIDE = 1.4   // seconds — matches .rnode's transition-duration in views.css
+const REF_SWITCH_EXIT_MS = 300 // matches .rnode--refswitch-out's rnodeExit duration in views.css
 
-interface NodePoint { e: (typeof STATES)[number]; r: Rel; x: number; y: number; d: number }
+interface NodePoint { e: (typeof MEMBERS)[number]; r: Rel; x: number; y: number; d: number }
 
 // Iterative collision relaxation — separate overlapping bodies (label-aware gap) while keeping
 // them near their target positions. Mutates the points in place.
@@ -81,7 +103,9 @@ function unifiedGeo(refId: string, w: number, h: number): Geo {
   const Vh = { x: cx + sx * 0.92, y: cy + sy * 0.72 } // הרמוניה — bottom-right
   const aside = { x: small ? 56 : 78, y: cy }        // fixed field-edge point, outside the triangle
   const jit = small ? 12 : 18
-  const points: NodePoint[] = STATES.filter((e) => e.id !== refId).map((e) => {
+  // MEMBERS, not STATES: a constellation holds every actor on the board, not only the ones with a
+  // seat at the UN. See relations-model.ts for why the two rosters are separate.
+  const points: NodePoint[] = MEMBERS.filter((e) => e.id !== refId).map((e) => {
     const raw = relation(refId, e.id)
     const r = sharpen(raw)
     const jx = ((hash(e.id) % 1000) / 1000 - 0.5) * jit
@@ -109,7 +133,7 @@ export default function RelationsView() {
   // page-exit cascade (leaving to home): on `mp-exit` each .rnode shrinks+fades out individually,
   // staggered by its per-node --exit-d delay, mirroring the canvas views' body-by-body exit.
   const [leaving, setLeaving] = useState(false)
-
+  const [gridSelecting, setGridSelecting] = useState(false)
   useEffect(() => {
     const onExit = () => setLeaving(true)
     window.addEventListener('mp-exit', onExit)
@@ -132,11 +156,63 @@ export default function RelationsView() {
     if (!w || !h) return null
     return unifiedGeo(refId, w, h)
   }, [size, refId])
+  // Keeps a snapshot of the LAST SETTLED constellation, refreshed via effect after every commit
+  // (a resize, not only a switch) — so it's always one step behind geo, which is exactly the
+  // "before this switch" view the ghost lookup below needs.
+  const [lastPoints, setLastPoints] = useState<NodePoint[]>([])
+  // Sync-to-prop (geo.points isn't state itself), and provably not a cascade: only fires when
+  // geo changed, and writing lastPoints can't in turn change geo — no loop. Same annotated class
+  // of case as Chrome.tsx.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (geo) setLastPoints(geo.points) }, [geo])
+
+  // Tracks which star, if any, just BECAME the reference (and so needs a fast join-in instead of
+  // the slow initial-cascade schedule below) — `track.outgoingId`, not a derived comparison.
+  // A derived `prevId !== refId` boolean looks right but is WRONG here: calling setState during
+  // render (below) makes React immediately re-render again before ever committing — the same
+  // "adjust state when a prop changes" mechanic PanelMotion's LetterSwap relies on — so any value
+  // computed by comparing THIS render's state to THIS render's prop is stale by the time the
+  // re-render that actually commits runs (the comparison has already resolved to equal). What
+  // DOES survive into that committed render is a value written directly into the SAME state
+  // object, exactly the way LetterSwap's `pair.prev` survives — which is why `outgoingId` is
+  // captured as data, not recomputed as a boolean.
+  const [track, setTrack] = useState<{ id: string; outgoingId: string | null }>({ id: refId, outgoingId: null })
+  const [ghost, setGhost] = useState<NodePoint | null>(null)
+  if (track.id !== refId) {
+    // The star that gets un-plotted by a switch (it just BECAME the reference) has no exit of
+    // its own — geo.points simply no longer contains it, and a plain React unmount is instant.
+    // Held a beat longer at its last known position so it can fade out instead of vanishing (see
+    // .rnode--refswitch-out in views.css). lastPoints is the LAST SETTLED constellation, refreshed
+    // by the effect above — exactly the "before this switch" snapshot needed here.
+    const outgoing = lastPoints.find((p) => p.e.id === refId) ?? null
+    if (outgoing) setGhost(outgoing)
+    setTrack({ id: refId, outgoingId: track.id })
+  }
+  useEffect(() => {
+    if (!ghost) return
+    // Reduced motion: .rnode--refswitch-out already resolves to opacity:0 with no animation (see
+    // views.css), so there's nothing to wait ON — remove it on the next tick instead of holding
+    // it, static and pointless, for the full exit duration.
+    const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    const t = window.setTimeout(() => setGhost(null), reduced ? 0 : REF_SWITCH_EXIT_MS)
+    return () => window.clearTimeout(t)
+  }, [ghost])
 
   const refNode = byId.get(refId)!
   // emphasisId drives purely VISUAL canvas feedback (glow, dim, tether/guide lines, ego-web) —
   // hover OR pin.
   const emphasisId = pinned ?? hovered
+  // Label de-collision. This hook already existed in the project for exactly this case and was
+  // never actually wired to anything; adding the nine non-state actors is what finally made it
+  // necessary. The actors cluster hard against the חיכוך vertex — nearly every one of them is
+  // hostile to any given reference — and their names are long ("מיליציות עיראקיות", "הכוחות
+  // הדמוקרטיים"), so the corner became an unreadable stack of overlapping text.
+  //
+  // It hides the LOWER-power label of any overlapping pair, which resolves in the actors' favour
+  // exactly never — correct, since a state is the more important label — and always keeps the
+  // hovered/pinned one visible. So an actor's ring stays on the field and its name appears when
+  // you reach for it. Depends on geo (positions moved) and emphasisId (the kept label changed).
+  useDeCollide(fieldRef, '.rnode', '.rnode__name', emphasisId, [geo, emphasisId])
   const emphasisPoint = geo?.points.find((p) => p.e.id === emphasisId)
   // the side panel (full stats) opens on CLICK only — hover gets the lightweight card instead,
   // so mousing across the web doesn't hijack the whole panel.
@@ -151,13 +227,30 @@ export default function RelationsView() {
   // solves the same way (shared usePresenceValue hook). A direct hover handoff (star A → star B,
   // never through undefined) updates this immediately with no closing step.
   const { value: hoverCardLast, exiting: hoverCardClosing } = usePresenceValue(hoverCardPoint, 320)
+  // called from the field's own panel ("set as reference") — mode is already 'field', so there's
+  // no grid to cross-fade out of; only refId actually changes.
   const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null); setMode('field') }
+  // called from a grid cell — plays the grid's own exit before the field ever mounts (see
+  // GRID_EXIT_MS above), rather than swapping instantly.
+  // Tracked + cleared on unmount. It was a bare setTimeout scheduling five setters 340ms out,
+  // safe only because every app-level exit path happens to be longer than GRID_EXIT_MS — an
+  // invariant held by comment discipline across two files. App.tsx already established this
+  // pattern for its own view-transition timers; this call site had just missed it.
+  const handoffRef = useRef<number | null>(null)
+  useEffect(() => () => { if (handoffRef.current) window.clearTimeout(handoffRef.current) }, [])
+  const enterField = (id: string) => {
+    sound.play('select')
+    setGridSelecting(true)
+    handoffRef.current = window.setTimeout(() => {
+      setRefId(id); setPinned(null); setHovered(null); setMode('field'); setGridSelecting(false)
+    }, GRID_EXIT_MS)
+  }
   const backToGrid = () => { sound.play('select'); setPinned(null); setHovered(null); setMode('grid') }
 
   if (mode === 'grid') {
     return (
       <div className="stage relations" dir="rtl">
-        <RelationsGrid onSelect={setReference} />
+        <RelationsGrid onSelect={enterField} leaving={leaving} selecting={gridSelecting} />
       </div>
     )
   }
@@ -173,9 +266,28 @@ export default function RelationsView() {
             {/* pole labels — persistent (not hover-only): the encoding needs to be legible at rest,
                 not discovered only once a star is already being interrogated. Brighten further on
                 hover/pin so the active read still gets emphasis. */}
-            <span className="rel-vtx rel-vtx--t" style={{ left: geo.Vt.x, top: geo.Vt.y - 26, opacity: emphasisPoint ? 0.95 : 0.6 }}>{POLE_HE.friction}<i>אינטרסים מתנגשים</i></span>
-            <span className="rel-vtx rel-vtx--f" style={{ left: geo.Vf.x - 8, top: geo.Vf.y + 16, opacity: emphasisPoint ? 0.95 : 0.6 }}>{POLE_HE.tension}<i>עימות ישיר וכוח</i></span>
-            <span className="rel-vtx rel-vtx--h" style={{ left: geo.Vh.x + 8, top: geo.Vh.y + 16, opacity: emphasisPoint ? 0.95 : 0.6 }}>הרמוניה<i>שיתוף פעולה</i></span>
+            {/* The pole labels are TITLES, so they take the sitewide per-character reveal
+                (LetterSwap) rather than the block mask they used to carry — which also retires the
+                relVtxRise hack that existed only because a block transform fought this element's
+                own translate(-50%,-50%) centering. --vd carries the vertex's beat to the sub-label
+                in CSS; the title itself takes it as a prop. */}
+            {([
+              { k: 't', he: POLE_HE.friction, sub: 'אינטרסים מתנגשים', left: geo.Vt.x, top: geo.Vt.y - 26 },
+              { k: 'f', he: POLE_HE.tension, sub: 'עימות ישיר וכוח', left: geo.Vf.x - 8, top: geo.Vf.y + 16 },
+              { k: 'h', he: 'הרמוניה', sub: 'שיתוף פעולה', left: geo.Vh.x + 8, top: geo.Vh.y + 16 },
+            ] as const).map((v, vi) => {
+              const d = FIELD_BEAT.vtxStart + vi * FIELD_BEAT.vtxStep
+              return (
+                <span
+                  key={v.k}
+                  className={`rel-vtx rel-vtx--${v.k}`}
+                  style={{ left: v.left, top: v.top, opacity: emphasisPoint ? 0.95 : 0.6, '--vd': `${d}s` } as React.CSSProperties}
+                >
+                  <LetterSwap text={v.he} delay={d} />
+                  <i>{v.sub}</i>
+                </span>
+              )
+            })}
 
             {/* reference — NOT plotted among the states (see unifiedGeo's comment): a fixed point
                 outside the triangle's own shape, styled to read as the vantage point the whole
@@ -197,12 +309,27 @@ export default function RelationsView() {
               // per-star twinkle phase, seeded so it desyncs across the field instead of pulsing
               // in unison — same idiom as the canvas engines' `pulse` phase offsets.
               const tw = ((hash(e.id + '#tw') % 3400) / 1000).toFixed(2)
+              // This ONE star (id-stable, but a genuinely fresh DOM node — it wasn't in
+              // geo.points a moment ago) is what a reference switch newly plots: the state that
+              // WAS the reference. Without this branch it would inherit ENTRANCE_HOLD/
+              // ENTRANCE_STEP below — a schedule tuned for a 28-star INITIAL reveal, so on a
+              // switch it would pop in up to ~1.3s after the pause everyone else is already
+              // moving on, looking like a late, unrelated straggler rather than part of the same
+              // event. It plays the exact same rnodeRise rise, just synced to the switch's own
+              // pause instead of the initial cascade's.
+              const isJoining = e.id === track.outgoingId
               // entrance: a genuine held beat (ENTRANCE_HOLD) before the FIRST star moves at all —
               // matching the same "let the screen be seen before it starts moving" pause the
               // canvas engines' own INTRO_DELAY_MS added — then each star follows the last by
               // ENTRANCE_STEP, so the field reads as one continuous sequential reveal rather than
               // starting immediately.
-              const entranceDelay = ENTRANCE_HOLD + i * ENTRANCE_STEP
+              const entranceDelay = isJoining ? REF_SWITCH_PAUSE : ENTRANCE_HOLD + i * ENTRANCE_STEP
+              // The NAME waits for every star to have landed, not just its own — see FIELD_BEAT.
+              // It used to be a plain child of .rnode with no delay of its own, so each label flew
+              // in attached to a moving star and was unreadable until the star stopped.
+              const nameDelay = isJoining
+                ? REF_SWITCH_PAUSE + REF_SWITCH_GLIDE * 0.6
+                : FIELD_BEAT.nameStart + i * FIELD_BEAT.nameStep
               return (
                 <div
                   key={e.id}
@@ -212,8 +339,8 @@ export default function RelationsView() {
                   tabIndex={0}
                   aria-label={`${e.he} — ${VERDICT[dominantOf(relation(refId, e.id))]} מול ${refNode.he}`}
                   aria-pressed={e.id === pinned}
-                  className={`rnode${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y, animationDelay: leaving ? `${exitDelay}ms` : `${entranceDelay}s`, '--tw': `${tw}s` } as React.CSSProperties}
+                  className={`rnode${isActor(e.id) ? ' rnode--actor' : ''}${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
+                  style={{ left: x, top: y, animationDelay: leaving ? `${exitDelay}ms` : `${entranceDelay}s`, '--tw': `${tw}s`, '--nd': `${nameDelay}s` } as React.CSSProperties}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onFocus={() => setHovered(e.id)}
@@ -227,6 +354,19 @@ export default function RelationsView() {
                 </div>
               )
             })}
+
+            {/* the star a switch just un-plotted (see the ghost/isRefSwitch hooks above) — no
+                name, no interaction, aria-hidden: it's a decorative echo of the last frame, not a
+                real member of the field for the ~300ms it takes to fade. */}
+            {ghost && (
+              <div
+                className="rnode rnode--refswitch-out"
+                aria-hidden="true"
+                style={{ left: ghost.x, top: ghost.y } as React.CSSProperties}
+              >
+                <span className="rnode__disk" style={{ width: ghost.d, height: ghost.d }} />
+              </div>
+            )}
           </>
         )}
         {/* hover preview — a compact YELLOW card near the star, 3-5 lines: verdict + why + the raw
@@ -240,13 +380,13 @@ export default function RelationsView() {
           >
             <span className="rel-hovercard__name">{hoverCardLast.e.he}</span>
             <span className="rel-hovercard__verdict">{VERDICT[dominantOf(hoverCardLast.r)]} מול {refNode.he}</span>
+            {/* No t/f/h split here anymore — it's redundant with the side panel's own .fbar
+                breakdown, which opens on click right after this same hover. The card's job is the
+                quick read (name + verdict + why); the panel's job is the numbers. */}
             <p className="rel-hovercard__why">
               {hoverCardLast.r.why
                 ?? `הקשר נשען בעיקר על ${POLE_HE[dominantOf(hoverCardLast.r)]}, לצד תמהיל של שיוך גושי, בריתות ועמדתה של ${hoverCardLast.e.he}.`}
             </p>
-            <span className="rel-hovercard__stat">
-              {POLE_HE.tension} {Math.round(hoverCardLast.r.tension * 100)}% · {POLE_HE.friction} {Math.round(hoverCardLast.r.friction * 100)}% · {POLE_HE.harmony} {Math.round(hoverCardLast.r.harmony * 100)}%
-            </span>
           </div>
         )}
       </div>
@@ -255,40 +395,98 @@ export default function RelationsView() {
           per-node animationDelay below), so it doesn't need the canvas views' 4s entrance window
           before the panel may enter — just that same settle + one beat. */}
       <PanelDock enterAfter={2400} reopenOn={pinned}>
-      {panelPoint && panelDom ? (
+      {panelPoint && panelDom ? (() => {
+        // Everything below `why` in reading order is timed OFF of it, not off t=0 — a static
+        // delay couldn't be right for both a 13-word description and a 30-word one (this data
+        // runs 13–30 words per pair). See REL_BEAT's own comment in panel-beats.ts.
+        const whyWords = panelPoint.r.why ? panelPoint.r.why.trim().split(/\s+/).length : 0
+        const compDelay = Math.max(REL_BEAT.compFloor, REL_BEAT.why + whyWords * REL_BEAT.wordStep + REL_BEAT.compSettle)
+        const metaDelay = compDelay + REL_BEAT.metaAfterComp
+        const actionDelay = compDelay + REL_BEAT.actionAfterComp
+        // pole -> the shared chip/comp-segment class suffix (t/f/h), matching .panelb__chip--*
+        // and .rel-detail__comp-* — one letter-code, reused for every pole-coloured thing in the
+        // panel instead of each site inventing its own colour switch.
+        const POLE_CODE: Record<Pole, 't' | 'f' | 'h'> = { tension: 't', friction: 'f', harmony: 'h' }
+        const dominantPct = Math.round(panelPoint.r[panelDom] * 100)
+        return (
         <aside className="panel panel--detail rel-detail" dir="rtl" key={panelPoint.e.id}>
           <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>
-          <span className="rel-detail__kicker">היחס מול {refNode.he}</span>
+          {/* Beat-sequenced per REL_BEAT (panel-beats.ts), matching Forces' own BEAT convention:
+              a shared textRise-carrying class + an inline animationDelay override, one slot per
+              element, nothing simultaneous. */}
+          <span className="rel-detail__kicker" style={{ animationDelay: `${REL_BEAT.kicker}s` }}>היחס מול {refNode.he}</span>
           {/* --entity: this h1 names a specific country/entity, unlike every other .panel__title
               (מדינת הייחוס, קונסטלציה, מדד כוח משיכה...) — country/entity names are never bold
               anywhere on the site (house rule), so this one instance overrides the shared weight. */}
-          <h1 className="panel__title panel__title--entity">{panelPoint.e.he}</h1>
-          <p className={`rel-detail__verdict rel-detail__verdict--${panelDom}`}>{VERDICT[panelDom]}</p>
-          {panelPoint.r.why && <p className="panel__why"><Words text={panelPoint.r.why} /></p>}
-          <div className="panel__forces">
+          <h1 className="panel__title panel__title--entity"><LetterSwap text={panelPoint.e.he} delay={REL_BEAT.title} /></h1>
+          {/* Headline row: the dominant pole's share as a real numeral, not just coloured text —
+              same anatomy as Forces' own .fscore__headline (a static row; only the numeral counts
+              and the chip cross-fades). The verdict moves from a plain <p> into a real object, a
+              pole-coloured chip reusing .panelb__chip — already documented in overlays.css as
+              shared by "any relation pole indicator", which this is. */}
+          <div className="fscore__headline rel-detail__headline" style={{ animationDelay: `${REL_BEAT.headline}s` }}>
+            <span className="fscore__num"><b><CountUp value={dominantPct} decimals={0} delay={REL_BEAT.headline} /></b><span className="fscore__unit">/ 100</span></span>
+            <span className="fscore__meta"><span className="fscore__lbl">{POLE_HE[panelDom]}</span></span>
+            <span className={`panelb__chip panelb__chip--${POLE_CODE[panelDom]} rel-detail__chip`}>{VERDICT[panelDom]}</span>
+          </div>
+          {/* Un-boxed — was a yellow-tinted card, the only container treatment in the panel other
+              than the data itself. With the headline row and the composition bar below both now
+              real objects, the prose reads as the LEDE under the number, not as a competing card.
+              No animation of its own: Words already reveals per word, and a block-level textRise
+              underneath it would double-animate the same text. */}
+          {panelPoint.r.why && <p className="panel__why"><Words text={panelPoint.r.why} delay={REL_BEAT.why} /></p>}
+          {/* One composition bar, not three separate gauges — the three poles sum to 100%, so a
+              flex-segmented bar is the honest chart for that shape (three thin independent bars
+              read as "three weak values", not "a composition"). Reuses Seg, the same tweening
+              flex-basis primitive ForcesAxisPanel's own comp bar already uses, extended from its
+              two-segment "base + adjustment" case to three. */}
+          <div className="panel__forces rel-detail__comp">
             <span className="panel__rels-h">מאפייני היחס</span>
-            {(['tension', 'friction', 'harmony'] as Pole[]).map((pole, bi) => {
-              const v = Math.round(panelPoint.r[pole] * 100)
-              return (
-                <div className={`fbar${pole === panelDom ? ' fbar--on' : ''}`} key={pole} style={{ '--bd': `${bi * 0.08}s` } as React.CSSProperties}>
-                  <span className="fbar__k">{POLE_HE[pole]}</span>
-                  <span className="fbar__track"><span className="fbar__fill" style={{ width: `${v}%` }} /></span>
-                  <span className="fbar__v">{v}</span>
-                </div>
-              )
-            })}
+            <span className="rel-detail__comp-track">
+              {(['tension', 'friction', 'harmony'] as Pole[]).map((pole, bi) => (
+                <Seg key={pole} className={`rel-detail__comp-seg rel-detail__comp-seg--${POLE_CODE[pole]}`} pct={panelPoint.r[pole] * 100} delay={compDelay + bi * 0.06} />
+              ))}
+            </span>
+            <div className="rel-detail__comp-legend">
+              {(['tension', 'friction', 'harmony'] as Pole[]).map((pole) => (
+                <span key={pole} className={`rel-detail__comp-legend-item rel-detail__comp-legend-item--${POLE_CODE[pole]}`}>
+                  {POLE_HE[pole]} <b>{Math.round(panelPoint.r[pole] * 100)}</b>
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="panel__meta">
-            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v"><bdi>{panelPoint.e.dispo}</bdi></span></div>
-            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v"><bdi>{AXIS_LABEL[AXIS[panelPoint.e.id] ?? 'none']}</bdi></span></div>
+          {/* Was inheriting an unrelated shared 0.04s rule and landing BEFORE the headline it's
+              meant to follow (see panel-beats.ts) — now derived from the content actually above
+              it, same as the composition bar. DISPO_ICON/AXIS_ICON already exist (Chrome.tsx, for
+              the Forces header chips) — a per-value glyph in front of each meta value, not just
+              coloured text. */}
+          <div className="panel__meta" style={{ animationDelay: `${metaDelay}s` }}>
+            <div className="panel__row"><span className="panel__row-k">אופי</span><span className="panel__row-v"><Icon name={DISPO_ICON[panelPoint.e.dispo] ?? 'dispo'} className="panel__row-icon" /><bdi>{panelPoint.e.dispo}</bdi></span></div>
+            <div className="panel__row"><span className="panel__row-k">שיוך</span><span className="panel__row-v"><Icon name={AXIS_ICON[AXIS_LABEL[AXIS[panelPoint.e.id] ?? 'none']] ?? 'axis'} className="panel__row-icon" /><bdi>{AXIS_LABEL[AXIS[panelPoint.e.id] ?? 'none']}</bdi></span></div>
           </div>
-          <button className="panel__setref" onClick={() => setReference(panelPoint.e.id)}>
-            קבעו את {panelPoint.e.he} כמדינת הייחוס ←
-          </button>
+          {/* Only a STATE can become the reference — a constellation is drawn from a state's
+              vantage (see relations-model.ts). Offering it for a non-state actor would promise a
+              view that doesn't exist, so the CTA is withheld and replaced by the one fact the
+              panel would otherwise never state: that this member isn't a country.
+              Copy: the relation index is symmetric (relations.ts), so flipping reference does NOT
+              change the numbers — it redraws the whole constellation from the other vantage. "Set
+              as reference" undersold that; "the constellation of X" is both truer and already the
+              field's own phrasing (.rel-ref__tag). Also given its own entrance now — it used to be
+              present at t=0 with the shell, before anything above it had even landed. */}
+          {isActor(panelPoint.e.id) ? (
+            <p className="panel__actor-note" style={{ animationDelay: `${actionDelay}s` }}>{panelPoint.e.tier} · מופיע בכל הקונסטלציות, ואינו משמש כמדינת ייחוס.</p>
+          ) : (
+            <button className="panel__setref" style={{ animationDelay: `${actionDelay}s` }} onClick={() => setReference(panelPoint.e.id)}>
+              הקונסטלציה של {panelPoint.e.he} ←
+            </button>
+          )}
         </aside>
-      ) : (
+        )
+      })() : (
         <aside className="panel" dir="rtl">
-          <h1 className="panel__title">{refNode.he}</h1>
+          {/* --entity, same as the detail panel's title below: this h1 names a country, and
+              country/entity names are never bold anywhere on the site (house rule). */}
+          <h1 className="panel__title panel__title--entity"><LetterSwap text={refNode.he} /></h1>
           <p className="panel__body">
             <Words text="כל מדינה ממוקמת לפי היחס שלה מול מדינת הייחוס — מתח, חיכוך או הרמוניה." />
           </p>

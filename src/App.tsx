@@ -33,9 +33,10 @@ const VIEW_HASH: Record<View, string> = { home: '', forces: '#/forces', relation
 // The forces screen IS the ranked grid composition (ForcesGridView). It and the packed force-field
 // (ForcesView) ran side by side as a two-composition comparison; the grid was chosen, so the field
 // is no longer routed to and the `#/forces-grid` variant hash is retired — `#/forces` resolves
-// straight to the grid. ForcesView.tsx is deliberately left in the tree rather than deleted: the
-// pick is "for now", and it still carries the only mobile sheet/filter chrome — restoring it is a
-// one-line change at the render branch below.
+// straight to the grid. ForcesView and its exclusive chrome (ForcesMobileSheet, ForcesFilterSheet,
+// ForcesTools) were DELETED once an audit found the branch unreachable — it had been carrying an
+// unreachable a11y defect and ~180 lines of dead CSS. Recover from git history if the packed field
+// is ever wanted back; the canvas engine it shared with the grid (ForcesSheet) is untouched.
 const hashToView = (h: string): View | null =>
   h === '#/forces' ? 'forces' : h === '#/relations' ? 'relations' : h === '#/dynamics' ? 'dynamics' : h === '' || h === '#/' ? 'home' : null
 

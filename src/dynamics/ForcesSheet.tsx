@@ -939,7 +939,11 @@ class GravityWell {
     const ringR = rr * 0.7
     const lw = Math.max(1.6, Math.min(4, rr * 0.06))
     const GAP = 0.06 // radians — small fixed gap between segments, not pixels
-    const labelFont = Math.max(8, Math.min(12, rr * 0.13))
+    // Was clamp(8, rr*0.13, 12) — the design review flagged these axis-abbreviation-plus-value
+    // readings ("צ 6.3", "ג 9.0") as illegible; measured, most bodies landed at or near the 8px
+    // floor. Raised the floor and ceiling, and the scaling coefficient slightly, so a body has to
+    // be genuinely small before it drops toward the new 10px floor rather than the old 8px one.
+    const labelFont = Math.max(10, Math.min(14, rr * 0.15))
 
     ctx.save()
     ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.clip()
@@ -1189,9 +1193,18 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
     let resizeTimer = 0
     const onResize = () => { clearTimeout(resizeTimer); resizeTimer = window.setTimeout(() => well.resize(), 120) }
     window.addEventListener('resize', onResize)
+    // The canvas measures container.clientWidth, but the container now CHANGES WIDTH without the
+    // window doing anything: it gives up the dock's column when the side panel opens and takes it
+    // back when the panel collapses (see the body:has(.pdock--open) rules in forces.css). A window
+    // listener alone never fires for that, so the canvas kept its old width and the layout stayed
+    // centred on the covered geometry. Observing the element itself is what makes the reservation
+    // real rather than cosmetic.
+    const ro = new ResizeObserver(onResize)
+    ro.observe(stage)
 
     return () => {
       clearTimeout(resizeTimer)
+      ro.disconnect()
       window.removeEventListener('resize', onResize)
       window.removeEventListener('mp-freeze', onFreeze)
       window.removeEventListener('mp-unfreeze', onUnfreeze)

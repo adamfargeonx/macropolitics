@@ -13,9 +13,6 @@ import { Words } from './Words'
 export type ForcesIndexPanelProps = {
   orderBy: Order
   setOrderBy: (o: Order) => void
-  toolsOpen: boolean
-  setToolsOpen: (fn: (v: boolean) => boolean) => void
-  stateActive: boolean
   filterBloc: Bloc
   year: Year
   scenario: boolean
@@ -96,18 +93,18 @@ export function RankedList(props: RankedListProps) {
 // instead of owning its own <aside> that would remount the whole shell on every ranked-list ⇄
 // detail toggle (see PanelFrame's own comment for why that mattered).
 export function ForcesIndexPanel(props: ForcesIndexPanelProps) {
-  // toolsOpen / setToolsOpen / stateActive are still in the props type (ForcesView owns that
-  // state and the ForcesTools sheet it drives) but this panel no longer renders a trigger for
-  // them — the ⚙ כלים button was removed and מקרא took its slot. See the note in ForcesView.
-  // `composition` stays in the props type below (still-accurate metadata, still passed by both
   // call sites) even though nothing here reads it anymore — it only ever drove the field/grid A/B
   // toggle, which is gone now that the grid composition is the pick, not a comparison partner.
   const { orderBy, setOrderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked, indexRows, showAllIndex, setShowAllIndex } = props
 
   return (
     <>
-      <h1 className="panel__title" style={{ animationDelay: `${INDEX_BEAT.title}s` }}>
-        <LetterSwap text={METRIC_TITLE[orderBy]} />
+      {/* Beat rides the LetterSwap cascade, not the <h1>: this title hosts a per-letter reveal, so
+          the block-level textRise is suppressed (.panel__title:has(.lswap) in views.css — it was
+          double-animating the same text) and an inline delay on the element itself would now be
+          dead code. */}
+      <h1 className="panel__title">
+        <LetterSwap text={METRIC_TITLE[orderBy]} delay={INDEX_BEAT.title} />
       </h1>
       {/* short (1–2 line) metric description — shown in full, no read-more toggle. Same Words
           per-word rise every other body-text line on the site uses, not a plain block fade. */}

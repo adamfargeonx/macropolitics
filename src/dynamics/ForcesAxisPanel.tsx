@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DATA } from '../data/empirical'
 import { POWER_NOTES } from '../data/entities'
 import { FORCES_DESCRIPTIONS } from '../data/forces-descriptions'
 import { Icon } from './Icon'
 import { Hint } from './Hint'
-import { CountUp, Gauge } from './PanelMotion'
+import { CountUp, Gauge, Seg } from './PanelMotion'
 import { Words } from './Words'
 import { AXIS_BEAT } from './panel-beats'
 import { Trend } from './EvidenceTrend'
@@ -37,20 +37,6 @@ import {
 // because the segments must be bare flex children of the track, not Gauge's wrapper+inner pair.
 // Without this the hero graph was the ONE bar in the panel that snapped straight to full width
 // while every smaller bar beneath it grew — exactly backwards.
-function Seg({ className, pct, delay }: { className: string; pct: number; delay: number }) {
-  // reduced motion is read ONCE into state and short-circuits the mount-at-zero entirely — the
-  // same contract Gauge and CountUp keep. Relying on the stylesheet's `transition: none` alone
-  // would still paint one frame at zero width before the rAF landed: a flash, not a reveal.
-  const [reduced] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
-  const [w, setW] = useState(0)
-  useEffect(() => {
-    if (reduced) return
-    const raf = requestAnimationFrame(() => setW(pct))
-    return () => cancelAnimationFrame(raf)
-  }, [pct, reduced])
-  return <i className={className} style={{ width: `${reduced ? pct : w}%`, transitionDelay: `${delay}s` }} />
-}
-
 // One criterion — status glyph, label, tweening bar, value. The bar reuses Gauge so it grows into
 // place on the panel's own beat, like every other bar in the panel, instead of snapping in.
 function Row({ axis, k, he, sub, missing, delay }: { axis: Axis; k: string; he: string; sub: Record<string, number>; missing: string[]; delay: number }) {

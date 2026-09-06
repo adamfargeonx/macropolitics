@@ -72,7 +72,6 @@ export default function ForcesGridView() {
           indexProps={{
             composition: 'grid',
             orderBy, setOrderBy,
-            toolsOpen: false, setToolsOpen: () => false, stateActive: false,
             filterBloc, year, scenario, grav,
             hovered, setHovered,
             onHoverId: (id) => setHovered(id), onSelect: (id) => { setSelected(id); setHovered(null) },

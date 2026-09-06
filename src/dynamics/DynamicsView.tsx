@@ -99,10 +99,15 @@ export default function DynamicsView() {
   )
 
   return (
-    <div className="stage" ref={stageRef} dir="rtl">
-      <canvas ref={canvasRef} className="field" role="img" aria-label="מפת כוחות המזרח התיכון — מערך מסלולי של גופים גאופוליטיים לפי כוח" />
-      {engine && <LabelLayer engine={engine} />}
-      {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
+    <div className="stage" dir="rtl">
+      {/* The engine's container is this wrapper, not .stage: .stage is fixed to the viewport and
+          never changes size, so nothing could tell the orrery that the dock had opened. The label
+          layer and hover readout live inside it too, so all three share one coordinate space. */}
+      <div className="dyn-field" ref={stageRef}>
+        <canvas ref={canvasRef} className="field" role="img" aria-label="מפת כוחות המזרח התיכון — מערך מסלולי של גופים גאופוליטיים לפי כוח" />
+        {engine && <LabelLayer engine={engine} />}
+        {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
+      </div>
 
       {/* screen-reader equivalent for the canvas: the bodies ranked by live power */}
       <div style={SR_ONLY}>

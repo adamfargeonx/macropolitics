@@ -7,7 +7,9 @@ import { useEffect, useRef, useState } from 'react'
 // between one body and the next animate, and each does it in a way that says something true about
 // the datum it carries:
 //
-//   LetterSwap — the name. Letters of the outgoing name drop away as the incoming name's letters
+//   LetterSwap — the name. Optional `delay` offsets the whole incoming cascade so a title can sit
+//   on a panel's beat schedule (see panel-beats.ts) instead of always leading at t=0.
+//   Letters of the outgoing name drop away as the incoming name's letters
 //                rise in, staggered. The most expressive moment in the panel, because the name is
 //                the one field where the change IS the whole story.
 //   CountUp    — any score. Tweens from the PREVIOUS value to the new one, so the numeral itself
@@ -27,7 +29,7 @@ const reducedMotion = () =>
 // the ancestor's `dir` handles visual direction.
 const SWAP_OUT_MS = 360
 
-export function LetterSwap({ text, className }: { text: string; className?: string }) {
+export function LetterSwap({ text, className, delay = 0 }: { text: string; className?: string; delay?: number }) {
   // `prev` is the name still leaving. Derived during render (React's documented "adjust state when
   // a prop changes" pattern, already used by ForcesPanel) rather than in an effect, so the outgoing
   // copy is present in the SAME commit that introduces the new one — no one-frame flash of neither.
@@ -42,8 +44,10 @@ export function LetterSwap({ text, className }: { text: string; className?: stri
 
   return (
     <span className={`lswap${className ? ` ${className}` : ''}`} aria-label={text}>
+      {/* the OUTGOING name never takes the base delay — a name that's leaving should leave at
+          once, whatever beat the arriving one is scheduled on. */}
       {pair.prev != null && <SwapLayer text={pair.prev} step={0.03} variant="out" key={`out-${pair.prev}`} />}
-      <SwapLayer text={pair.cur} step={0.045} variant="in" key={`in-${pair.cur}`} />
+      <SwapLayer text={pair.cur} step={0.045} base={delay} variant="in" key={`in-${pair.cur}`} />
     </span>
   )
 }
@@ -54,7 +58,7 @@ export function LetterSwap({ text, className }: { text: string; className?: stri
 // (the long multi-word names — הכוחות הדמוקרטיים, הרשות הפלסטינית — ran straight past its edge).
 // Grouping restores ordinary word wrapping while keeping the per-letter stagger, with the delay
 // counted across the WHOLE name so the cascade still reads as one continuous sweep over the break.
-function SwapLayer({ text, step, variant }: { text: string; step: number; variant: 'in' | 'out' }) {
+function SwapLayer({ text, step, variant, base = 0 }: { text: string; step: number; variant: 'in' | 'out'; base?: number }) {
   let ci = 0
   const words = text.split(' ')
   return (
@@ -62,7 +66,7 @@ function SwapLayer({ text, step, variant }: { text: string; step: number; varian
       {words.map((word, wi) => (
         <span className="lswap__w" key={wi}>
           {Array.from(word).map((ch, i) => (
-            <i key={i} style={{ animationDelay: `${ci++ * step}s` }}>{ch}</i>
+            <i key={i} style={{ animationDelay: `${base + ci++ * step}s` }}>{ch}</i>
           ))}
           {/* nbsp, not a literal space — same collapse issue as Letters (see Words.tsx): a
               trailing space glued to the end of a nowrap inline-block gets trimmed away. */}
@@ -148,4 +152,22 @@ export function Gauge({ value, className, delay = 0 }: { value: number; classNam
       <i style={{ width: `${reduced ? value : w}%`, transitionDelay: `${delay}s` }} />
     </span>
   )
+}
+
+// ── Seg ──────────────────────────────────────────────────────────────────────
+// A single tweening flex-basis segment — width 0 → pct on mount, respecting reduced motion the
+// same way Gauge/CountUp do (short-circuit the mount-at-zero entirely rather than rely on the
+// stylesheet's `transition: none` alone, which would still paint one frame at zero width first).
+// Generic on purpose: ForcesAxisPanel uses two Segs for a "base + adjustment" composition bar,
+// RelationsView uses three for a tension/friction/harmony split — same primitive, different
+// container CSS per caller (.axp__comp-track / .rel-detail__comp), same shared component.
+export function Seg({ className, pct, delay }: { className: string; pct: number; delay: number }) {
+  const [reduced] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    if (reduced) return
+    const raf = requestAnimationFrame(() => setW(pct))
+    return () => cancelAnimationFrame(raf)
+  }, [pct, reduced])
+  return <i className={className} style={{ width: `${reduced ? pct : w}%`, transitionDelay: `${delay}s` }} />
 }

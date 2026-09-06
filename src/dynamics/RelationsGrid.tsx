@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
-import { powerSize } from '../data/entities'
-import { authoredRelation } from '../data/relations'
-import { STATES, hash, relation, sharpen, dominantOf, POLE_HE, type Rel, type Pole } from './relations-model'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
+import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
+import { GRID_BEAT } from './panel-beats'
 
 // Unit-triangle vertices for the mini constellations — the SAME vertex↔field weighting as
 // unifiedGeo() in RelationsView.tsx (top = friction field/מתח, bottom-left = tension field/חיכוך,
@@ -11,59 +11,425 @@ const VT = { x: 50, y: 6 }
 const VF = { x: 8, y: 84 }
 const VH = { x: 92, y: 84 }
 
-interface MiniPoint { x: number; y: number; d: number }
+// ── Lattice ────────────────────────────────────────────────────────────────────────────────
+// Dots don't sit at their own continuous barycentric point; they snap to a fixed triangular
+// lattice (1 slot at the apex, 2 below it, 3 below that…). Both constants are calibrated against
+// the ORIGINAL site's geometry, read out of its DOM rather than guessed: its triangle is
+// `M 9.542 102.5 L 68 0.503 L 126.458 102.5` in a 136×137 box, its dots fall on ~9-unit columns
+// and ~10-unit rows (a ten-row lattice), and only ~15 of those slots are ever filled.
+//
+// That emptiness is the whole point — roughly three quarters of the lattice stays vacant, which
+// is what separates one country's dots from the next and lets each triangle read as a distinct
+// figure. A denser fill (this began at 6 rows = 21 slots for 19 states, ~90% full) collapses
+// every thumbnail into the same solid blob.
+// 13, not 10. The lattice must stay MOSTLY EMPTY for a thumbnail to read as a distinct figure
+// (see the note above), and a constellation now holds 28 points rather than 19: 10 rows = 55 slots
+// = 51% full, which collapses every triangle into the same solid wedge. 13 rows = 91 slots ≈ 31%,
+// back near the original site's density. Row pitch stays wider than the largest dot's diameter
+// (~4.8 units against 3.8), so neighbouring dots still can't touch.
+const GRID_ROWS = 13
+// Uniform internal padding, applied by shrinking the lattice's own triangle toward the centroid
+// so no slot can land on the drawn outline. Padding the width alone isn't enough — that leaves
+// the apex and base rows hard against the edge.
+const GRID_PAD = 0.21
+
+function buildSlots(): { x: number; y: number }[] {
+  const cx = (VT.x + VF.x + VH.x) / 3, cy = (VT.y + VF.y + VH.y) / 3
+  const inset = (v: { x: number; y: number }) => ({ x: cx + (v.x - cx) * (1 - GRID_PAD), y: cy + (v.y - cy) * (1 - GRID_PAD) })
+  const T = inset(VT), F = inset(VF), H = inset(VH)
+  const slots: { x: number; y: number }[] = []
+  for (let r = 0; r < GRID_ROWS; r++) {
+    const t = r / (GRID_ROWS - 1) // 0 = apex row, 1 = base row
+    const left = { x: T.x + (F.x - T.x) * t, y: T.y + (F.y - T.y) * t }
+    const right = { x: T.x + (H.x - T.x) * t, y: T.y + (H.y - T.y) * t }
+    for (let i = 0; i <= r; i++) {
+      const u = r === 0 ? 0 : i / r
+      slots.push({ x: left.x + (right.x - left.x) * u, y: left.y + (right.y - left.y) * u })
+    }
+  }
+  return slots
+}
+const SLOTS = buildSlots()
+
+// Greedy nearest-slot assignment: each point (in power-ranked order, so the strongest reads get
+// first pick) claims whichever unclaimed slot is closest to its true continuous position. It
+// distorts individual positions onto the lattice while preserving each point's region of the
+// triangle — the coarse read (which pole a country leans toward) survives; the exact coordinate
+// doesn't, which is the trade the lattice buys legibility with.
+function snapToGrid(pts: MiniPoint[]): MiniPoint[] {
+  const used = new Array(SLOTS.length).fill(false)
+  return pts.map((p) => {
+    let best = -1, bestD = Infinity
+    for (let i = 0; i < SLOTS.length; i++) {
+      if (used[i]) continue
+      const d = (SLOTS[i].x - p.x) ** 2 + (SLOTS[i].y - p.y) ** 2
+      if (d < bestD) { bestD = d; best = i }
+    }
+    if (best < 0) return p // more states than slots — leave the overflow where it stands
+    used[best] = true
+    return { ...p, x: SLOTS[best].x, y: SLOTS[best].y }
+  })
+}
+
+// `dom` is the dot's OWN dominant pole — kept per-dot so a hover can light up exactly the
+// relations that drive the country's overall label (see .rel-grid__dot--lit).
+interface MiniPoint { x: number; y: number; d: number; dom: Pole; actor: boolean }
 interface GridRow {
   id: string; he: string; power: number; items: MiniPoint[]
-  mean: Rel; dom: Pole; covered: number; total: number
+  // dom drives which dots light up on hover; stance is what the caption prints.
+  mean: Rel; dom: Pole; stance: Stance
+  // 'great' (usa/russia/china/europe/india) is the outside-power tier in entities.ts — the only
+  // states that orbit the centre rather than sitting inside the region. Everything else here is
+  // a Middle Eastern or immediately-adjacent native actor. Used to split the power sort into
+  // native actors first, outside powers last, rather than one flat power ranking.
+  isGlobal: boolean
+  axis: Axis
 }
 
-type SortKey = 'power' | 'harmony' | 'hostile' | 'coverage'
+// Severity order for the stance sort — matches stanceOf()'s own threshold ordering (agg > dom >
+// caut), not alphabetical or insertion order.
+const STANCE_RANK: Record<Stance, number> = { agg: 0, dom: 1, caut: 2 }
+// west/east/neutral, matching forces-model.ts's own BLOCS order elsewhere in the app. 'none' has
+// no member among the 20 relations states, but ranked last defensively rather than omitted.
+const AXIS_RANK: Record<Axis, number> = { west: 0, east: 1, neutral: 2, none: 3 }
+
+type SortKey = 'power' | 'stance' | 'bloc'
 const SORTS: Record<SortKey, { label: string; fn: (a: GridRow, b: GridRow) => number }> = {
-  power: { label: 'לפי עוצמה', fn: (a, b) => b.power - a.power },
-  harmony: { label: 'הרמוניה יורדת', fn: (a, b) => b.mean.harmony - a.mean.harmony },
-  hostile: { label: 'חיכוך יורד', fn: (a, b) => b.mean.tension - a.mean.tension },
-  coverage: { label: 'כיסוי עריכתי', fn: (a, b) => b.covered - a.covered },
+  // Native actors first (by power), outside powers last (by power) — not one flat ranking. With
+  // 5 global powers and a 5-wide grid this lands the outside powers on their own final row.
+  power: { label: 'לפי עוצמה', fn: (a, b) => (Number(a.isGlobal) - Number(b.isGlobal)) || (b.power - a.power) },
+  // Grouped by posture (אגרסיבית → אסרטיבית → זהירה), power desc within each group.
+  stance: { label: 'לפי עמדה', fn: (a, b) => (STANCE_RANK[a.stance] - STANCE_RANK[b.stance]) || (b.power - a.power) },
+  // Grouped by bloc (הציר המערבי → הציר המזרחי → גוש ניטרלי), power desc within each group.
+  bloc: { label: 'לפי גוש', fn: (a, b) => (AXIS_RANK[a.axis] - AXIS_RANK[b.axis]) || (b.power - a.power) },
 }
-const POLE_CLASS: Record<Pole, string> = { tension: 't', friction: 'f', harmony: 'h' }
+// The caption's colour follows the stance, reusing the pole ramp: אגרסיבית takes the חיכוך warm,
+// אסרטיבית the מתח yellow, זהירה the הרמוניה cool.
+const STANCE_CLASS: Record<Stance, string> = { agg: 't', dom: 'f', caut: 'h' }
+// Bloc bands reuse the app's existing allegiance rims (--rim-west/east/neutral, base.css), so a
+// band header here runs the same temperature the forces screen already paints that bloc.
+const AXIS_CLASS: Record<Axis, string> = { west: 'w', east: 'e', neutral: 'n', none: 'n' }
 
-export function RelationsGrid({ onSelect }: { onSelect: (id: string) => void }) {
+// ── Bands ─────────────────────────────────────────────────────────────────────────────────────
+// Both grouped sorts stop being a flat run of 20 cells and become labelled registers. The grouping
+// used to be carried by ORDER alone — you had to read every caption to find where אגרסיבית ended
+// and אסרטיבית began — so the band header now states it once, with the count.
+//
+// `align` is what makes the bloc sort read as an axis instead of a list. The two blocs don't share
+// a row of columns at all there: they take a half of the screen each, facing across a centre
+// spine, and each one's ragged row presses TOWARD that line (west's align is 'end' because in RTL
+// the right half's end edge IS the spine, and east's 'start' is the same edge from the other
+// side). The unaligned band drops below and spans the whole width — the only band that crosses.
+type Align = 'start' | 'center' | 'end'
+const AXIS_ALIGN: Record<Axis, Align> = { west: 'end', east: 'start', neutral: 'center', none: 'center' }
+
+interface Band { key: string; label: string; tone: string; align: Align; items: GridRow[] }
+
+// `sorted` already runs group-by-group (both grouped sorts lead with their group rank), so the
+// bands are just its consecutive runs — no second pass over the roster, and the order inside a
+// band stays exactly the power ranking the sort produced.
+function buildBands(sorted: GridRow[], sort: SortKey): Band[] {
+  const bands: Band[] = []
+  for (const row of sorted) {
+    const key = sort === 'stance' ? row.stance : row.axis
+    const open = bands[bands.length - 1]
+    if (open && open.key === key) { open.items.push(row); continue }
+    bands.push({
+      key,
+      label: sort === 'stance' ? STANCE_HE[row.stance] : AXIS_LABEL[row.axis],
+      tone: sort === 'stance' ? STANCE_CLASS[row.stance] : AXIS_CLASS[row.axis],
+      align: sort === 'stance' ? 'start' : AXIS_ALIGN[row.axis],
+      items: [row],
+    })
+  }
+  return bands
+}
+
+// Empty leading modules, so a short band can sit at the far edge or on the centre line while every
+// cell still lands on the SAME column rhythm as every other band — the grid breaks where the data
+// does, the alignment doesn't. Grid fills row by row, so the offset rides the first cell and the
+// partial row ends up at the TOP of the band; that's deliberate, it keeps the last row flush.
+function leadOffset(count: number, cols: number, align: Align): number {
+  const slack = (cols - (count % cols)) % cols
+  if (align === 'end') return slack
+  if (align === 'center') return Math.floor(slack / 2)
+  return 0
+}
+
+// Exit spread (ms) — the window over which cells BEGIN leaving, count-independent. Kept so that
+// spread + relGridCellOut's own duration (340ms) fits inside App.tsx's EXIT_MS (680ms) budget for
+// the page → home transition; overshoot it and the last cells are cut off mid-animation.
+const EXIT_SPREAD = 300
+
+// Deterministic pseudo-random in [0,1) (FNV-1a). The dot phase needs a SCATTER, but it must be the
+// same scatter on every render — Math.random() would reshuffle the constellations on any re-render
+// that lands mid-cascade, and a re-sort would visibly re-roll dots that hadn't moved.
+function hash01(key: string): number {
+  let h = 2166136261
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return ((h >>> 0) % 10000) / 10000
+}
+
+// Roughly how wide a cell wants to be; only used to derive how many columns the width SUGGESTS.
+const TARGET_CELL_W = 190
+
+// Every row must be full — no half-empty last row. CSS can't express "pick a column count that
+// divides the item count", since auto-fill only knows the width, so the count is chosen here:
+// take the column count the width suggests, then snap to the nearest exact divisor of the item
+// count. With 20 states the usable divisors are 1, 2, 4, 5, 10, 20 — a wide screen lands on 5
+// (4 full rows), a narrow one on 2 (10 full rows).
+//
+// Caveat worth knowing: this is only satisfiable when the item count is composite. If the roster
+// ever became a prime number of states (19, say) the only divisors are 1 and itself, and a ragged
+// row becomes unavoidable — the nearest-divisor snap keeps it sane, it just can't work miracles.
+//
+// Applies to the FLAT sort only. The banded sorts want the opposite: a ragged tail is how a band
+// shows its own length, so they take the suggested count as-is (useBandColumns below).
+function useEvenColumns(count: number, ref: React.RefObject<HTMLDivElement | null>): number {
+  const [cols, setCols] = useState(5)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || count < 1) return
+    const pick = () => {
+      const suggested = Math.max(1, Math.round(el.clientWidth / TARGET_CELL_W))
+      let best = 1
+      for (let c = 1; c <= count; c++) {
+        if (count % c !== 0) continue
+        const closer = Math.abs(c - suggested) < Math.abs(best - suggested)
+        // tie → prefer the denser grid, so a mid-width viewport fills rather than stretches
+        const tiedButDenser = Math.abs(c - suggested) === Math.abs(best - suggested) && c > best
+        if (closer || tiedButDenser) best = c
+      }
+      setCols(best)
+    }
+    pick()
+    const ro = new ResizeObserver(pick)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [count, ref])
+  return cols
+}
+
+// How many cell rows the banded layout may spend before it stops fitting one fold. Three band
+// headers already cost roughly half a row between them, so this is one less than it looks.
+const ROW_BUDGET = 4
+// The narrowest a cell may get before the constellation inside it stops being readable — the only
+// thing stopping a very wide viewport from running everything into a single thin row.
+const MIN_BAND_CELL_W = 150
+
+const bandRows = (band: Band, cols: number): number =>
+  Math.ceil((band.items.length + leadOffset(band.items.length, cols, band.align)) / cols)
+
+// Unlike the flat sort, the bands don't want a divisor of the roster — they want the FEWEST
+// columns that still fit the row budget, because fewer columns means bigger triangles. Searching
+// upward from 3 and stopping at the first count that fits is what keeps the cells large: picking
+// columns from width alone gave 8 where 7 fits the same four rows with cells 15% wider.
+//
+// `rowsAt` is passed in because the two grouped sorts stack differently — stance bands each take a
+// full-width row of their own, while the bloc's two poles share one row side by side.
+function pickColumns(width: number, rowsAt: (cols: number) => number): number {
+  const ceiling = Math.max(3, Math.min(8, Math.floor(width / MIN_BAND_CELL_W)))
+  for (let cols = 3; cols < ceiling; cols++) if (rowsAt(cols) <= ROW_BUDGET) return cols
+  return ceiling
+}
+
+function useElementWidth(ref: React.RefObject<HTMLDivElement | null>): number {
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const read = () => setWidth(el.clientWidth)
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+  return width
+}
+
+interface RelationsGridProps {
+  onSelect: (id: string) => void
+  // navigating away to home — a per-cell rank-ordered shrink/fade, mirroring the field's own
+  // .rel-field--leaving .rnode cascade so leaving reads the same from either mode.
+  leaving?: boolean
+  // a cell was just picked — the WHOLE grid cross-fades out as one unit (not per-cell) before the
+  // field mounts; see RelationsView's enterField/GRID_EXIT_MS.
+  selecting?: boolean
+}
+
+// How long the three-phase load runs end to end (captions finish at capStart + capMax + 0.5s).
+// After this the screen is "settled" and re-sorts REFLOW instead of replaying — see below.
+const LOAD_MS = 3700
+
+export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridProps) {
   const [sort, setSort] = useState<SortKey>('power')
+  // The three-phase load is a first-impression device, not a sort transition. Switching sort
+  // swaps the flat grid for the banded one (a different container, so React remounts every cell)
+  // and the whole 3.7s outline → dots → captions sequence played again — a reveal the first time,
+  // a wait for a table to re-sort by the third. Once settled, the cells appear immediately and
+  // only their POSITION changes.
+  const [settled, setSettled] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setSettled(true), LOAD_MS)
+    return () => window.clearTimeout(t)
+  }, [])
 
   // Per-country label is the MEAN of its own 19 relations (raw, pre-sharpen), reduced to a
   // dominant pole — not DISPO, which already feeds INTO relation() and would make the caption
   // circular. This gives the grid a sortable spine no other screen has, in the same vocabulary
   // the live field already uses (POLE_HE).
   const rows = useMemo<GridRow[]>(() => STATES.map((ref) => {
-    let mt = 0, mf = 0, mh = 0, covered = 0
-    const items = STATES.filter((e) => e.id !== ref.id).map((e) => {
+    let mt = 0, mf = 0, mh = 0, mn = 0
+    const items = snapToGrid(MEMBERS.filter((e) => e.id !== ref.id).map((e) => {
       const raw = relation(ref.id, e.id)
-      mt += raw.tension; mf += raw.friction; mh += raw.harmony
-      if (authoredRelation(ref.id, e.id)) covered++
+      // The stance MEAN counts states only, even though the figure now plots all 28 members.
+      // Deliberate: posture answers "how does this country sit toward the state system", and
+      // nearly every state is hostile to דאעש and אל-קעאידה, so folding actors in adds a near
+      // constant that rewards the DEFENSIVE. Measured with actors included, אירופה came out
+      // אגרסיבית above רוסיה purely for opposing jihadist groups it has no theatre against —
+      // the label stops describing posture and starts counting how many armed groups exist.
+      if (!isActor(e.id)) { mt += raw.tension; mf += raw.friction; mh += raw.harmony; mn++ }
       const sr = sharpen(raw)
-      // small seeded jitter so two states with identical derived output don't render as one
-      // literally-overlapping dot — same idiom as the field's own per-node jitter, scaled down.
-      const jx = ((hash(ref.id + e.id) % 1000) / 1000 - 0.5) * 3
-      const jy = ((hash(ref.id + e.id + '~') % 1000) / 1000 - 0.5) * 3
+      // No jitter here (the field's own placement uses it): its only job was keeping two states
+      // with identical derived output from stacking into one dot, and the lattice already
+      // guarantees every point a distinct slot. Jitter would also blur which slot is nearest.
       return {
-        x: sr.friction * VT.x + sr.tension * VF.x + sr.harmony * VH.x + jx,
-        y: sr.friction * VT.y + sr.tension * VF.y + sr.harmony * VH.y + jy,
-        d: Math.max(1.1, Math.min(3.1, powerSize(e.power) * 0.018)),
+        x: sr.friction * VT.x + sr.tension * VF.x + sr.harmony * VH.x,
+        y: sr.friction * VT.y + sr.tension * VF.y + sr.harmony * VH.y,
+        // Scaled to the lattice, not the free layout: at this density the field-sized radii are
+        // wider than half a slot gap, so neighbouring dots would touch and close the very gaps
+        // the lattice exists to create. Holds roughly the original's dot-to-spacing ratio.
+        d: Math.max(0.9, Math.min(1.9, powerSize(e.power) * 0.0104)),
+        dom: dominantOf(raw),
+        actor: isActor(e.id),
       }
-    })
-    const n = items.length
-    const mean: Rel = { tension: mt / n, friction: mf / n, harmony: mh / n }
-    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), covered, total: n }
+    }))
+    // mn (states counted) is NOT items.length (all members plotted) — see the mean note above.
+    const mean: Rel = { tension: mt / mn, friction: mf / mn, harmony: mh / mn }
+    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), isGlobal: ref.kind === 'great', axis: AXIS[ref.id] ?? 'none' }
   }), [])
 
   const sorted = useMemo(() => rows.slice().sort(SORTS[sort].fn), [rows, sort])
-  const fullyCovered = rows.filter((r) => r.covered === r.total).length
+
+  const n = sorted.length
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const flatCols = useEvenColumns(n, bodyRef)
+  const bodyWidth = useElementWidth(bodyRef)
+  const bands = useMemo(() => (sort === 'power' ? null : buildBands(sorted, sort)), [sorted, sort])
+  // The bloc sort splits its bands in two: the poles face each other across the spine, everything
+  // unaligned falls below them. The stance sort has no such split — every band is full width.
+  const poles = useMemo(() => (sort === 'bloc' && bands ? bands.filter((b) => b.key === 'west' || b.key === 'east') : []), [bands, sort])
+  const loose = useMemo(() => (bands ? bands.filter((b) => !poles.includes(b)) : []), [bands, poles])
+  // A pole band only gets HALF the width, so it counts columns at half the module; the bands below
+  // span the full width and get double. One number drives both, which is what keeps every cell on
+  // the screen the same size no matter which region it sits in.
+  const cols = useMemo(() => {
+    if (!bands) return 0
+    if (!poles.length) return pickColumns(bodyWidth, (c) => bands.reduce((sum, b) => sum + bandRows(b, c), 0))
+    return pickColumns(bodyWidth / 2, (c) => (
+      Math.max(...poles.map((b) => bandRows(b, c))) + loose.reduce((sum, b) => sum + bandRows(b, c * 2), 0)
+    ))
+  }, [bands, poles, loose, bodyWidth])
+  // Height of the facing-poles region, in cell rows — both halves lay out on it so a four-item
+  // band and a nine-item one still print the same size cell.
+  const poleRows = poles.length ? Math.max(...poles.map((b) => bandRows(b, cols))) : 0
+
+  // Reading-order rank, taken once from the sorted roster rather than each band's own index — the
+  // entrance cascade has to sweep the screen once, not restart at every band header.
+  const rank = useMemo(() => new Map(sorted.map((row, i) => [row.id, i])), [sorted])
+
+  const cell = (row: GridRow, offset = 0) => {
+    const i = rank.get(row.id) ?? 0
+    // per-cell exit delay — spread over EXIT_SPREAD in rank order, count-independent,
+    // mirroring RelationsView's own exitDelay for .rnode (same idiom, same spread window).
+    const exitDelay = (n <= 1 ? 0 : i / (n - 1)) * EXIT_SPREAD
+    // Phases 1 and 3 sweep in reading order (capped, as every cascade here is); phase 2 doesn't
+    // sweep at all — see GRID_BEAT and the per-circle --dot-d below.
+    const strokeDelay = GRID_BEAT.strokeStart + Math.min(i * GRID_BEAT.strokeStep, GRID_BEAT.strokeMax)
+    const capDelay = GRID_BEAT.capStart + Math.min(i * GRID_BEAT.capStep, GRID_BEAT.capMax)
+    return (
+      <button
+        key={row.id}
+        className="rel-grid__cell"
+        style={{
+          '--stroke-d': `${strokeDelay}s`,
+          '--cap-d': `${capDelay}s`,
+          '--exit-cd': `${exitDelay}ms`,
+          // only ever set on a band's first cell — see leadOffset()
+          gridColumnStart: offset > 0 ? offset + 1 : undefined,
+        } as React.CSSProperties}
+        onClick={() => onSelect(row.id)}
+        aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}`}
+      >
+        {/* viewBox height 85, not 90: the triangle's BASE sits at y=84, so the original box carried
+            6 units of dead space beneath it — which read as part of the gap between a triangle and
+            its caption (measured 15px, over half of it empty box). 85 crops that to 1 unit, enough
+            to still contain the base stroke's outer half at stroke-width 1; an exact 84 would clip
+            it. The coordinate space is untouched, so VT/VF/VH and the lattice math are unaffected.
+            xMidYMax keeps the figure bottom-anchored if the box is ever width-bound rather than
+            height-bound, so the caption gap can't reopen at another viewport size. */}
+        <svg viewBox="0 0 100 85" preserveAspectRatio="xMidYMax meet" className="rel-grid__svg" aria-hidden="true">
+          <polygon className="rel-grid__poly" points={`${VT.x},${VT.y} ${VF.x},${VF.y} ${VH.x},${VH.y}`} />
+          {/* --lit marks the relations whose own dominant pole IS the country's overall
+              label, so hovering the card answers "which ties actually make it read מתח?" */}
+          {row.items.map((p, pi) => (
+            <circle
+              key={pi}
+              className={`rel-grid__dot${p.actor ? ' rel-grid__dot--actor' : ''}${p.dom === row.dom ? ' rel-grid__dot--lit' : ''}`}
+              cx={p.x} cy={p.y} r={p.d}
+              // hashed on the dot's own identity, NOT its index — so the fill-in reads as rain
+              // across the whole screen rather than a second sweep in cell order.
+              style={{ '--dot-d': `${(GRID_BEAT.dotsStart + hash01(`${row.id}:${pi}`) * GRID_BEAT.dotsSpread).toFixed(3)}s` } as React.CSSProperties}
+            />
+          ))}
+        </svg>
+        <span className="rel-grid__name">{row.he}</span>
+        <span className={`rel-grid__pole rel-grid__pole--${STANCE_CLASS[row.stance]}`}>{STANCE_HE[row.stance]}</span>
+      </button>
+    )
+  }
+
+
+  // One band — header, then its own slice of the shared column module. `cols` differs by region
+  // (half-width for a pole, full width for a band below), which is exactly why it's an argument
+  // rather than read off a single state.
+  const band = (b: Band, bandCols: number, order: number) => {
+    const off = leadOffset(b.items.length, bandCols, b.align)
+    return (
+      <section
+        key={b.key}
+        className={`rel-grid__band rel-grid__band--${b.tone} rel-grid__band--${b.align}`}
+        style={{
+          '--cols': bandCols,
+          '--brows': bandRows(b, bandCols),
+          animationDelay: `${GRID_BEAT.note + order * 0.07}s`,
+        } as React.CSSProperties}
+      >
+        <h2 className="rel-grid__band-head">
+          <span className="rel-grid__band-rule rel-grid__band-rule--a" aria-hidden="true" />
+          <span className="rel-grid__band-l">{b.label}</span>
+          <span className="rel-grid__band-n">{b.items.length}</span>
+          <span className="rel-grid__band-rule rel-grid__band-rule--b" aria-hidden="true" />
+        </h2>
+        <div className="rel-grid__band-cells">
+          {b.items.map((row, ri) => cell(row, ri === 0 ? off : 0))}
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <div className="rel-grid">
-      <h1 className="panel__title rel-grid__title">מערכות היחסים</h1>
-      <p className="rel-grid__sub">כל מדינה כמדינת ייחוס משלה — לחצו על כרטיס לפתיחת מערכת היחסים המלאה שלה.</p>
-
-      <div className="rel-grid__sortbar">
+    <div className={`rel-grid${settled ? ' rel-grid--settled' : ''}${selecting ? ' rel-grid--selecting' : ''}${leaving ? ' rel-grid--leaving' : ''}`}>
+      {/* No screen title or standfirst here. The bottom tab bar already names this screen, and
+          every vertical pixel the header takes comes straight out of the triangles — which have
+          to fit in one fold. The sort row carries the whole header instead, with the coverage
+          note riding its far end rather than owning a block of its own. */}
+      {/* A vertical rail down the LEFT edge, centred against the grid — not a header band. The
+          grid block is now width-derived and centred (see .rel-grid__cells), which leaves a wide
+          empty margin on each side; the sort control moves into it instead of spending a row of
+          the fold. The coverage note that used to ride this bar is gone — it stated a number
+          (20/20) that never changes for the reader. */}
+      <div className="rel-grid__sortbar" style={{ animationDelay: `${GRID_BEAT.sort}s` }}>
         <span className="rel-grid__sort-l">מיון</span>
         {(Object.keys(SORTS) as SortKey[]).map((key) => (
           <button
@@ -77,27 +443,32 @@ export function RelationsGrid({ onSelect }: { onSelect: (id: string) => void }) 
         ))}
       </div>
 
-      <div className="rel-grid__cells">
-        {sorted.map((row, i) => (
-          <button
-            key={row.id}
-            className="rel-grid__cell"
-            style={{ '--cd': `${Math.min(i * 0.02, 0.5)}s` } as React.CSSProperties}
-            onClick={() => onSelect(row.id)}
-            aria-label={`פתחו את מערכת היחסים של ${row.he} — ${POLE_HE[row.dom]} דומיננטי`}
+      {/* One wrapper for whichever body the sort produces, so a single ref measures the available
+          width for both column strategies (useEvenColumns / pickColumns). */}
+      <div className="rel-grid__body" ref={bodyRef}>
+        {bands ? (
+          <div className="rel-grid__bands">
+            {poles.length > 0 && (
+              /* The divide itself. The two blocs get a half of the screen each and press toward
+                 the line between them; the bands underneath run the full width and cross it. */
+              <div className="rel-grid__poles" style={{ '--prows': poleRows } as React.CSSProperties}>
+                <span className="rel-grid__spine" aria-hidden="true" />
+                {poles.map((b, bi) => band(b, cols, bi))}
+              </div>
+            )}
+            {loose.map((b, bi) => band(b, poles.length ? cols * 2 : cols, poles.length + bi))}
+          </div>
+        ) : (
+          /* --rows so the cells area can divide the remaining viewport height into exactly the
+             rows it needs; the whole grid has to sit in one fold on desktop, no scrolling. */
+          <div
+            className="rel-grid__cells"
+            style={{ '--cols': flatCols, '--rows': Math.ceil(n / flatCols) } as React.CSSProperties}
           >
-            <svg viewBox="0 0 100 90" className="rel-grid__svg" aria-hidden="true">
-              <polygon className="rel-grid__poly" points={`${VT.x},${VT.y} ${VF.x},${VF.y} ${VH.x},${VH.y}`} />
-              {row.items.map((p, pi) => <circle key={pi} className="rel-grid__dot" cx={p.x} cy={p.y} r={p.d} />)}
-            </svg>
-            <span className="rel-grid__name">{row.he}</span>
-            <span className={`rel-grid__pole rel-grid__pole--${POLE_CLASS[row.dom]}`}>{POLE_HE[row.dom]}</span>
-            <span className="rel-grid__cov">{row.covered}/{row.total} מאופיין עריכתית</span>
-          </button>
-        ))}
+            {sorted.map((row) => cell(row))}
+          </div>
+        )}
       </div>
-
-      <p className="rel-grid__note">{fullyCovered}/{rows.length} מדינות בכיסוי עריכתי מלא — השאר נשענות על המודל הנגזר (שיוך גוש, בריתות, אופי).</p>
     </div>
   )
 }

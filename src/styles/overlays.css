@@ -208,7 +208,7 @@
    reads heavy/shouty, light reads print-set and confident. */
 .axp__score b {
   font-family: var(--display); font-size: calc(var(--display-md) * 1.3); font-weight: var(--fw-light);
-  letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1;
+  letter-spacing: var(--tracking-display-loose); color: var(--yellow); line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .axp__score i {
@@ -473,7 +473,11 @@
 .panel__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-black); color: var(--yellow); letter-spacing: var(--tracking-display); }
 /* the one .panel__title usage that names a specific country/entity (RelationsView's pinned-node
    panel) — country/entity names are never bold anywhere on the site (house rule) */
-.panel__title--entity { font-weight: var(--fw-regular); }
+/* --entity reweights to regular, but was silently keeping the BASE rule's tight
+   --tracking-display (a country name at fw-regular still rendered with the bold-tier tracking,
+   since only the weight was ever overridden here) — this is what "do these titles include the
+   loosening" caught. Added explicitly rather than left to inherit. */
+.panel__title--entity { font-weight: var(--fw-regular); letter-spacing: var(--tracking-display-loose); }
 .panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
 /* the map's own visual key, inline — was the "יחסי הכוחות = הכוחות + היחסים" formula. Reuses
    Legend.tsx's own .legend__row/group/pair/swatch classes verbatim for the graphics themselves;
@@ -498,15 +502,23 @@
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 7px 0;
 }
-.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
-.panel__row-v { font-family: var(--display); font-size: var(--text-lg); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--white); }
+/* De-yellowed — was --yellow at 0.55, one of ~8 yellow placements in a panel this size, which is
+   what stops yellow meaning anything specific. It's a row LABEL (אופי/שיוך), not a finding. */
+.panel__row-k { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--ink-faint); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
+/* Demoted from bold/--text-lg to regular/--text-base — this is CONTEXT (posture, bloc), not the
+   panel's finding, and at the old weight it typographically outranked the verdict it sits below.
+   Regular weight moves it onto --tracking-title-loose too, matching every other regular-weight
+   title-tier element sitewide (base.css) rather than staying on the bold tier's tight tracking. */
+.panel__row-v { font-family: var(--display); font-size: var(--text-base); font-weight: var(--fw-regular); letter-spacing: var(--tracking-title-loose); color: var(--light); display: inline-flex; align-items: center; gap: 6px; }
 .panel__rels { margin-top: 20px; }
-.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
+/* De-yellowed, matching .panel__row-k above — a section label, not a finding. */
+.panel__rels-h { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); color: var(--ink-faint); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 .panel__rels-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .panel__rel {
   font-size: var(--text-sm); color: var(--yellow); padding: 4px 9px;
   border: 1px solid rgba(251, 255, 0, 0.3); white-space: nowrap;
   background: none; cursor: none; font-family: var(--display);
+  letter-spacing: var(--tracking-title-loose);
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 .panel__rel:hover { background: rgba(251, 255, 0, 0.12); border-color: var(--yellow); }
@@ -546,7 +558,7 @@
    because only this one names a specific body. */
 .phead__title {
   font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-regular);
-  letter-spacing: var(--tracking-display); color: var(--white); line-height: 1.08;
+  letter-spacing: var(--tracking-display-loose); color: var(--white); line-height: 1.08;
   flex: 1; min-width: 0; white-space: nowrap;
 }
 /* descriptor chips — flush to the RTL leading (right) edge, beneath the title.
@@ -589,8 +601,8 @@
    different scales (this was --fw-black/--display-md, the site's default numeral treatment, before
    the axis panel's numeral was redesigned; this brings the main score in line with that redesign
    rather than leaving the two inconsistent). */
-.fscore__num b { font-family: var(--display); font-size: calc(var(--display-md) * 1.3); font-weight: var(--fw-light); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 0.85; }
-.fscore__unit { font-family: var(--display); font-size: var(--text-md); color: var(--ink-dim); }
+.fscore__num b { font-family: var(--display); font-size: calc(var(--display-md) * 1.3); font-weight: var(--fw-light); letter-spacing: var(--tracking-display-loose); color: var(--yellow); line-height: 0.85; }
+.fscore__unit { font-family: var(--display); font-size: var(--text-md); letter-spacing: var(--tracking-title-loose); color: var(--ink-dim); }
 .fscore__meta { display: flex; flex-direction: column; gap: 3px; }
 .fscore__lbl { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.85; }
 /* the power-tier tag — moved down from the header (was .phead__tier, directly below the name)
@@ -758,7 +770,7 @@
   color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
 }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
-.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-regular); letter-spacing: var(--tracking-display); color: var(--white); line-height: 1; }
+.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-regular); letter-spacing: var(--tracking-display-loose); color: var(--white); line-height: 1; }
 /* the assessment — not folded into a stage. See the JSX comment for why: it's the panel's only
    zero-click answer and it synthesises across all three stages, so it doesn't belong filed under
    any one of them. */
@@ -811,7 +823,7 @@
 }
 .dstage__meta b {
   font-family: var(--display); font-weight: var(--fw-light); font-size: var(--text-2xl);
-  letter-spacing: var(--tracking-display); color: var(--yellow);
+  letter-spacing: var(--tracking-display-loose); color: var(--yellow);
   font-variant-numeric: tabular-nums; margin-inline-end: 4px;
 }
 /* CSS-drawn caret — two rotated borders, no icon set involved. PHYSICAL border-right/border-bottom

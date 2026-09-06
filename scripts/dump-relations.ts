@@ -19,6 +19,10 @@ interface Node { id: string; he: string; kind: string; dispo: string; power: num
 const nodes = NODES as Node[]
 const byId = new Map(nodes.map((n) => [n.id, n]))
 const STATES = nodes.filter((n) => n.kind !== 'nonstate')
+// Members of a constellation = every state PLUS every non-state actor. Kept in step with
+// relations-model.ts's own MEMBERS/STATES split — a dump that still filtered actors out would
+// silently under-report coverage by 180 pairs.
+const MEMBERS = nodes
 // ALL states, not just the live screen's 8-button REF_CHOICES — the relations-grid prototype
 // needs every country as its own reference to test whether coverage now holds up broadly.
 const REF_CHOICES = STATES.map((n) => n.id)
@@ -27,7 +31,7 @@ const out = {
   refs: REF_CHOICES.map((id) => ({ id, he: byId.get(id)!.he })),
   byRef: Object.fromEntries(REF_CHOICES.map((refId) => [
     refId,
-    STATES.filter((e) => e.id !== refId).map((e) => {
+    MEMBERS.filter((e) => e.id !== refId).map((e) => {
       const r = relation(refId, e.id)
       return {
         id: e.id, he: e.he, power: e.power, size: powerSize(e.power),

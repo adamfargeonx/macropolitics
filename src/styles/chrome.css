@@ -90,47 +90,20 @@
 .forcesctl__opt:hover { color: var(--light); }
 .forcesctl__opt.is-on { color: var(--bg); background: var(--yellow); }
 /* threshold (minScore) slider — used in the tools disclosure */
-.forcesctl__slider { -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 0; background: var(--line-yellow); cursor: none; }
-.forcesctl__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--yellow); cursor: none; box-shadow: 0 0 8px rgba(251, 255, 0, 0.4); }
-.forcesctl__slider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--yellow); cursor: none; }
 .gindex__empty { margin-top: 14px; font-family: var(--body); font-size: var(--text-xs); color: var(--ink-dim); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); }
 /* Tools disclosure panel — bloc filter + threshold + year + scenario sandbox, all in one.
    Docked as a flyout just to the left of the side panel (RTL: the panel sits at right:44px,
    width:396px — this opens flush against its left edge), so it reads as anchored to the ⚙ כלים
    button that opens it instead of floating disconnected in the middle of the screen. */
-.forcestools {
-  position: absolute; top: 88px; right: 456px; z-index: 7;
-  width: min(320px, calc(100vw - 32px)); padding: 14px 16px 12px;
-  background: rgba(10, 6, 22, 0.96); border: 1px solid var(--line-yellow); border-radius: 0;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); animation: toolsIn 0.24s var(--ease-out-expo);
-}
 @keyframes toolsIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes toolsOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-8px) scale(0.98); } }
-.forcestools--out { animation: toolsOut 0.22s var(--ease-in-out-quart) forwards; }
-.forcestools__row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.forcestools__row--slider { display: grid; grid-template-columns: 40px 1fr 40px; gap: 10px; }
-.forcestools__row--head { justify-content: space-between; margin-bottom: 8px; }
-.forcestools__lbl { font-family: var(--body); font-size: var(--text-xs); font-weight: 700; letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); white-space: nowrap; padding-inline-end: 4px; }
-.forcestools__lbl--title { font-size: var(--text-xs); color: var(--yellow); }
-.forcestools__divider { border: none; border-top: 1px solid var(--line); margin: 6px 0 10px; }
-.forcestools__timenote { color: rgba(251, 255, 0, 0.6) !important; }
 /* item 10: floats — box removed. item 5b: hover is a direct color swap (below).
    item 7: font-size unified to 10px (was 11px) — same "small reset button" role as
    .sandbox__reset / .forces-state__reset below. */
-.forcestools__reset-all {
-  position: relative;
-  cursor: none; background: none; border: none;
-  margin-top: 8px; padding: 5px 0; width: 100%; font-family: var(--body); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim);
-  transition: color var(--dur-fast) ease;
-}
-.forcestools__reset-all:hover { color: var(--light); }
-@media (prefers-reduced-motion: reduce) { .forcestools, .forcestools--out { animation: none; } }
 /* below 980px there's no longer room for a side flyout beside the 396px panel — fall back to
    a bottom-anchored, horizontally centred popover instead */
-@media (max-width: 980px) { .forcestools { top: auto; right: auto; left: 50%; bottom: 160px; transform: translateX(-50%); } }
 /* Sandbox component styles (shared, now rendered inside .forcestools) */
 /* item 7 typography audit: reset-button label was 10.5px, a near-duplicate of the 10px used by
-   .forcestools__reset-all/.forces-state__reset for the same "small reset button" role — unified to 10px. */
+   .forces-state__reset for the same "small reset button" role — unified to 10px. */
 .sandbox__reset { cursor: none; background: none; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 10px; font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--ink-dim); transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
 .sandbox__reset:hover { color: var(--light); border-color: var(--ink-dim); }
 .sandbox__k { font-family: var(--body); font-size: var(--text-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); }
@@ -215,7 +188,7 @@
 @keyframes readoutOutBelow { to { clip-path: inset(0 0 100% 0); } }
 @media (prefers-reduced-motion: reduce) { .readout, .readout--closing { animation: none; } }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
-.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-regular); font-size: var(--text-lg); letter-spacing: var(--tracking-title); display: flex; align-items: baseline; gap: 8px; }
+.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-regular); font-size: var(--text-lg); letter-spacing: var(--tracking-title-loose); display: flex; align-items: baseline; gap: 8px; }
 .readout__g { font-family: var(--body); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--tooltip-fg); opacity: 0.75; }
 .readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }
@@ -323,58 +296,99 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .abtoast__close:hover { color: var(--yellow); }
 @media (prefers-reduced-motion: reduce) { .abtoast { animation: none; } }
 
-/* "המודל" — the methodology overlay */
+/* "המודל" — the methodology overlay. Rail + 2-up-then-span body — see AboutView.tsx's own
+   header comment for why: יחסי הכוחות is the SUM of the other two, not a third peer, and the
+   layout now says so instead of denying it with three identical boxes. */
 .about {
-  position: relative; width: min(806px, calc(100vw - 48px));
+  position: relative; width: min(880px, calc(100vw - 48px));
   max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  padding: 42px 47px 31px; text-align: right;
+  padding: 42px 47px 34px; text-align: right;
+  /* grid, not flex: a fixed rail column plus a fluid body column. Order in source is rail-first,
+     which under this element's own dir="rtl" lands column 1 at the INLINE-START edge — the right,
+     matching every other RTL grid on this site (see RelationsGrid's own note on the same
+     mechanic). No swap needed for an LTR fallback since this whole app is Hebrew-only. */
+  display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2.5fr); column-gap: 34px;
   /* surface/border/shadow/animation + close button inherited from the shared panel shell */
 }
 .about::-webkit-scrollbar { display: none; }
-/* item 9: head divider line removed — the title carries the header on its own, right-aligned
-   (the mark icon was dropped — it duplicated the "המודל" utility-nav button's own glyph).
-   Entrance: this is the FIRST section to appear, no delay — the rest of the modal cascades in
-   beneath it via the Words `delay` staggering in AboutView. */
-/* two columns now: title+subtitle at the RTL start (right), the lede at the far end (left) —
-   saves the lede's own full-width row below, so the modal contracts by roughly that row's height
-   (see the narrower .about width too). align-items: flex-start since the two columns' natural
-   heights differ (lede wraps to 2-3 lines against the 2-line title block). */
-.about__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; animation: textRise 0.77s var(--ease-panel) both; }
-.about__head-txt { flex: none; display: flex; flex-direction: column; gap: 3px; text-align: right; }
-/* typography sweep: was 27px, a 1px stray off the 26px used by its two shared-panel-family
-   siblings (.evid__title, .legend__title — same big yellow overlay-title role) — matched to them,
-   and now all three point at the shared --text-title token instead of a repeated literal. */
+
+/* ── Rail ─────────────────────────────────────────────────────────────────────────────────────
+   Persistent, not a header row that scrolls away with the rest — the title/subtitle/honesty
+   trigger anchor the overlay while the argument sits beside them. */
+.about__rail {
+  position: relative; grid-column: 1;
+  padding-inline-end: 28px; border-inline-end: 1px solid var(--line-yellow);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}
+/* The hairline the rail's own border draws is instant by default (borders don't participate in
+   `animation`) — this absolutely-positioned twin draws top-to-bottom on open and then sits
+   exactly over the real border, which stays as the permanent, always-correct edge underneath. */
+.about__spine {
+  position: absolute; inset-block: 0; inset-inline-end: -1px; width: 1px;
+  background: var(--line-yellow); transform-origin: top; transform: scaleY(0);
+  animation: aboutSpineDraw 0.5s var(--ease-panel) both;
+}
+@keyframes aboutSpineDraw { to { transform: scaleY(1); } }
 .about__title { font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
-.about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
-.about__lede { margin-top: 4px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
-.about__cols { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
-/* each lens as a small card — even box border (no single-sided top stroke), index, subtle hover lift */
-/* the CARD itself now enters as one unit (border, index, heading, all together) — before, only
-   the paragraph text inside had any delay, so the three bordered cards + their headings popped in
-   instantly and simultaneously while just the prose lagged by an imperceptible ~60ms, which read
-   as "everything appears at once." */
-.about__col {
-  position: relative; padding: 18px 17px 17px; border: 1px solid var(--line-2);
-  background: rgba(255, 255, 255, 0.015);
-  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out-expo);
+.about__sub {
+  font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose);
+  line-height: var(--leading-loose); color: var(--light); opacity: 0.55;
+  animation: textRise 0.6s var(--ease-panel) both;
+}
+.about__rail-honesty { margin-top: 10px; animation: textRise 0.5s var(--ease-panel) both; }
+
+/* ── Body ─────────────────────────────────────────────────────────────────────────────────────
+   The thesis, promoted — this used to be a 13px caption sharing size with the lens paragraphs
+   below it. It's the thesis of the whole site; --tracking-title-loose (base.css) is the token
+   built for exactly this role: a regular/light-weight title, not a bold one. */
+.about__body { grid-column: 2; min-width: 0; }
+.about__lede {
+  font-family: var(--display); font-weight: var(--fw-regular); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title-loose); line-height: 1.3; color: var(--light);
+  max-width: 30ch; animation: textRise 0.77s var(--ease-panel) both;
+}
+.about__lenses { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+/* Ruled rows, not bordered cards — a hairline above, a small icon gutter at the RTL start, the
+   name, the sentence. The card-box-plus-hover-lift treatment was the only container language in
+   the overlay and it's generic; a rule is quieter and matches how the rest of the site presents a
+   list of like things (see the relations grid's own band headers). */
+.about__lens {
+  padding-top: 14px; border-top: 1px solid var(--line-2);
   animation: textRise 0.7s var(--ease-panel) both;
 }
-.about__col:nth-child(1) { animation-delay: 0.55s; }
-.about__col:nth-child(2) { animation-delay: 1.00s; }
-.about__col:nth-child(3) { animation-delay: 1.45s; }
-.about__col:hover { border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
-.about__col-n { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: var(--tracking-numeral); }
-.about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: -0.01em; color: var(--yellow); margin: 4px 0 7px; }
-.about__col p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
-/* no container — a plain paragraph, same treatment as .about__lede (the opening thesis) above.
-   The numbered .about__col cards are the one container treatment kept in this overlay. */
-/* lower-hierarchy disclaimer — folded behind an (i) trigger now (.info-disclosure), not a
-   persistent line; this rule just positions the trigger under the cards and keeps its entrance
-   at the same .78s cascade slot the honesty line held before (see the schedule note in AboutView). */
-.about__honesty { margin-top: 29px; animation: textRise 0.6s 1.85s var(--ease-panel) both; }
-@media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .about { animation: none; } }
+.about__lens--wide { grid-column: 1 / -1; margin-top: 26px; }
+.about__lens-icon {
+  width: 26px; height: 26px; color: var(--yellow); opacity: 0.85;
+  display: block; margin-bottom: 10px;
+}
+.about__lens h3 {
+  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-title); color: var(--white); margin: 0 0 8px;
+}
+.about__lens p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
+/* The equation, restored — named in AboutView's own header comment, never actually shown before
+   this pass. Operators carry the accent; the three phrases stay muted, so the eye reads "these
+   combine" rather than three more yellow headings competing with the lens names above them. */
+.about__equation {
+  margin: 26px 0 0; font-family: var(--display); font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-title-loose); color: var(--ink-faint);
+  animation: textRise 0.7s var(--ease-panel) both;
+}
+.about__eq-op { color: var(--yellow); margin: 0 2px; }
+@media (max-width: 700px) {
+  .about { grid-template-columns: 1fr; row-gap: 24px; }
+  .about__rail { grid-column: 1; padding-inline-end: 0; border-inline-end: none; border-bottom: 1px solid var(--line-yellow); padding-bottom: 20px; }
+  .about__spine { inset-block: auto; inset-inline: 0; bottom: -1px; width: auto; height: 1px; transform-origin: right; }
+  .about__body { grid-column: 1; }
+  .about__lede { max-width: none; }
+  .about__lenses { grid-template-columns: 1fr; gap: 20px; }
+  .about__lens--wide { margin-top: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about { animation: none; }
+  .about__spine, .about__sub, .about__rail-honesty, .about__lede, .about__lens, .about__equation { animation: none; }
+}
 
 /* ════════════════════════════════════════════════════════════════
    MOBILE CHROME (≤768px) — top bar compaction + bottom-band hygiene.
@@ -390,7 +404,6 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   /* the interaction hint sits just above the footer tab bar */
   .forces-hint { bottom: calc(var(--tabbar-h) + 12px); }
   /* tools disclosure: dock near the top, never floating over the bottom sheet */
-  .forcestools { top: 60px; bottom: auto; max-height: 56dvh; overflow-y: auto; overscroll-behavior: contain; }
   /* intro toast clears the relocated sound toggle */
   .abtoast { top: calc(var(--sp-4) + 88px); }
 }
@@ -402,20 +415,13 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   }
 }
 @media (max-width: 768px) {
-  /* a full-screen modal (legend / about / evidence share .legend__scrim; the Forces filter
-     sheet uses the same convention via .ffilter-scrim) owns the screen — hide the persistent
-     chrome + footer tabs + the forces sheet underneath it; the modal carries its own close. */
-  body:has(.legend__scrim) .hdr, body:has(.ffilter-scrim) .hdr,
-  body:has(.legend__scrim) .unav, body:has(.ffilter-scrim) .unav,
-  body:has(.legend__scrim) .soundtoggle, body:has(.ffilter-scrim) .soundtoggle,
-  body:has(.legend__scrim) .tline, body:has(.ffilter-scrim) .tline,
-  body:has(.ffilter-scrim) .fmsheet { display: none; }
-  /* the Forces sheet at its "full" snap reaches near the very top of the screen — hide the
-     top-chrome icons it would otherwise sit behind (z-index-wise) rather than let them float
-     over its header. Footer nav stays: full is still page content, not a blocking modal. */
-  body:has(.fmsheet--full) .hdr,
-  body:has(.fmsheet--full) .unav,
-  body:has(.fmsheet--full) .soundtoggle { display: none; }
+  /* a full-screen modal (legend / about / evidence share .legend__scrim) owns the screen — hide
+     the persistent chrome + footer tabs underneath it; the modal carries its own close. The
+     parallel .ffilter-scrim / .fmsheet arms were dropped with ForcesView's filter sheet. */
+  body:has(.legend__scrim) .hdr,
+  body:has(.legend__scrim) .unav,
+  body:has(.legend__scrim) .soundtoggle,
+  body:has(.legend__scrim) .tline { display: none; }
 }
 @media (max-width: 480px) {
   /* header: orbit mark only — drop the wordmark text to fit a 375px bar */

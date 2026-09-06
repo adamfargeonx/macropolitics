@@ -9,6 +9,7 @@ import { AUTHORED_RELATIONS, type AuthoredRelation } from '../data/relations'
 import { sound } from '../sound'
 import { Words } from './Words'
 import { Icon, type IconName } from './Icon'
+import { TIER_ICON, AXIS_ICON, DISPO_ICON } from './panel-icons'
 import { Hint } from './Hint'
 import { LetterSwap, CountUp, Gauge } from './PanelMotion'
 import { BEAT } from './panel-beats'
@@ -56,6 +57,9 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
   // click handler already calls stopPropagation() before this ever fires, so selecting a body
   // never closes the panel it's about to populate; only a click that reaches window untouched
   // (empty canvas/field space, chrome outside the panel) does.
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- sync-to-prop, and provably not a
+     cascade: setOpen(true) when open is already true hits React's bail-out and schedules no
+     re-render. Annotated rather than silently failing the gate, matching the disable above. */
   useEffect(() => { if (reopenOn != null) setOpen(true) }, [reopenOn])
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -461,20 +465,6 @@ function DynamicsCard({ detail, onClose, onRelSelect }: DetailProps) {
 
 interface DetailProps { detail: EntityDetail; onClose?: () => void; onRelSelect?: (id: string) => void; view?: View }
 
-// Per-value icon lookups — each specific label gets its own distinct mark.
-// Fallback to the generic category icon if a value is unrecognised.
-const TIER_ICON: Record<string, IconName> = {
-  'כוח-על': 'tier-great', 'כוח אזורי': 'tier-regional', 'כוח ביניים': 'tier-mid',
-  'כוח קצה': 'tier-edge', 'שחקן לא-מדינתי': 'tier-nonstate',
-}
-const AXIS_ICON: Record<string, IconName> = {
-  'הציר המערבי': 'axis-west', 'הציר המזרחי': 'axis-east',
-  'גוש ניטרלי': 'axis-neutral', 'ללא שיוך': 'axis-none',
-}
-const DISPO_ICON: Record<string, IconName> = {
-  'אגרסיבית': 'dispo-agg', 'אסרטיבית': 'dispo-assert', 'זהירה': 'dispo-caut',
-}
-
 // Shared identity header — rank + title. Used by the forces detail panel.
 // Hover explanations are shown in a RESERVED caption line inside the header — NOT a floating
 // ::after tooltip. The panel is an overflow scroll container (overflow-x:hidden), so a floating
@@ -675,7 +665,6 @@ function ForcesScore({ detail, onOpenAxis }: { detail: EntityDetail; onOpenAxis:
     </div>
   )
 }
-
 
 // FORCES detail panel (forces view) — grouped header, then ONE of two content states: the score
 // cluster (default) or an axis drill-down (see ForcesAxisPanel), reached by clicking an eco/mil/

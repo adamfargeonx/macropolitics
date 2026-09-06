@@ -314,6 +314,11 @@ export class OrbitalField {
     this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power, exitDelay: 0, exitP: 0, bloom: 1 }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
     this.resize()
+    // Re-measure when the CONTAINER changes width, not only the window: the field yields the side
+    // dock's column while the panel is open (body:has(.pdock--open), forces.css). Without this the
+    // canvas keeps its full-width backing store and the composition stays centred behind the panel.
+    this.ro = new ResizeObserver(() => this.resize())
+    this.ro.observe(this.container)
     this.container.addEventListener('pointermove', this.onMove)
     this.container.addEventListener('pointerleave', this.onLeave)
     this.container.addEventListener('pointerdown', this.onDown)
@@ -514,8 +519,10 @@ export class OrbitalField {
   }
 
   start_() { this.start = performance.now() + (this.reduced ? 0 : INTRO_DELAY_MS); this.raf = requestAnimationFrame(this.frame) }
+  private ro: ResizeObserver | null = null
   destroy() {
     cancelAnimationFrame(this.raf)
+    this.ro?.disconnect(); this.ro = null
     this.container.removeEventListener('pointermove', this.onMove)
     this.container.removeEventListener('pointerleave', this.onLeave)
     this.container.removeEventListener('pointerdown', this.onDown)
@@ -848,7 +855,13 @@ export class OrbitalField {
       const hub = this.world.get(ax.around); if (!hub) continue
       const c = this.toScreen(hub.x, hub.y)
       ctx.fillStyle = `rgba(${WHITE},${0.42 * intro * ringFade})`
-      ctx.fillText(ax.he, c.x, c.y + ax.dy * 175 * s)
+      // 175 → 260: at the default frame Iran's "הציר המזרחי" (dy=1, offset 175*s) and its own
+      // "טבעת האש" ring label (offset ring.r*s+14 = 160*s+14 ≈ 174*s) landed within a couple of
+      // px of each other — two DIFFERENT labels for the same hub reading as one doubled string.
+      // usa has no named ring at all, so it never collided; iran does, which is what made the
+      // report specific to that side. 260 clears the fire ring's ~174 comfortably in both dy
+      // directions, kept symmetric rather than a one-off exception for iran alone.
+      ctx.fillText(ax.he, c.x, c.y + ax.dy * 260 * s)
     }
     // named ring labels
     ctx.font = "400 12px 'Tel Aviv Brutalist', sans-serif"
