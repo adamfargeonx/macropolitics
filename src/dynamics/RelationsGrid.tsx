@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
-import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
+import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
 import { GRID_BEAT, GRID_PICK } from './panel-beats'
 
 // Unit-triangle vertices for the mini constellations — the SAME vertex↔field weighting as
@@ -78,6 +78,9 @@ interface GridRow {
   id: string; he: string; power: number; items: MiniPoint[]
   // dom drives which dots light up on hover; stance is what the caption prints.
   mean: Rel; dom: Pole; stance: Stance
+  // posture sits within STANCE_EDGE of a bucket boundary — the caption says so rather than
+  // rounding to one side in silence (see stanceIsEdge in relations-model).
+  edge: boolean
   // 'great' (usa/russia/china/europe/india) is the outside-power tier in entities.ts — the only
   // states that orbit the centre rather than sitting inside the region. Everything else here is
   // a Middle Eastern or immediately-adjacent native actor. Used to split the power sort into
@@ -350,7 +353,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     }))
     // mn (states counted) is NOT items.length (all members plotted) — see the mean note above.
     const mean: Rel = { tension: mt / mn, friction: mf / mn, harmony: mh / mn }
-    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), isGlobal: ref.kind === 'great', axis: AXIS[ref.id] ?? 'none' }
+    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), edge: stanceIsEdge(mean), isGlobal: ref.kind === 'great', axis: AXIS[ref.id] ?? 'none' }
   }), [])
 
   const sorted = useMemo(() => rows.slice().sort(SORTS[sort].fn), [rows, sort])
@@ -428,7 +431,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           if (svg) setPick({ id: row.id, ...pickGeometry(svg) })
           onSelect(row.id)
         }}
-        aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}`}
+        aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}${row.edge ? ' (קרוב לגבול הסיווג)' : ''}`}
       >
         {/* viewBox height 85, not 90: the triangle's BASE sits at y=84, so the original box carried
             6 units of dead space beneath it — which read as part of the gap between a triangle and
@@ -457,7 +460,12 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           ))}
         </svg>
         <span className="rel-grid__name">{row.he}</span>
-        <span className={`rel-grid__pole rel-grid__pole--${STANCE_CLASS[row.stance]}`}>{STANCE_HE[row.stance]}</span>
+        {/* the trailing asterisk is this site's existing "this is a judgment, not a measurement"
+            mark (see the honesty disclosure in the utility nav) — reused rather than inventing a
+            second vocabulary for the same admission. */}
+        <span className={`rel-grid__pole rel-grid__pole--${STANCE_CLASS[row.stance]}${row.edge ? ' rel-grid__pole--edge' : ''}`}>
+          {STANCE_HE[row.stance]}{row.edge ? '*' : ''}
+        </span>
       </button>
     )
   }

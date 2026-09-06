@@ -863,14 +863,38 @@ export class OrbitalField {
       // directions, kept symmetric rather than a one-off exception for iran alone.
       ctx.fillText(ax.he, c.x, c.y + ax.dy * 260 * s)
     }
-    // named ring labels
+    // Named ring labels. These used to be pinned to one spot — straight down from the ring's own
+    // centre, at its bottom edge — which is a fixed point on a field whose BODIES move: whenever
+    // one drifted to that spot the label was drawn through its disc. The label now walks the ring
+    // until it finds a seat that isn't on top of anything.
     ctx.font = "400 12px 'Tel Aviv Brutalist', sans-serif"
     for (const ring of RINGS) {
       if (!ring.he) continue
       const anc = this.world.get(ring.around); if (!anc) continue
       const c = this.toScreen(anc.x, anc.y)
+      const rad = ring.r * s
+      const halfW = ctx.measureText(ring.he).width / 2
+      // Candidates in preference order: bottom first (where it has always sat, and where it reads
+      // most naturally under the ring), then progressively further round. Angles are canvas
+      // convention — 90° is straight down.
+      const SEATS = [90, 106, 74, 122, 58, 138, 42, 270]
+      let px = c.x, py = c.y + rad + 14
+      for (const deg of SEATS) {
+        const a = (deg * Math.PI) / 180
+        const x = c.x + Math.cos(a) * (rad + 14)
+        const y = c.y + Math.sin(a) * (rad + 14)
+        // clear of every body? a label's box is roughly its measured width by 12px of cap height,
+        // padded a little so text doesn't merely graze a disc's rim either.
+        const clear = this.nodes.every((ns) => {
+          if (ns.sr <= 0) return true
+          const dx = Math.abs(ns.sx - x) - halfW - 4
+          const dy = Math.abs(ns.sy - y) - 8
+          return Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) > ns.sr
+        })
+        if (clear) { px = x; py = y; break }
+      }
       ctx.fillStyle = `rgba(${YELLOW},${0.4 * intro * ringFade})`
-      ctx.fillText(ring.he, c.x, c.y + ring.r * s + 14)
+      ctx.fillText(ring.he, px, py)
     }
     ctx.restore()
   }

@@ -62,12 +62,22 @@ export const dominantOf = (r: Rel): Pole =>
 export type Stance = 'agg' | 'dom' | 'caut'
 export const STANCE_HE: Record<Stance, string> = { agg: 'אגרסיבית', dom: 'אסרטיבית', caut: 'זהירה' }
 export const postureOf = (mean: Rel): number => mean.tension + mean.friction * 0.5
+const STANCE_CUTS = [0.44, 0.38] as const
 export function stanceOf(mean: Rel): Stance {
   const p = postureOf(mean)
-  if (p >= 0.44) return 'agg'
-  if (p >= 0.38) return 'dom'
+  if (p >= STANCE_CUTS[0]) return 'agg'
+  if (p >= STANCE_CUTS[1]) return 'dom'
   return 'caut'
 }
+// A posture is a continuum; the label is three buckets cut out of it. Within this much of a cut,
+// the country could reasonably have carried either neighbouring label, and printing one of them
+// flat — as the grid did — states more confidence than the number supports. Callers mark these so
+// the caption can admit it rather than rounding silently.
+// 0.012 is ~20% of the narrower band (dom occupies 0.38–0.44), i.e. genuinely near the line, not
+// merely "not dead centre".
+export const STANCE_EDGE = 0.012
+export const stanceIsEdge = (mean: Rel): boolean =>
+  STANCE_CUTS.some((cut) => Math.abs(postureOf(mean) - cut) < STANCE_EDGE)
 
 // Relationship of target toward reference. Authored pairs first (the editorial layer);
 // otherwise derived from bloc alignment + alliances + the target's disposition.

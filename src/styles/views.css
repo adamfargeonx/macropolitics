@@ -1370,3 +1370,9 @@
   .rel-vtx i { font-size: 8px; }
   .rnode__name { font-size: 10px; }
 }
+
+/* A stance sitting within STANCE_EDGE of a bucket boundary (relations-model.ts) — the label is
+   still the honest best call, but it is a call, so it is set slightly quieter than a clear-cut one
+   and carries the site's own judgment asterisk. No new colour and no icon: the same three stance
+   colours still read at a glance, this only removes the false crispness. */
+.rel-grid__pole--edge { opacity: 0.68; }
