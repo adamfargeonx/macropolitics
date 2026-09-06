@@ -163,7 +163,7 @@
      title against the wordmark's 0.468em, i.e. ~17% tighter than the lockup so the two read as
      related but not identical.
      Bold/black titles are untouched — they keep --tracking-display/--tracking-title as-is. */
-  --tracking-loosen: 0.40em;
+  --tracking-loosen: 0.18em;
   --tracking-display-loose: calc(var(--tracking-display) + var(--tracking-loosen));
   --tracking-title-loose: calc(var(--tracking-title) + var(--tracking-loosen));
   /* ── Futurism (--body) canonical rule — ONE size ramp, ONE tracking, ONE leading, sitewide.
