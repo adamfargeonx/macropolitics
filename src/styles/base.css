@@ -150,20 +150,20 @@
   --tracking-numeral: 0.06em;
   /* ── Loose tracking for REGULAR/LIGHT-weight titles — ONE KNOB ────────────────────────────
      House rule: a title in the display face is TIGHT at bold/black and LOOSE at regular/light.
-     The two loose values are no longer independent numbers to keep in sync by hand — they are
-     derived from the tight ones plus a single offset, so loosening the whole site is a one-value
-     edit here and can never again drift rule by rule:
+     The two loose values are derived from the tight ones plus a single offset, so loosening the
+     whole site is a one-value edit and can never drift rule by rule:
 
          --tracking-loosen  ← the only number to change
 
-     Why this replaced two hand-maintained literals: the first two passes set them to -0.015em
-     then -0.0125em, i.e. they moved the tracking by 0.005–0.0075em. At a 30px title that is
-     0.2px per letter — arithmetically a change, visually nothing, which is exactly why two
-     rounds of "looser" both landed as "identical". The offset is now large enough to actually
-     read: 0.04em carries a regular-weight title from -0.02em to +0.02em, about 1.2px per letter
-     at the hero numeral's size, so the loosening is visible rather than merely present.
+     On the SCALE of that offset. Three passes at 0.005 / 0.0075 / 0.04em all came back as "looks
+     the same", and they were right to: the reference the brief was actually pointing at is the
+     WORDMARK, which sits at --tracking-wordmark 0.468em — an order of magnitude away from where
+     those passes were operating. This tier is now set just under the wordmark ("that type of
+     kerning, perhaps slightly tighter"), landing regular/light titles at +0.38em display / +0.39em
+     title against the wordmark's 0.468em, i.e. ~17% tighter than the lockup so the two read as
+     related but not identical.
      Bold/black titles are untouched — they keep --tracking-display/--tracking-title as-is. */
-  --tracking-loosen: 0.06em;
+  --tracking-loosen: 0.40em;
   --tracking-display-loose: calc(var(--tracking-display) + var(--tracking-loosen));
   --tracking-title-loose: calc(var(--tracking-title) + var(--tracking-loosen));
   /* ── Futurism (--body) canonical rule — ONE size ramp, ONE tracking, ONE leading, sitewide.
