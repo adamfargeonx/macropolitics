@@ -6,8 +6,11 @@
    button. Each panel keeps its own INNER content layout but inherits
    this outer shell, so they read as a single cohesive object.
    Composed via the shared selector list below — no JSX className churn.
+   The "המודל" takeover opts OUT by name: it is not a card on a field, it IS the field —
+   no surface, no accent border, no shadow, and its own slide entrance instead of detailIn.
+   Excluding it here states that, rather than leaving it to out-specify the family downstream.
    ════════════════════════════════════════════════════════════════ */
-.panel, .panelb, .about {
+.panel, .panelb, .about:not(.about--takeover) {
   background: var(--panel-surface);
   border: var(--panel-border);
   box-shadow: var(--panel-shadow);
@@ -380,6 +383,20 @@
 .legend__scrim.is-closing { animation: scrimOut 0.28s ease forwards; }
 .legend__scrim.is-closing .about,
 .legend__scrim.is-closing .evid { animation: dialogOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards; }
+/* ── Takeover variant (the "המודל" screen) ────────────────────────────────────────────────────
+   The scrim's job here is only to catch the click-outside and hold the stacking context: the
+   panel itself covers the viewport, so dimming and blurring the page behind it would just be
+   3px of blur nobody ever sees, paid for on every frame of the slide. */
+.legend__scrim--takeover { background: none; backdrop-filter: none; animation: none; }
+/* dialogOut (a small drop + contract) is a CARD's exit and looks broken on a full-bleed field —
+   it shrinks the whole screen away from its own edges. The takeover leaves the way it arrived,
+   back out through the inline-start edge, and faster than it came: entrances announce, exits get
+   out of the way. Duration must stay within OVERLAY_EXIT_MS (useOverlay.ts) or it is cut off. */
+.legend__scrim--takeover.is-closing .about--takeover { animation: aboutSlideOut 0.28s var(--ease-in-out-quart) forwards; }
+@keyframes aboutSlideOut { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .legend__scrim--takeover.is-closing .about--takeover { animation: none; opacity: 0; }
+}
 @keyframes scrimOut { to { opacity: 0; } }
 @keyframes dialogOut { to { opacity: 0; transform: translateY(8px) scale(0.97); } }
 @media (prefers-reduced-motion: reduce) {

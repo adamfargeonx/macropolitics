@@ -56,6 +56,7 @@
   width: 22px; height: 22px;
   transform-origin: 30% 4%;
   background: var(--white);
+  transition: background var(--dur-fast) ease;
   -webkit-mask: url('/cursor-arrow.svg') no-repeat center / contain;
   mask: url('/cursor-arrow.svg') no-repeat center / contain;
   pointer-events: none; z-index: 2147483647;
@@ -300,58 +301,128 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 .abtoast__close:hover { color: var(--yellow); }
 @media (prefers-reduced-motion: reduce) { .abtoast { animation: none; } }
 
-/* "המודל" — the methodology overlay */
-.about {
-  position: relative; width: min(806px, calc(100vw - 48px));
-  max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
-  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  padding: 42px 47px 31px; text-align: right;
-  /* surface/border/shadow/animation + close button inherited from the shared panel shell */
+/* "המודל" — the methodology takeover ──────────────────────────────────────────────────────────
+   A full-bleed field of accent, not a card on a scrim. Sliding it in from the inline-start (the
+   RIGHT, in RTL — transforms are physical, so translateX(100%) starts it off the right edge and
+   it travels along the reading direction) is what makes it read as a PLACE rather than a dialog.
+   0.86s on --ease-panel: long enough that the arrival is the event, which is the whole point of a
+   takeover — a 280ms pop would just be a modal wearing a different colour. */
+.about.about--takeover {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  max-height: none; border: 0; border-radius: 0; padding: 0;
+  overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain;
+  background: var(--takeover-field);
+  /* The field is the accent, so every ink value inverts. Redefining the tokens ON this scope (as
+     opposed to restating literals per rule) means anything nested — InfoDisclosure, the hint
+     popover — inherits a coherent inverted palette instead of rendering its normal light-on-dark
+     self against yellow, which is how these takeovers usually go wrong. */
+  --ink: var(--takeover-ink);
+  --light: var(--takeover-ink);
+  --white: var(--takeover-ink);
+  --ink-dim: rgba(6, 3, 15, 0.72);
+  --ink-faint: rgba(6, 3, 15, 0.58);
+  --line: rgba(6, 3, 15, 0.16);
+  --line-yellow: rgba(6, 3, 15, 0.24);
+  --yellow: var(--takeover-ink);
+  color: var(--takeover-ink);
+  animation: aboutSlideIn 0.86s var(--ease-panel) both;
 }
-.about::-webkit-scrollbar { display: none; }
-/* item 9: head divider line removed — the title carries the header on its own, right-aligned
-   (the mark icon was dropped — it duplicated the "המודל" utility-nav button's own glyph).
-   Entrance: this is the FIRST section to appear, no delay — the rest of the modal cascades in
-   beneath it via the Words `delay` staggering in AboutView. */
-/* two columns now: title+subtitle at the RTL start (right), the lede at the far end (left) —
-   saves the lede's own full-width row below, so the modal contracts by roughly that row's height
-   (see the narrower .about width too). align-items: flex-start since the two columns' natural
-   heights differ (lede wraps to 2-3 lines against the 2-line title block). */
-.about__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; animation: textRise 0.77s var(--ease-panel) both; }
-.about__head-txt { flex: none; display: flex; flex-direction: column; gap: 3px; text-align: right; }
-/* typography sweep: was 27px, a 1px stray off the 26px used by its two shared-panel-family
-   siblings (.evid__title, .legend__title — same big yellow overlay-title role) — matched to them,
-   and now all three point at the shared --text-title token instead of a repeated literal. */
-.about__title { font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black); letter-spacing: var(--tracking-display); color: var(--yellow); line-height: 1; }
-.about__sub { font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.55; }
-.about__lede { margin-top: 4px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.92; }
-.about__cols { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
-/* each lens as a small card — even box border (no single-sided top stroke), index, subtle hover lift */
-/* the CARD itself now enters as one unit (border, index, heading, all together) — before, only
-   the paragraph text inside had any delay, so the three bordered cards + their headings popped in
-   instantly and simultaneously while just the prose lagged by an imperceptible ~60ms, which read
-   as "everything appears at once." */
-.about__col {
-  position: relative; padding: 18px 17px 17px; border: 1px solid var(--line-2);
-  background: rgba(255, 255, 255, 0.015);
-  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out-expo);
-  animation: textRise 0.7s var(--ease-panel) both;
+@keyframes aboutSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.about--takeover::-webkit-scrollbar { display: none; }
+
+/* under the type, above the field — see AboutView's own note */
+.about__particles {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0; color: var(--takeover-ink);
 }
-.about__col:nth-child(1) { animation-delay: 0.55s; }
-.about__col:nth-child(2) { animation-delay: 1.00s; }
-.about__col:nth-child(3) { animation-delay: 1.45s; }
-.about__col:hover { border-color: var(--yellow-30); background: rgba(251, 255, 0, 0.04); transform: translateY(-2px); }
-.about__col-n { font-family: var(--display); font-size: var(--text-xs); font-weight: 700; color: var(--yellow); opacity: 0.5; letter-spacing: var(--tracking-numeral); }
-.about__col h3 { font-size: var(--text-md); font-weight: 700; letter-spacing: var(--tracking-title); color: var(--yellow); margin: 4px 0 7px; }
-.about__col p { font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-loose); color: var(--light); opacity: 0.78; }
-/* no container — a plain paragraph, same treatment as .about__lede (the opening thesis) above.
-   The numbered .about__col cards are the one container treatment kept in this overlay. */
-/* lower-hierarchy disclaimer — folded behind an (i) trigger now (.info-disclosure), not a
-   persistent line; this rule just positions the trigger under the cards and keeps its entrance
-   at the same .78s cascade slot the honesty line held before (see the schedule note in AboutView). */
-.about__honesty { margin-top: 29px; animation: textRise 0.6s 1.85s var(--ease-panel) both; }
-@media (max-width: 700px) { .about__cols { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .about { animation: none; } }
+.about__inner {
+  position: relative; z-index: 1;
+  min-height: 100%;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: clamp(28px, 4vh, 56px);
+  padding: clamp(56px, 8vh, 104px) clamp(28px, 7vw, 132px);
+}
+.about__close {
+  position: absolute; top: clamp(20px, 3vh, 34px); left: clamp(20px, 3vw, 40px);
+  z-index: 2; color: var(--takeover-ink);
+}
+.about__head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.about__title {
+  font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-display); color: var(--takeover-ink); line-height: 1;
+}
+.about__sub {
+  font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose);
+  line-height: var(--leading-loose); color: rgba(6, 3, 15, 0.62);
+  animation: textRise 0.7s 0.34s var(--ease-panel) both;
+}
+/* The thesis AS the headline. clamp() so it stays the biggest thing on the screen at any width
+   without ever outrunning its measure. */
+.about__thesis {
+  max-width: 26ch;
+  font-family: var(--display); font-weight: var(--fw-light);
+  font-size: clamp(26px, 4vw, 52px); line-height: 1.16;
+  /* DELIBERATE EXCEPTION to the "non-bold display text is loose" rule (base.css,
+     --tracking-loosen). Everywhere else that rule holds because those are NAMES — short strings
+     that gain from air. This is a 20-word sentence set at display scale: at +0.16em it broke into
+     disconnected letters and stopped reading as prose. Tight is what makes a long line at this
+     size still scan as a sentence. Do not "fix" this back in a tracking sweep. */
+  letter-spacing: var(--tracking-display);
+  color: var(--takeover-ink);
+}
+/* The equation. Three lenses with real operators between them — grid rather than flex so the
+   operator columns can be sized to their glyph and the three lens columns share the rest evenly. */
+.about__eq {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: start; gap: clamp(14px, 2vw, 30px);
+}
+.about__lens { display: flex; flex-direction: column; gap: 6px; animation: textRise 0.75s var(--ease-panel) both; }
+.about__lens:nth-of-type(1) { animation-delay: 1.05s; }
+.about__lens:nth-of-type(2) { animation-delay: 1.35s; }
+.about__lens:nth-of-type(3) { animation-delay: 1.65s; }
+.about__lens-n {
+  font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
+  letter-spacing: var(--tracking-numeral);
+  /* 0.45 measured 3.25:1 on the yellow field — under the 4.5:1 floor for text this size.
+     0.57 clears it at 4.88:1 with margin (rules/accessibility.md). */
+  color: rgba(6, 3, 15, 0.57);
+}
+.about__lens h3 {
+  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-title); color: var(--takeover-ink); margin: 0;
+}
+.about__lens p {
+  font-family: var(--body); font-size: var(--text-base); line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-loose); color: rgba(6, 3, 15, 0.78); margin: 0;
+}
+/* the sum is the one that gets a rule against it — it is a RESULT, and the border is the closest
+   typographic equivalent of the line you draw under an equation before writing the answer */
+.about__lens--sum { padding-inline-start: clamp(12px, 1.6vw, 22px); border-inline-start: 1px solid rgba(6, 3, 15, 0.22); }
+.about__op {
+  align-self: center;
+  font-family: var(--display); font-weight: var(--fw-light);
+  font-size: clamp(22px, 2.6vw, 38px); line-height: 1;
+  /* 0.42 measured 2.95:1 — a hair under the 3:1 large-text floor. These operators carry the
+     equation's meaning, so they are held to the text threshold rather than waived as decoration. */
+  color: rgba(6, 3, 15, 0.52);
+  animation: textRise 0.6s var(--ease-panel) both;
+}
+.about__op:nth-of-type(1) { animation-delay: 1.28s; }
+.about__op:nth-of-type(2) { animation-delay: 1.58s; }
+.about__honesty { animation: textRise 0.6s 1.95s var(--ease-panel) both; }
+
+@media (max-width: 860px) {
+  /* the equation cannot survive as a row at this width — it stacks, and the operators become
+     row separators rather than columns, which still reads as an equation top to bottom */
+  .about__eq { grid-template-columns: 1fr; }
+  .about__op { justify-self: start; }
+  .about__lens--sum { padding-inline-start: 0; border-inline-start: 0; padding-top: 14px; border-top: 1px solid rgba(6, 3, 15, 0.22); }
+  .about__thesis { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about--takeover { animation: none; }
+  .about__sub, .about__lens, .about__op, .about__honesty { animation: none; }
+}
 
 /* ════════════════════════════════════════════════════════════════
    MOBILE CHROME (≤768px) — top bar compaction + bottom-band hygiene.
@@ -369,13 +440,6 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   /* tools disclosure: dock near the top, never floating over the bottom sheet */
   /* intro toast clears the relocated sound toggle */
   .abtoast { top: calc(var(--sp-4) + 88px); }
-}
-@media (max-width: 480px) {
-  /* methodology overlay full-screen with reduced padding */
-  .about {
-    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh;
-    border: none; box-shadow: none; padding: 26px 18px 20px;
-  }
 }
 @media (max-width: 768px) {
   /* a full-screen modal (legend / about / evidence share .legend__scrim) owns the screen — hide
@@ -395,4 +459,36 @@ body:has(.home--closed) .unav { opacity: 0.75; }
      the icon carries its own explicit size) */
   .unav__model { font-size: 0; gap: 0; padding: 8px 10px; }
   .unav__icon { font-size: var(--text-xl); }
+}
+
+/* The arrow is masked --white, which is all but invisible on the takeover's yellow field. Inverted
+   for as long as that screen is up. :has() on body because the cursor lives at the document root,
+   a sibling subtree away from the overlay that changes its context. */
+body:has(.about--takeover) .cursor-shape { background: var(--takeover-ink); }
+body:has(.about--takeover) .cursor-dot { background: var(--takeover-ink); }
+body:has(.about--takeover) .cursor { border-color: rgba(6, 3, 15, 0.5); }
+
+/* The persistent chrome (wordmark, utility nav, tab bar, sound toggle) sits ABOVE the overlay
+   layer by design — it is meant to stay reachable over the panels. A full-bleed takeover is the
+   one case where that is wrong: light-on-dark chrome over a yellow field is both illegible and a
+   contradiction, since the takeover is not a panel you look past but a screen you are inside.
+   Faded rather than display:none so it leaves WITH the slide instead of blinking out ahead of it.
+   :has() on body because the chrome and the overlay are sibling subtrees. */
+body:has(.about--takeover) .hdr,
+body:has(.about--takeover) .unav,
+body:has(.about--takeover) .tline,
+body:has(.about--takeover) .soundtoggle {
+  /* animation:none is load-bearing, not tidying. .tline (forces.css) and the other chrome carry
+     entrance animations with fill-mode `both`, and an ANIMATED value beats a plain declaration in
+     the cascade — so `opacity: 0` alone was silently losing to tabsExpand's pinned end state and
+     the tab bar stayed at full opacity over the yellow. Dropping the animation hands control back
+     to the declaration below, which the transition can then carry. The alternative was
+     !important, which would have hidden the actual reason. */
+  animation: none;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.34s var(--ease-panel);
+}
+@media (prefers-reduced-motion: reduce) {
+  body:has(.about--takeover) .hdr, body:has(.about--takeover) .unav,
+  body:has(.about--takeover) .tline, body:has(.about--takeover) .soundtoggle { transition: none; }
 }

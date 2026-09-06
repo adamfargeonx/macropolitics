@@ -84,6 +84,13 @@
   --dock-w: calc(var(--panel-w) + var(--panel-inset));
   --panel-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
   /* ── Tooltip — dark text on yellow (the one tooltip language; see overlays.css) ── */
+  /* Inverted field — the "המודל" takeover paints the accent full-bleed and flips every ink to
+     dark. These exist as their own tokens rather than being read off --yellow/--bg because that
+     scope REDEFINES --yellow (so nested components inherit dark ink); an element cannot then use
+     var(--yellow) for its own background without picking up its own override. Two names, no
+     self-reference. */
+  --takeover-field: #fbff00;
+  --takeover-ink: #06030f;
   --tooltip-bg: var(--yellow);
   --tooltip-fg: var(--bg);
   /* ── Data-status colors (deliberate palette exception — data-quality semantics only) ── */
@@ -320,7 +327,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
      viewport) before applying our own — otherwise the box stretches the full viewport. */
   position: fixed; inset: auto; overflow: visible; color: var(--tooltip-fg);
   bottom: anchor(top); left: anchor(center); translate: -50% 0;
-  position-try-fallbacks: flip-block;
+  /* flip-block alone only ever tried ABOVE/BELOW the anchor, so a hint anchored near the inline
+     edge (the honesty control on the takeover, at the field's far side) ran straight off the
+     viewport — measured 24px past the right edge. Adding the inline flips, and the combination,
+     lets it also swing to the other side of its anchor. */
+  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
   margin-block: 10px; z-index: 300; width: max-content; max-width: 260px; padding: 7px 10px;
   background: var(--tooltip-bg); color: var(--tooltip-fg);
   border: 1px solid var(--yellow); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
