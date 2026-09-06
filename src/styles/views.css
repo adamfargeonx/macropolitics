@@ -578,6 +578,76 @@
 .rel-grid--selecting {
   animation: relGridOut 0.34s var(--ease-in-out-quart) both; pointer-events: none;
 }
+
+/* ── Grid → field: the pick choreography ──────────────────────────────────────────────────────
+   Five beats, timed by GRID_PICK (panel-beats.ts) — glow, dismiss, undress, travel, expand. See
+   that constant's comment for what each beat is FOR; this file only draws them.
+   The whole-grid relGridOut above is NOT used on this path (it still serves the .rel-grid--selecting
+   fallback when no cell rect could be measured); a container-level fade would flatten every beat
+   below back into the single cross-cut this replaced. */
+.rel-grid--picking { pointer-events: none; }
+/* the flying cell has to escape every box it sits in — the grid clips (overflow:hidden, so the
+   entrance can't spill) and so does each cell. Lifted only while a pick is in flight. */
+.rel-grid--picking,
+.rel-grid--picking .rel-grid__body,
+.rel-grid--picking .rel-grid__cells,
+.rel-grid--picking .rel-grid__band,
+.rel-grid--picking .rel-grid__band-cells { overflow: visible; }
+/* the furniture goes first and quietly — it is not part of the sequence, it just shouldn't be
+   left standing around the one triangle that is */
+.rel-grid--picking .rel-grid__sortbar,
+.rel-grid--picking .rel-grid__band-head {
+  animation: relPickFurnitureOut 0.36s var(--ease-in-out-quart) both;
+}
+@keyframes relPickFurnitureOut { to { opacity: 0; } }
+
+/* ── beat 2: every OTHER cell leaves, staggered outward from the pick ── */
+.rel-grid__cell--gone {
+  animation: relPickDismiss var(--dismiss-dur, 0.32s) var(--ease-in-out-quart) var(--dismiss-d, 0s) both;
+}
+@keyframes relPickDismiss {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.72); }
+}
+
+/* ── beat 1: the picked cell glows, and keeps glowing while it undresses ── */
+.rel-grid__cell--chosen { position: relative; z-index: 40; overflow: visible; background: transparent; }
+.rel-grid__cell--chosen .rel-grid__poly {
+  animation: relPickGlow 0.5s var(--ease-out-expo) both;
+}
+@keyframes relPickGlow {
+  from { stroke: var(--line-yellow); filter: none; }
+  to   { stroke: var(--yellow); filter: drop-shadow(0 0 7px rgba(251, 255, 0, 0.75)); }
+}
+/* ── beat 3: it sheds its parts in the order it grew them ── */
+.rel-grid__cell--chosen .rel-grid__pole { animation: relPickPartOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--pole-out) both; }
+.rel-grid__cell--chosen .rel-grid__name { animation: relPickPartOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--name-out) both; }
+.rel-grid__cell--chosen .rel-grid__dot  { animation: relPickDotOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--dot-out) both; }
+@keyframes relPickPartOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(4px); } }
+@keyframes relPickDotOut  { from { opacity: 1; } to { opacity: 0; } }
+
+/* ── beats 4+5: the bare outline travels to centre, then opens out to the field's own triangle.
+   ONE animation, not two: a gap between them (even a frame) reintroduces exactly the stutter this
+   whole sequence exists to remove. 53% is the arrival — everything after it is the expansion. */
+.rel-grid__cell--chosen .rel-grid__svg {
+  transform-origin: var(--ox, 50%) var(--oy, 50%);
+  /* TWO animations, because the move and the fade need different curves. Running opacity inside
+     the transform's own keyframes put it on --ease-panel, which is heavily front-loaded: measured
+     at 86% of the timeline the outline was already down to opacity 0.04 — it had vanished before
+     it finished opening, so the last thing you saw was empty screen rather than the frame you
+     were about to land inside. The fade is now linear and confined to the final stretch. */
+  animation:
+    relPickTravel var(--travel-dur, 0.98s) var(--ease-panel) var(--travel-d, 1.32s) both,
+    relPickFade calc(var(--travel-dur, 0.98s) * 0.34) linear calc(var(--travel-d, 1.32s) + var(--travel-dur, 0.98s) * 0.66) both;
+}
+@keyframes relPickTravel {
+  0%   { transform: translate(0, 0) scale(1); }
+  /* 53% is the arrival: the outline is at the field triangle's centroid, barely grown. Everything
+     after it is the opening-out to that triangle's actual size (--ts, measured at click time). */
+  53%  { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1.05); }
+  100% { transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--ts, 6)); }
+}
+@keyframes relPickFade { from { opacity: 1; } to { opacity: 0; } }
 /* scale 0.94, not 0.98 — a 2% shrink over 280ms was invisible, so the handoff read as a hard cut
    even though the transition was running. */
 @keyframes relGridOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.94); } }
@@ -599,6 +669,12 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rel-grid--selecting { animation: none; opacity: 0; }
+  /* the pick sequence is a 2.3s full-screen flight — resolve it to a plain disappearance */
+  .rel-grid--picking .rel-grid__sortbar, .rel-grid--picking .rel-grid__band-head,
+  .rel-grid__cell--gone, .rel-grid__cell--chosen .rel-grid__poly,
+  .rel-grid__cell--chosen .rel-grid__pole, .rel-grid__cell--chosen .rel-grid__name,
+  .rel-grid__cell--chosen .rel-grid__dot, .rel-grid__cell--chosen .rel-grid__svg { animation: none; }
+  .rel-grid--picking { opacity: 0; transition: opacity 0.2s linear; }
   .rel-grid--leaving .rel-grid__cell { animation: none; opacity: 0; }
   .rel-grid--leaving .rel-grid__sortbar, .rel-grid--leaving .rel-grid__band-head { transition: none; }
 }

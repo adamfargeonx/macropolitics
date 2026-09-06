@@ -7,7 +7,7 @@ import { CountUp, LetterSwap, Seg } from './PanelMotion'
 import { Affordance } from './Affordance'
 import { Icon } from './Icon'
 import { RelationsGrid } from './RelationsGrid'
-import { REL_BEAT, FIELD_BEAT } from './panel-beats'
+import { REL_BEAT, FIELD_BEAT, GRID_PICK_MS } from './panel-beats'
 import { useDeCollide } from './useDeCollide'
 import { sound } from '../sound'
 import { usePresenceValue } from './usePresence'
@@ -17,13 +17,14 @@ import { byId, MEMBERS, isActor, hash, relation, sharpen, dominantOf, POLE_HE, V
 // held beat before the first star at all, rather than starting immediately.
 const ENTRANCE_HOLD = 0.5
 const ENTRANCE_STEP = 0.045
-// grid → field handoff: the grid cross-fades out for exactly this long, then the field mounts and
-// plays its own relZoomOut entrance — timed back-to-back (not simultaneously mounted) so the switch
-// reads as one continuous beat instead of a hard cut. Matches .rel-grid--selecting's own duration
-// in views.css; keep the two in sync if either changes.
-const GRID_EXIT_MS = 340
+// grid → field handoff. The grid no longer cross-fades as a block — it plays the five-beat pick
+// choreography (GRID_PICK / GRID_PICK_MS in panel-beats.ts: glow → dismiss → undress → travel →
+// expand), and the field mounts at the END of it, as the picked triangle's outline finishes
+// opening out to the size the field's own triangle is about to occupy.
+// The old 340ms cross-fade constant is gone from here; .rel-grid--selecting keeps its own 0.34s
+// in views.css purely as the fallback arm for a pick whose rect could not be measured.
 // Reference switch (picking a new state from the panel while already in field mode) — distinct
-// from GRID_EXIT_MS above, which is the grid→field handoff. Two numbers, kept here rather than
+// from the grid→field handoff above. Two numbers, kept here rather than
 // only in CSS, because the newly-JOINING star's entrance delay (below) has to land in the same
 // beat as the CSS glide's own pause+duration (views.css's .rnode transition), not the unrelated
 // initial-cascade schedule (ENTRANCE_HOLD/ENTRANCE_STEP) it would otherwise inherit.
@@ -231,9 +232,9 @@ export default function RelationsView() {
   // no grid to cross-fade out of; only refId actually changes.
   const setReference = (id: string) => { sound.play('select'); setRefId(id); setPinned(null); setHovered(null); setMode('field') }
   // called from a grid cell — plays the grid's own exit before the field ever mounts (see
-  // GRID_EXIT_MS above), rather than swapping instantly.
+  // GRID_PICK_MS above), rather than swapping instantly.
   // Tracked + cleared on unmount. It was a bare setTimeout scheduling five setters 340ms out,
-  // safe only because every app-level exit path happens to be longer than GRID_EXIT_MS — an
+  // safe only because every app-level exit path happens to be longer than the handoff — an
   // invariant held by comment discipline across two files. App.tsx already established this
   // pattern for its own view-transition timers; this call site had just missed it.
   const handoffRef = useRef<number | null>(null)
@@ -243,7 +244,7 @@ export default function RelationsView() {
     setGridSelecting(true)
     handoffRef.current = window.setTimeout(() => {
       setRefId(id); setPinned(null); setHovered(null); setMode('field'); setGridSelecting(false)
-    }, GRID_EXIT_MS)
+    }, GRID_PICK_MS)
   }
   const backToGrid = () => { sound.play('select'); setPinned(null); setHovered(null); setMode('grid') }
 

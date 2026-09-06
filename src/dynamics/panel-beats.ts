@@ -128,3 +128,31 @@ export const FIELD_BEAT = {
   nameStart: 2.80,
   nameStep: 0.018, // 19 stars; a wider step here drags the tail past 3.5s
 } as const
+
+// ── GRID_PICK ────────────────────────────────────────────────────────────────────────────────
+// The grid → field hand-off, choreographed rather than cross-faded. The grid used to leave as one
+// block (relGridOut: the whole container fading and shrinking 6% in 340ms), which read as a cut —
+// the screen you picked FROM and the screen you arrived AT shared no motion.
+//
+// It now runs as five stated beats, with a real hold between each so the sequence is legible:
+//   1. glow      — the picked triangle lights; nothing else moves yet.
+//   2. dismiss   — every OTHER cell scales out and fades, staggered by distance from the pick, so
+//                  the field empties outward from the thing you chose rather than in reading order.
+//   3. undress   — the picked cell sheds its own parts in turn: stance label, then name, then its
+//                  stars, leaving only the outline. (Its parts arrived in that order on load; they
+//                  leave in it too.)
+//   4. travel    — the bare outline moves to the centre of the screen.
+//   5. expand    — it scales up to the size of the field's own triangle and fades out as the field
+//                  zooms in underneath, so the outline you were looking at becomes the frame you
+//                  land in. Nothing "arrives"; the same shape carries you across.
+// Seconds (CSS), except GRID_PICK_MS which is the total the VIEW waits before swapping mode.
+export const GRID_PICK = {
+  glow: 0,
+  dismissStart: 0.26, dismissSpread: 0.36, dismissDur: 0.32,
+  poleOut: 0.82, nameOut: 0.90,
+  dotsStart: 0.98, dotsSpread: 0.22, partDur: 0.26,
+  travelStart: 1.32, travelDur: 0.98, // travel + expand are ONE animation; 53% of it is the move
+} as const
+// The field mounts at 2260 while the outline's fade runs to 2300 — a deliberate 40ms overlap, so
+// the field's own relZoomOut begins UNDER the last frames of the outline rather than after them.
+export const GRID_PICK_MS = 2260

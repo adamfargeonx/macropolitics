@@ -163,7 +163,7 @@
      read: 0.04em carries a regular-weight title from -0.02em to +0.02em, about 1.2px per letter
      at the hero numeral's size, so the loosening is visible rather than merely present.
      Bold/black titles are untouched — they keep --tracking-display/--tracking-title as-is. */
-  --tracking-loosen: 0.04em;
+  --tracking-loosen: 0.06em;
   --tracking-display-loose: calc(var(--tracking-display) + var(--tracking-loosen));
   --tracking-title-loose: calc(var(--tracking-title) + var(--tracking-loosen));
   /* ── Futurism (--body) canonical rule — ONE size ramp, ONE tracking, ONE leading, sitewide.

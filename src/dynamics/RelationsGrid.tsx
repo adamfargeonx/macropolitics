@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
-import { GRID_BEAT } from './panel-beats'
+import { GRID_BEAT, GRID_PICK } from './panel-beats'
 
 // Unit-triangle vertices for the mini constellations — the SAME vertex↔field weighting as
 // unifiedGeo() in RelationsView.tsx (top = friction field/מתח, bottom-left = tension field/חיכוך,
@@ -261,8 +261,52 @@ interface RelationsGridProps {
 // After this the screen is "settled" and re-sorts REFLOW instead of replaying — see below.
 const LOAD_MS = 3700
 
+// What the picked cell needs in order to fly: where to go, how big to get, and which point of
+// itself to pivot around. All of it is measured from the LIVE rects at click time rather than
+// assumed from the layout — the grid is fluid (column count snaps to a divisor of the roster, rows
+// divide the leftover viewport height), so a cell's size and position are not knowable statically.
+interface Pick { id: string; tx: number; ty: number; ts: number; ox: number; oy: number }
+
+// Mirrors unifiedGeo() in RelationsView — deliberately, and the duplication is the point: this has
+// to land on the field's triangle as it will ACTUALLY be drawn a beat later, and that triangle is
+// derived from the field box's own size, not from a shared constant either file could import.
+// (.rel-field is inset top:20 bottom:64 — see views.css — hence the 84px of vertical inset here.)
+function fieldTriangle() {
+  const w = window.innerWidth
+  const fh = window.innerHeight - 84
+  const cx = w / 2, cy = fh / 2 + fh * 0.02 + 20
+  const sx = w * 0.46, sy = fh * 0.5
+  const Vt = { x: cx, y: Math.max(cy - sy * 0.95, 110) }
+  const Vf = { x: cx - sx * 0.92, y: cy + sy * 0.72 }
+  const Vh = { x: cx + sx * 0.92, y: cy + sy * 0.72 }
+  return { base: Vh.x - Vf.x, cx: (Vt.x + Vf.x + Vh.x) / 3, cy: (Vt.y + Vf.y + Vh.y) / 3 }
+}
+
+// Maps the cell's <svg> box to the triangle actually painted inside it. The viewBox is 100x85 with
+// preserveAspectRatio="xMidYMax meet", so the drawing is letterboxed: uniformly scaled to fit,
+// centred horizontally, flushed to the BOTTOM. Getting this wrong (assuming the drawing fills the
+// box) would put the pivot off-centre and the triangle would visibly slide sideways as it grew.
+function pickGeometry(svg: Element): Omit<Pick, 'id'> {
+  const r = svg.getBoundingClientRect()
+  const k = Math.min(r.width / 100, r.height / 85)
+  const ox = (r.width - 100 * k) / 2          // xMid
+  const oy = r.height - 85 * k                // YMax
+  // centroid of the polygon in viewBox units: (50, (6+84+84)/3)
+  const gx = ox + 50 * k
+  const gy = oy + 58 * k
+  const f = fieldTriangle()
+  return {
+    tx: f.cx - (r.left + gx),
+    ty: f.cy - (r.top + gy),
+    ts: f.base / (84 * k),                    // the polygon's base spans 84 viewBox units
+    ox: gx, oy: gy,
+  }
+}
+
 export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridProps) {
   const [sort, setSort] = useState<SortKey>('power')
+  // the cell being flown to the field, with its measured flight plan
+  const [pick, setPick] = useState<Pick | null>(null)
   // The three-phase load is a first-impression device, not a sort transition. Switching sort
   // swaps the flat grid for the banded one (a different container, so React remounts every cell)
   // and the whole 3.7s outline → dots → captions sequence played again — a reveal the first time,
@@ -340,6 +384,14 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
 
   const cell = (row: GridRow, offset = 0) => {
     const i = rank.get(row.id) ?? 0
+    const chosen = pick?.id === row.id
+    // Dismissal is ordered by DISTANCE FROM THE PICK, not reading order: the grid should empty
+    // outward from the cell you chose, so the motion points at your own action. |rank difference|
+    // is the honest proxy here — the cells are laid out in rank order, so rank distance and
+    // on-screen distance agree, and it costs no measurement.
+    const pickRank = pick ? (rank.get(pick.id) ?? 0) : 0
+    const spread = Math.max(1, Math.max(pickRank, n - 1 - pickRank))
+    const dismissDelay = GRID_PICK.dismissStart + (Math.abs(i - pickRank) / spread) * GRID_PICK.dismissSpread
     // per-cell exit delay — spread over EXIT_SPREAD in rank order, count-independent,
     // mirroring RelationsView's own exitDelay for .rnode (same idiom, same spread window).
     const exitDelay = (n <= 1 ? 0 : i / (n - 1)) * EXIT_SPREAD
@@ -350,15 +402,32 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     return (
       <button
         key={row.id}
-        className="rel-grid__cell"
+        className={`rel-grid__cell${chosen ? ' rel-grid__cell--chosen' : ''}${pick && !chosen ? ' rel-grid__cell--gone' : ''}`}
         style={{
           '--stroke-d': `${strokeDelay}s`,
           '--cap-d': `${capDelay}s`,
           '--exit-cd': `${exitDelay}ms`,
+          '--dismiss-d': `${dismissDelay}s`,
+          ...(chosen && pick
+            ? {
+                '--tx': `${pick.tx}px`,
+                '--ty': `${pick.ty}px`,
+                '--ts': pick.ts,
+                '--ox': `${pick.ox}px`,
+                '--oy': `${pick.oy}px`,
+              }
+            : null),
           // only ever set on a band's first cell — see leadOffset()
           gridColumnStart: offset > 0 ? offset + 1 : undefined,
         } as React.CSSProperties}
-        onClick={() => onSelect(row.id)}
+        onClick={(e) => {
+          if (pick) return
+          const svg = e.currentTarget.querySelector('.rel-grid__svg')
+          // Measure BEFORE anything animates. If the <svg> somehow isn't there the pick still has
+          // to work — fall through with no flight plan and the cell simply fades with the rest.
+          if (svg) setPick({ id: row.id, ...pickGeometry(svg) })
+          onSelect(row.id)
+        }}
         aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}`}
       >
         {/* viewBox height 85, not 90: the triangle's BASE sits at y=84, so the original box carried
@@ -379,7 +448,11 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
               cx={p.x} cy={p.y} r={p.d}
               // hashed on the dot's own identity, NOT its index — so the fill-in reads as rain
               // across the whole screen rather than a second sweep in cell order.
-              style={{ '--dot-d': `${(GRID_BEAT.dotsStart + hash01(`${row.id}:${pi}`) * GRID_BEAT.dotsSpread).toFixed(3)}s` } as React.CSSProperties}
+              style={{
+                '--dot-d': `${(GRID_BEAT.dotsStart + hash01(`${row.id}:${pi}`) * GRID_BEAT.dotsSpread).toFixed(3)}s`,
+                // stars leave the picked triangle scattered, the same way they filled it
+                '--dot-out': `${(GRID_PICK.dotsStart + hash01(`out:${row.id}:${pi}`) * GRID_PICK.dotsSpread).toFixed(3)}s`,
+              } as React.CSSProperties}
             />
           ))}
         </svg>
@@ -419,7 +492,19 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
   }
 
   return (
-    <div className={`rel-grid${settled ? ' rel-grid--settled' : ''}${selecting ? ' rel-grid--selecting' : ''}${leaving ? ' rel-grid--leaving' : ''}`}>
+    <div
+      className={`rel-grid${settled ? ' rel-grid--settled' : ''}${pick ? ' rel-grid--picking' : ''}${selecting && !pick ? ' rel-grid--selecting' : ''}${leaving ? ' rel-grid--leaving' : ''}`}
+      // the pick beats are published to CSS from GRID_PICK rather than restated as literals in the
+      // stylesheet — the schedule has ONE definition (panel-beats.ts) that both sides read.
+      style={pick ? ({
+        '--dismiss-dur': `${GRID_PICK.dismissDur}s`,
+        '--part-dur': `${GRID_PICK.partDur}s`,
+        '--pole-out': `${GRID_PICK.poleOut}s`,
+        '--name-out': `${GRID_PICK.nameOut}s`,
+        '--travel-d': `${GRID_PICK.travelStart}s`,
+        '--travel-dur': `${GRID_PICK.travelDur}s`,
+      } as React.CSSProperties) : undefined}
+    >
       {/* No screen title or standfirst here. The bottom tab bar already names this screen, and
           every vertical pixel the header takes comes straight out of the triangles — which have
           to fit in one fold. The sort row carries the whole header instead, with the coverage
