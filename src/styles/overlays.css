@@ -441,7 +441,7 @@
 .legend__swatch--pair { flex: 0 0 40px; height: 40px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
-.legend__txt b { color: var(--yellow); font-weight: 700; opacity: 1; }
+.legend__txt b { color: var(--yellow); font-weight: var(--fw-bold); opacity: 1; }
 /* no background fill — the graphic itself (dots/disks/rings) is the whole point; a tinted box
    behind every single one added a container the eye had to see past, not read through. */
 .legend__swatch {
@@ -788,7 +788,7 @@
 /* the ONE block that genuinely appears/disappears per body — a soft fade is honest here */
 @keyframes backingIn { from { opacity: 0; } to { opacity: 1; } }
 .fbacking__label { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-label); line-height: var(--leading-loose); color: var(--light); opacity: 0.9; }
-.fbacking__val { font-family: var(--display); font-weight: 700; font-size: var(--text-base); color: var(--yellow); }
+.fbacking__val { font-family: var(--display); font-weight: var(--fw-bold); font-size: var(--text-base); color: var(--yellow); }
 .fbacking__text { grid-column: 1 / -1; font-family: var(--body); font-size: var(--text-xs); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--ink-dim); }
 
 /* ════════════════════════════════════════════════════════════════

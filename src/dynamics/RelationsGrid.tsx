@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
 import { GRID_BEAT, GRID_PICK } from './panel-beats'
+import { useFlipReorder } from './useFlipReorder'
 
 // Unit-triangle vertices for the mini constellations — the SAME vertex↔field weighting as
 // unifiedGeo() in RelationsView.tsx (top = friction field/מתח, bottom-left = tension field/חיכוך,
@@ -385,6 +386,11 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
   // entrance cascade has to sweep the screen once, not restart at every band header.
   const rank = useMemo(() => new Map(sorted.map((row, i) => [row.id, i])), [sorted])
 
+  // Re-sorting glides the triangles from their old positions to their new ones instead of the
+  // whole grid cutting to a new frame. Gated on `settled`: during the first 3.7s the cells are
+  // still playing their own three-phase reveal, and a FLIP on top of that would fight it.
+  useFlipReorder(bodyRef, '.rel-grid__cell', sort, settled)
+
   const cell = (row: GridRow, offset = 0) => {
     const i = rank.get(row.id) ?? 0
     const chosen = pick?.id === row.id
@@ -405,6 +411,9 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     return (
       <button
         key={row.id}
+        // the FLIP matches on this, NOT on the node — see useFlipReorder for why node identity
+        // isn't stable across a flat <-> banded sort change
+        data-id={row.id}
         className={`rel-grid__cell${chosen ? ' rel-grid__cell--chosen' : ''}${pick && !chosen ? ' rel-grid__cell--gone' : ''}`}
         style={{
           '--stroke-d': `${strokeDelay}s`,
