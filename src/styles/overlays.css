@@ -502,7 +502,7 @@
    --tracking-display (a country name at fw-regular still rendered with the bold-tier tracking,
    since only the weight was ever overridden here) — this is what "do these titles include the
    loosening" caught. Added explicitly rather than left to inherit. */
-.panel__title--entity { font-weight: var(--fw-regular); letter-spacing: var(--tracking-display-loose); }
+.panel__title--entity { font-weight: var(--fw-light); letter-spacing: var(--tracking-display-loose); }
 .panel__body { margin-top: 18px; font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--yellow); opacity: 0.92; }
 /* the map's own visual key, inline — was the "יחסי הכוחות = הכוחות + היחסים" formula. Reuses
    Legend.tsx's own .legend__row/group/pair/swatch classes verbatim for the graphics themselves;
@@ -582,7 +582,11 @@
    panel title (axis names, view titles, metric titles) stays --fw-black, only this one is exempt
    because only this one names a specific body. */
 .phead__title {
-  font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-regular);
+  /* Light, not regular — an entity NAME is the quietest thing in the panel's hierarchy that still
+     has to be the biggest, and Light is what lets it be large without also being loud. Matches
+     .fscore__num b (already Light) directly beneath it, and the other two entity-name titles
+     (.panel__title--entity, .dcard__title), which are the same role on the other two screens. */
+  font-family: var(--display); font-size: var(--text-4xl); font-weight: var(--fw-light);
   letter-spacing: var(--tracking-display-loose); color: var(--white); line-height: 1.08;
   flex: 1; min-width: 0; white-space: nowrap;
 }
@@ -800,7 +804,7 @@
   color: var(--yellow); opacity: 0.55; letter-spacing: var(--tracking-numeral);
 }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
-.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-regular); letter-spacing: var(--tracking-display-loose); color: var(--white); line-height: 1; }
+.dcard__title { font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-light); letter-spacing: var(--tracking-display-loose); color: var(--white); line-height: 1; }
 /* the assessment — not folded into a stage. See the JSX comment for why: it's the panel's only
    zero-click answer and it synthesises across all three stages, so it doesn't belong filed under
    any one of them. */
