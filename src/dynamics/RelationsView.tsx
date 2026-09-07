@@ -17,6 +17,16 @@ import { byId, MEMBERS, isActor, hash, relation, sharpen, dominantOf, POLE_HE, V
 // held beat before the first star at all, rather than starting immediately.
 const ENTRANCE_HOLD = 0.5
 const ENTRANCE_STEP = 0.045
+// Ambient name-cycling (views.css: .rnode__name's nameCycle animation). One shared source for
+// both numbers so the JS-computed delay and the CSS animation-duration can never drift apart —
+// CSS's own `var(--cp-dur, 9s)` default exists only as a fallback if this ever failed to reach
+// the DOM, not as a second definition of the period.
+const NAME_CYCLE_PERIOD = 9      // seconds — one star's full fade-in/hold/fade-out/hidden loop
+// Flat delay before the loop may start at all, past the WORST-CASE star: FIELD_BEAT.nameStart
+// (2.80s) + a 28-star field at nameStep (0.018s) + relNameIn's own 0.5s reveal, plus a small
+// margin. Same for every star regardless of render index — only the per-star hash phase below
+// varies — so cycling never looks like it's still finishing the initial reveal for a straggler.
+const NAME_CYCLE_SETTLE = 3.9
 // grid → field handoff. The grid no longer cross-fades as a block — it plays the five-beat pick
 // choreography (GRID_PICK / GRID_PICK_MS in panel-beats.ts: glow → dismiss → undress → travel →
 // expand), and the field mounts at the END of it, as the picked triangle's outline finishes
@@ -310,6 +320,10 @@ export default function RelationsView() {
               // per-star twinkle phase, seeded so it desyncs across the field instead of pulsing
               // in unison — same idiom as the canvas engines' `pulse` phase offsets.
               const tw = ((hash(e.id + '#tw') % 3400) / 1000).toFixed(2)
+              // per-star name-cycle phase — same hashing idiom, different salt so it doesn't
+              // correlate with the twinkle's own offset (two loops derived from the same number
+              // would drift in and out of sync with each other in a way a viewer can half-notice).
+              const cp = (NAME_CYCLE_SETTLE + (hash(e.id + '#cp') % (NAME_CYCLE_PERIOD * 1000)) / 1000).toFixed(2)
               // This ONE star (id-stable, but a genuinely fresh DOM node — it wasn't in
               // geo.points a moment ago) is what a reference switch newly plots: the state that
               // WAS the reference. Without this branch it would inherit ENTRANCE_HOLD/
@@ -341,7 +355,7 @@ export default function RelationsView() {
                   aria-label={`${e.he} — ${VERDICT[dominantOf(relation(refId, e.id))]} מול ${refNode.he}`}
                   aria-pressed={e.id === pinned}
                   className={`rnode${isActor(e.id) ? ' rnode--actor' : ''}${isFocus ? ' rnode--hover' : ''}${isPinned ? ' rnode--pin' : ''}${dim ? ' rnode--dim' : ''}`}
-                  style={{ left: x, top: y, animationDelay: leaving ? `${exitDelay}ms` : `${entranceDelay}s`, '--tw': `${tw}s`, '--nd': `${nameDelay}s` } as React.CSSProperties}
+                  style={{ left: x, top: y, animationDelay: leaving ? `${exitDelay}ms` : `${entranceDelay}s`, '--tw': `${tw}s`, '--nd': `${nameDelay}s`, '--cp-delay': `${cp}s`, '--cp-dur': `${NAME_CYCLE_PERIOD}s` } as React.CSSProperties}
                   onMouseEnter={() => setHovered(e.id)}
                   onMouseLeave={() => setHovered((h) => (h === e.id ? null : h))}
                   onFocus={() => setHovered(e.id)}

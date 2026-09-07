@@ -346,12 +346,18 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   position: absolute; top: clamp(20px, 3vh, 34px); left: clamp(20px, 3vw, 40px);
   z-index: 2; color: var(--takeover-ink);
 }
-.about__head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.about__head { display: flex; align-items: baseline; }
 .about__title {
   font-family: var(--display); font-size: var(--text-title); font-weight: var(--fw-black);
   letter-spacing: var(--tracking-display); color: var(--takeover-ink); line-height: 1;
 }
+/* Pinned at the panel's own top edge (mirrors .about__close on the opposite side), outside the
+   vertically-centred .about__inner block — a fixed eyebrow label rather than a line that scrolls
+   or re-centres with the rest of the content. right: not inset-inline-end, matching .about__close
+   above, which already uses a literal `left` in this same component. */
 .about__sub {
+  position: absolute; top: clamp(20px, 3vh, 34px); right: clamp(28px, 7vw, 132px);
+  z-index: 2;
   font-family: var(--body); font-size: var(--text-base); letter-spacing: var(--tracking-loose);
   line-height: var(--leading-loose); color: rgba(6, 3, 15, 0.62);
   animation: textRise 0.7s 0.34s var(--ease-panel) both;
@@ -369,6 +375,9 @@ body:has(.home--closed) .unav { opacity: 0.75; }
      size still scan as a sentence. Do not "fix" this back in a tracking sweep. */
   letter-spacing: var(--tracking-display);
   color: var(--takeover-ink);
+  /* extra room below the thesis, on top of .about__inner's own row gap — the equation reads as a
+     separate, deliberate second beat rather than the thesis's own next line. */
+  margin-bottom: clamp(12px, 2.4vh, 28px);
 }
 /* The equation. Three lenses with real operators between them — grid rather than flex so the
    operator columns can be sized to their glyph and the three lens columns share the rest evenly. */
@@ -402,6 +411,9 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   align-self: center;
   font-family: var(--display); font-weight: var(--fw-light);
   font-size: clamp(22px, 2.6vw, 38px); line-height: 1;
+  /* A single glyph, so tracking has no visible effect either way — on the token anyway, purely
+     so this rule reads as covered rather than as an unexplained exception in a future sweep. */
+  letter-spacing: var(--tracking-display-loose);
   /* 0.42 measured 2.95:1 — a hair under the 3:1 large-text floor. These operators carry the
      equation's meaning, so they are held to the text threshold rather than waived as decoration. */
   color: rgba(6, 3, 15, 0.52);

@@ -234,7 +234,12 @@
    too wide a step would make the tail rows feel slow to arrive rather than "felt"). */
 .gindex__row:hover, .gindex__row--lit { background: var(--yellow-06); transform: translateX(-4px); }
 .gindex__rank { font-family: var(--display); font-weight: 700; font-size: var(--text-xs); letter-spacing: var(--tracking-numeral); color: var(--yellow); opacity: 0.3; }
-.gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.08em; }
+/* Entity name in the display face at regular weight — same role as .rnode__name and
+   .rel-grid__name, which are on --tracking-title-loose. This one carried its own hardcoded
+   0.08em instead, so it never moved with the rest of the sweep — the fourth instance of this
+   exact gap found by the live computed-style audit (the other three: .rnode__name, .lbl--*,
+   the ones fixed earlier). */
+.gindex__name { font-size: 12.5px; font-weight: 400; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tracking-title-loose); }
 .gindex__row--ns .gindex__name { font-weight: 400; opacity: 0.72; }
 .gindex__bar { height: 3px; background: rgba(255, 255, 255, 0.06); }
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }

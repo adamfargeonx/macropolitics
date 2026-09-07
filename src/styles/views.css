@@ -121,9 +121,39 @@
 .rnode__name {
   font-size: var(--text-xs); font-weight: 400; color: var(--white); white-space: nowrap;
   letter-spacing: var(--tracking-title-loose);
-  animation: relNameIn 0.5s var(--ease-out-expo) backwards; animation-delay: var(--nd, 0s);
+  /* Two animations, chained: relNameIn is the one-off entrance (unchanged); nameCycle is the
+     ongoing ambient loop that follows it — see the block below for what it's for and how its
+     timing is built. A single `animation-delay` list supplies one value per animation-name, in
+     the same order. */
+  animation: relNameIn 0.5s var(--ease-out-expo) backwards, nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation-delay: var(--nd, 0s), var(--cp-delay, 0s);
 }
 @keyframes relNameIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* ── Ambient name cycling ─────────────────────────────────────────────────────────────────────
+   All ~20-28 names used to be permanently visible at once — readable individually, but as a
+   field it read as a wall of labels rather than a place to look around. Each star's name now
+   fades in, holds, and fades out on its own loop instead, so at any moment only a THIRD of the
+   field is labelled (~30% of the period is spent above opacity 0 — see the keyframe split below)
+   and which third keeps changing. The rest is still THERE (the disk/twinkle never cycles, only
+   the name) — this reveals identity gradually rather than hiding the map.
+   Per-star phase is a hash of the entity id (RelationsView.tsx, the same `hash()` used for the
+   twinkle's own --tw offset), not the render index — synced-by-index would pulse in visible waves
+   across the field, which is the exact "overwhelm" this exists to avoid; a field of independent
+   phases reads as scattered attention instead.
+   var(--cp-delay) is computed as a flat SETTLE past the entrance (every star's name has finished
+   materialising by ~3.8s: FIELD_BEAT.nameStart + 28 * nameStep + relNameIn's own 0.5s) plus that
+   per-star hash offset — the loop only starts once the initial reveal is fully done, so the two
+   are never seen fighting each other. */
+@keyframes nameCycle {
+  0%   { opacity: 0; transform: translateY(3px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  32%  { opacity: 1; transform: translateY(0); }
+  44%  { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 0; }
+}
+/* A star you're actually engaging with must never fade away mid-interaction — that would read as
+   a bug, not an ambient effect. Wins on specificity over the base rule with no !important. */
+.rnode--hover .rnode__name, .rnode--pin .rnode__name { animation: relNameIn 0.5s var(--ease-out-expo) backwards; animation-delay: var(--nd, 0s); opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .rnode__name { animation: none; } }
 /* A non-state actor is not a star. States get the radial core + glow + twinkle above; an actor
    gets a hollow ring — present, placed, and readable, but plainly a different class of object, so

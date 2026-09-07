@@ -17,8 +17,13 @@ import { useOverlay } from './useOverlay'
 // display scale, then the three lenses laid out AS THE EQUATION they actually form —
 // הכוחות + היחסים = יחסי הכוחות — rather than as three equal sibling cards, which stated the
 // third was a peer of the other two when it is their sum.
+// Exit runs the SAME duration as the entrance slide (aboutSlideIn, chrome.css) so leaving reads
+// as the same move in reverse rather than a quick cut — the default OVERLAY_EXIT_MS (280ms) is
+// tuned for the small card overlays, not a full-viewport takeover.
+const ABOUT_EXIT_MS = 860
+
 export function AboutOverlay() {
-  const { open, closing, close } = useOverlay('mp-about')
+  const { open, closing, close } = useOverlay('mp-about', ABOUT_EXIT_MS)
   const dialogRef = useFocusTrap<HTMLElement>(open && !closing)
 
   if (!open) return null
@@ -40,10 +45,14 @@ export function AboutOverlay() {
 
         <button className="panel__close about__close" onClick={close} aria-label="סגירה">✕</button>
 
+        {/* Pinned at the panel's own top edge, opposite the close button — a permanent eyebrow
+            label for the screen, not part of the vertically-centred content block below it (which
+            is why it sits OUTSIDE .about__inner rather than stacked above the title inside it). */}
+        <span className="about__sub">תורת היחסות של המזרח התיכון</span>
+
         <div className="about__inner">
           <header className="about__head">
             <h2 className="about__title"><LetterSwap text="המודל" /></h2>
-            <span className="about__sub">תורת היחסות של המזרח התיכון</span>
           </header>
 
           {/* The thesis, at display scale — this is the screen's reason to exist, so it is set

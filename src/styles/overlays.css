@@ -379,9 +379,15 @@
   animation: scrimIn 0.2s ease-out;
 }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
-/* EXIT: the scrim fades and the dialog drops/contracts before unmounting (matches OVERLAY_EXIT_MS) */
+/* EXIT: the scrim fades and the dialog drops/contracts before unmounting (matches OVERLAY_EXIT_MS).
+   :not(.about--takeover) — the takeover's own scrim (.legend__scrim--takeover) still carries the
+   bare .legend__scrim class too, and its panel still carries the bare .about class, so BOTH this
+   rule and the takeover's own exit rule below matched it at equal specificity (three classes
+   each). Source order alone was left to break the tie, which is exactly the kind of thing that
+   silently flips under refactors — excluding it by name here is the same fix already applied to
+   the .panel/.panelb/.about entrance rule above, for the identical reason. */
 .legend__scrim.is-closing { animation: scrimOut 0.28s ease forwards; }
-.legend__scrim.is-closing .about,
+.legend__scrim.is-closing .about:not(.about--takeover),
 .legend__scrim.is-closing .evid { animation: dialogOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards; }
 /* ── Takeover variant (the "המודל" screen) ────────────────────────────────────────────────────
    The scrim's job here is only to catch the click-outside and hold the stacking context: the
@@ -390,9 +396,11 @@
 .legend__scrim--takeover { background: none; backdrop-filter: none; animation: none; }
 /* dialogOut (a small drop + contract) is a CARD's exit and looks broken on a full-bleed field —
    it shrinks the whole screen away from its own edges. The takeover leaves the way it arrived,
-   back out through the inline-start edge, and faster than it came: entrances announce, exits get
-   out of the way. Duration must stay within OVERLAY_EXIT_MS (useOverlay.ts) or it is cut off. */
-.legend__scrim--takeover.is-closing .about--takeover { animation: aboutSlideOut 0.28s var(--ease-in-out-quart) forwards; }
+   back out through the inline-start edge — and now at the SAME duration and curve as the entrance
+   (aboutSlideIn, chrome.css: 0.86s var(--ease-panel)), so the exit is actually seen as the same
+   move in reverse rather than a blink. Must stay in sync with ABOUT_EXIT_MS in AboutView.tsx, the
+   unmount timer this animation has to finish inside of. */
+.legend__scrim--takeover.is-closing .about--takeover { animation: aboutSlideOut 0.86s var(--ease-panel) forwards; }
 @keyframes aboutSlideOut { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim--takeover.is-closing .about--takeover { animation: none; opacity: 0; }
@@ -702,6 +710,11 @@
 .fparam__icon { color: var(--yellow); opacity: 0.85; font-size: 13px; flex-shrink: 0; }
 .fparam__val {
   font-family: var(--display); font-weight: var(--fw-black); font-size: var(--text-xl);
+  /* Same role as every other bold numeral readout on the site (.gindex__score, .fbar__v,
+     .gindex__rank, the tab pills) — a bold VALUE, not a title. Those are all on --tracking-numeral;
+     this one had no letter-spacing declared at all and sat at the browser default (0), found by
+     the live computed-style sweep, not by reading this file. */
+  letter-spacing: var(--tracking-numeral);
   color: var(--white); line-height: 1;
   /* pushed to the row's far (left, in this RTL panel) edge on all three rows — was sitting right
      next to the label, which read as attached to "כלכלי" specifically rather than a value column
