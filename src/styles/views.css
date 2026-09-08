@@ -1498,8 +1498,14 @@
   .home-nav__label { font-size: var(--text-xl); }
 
   /* RELATIONS: smaller vertex labels + node names so the (now smaller) triangle reads cleanly
-     and labels stop overhanging the field edges */
-  .rel-vtx { font-size: var(--text-lg); }
+     and labels stop overhanging the field edges.
+     .rel-vtx was left at --text-lg (15px) here when the desktop rule was bumped 20px -> 30px —
+     half the new base size, so on any viewport under 600px the pole title silently reverted to
+     looking like a label again regardless of the desktop fix. 22px keeps SOME mobile reduction
+     (a full 30px does overhang a mobile-width triangle) while still reading as a title, not a
+     label — verified this was the actual live cause of "still not the right font" reports:
+     computed style was correct at desktop width and wrong specifically under 600px. */
+  .rel-vtx { font-size: 22px; }
   .rel-vtx i { font-size: 8px; }
   .rnode__name { font-size: 10px; }
 }
