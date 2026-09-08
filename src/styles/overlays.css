@@ -396,12 +396,12 @@
 .legend__scrim--takeover { background: none; backdrop-filter: none; animation: none; }
 /* dialogOut (a small drop + contract) is a CARD's exit and looks broken on a full-bleed field —
    it shrinks the whole screen away from its own edges. The takeover leaves the way it arrived,
-   back out through the inline-start edge — and now at the SAME duration and curve as the entrance
+   back out through the LEFT edge — and now at the SAME duration and curve as the entrance
    (aboutSlideIn, chrome.css: 0.86s var(--ease-panel)), so the exit is actually seen as the same
    move in reverse rather than a blink. Must stay in sync with ABOUT_EXIT_MS in AboutView.tsx, the
    unmount timer this animation has to finish inside of. */
 .legend__scrim--takeover.is-closing .about--takeover { animation: aboutSlideOut 0.86s var(--ease-panel) forwards; }
-@keyframes aboutSlideOut { to { transform: translateX(100%); } }
+@keyframes aboutSlideOut { to { transform: translateX(-100%); } }
 @media (prefers-reduced-motion: reduce) {
   .legend__scrim--takeover.is-closing .about--takeover { animation: none; opacity: 0; }
 }

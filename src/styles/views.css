@@ -537,7 +537,9 @@
    lines. */
 .rel-grid__cell {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: var(--surface-2); border: 0; padding: 10px 10px 8px; cursor: none;
+  /* transparent, not --surface-2 — that panel/overlay token painted a near-opaque dark-navy
+     rectangle behind every triangle, hiding the ambient starfield the grid otherwise sits over. */
+  background: none; border: 0; padding: 10px 10px 8px; cursor: none;
   min-height: 0; overflow: hidden;
   /* No container entrance. The cell used to rise and fade as one block; it now loads in three
      phases from the inside out (outline → constellation → caption, see below), and a container

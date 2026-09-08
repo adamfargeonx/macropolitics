@@ -302,9 +302,10 @@ body:has(.home--closed) .unav { opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) { .abtoast { animation: none; } }
 
 /* "המודל" — the methodology takeover ──────────────────────────────────────────────────────────
-   A full-bleed field of accent, not a card on a scrim. Sliding it in from the inline-start (the
-   RIGHT, in RTL — transforms are physical, so translateX(100%) starts it off the right edge and
-   it travels along the reading direction) is what makes it read as a PLACE rather than a dialog.
+   A full-bleed field of accent, not a card on a scrim. Sliding it in from the LEFT (a deliberate
+   choice AGAINST the page's own RTL reading direction — transforms are physical, so
+   translateX(-100%) starts it off the left edge and travels rightward) is what makes it read as
+   a PLACE rather than a dialog.
    0.86s on --ease-panel: long enough that the arrival is the event, which is the whole point of a
    takeover — a 280ms pop would just be a modal wearing a different colour. */
 .about.about--takeover {
@@ -327,7 +328,7 @@ body:has(.home--closed) .unav { opacity: 0.75; }
   color: var(--takeover-ink);
   animation: aboutSlideIn 0.86s var(--ease-panel) both;
 }
-@keyframes aboutSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes aboutSlideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 .about--takeover::-webkit-scrollbar { display: none; }
 
 /* under the type, above the field — see AboutView's own note */
