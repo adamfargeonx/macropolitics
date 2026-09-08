@@ -165,9 +165,23 @@ export default function App() {
     // and retreating that way is its own natural, short motion. Tying it to the canvas's swipe
     // direction instead sent it left on backward navigation (dynamics → relations/forces), dragging
     // it the long way across the whole screen — reported live as "pushed hard to the left... opposite".
+    //
+    // `mp-exit` used to fire ONLY on page → home (below) — the live view's own per-body cascade
+    // (each star/body shrinking and vanishing individually, staggered) simply never played on a
+    // page → page switch; the whole field just rode the rail's transform as one solid block.
+    // Dispatched here too now, in the SAME tick the panel starts its own exit, so both play
+    // together through the held pause: the panel retreats on the right edge while the canvas/field
+    // empties out body by body in the middle, and NEITHER has to be complete before the other —
+    // only before the rail itself is allowed to move.
+    // PANEL_EXIT_MS raised 600 -> 680 to match EXIT_MS above exactly (not a new number): 680 is
+    // the proven value already tuned to the slower of the three engines' own cascades (Forces/
+    // Dynamics: EXIT_SPREAD 360 + EXIT_BODY_DUR 300 = 660ms; Relations: 300+300 = 600ms) — the
+    // rail must not start sliding until the SLOWEST of the two things happening underneath it
+    // (panel exit, body cascade) has actually finished, or the cascade gets cut off mid-vanish.
     const PANEL_EXIT_DELAY = 80
-    const PANEL_EXIT_MS = 600
+    const PANEL_EXIT_MS = 680
     t.timers.push(window.setTimeout(() => {
+      window.dispatchEvent(new Event('mp-exit'))
       setPanelExit('right')
       t.timers.push(window.setTimeout(() => {
         setRail(leaveClass)
