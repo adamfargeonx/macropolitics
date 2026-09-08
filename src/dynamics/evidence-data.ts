@@ -12,7 +12,6 @@ export type Axis = 'eco' | 'mil' | 'geo'
 // the noun rather than the adjective. Compound phrases elsewhere ("כוח כלכלי" = economic power)
 // stay adjectival on purpose — see the note beside ORDER_LABEL in forces-model.ts for the same call.
 export const HE_AXIS = { eco: 'כלכלה', mil: 'צבא', geo: 'גאו-אסטרטגיה' } as const
-export const AXIS_SRC = { eco: 'IMF · בנק עולמי · S&P', mil: 'SIPRI · IISS · FAS · NCPI', geo: 'CIA · OPEC · BP · EIA' } as const
 export const AXIS_ICON: Record<Axis, IconName> = { eco: 'eco', mil: 'mil', geo: 'geo' }
 
 const MIL_ROWS = [
@@ -120,7 +119,7 @@ const SCORE_TIERS = [
   { slug: 'dominant', he: 'דומיננטי', min: 8 },
 ] as const
 
-export type ScoreTierSlug = (typeof SCORE_TIERS)[number]['slug']
+type ScoreTierSlug = (typeof SCORE_TIERS)[number]['slug']
 
 export function scoreTier(value: number): { slug: ScoreTierSlug; he: string } {
   const tier = [...SCORE_TIERS].reverse().find((t) => value >= t.min) ?? SCORE_TIERS[0]

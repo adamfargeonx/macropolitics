@@ -61,7 +61,7 @@ type RankedListProps = {
 
 // The ranked ledger itself — shared by the desktop side panel (below) and the mobile sheet
 // (ForcesMobileSheet), so the row markup/behaviour lives in exactly one place.
-export function RankedList(props: RankedListProps) {
+function RankedList(props: RankedListProps) {
   const { orderBy, filterBloc, year, scenario, grav, hovered, setHovered, onHoverId, onSelect, ranked } = props
   // Default = the FULL ranked ledger. The panel fills the available height and scrolls
   // internally (see the .panel/.panelb height rule), so there is no preview/expand step.

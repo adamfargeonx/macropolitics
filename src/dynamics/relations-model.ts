@@ -61,7 +61,7 @@ export const dominantOf = (r: Rel): Pole =>
 // largely because they are fought over, not because they are the ones doing the fighting.
 export type Stance = 'agg' | 'dom' | 'caut'
 export const STANCE_HE: Record<Stance, string> = { agg: 'אגרסיבית', dom: 'אסרטיבית', caut: 'זהירה' }
-export const postureOf = (mean: Rel): number => mean.tension + mean.friction * 0.5
+const postureOf = (mean: Rel): number => mean.tension + mean.friction * 0.5
 const STANCE_CUTS = [0.44, 0.38] as const
 export function stanceOf(mean: Rel): Stance {
   const p = postureOf(mean)

@@ -31,7 +31,7 @@ import { hasAxisEvidence, AXIS_BLURB, scoreTier } from './evidence-data'
 // DOM-based views (Relations) settle far sooner and pass their own, shorter `enterAfter`.
 const CANVAS_ENTRANCE_MS = 4000
 const PANEL_BEAT_MS = 1000
-export const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
+const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
 
 export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn, autoOpen = true }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null; autoOpen?: boolean }) {
   // mounts closed, then slides in once the screen's entrance has fully landed (see above) — the

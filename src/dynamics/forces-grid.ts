@@ -18,7 +18,7 @@
 const CELL_ASPECT = 1
 
 /** Column count that keeps cells nearest to square for `n` bodies in a `w × h` box. */
-export function gridColumns(n: number, w: number, h: number): number {
+function gridColumns(n: number, w: number, h: number): number {
   if (n <= 0) return 1
   const ratio = (w / Math.max(1, h)) / CELL_ASPECT
   // start from the ideal continuous solution, then pick the integer neighbour with the squarest cell
@@ -80,11 +80,6 @@ const HOLD = 0.5     // s at full reveal
 const FALL = 0.6     // s to settle back
 
 const SPAN = GROW + HOLD + FALL
-
-/** Time (s) for the one-shot wave to finish crossing all `n` bodies. */
-export function revealCycle(n: number): number {
-  return Math.max(1, n - 1) * STAGGER + SPAN
-}
 
 /**
  * Reveal amount 0→1 for the body at rank `rank` at time `t` seconds since mount. Fires exactly

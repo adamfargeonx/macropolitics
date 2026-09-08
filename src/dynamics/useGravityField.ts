@@ -3,8 +3,8 @@ import { isInteractive } from '../sound'
 
 const TAU = Math.PI * 2
 
-export interface Impulse { x: number; y: number; t: number }
-export type FieldMode = 'inward' | 'scattered'
+interface Impulse { x: number; y: number; t: number }
+type FieldMode = 'inward' | 'scattered'
 
 // The site's universal particle field (window-sized). Two behaviours, same particles:
 //   'inward'    — particles stream toward the centre (the gravity motif; home/relations/dynamics)
