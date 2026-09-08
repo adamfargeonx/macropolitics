@@ -229,6 +229,21 @@ export default function RelationsView() {
   // so mousing across the web doesn't hijack the whole panel.
   const panelPoint = pinned ? geo?.points.find((p) => p.e.id === pinned) : undefined
   const panelDom = panelPoint ? dominantOf(panelPoint.r) : null
+  // "the entire sidepanel glows when changing countries" — ties the Relations panel to the exact
+  // same shell-persistence principle Forces' own ForcesPanelFrame already uses: the panel does
+  // NOT unmount and remount between one pinned star and the next (it used to, keyed by
+  // panelPoint.e.id below — an abrupt vanish-then-replay-the-whole-entrance-cascade on every
+  // switch), it stays the same DOM node and only the content inside it changes. One flash on the
+  // SHELL, keyed to a pulse counter bumped only on a REAL star→star switch — not on first pinning
+  // one (that already has its own reveal) and not on unpinning back to the default panel.
+  // Adjusted during render, same pattern ForcesPanelFrame itself uses.
+  const [lastPanelId, setLastPanelId] = useState<string | null>(null)
+  const [glowPulse, setGlowPulse] = useState(0)
+  const curPanelId = panelPoint?.e.id ?? null
+  if (curPanelId !== lastPanelId) {
+    if (lastPanelId && curPanelId) setGlowPulse((p) => p + 1)
+    setLastPanelId(curPanelId)
+  }
   // the compact hover preview — only while genuinely just hovering (not the pinned node itself,
   // which already has its full stats open in the panel; no point doubling the same info).
   const hoverCardPoint = hovered && hovered !== pinned ? geo?.points.find((p) => p.e.id === hovered) : undefined
@@ -423,8 +438,11 @@ export default function RelationsView() {
         // panel instead of each site inventing its own colour switch.
         const POLE_CODE: Record<Pole, 't' | 'f' | 'h'> = { tension: 't', friction: 'f', harmony: 'h' }
         const dominantPct = Math.round(panelPoint.r[panelDom] * 100)
+        // UNKEYED — deliberately. This is the shell Forces' own ForcesPanelFrame never remounts
+        // either; see the glowPulse comment above for why.
         return (
-        <aside className="panel panel--detail rel-detail" dir="rtl" key={panelPoint.e.id}>
+        <aside className="panel panel--detail rel-detail" dir="rtl">
+          <i className="panel-glow" key={glowPulse} aria-hidden />
           <button className="panel__close" onClick={() => setPinned(null)} aria-label="ביטול קיבוע">✕</button>
           {/* Beat-sequenced per REL_BEAT (panel-beats.ts), matching Forces' own BEAT convention:
               a shared textRise-carrying class + an inline animationDelay override, one slot per
@@ -442,14 +460,21 @@ export default function RelationsView() {
           <div className="fscore__headline rel-detail__headline" style={{ animationDelay: `${REL_BEAT.headline}s` }}>
             <span className="fscore__num"><b><CountUp value={dominantPct} decimals={0} delay={REL_BEAT.headline} /></b><span className="fscore__unit">/ 100</span></span>
             <span className="fscore__meta"><span className="fscore__lbl">{POLE_HE[panelDom]}</span></span>
-            <span className={`panelb__chip panelb__chip--${POLE_CODE[panelDom]} rel-detail__chip`}>{VERDICT[panelDom]}</span>
+            {/* keyed by the verdict text itself — cross-fades in place via tierFade, the same
+                mechanism Forces' own .fscore__tier-txt uses for its tier chip on a switch. */}
+            <span className={`panelb__chip panelb__chip--${POLE_CODE[panelDom]} rel-detail__chip`}>
+              <span className="rel-detail__chip-txt" key={VERDICT[panelDom]}>{VERDICT[panelDom]}</span>
+            </span>
           </div>
           {/* Un-boxed — was a yellow-tinted card, the only container treatment in the panel other
               than the data itself. With the headline row and the composition bar below both now
               real objects, the prose reads as the LEDE under the number, not as a competing card.
               No animation of its own: Words already reveals per word, and a block-level textRise
               underneath it would double-animate the same text. */}
-          {panelPoint.r.why && <p className="panel__why"><Words text={panelPoint.r.why} delay={REL_BEAT.why} /></p>}
+          {/* keyed by country id, matching Forces' own <Words key={`${detail.id}-short`}> — the
+              shell no longer remounts to force this paragraph's per-word reveal to replay on a
+              switch, so the key has to live here instead. */}
+          {panelPoint.r.why && <p className="panel__why"><Words key={`${panelPoint.e.id}-why`} text={panelPoint.r.why} delay={REL_BEAT.why} /></p>}
           {/* One composition bar, not three separate gauges — the three poles sum to 100%, so a
               flex-segmented bar is the honest chart for that shape (three thin independent bars
               read as "three weak values", not "a composition"). Reuses Seg, the same tweening

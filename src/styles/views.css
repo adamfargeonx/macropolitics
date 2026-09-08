@@ -301,6 +301,10 @@
    cross-fades) so this panel and Forces' read as one typographic system, not two. */
 .rel-detail__headline { margin-top: 6px; }
 .rel-detail__chip { margin-inline-start: auto; }
+/* Cross-fades the verdict word itself on a country switch — reuses tierFade (overlays.css),
+   the exact mechanism Forces' own .fscore__tier-txt uses for its tier chip in the same spot. */
+.rel-detail__chip-txt { display: inline-block; animation: tierFade 0.34s var(--ease-panel) both; }
+@media (prefers-reduced-motion: reduce) { .rel-detail__chip-txt { animation: none; } }
 /* Composition bar — three flex segments summing to the pole split, replacing three independent
    gauges (which read as "three weak bars", not "a composition", for values that sum to 100%).
    Same shape as ForcesAxisPanel's .axp__comp-track (flex, 6px, overflow hidden), kept as its own
