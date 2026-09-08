@@ -37,7 +37,20 @@
      `transform: translateY()` would clobber this element's own translate(-50%,-50%) centering.
      Nothing to clobber once the motion lives one level down. Beat comes from FIELD_BEAT. */
 }
-.rel-vtx i {
+/* Direct-child combinator (>), NOT a descendant selector — this is THE actual bug behind every
+   "wrong font" report on these titles. .rel-vtx i (descendant) matches ANY <i> anywhere inside
+   .rel-vtx, and LetterSwap (SwapLayer, PanelMotion.tsx) renders EACH LETTER OF THE TITLE ITSELF
+   as its own <i> tag, nested three levels down (.lswap > .lswap__layer > .lswap__w > i). The old
+   selector was silently re-styling every title LETTER as if it were this subtitle: font-family
+   var(--body) (Futurism, not the display face), font-size var(--text-xs) (11px, not the title's
+   30px). Every previous check in this thread looked at .rel-vtx or .lswap's OWN computed style —
+   both correctly reported the display face and 30px, because neither of THEM matches ".rel-vtx i"
+   — while the actual rendered glyphs, three DOM levels deeper, were silently overridden the whole
+   time. Confirmed by measuring the letter <i> elements directly: fontFamily started with
+   "Futurism", fontSize 11px, despite the container reporting the correct display/30px throughout.
+   > restricts this to the ONE direct-child <i> (the subtitle), which is the only element it was
+   ever meant to style. */
+.rel-vtx > i {
   font-style: normal; font-family: var(--body); font-weight: var(--fw-bold);
   font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--light); opacity: 0.45;
   /* trails its own title by a beat — the pole is named, then explained */
@@ -45,7 +58,7 @@
   animation-delay: calc(var(--vd, 0s) + 0.26s);
 }
 @keyframes relVtxSubIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .rel-vtx i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rel-vtx > i { animation: none; } }
 .rnode--pin .rnode__disk { box-shadow: 0 0 0 3px rgba(251, 255, 0, 0.25), 0 0 22px rgba(251, 255, 0, 0.3); }
 .rnode--pin .rnode__name { color: var(--yellow); }
 
@@ -1506,7 +1519,7 @@
      label — verified this was the actual live cause of "still not the right font" reports:
      computed style was correct at desktop width and wrong specifically under 600px. */
   .rel-vtx { font-size: 22px; }
-  .rel-vtx i { font-size: 8px; }
+  .rel-vtx > i { font-size: 8px; }
   .rnode__name { font-size: 10px; }
 }
 
