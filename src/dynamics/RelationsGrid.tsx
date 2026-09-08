@@ -187,8 +187,6 @@ function hash01(key: string): number {
   return ((h >>> 0) % 10000) / 10000
 }
 
-// Roughly how wide a cell wants to be; only used to derive how many columns the width SUGGESTS.
-const TARGET_CELL_W = 190
 
 // Every row must be full — no half-empty last row. CSS can't express "pick a column count that
 // divides the item count", since auto-fill only knows the width, so the count is chosen here:
@@ -202,31 +200,6 @@ const TARGET_CELL_W = 190
 //
 // Applies to the FLAT sort only. The banded sorts want the opposite: a ragged tail is how a band
 // shows its own length, so they take the suggested count as-is (useBandColumns below).
-function useEvenColumns(count: number, ref: React.RefObject<HTMLDivElement | null>): number {
-  const [cols, setCols] = useState(5)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || count < 1) return
-    const pick = () => {
-      const suggested = Math.max(1, Math.round(el.clientWidth / TARGET_CELL_W))
-      let best = 1
-      for (let c = 1; c <= count; c++) {
-        if (count % c !== 0) continue
-        const closer = Math.abs(c - suggested) < Math.abs(best - suggested)
-        // tie → prefer the denser grid, so a mid-width viewport fills rather than stretches
-        const tiedButDenser = Math.abs(c - suggested) === Math.abs(best - suggested) && c > best
-        if (closer || tiedButDenser) best = c
-      }
-      setCols(best)
-    }
-    pick()
-    const ro = new ResizeObserver(pick)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [count, ref])
-  return cols
-}
-
 // How many cell rows the banded layout may spend before it stops fitting one fold. Three band
 // headers already cost roughly half a row between them, so this is one less than it looks.
 const ROW_BUDGET = 4
@@ -367,15 +340,29 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     }))
     // mn (states counted) is NOT items.length (all members plotted) — see the mean note above.
     const mean: Rel = { tension: mt / mn, friction: mf / mn, harmony: mh / mn }
-    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), edge: stanceIsEdge(mean), isGlobal: ref.kind === 'great', axis: AXIS[ref.id] ?? 'none' }
+    // isGlobal here is a RELATIONS-GRID-SPECIFIC grouping, not a read of the shared `kind` tier
+    // alone: Pakistan is folded into it (at the tier's own bottom — see the power-sort tiebreak,
+    // which ranks WITHIN isGlobal by power) without touching entities.ts's `kind: 'regional'`.
+    // `kind === 'great'` also drives which states orbit the Dynamics centre instead of a regional
+    // parent — reclassifying it there would silently move Pakistan's orbit on a completely
+    // different screen as a side effect of a grid-layout request. Scoped to this one computation.
+    const isGlobal = ref.kind === 'great' || ref.id === 'pakistan'
+    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), edge: stanceIsEdge(mean), isGlobal, axis: AXIS[ref.id] ?? 'none' }
   }), [])
 
   const sorted = useMemo(() => rows.slice().sort(SORTS[sort].fn), [rows, sort])
 
   const n = sorted.length
   const bodyRef = useRef<HTMLDivElement>(null)
-  const flatCols = useEvenColumns(n, bodyRef)
   const bodyWidth = useElementWidth(bodyRef)
+  // The flat (power) sort is fixed at 3 rows now — a deliberate structural choice, not the
+  // width-responsive "closest divisor of the roster" useEvenColumns picks for every other count.
+  // cols is derived from THAT constraint (ceil(n/3)), and any short slot in the last row is filled
+  // with an inert placeholder rather than leaving the grid a jagged, uneven shape.
+  const FLAT_ROWS = 3
+  const flatCols = Math.ceil(n / FLAT_ROWS)
+  const flatSlots = flatCols * FLAT_ROWS
+  const flatPlaceholders = flatSlots - n
   const bands = useMemo(() => (sort === 'power' ? null : buildBands(sorted, sort)), [sorted, sort])
   // The bloc sort splits its bands in two: the poles face each other across the spine, everything
   // unaligned falls below them. The stance sort has no such split — every band is full width.
@@ -569,7 +556,8 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
       </div>
 
       {/* One wrapper for whichever body the sort produces, so a single ref measures the available
-          width for both column strategies (useEvenColumns / pickColumns). */}
+          width for the banded layout's own column strategy (pickColumns) — the flat sort's column
+          count is now a fixed structural derivation (FLAT_ROWS), not width-responsive. */}
       <div className="rel-grid__body" ref={bodyRef}>
         {bands ? (
           <div className="rel-grid__bands">
@@ -588,9 +576,14 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
              rows it needs; the whole grid has to sit in one fold on desktop, no scrolling. */
           <div
             className="rel-grid__cells"
-            style={{ '--cols': flatCols, '--rows': Math.ceil(n / flatCols) } as React.CSSProperties}
+            style={{ '--cols': flatCols, '--rows': FLAT_ROWS } as React.CSSProperties}
           >
             {sorted.map((row) => cell(row))}
+            {/* fills out row 3 when the roster isn't an exact multiple of flatCols — inert, no
+                interaction, no caption; a reserved slot rather than a claim about a real state */}
+            {Array.from({ length: flatPlaceholders }, (_, i) => (
+              <div key={`ph-${i}`} className="rel-grid__cell rel-grid__cell--placeholder" aria-hidden="true" />
+            ))}
           </div>
         )}
       </div>

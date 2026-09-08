@@ -541,6 +541,14 @@
      rectangle behind every triangle, hiding the ambient starfield the grid otherwise sits over. */
   background: none; border: 0; padding: 10px 10px 8px; cursor: none;
   min-height: 0; overflow: hidden;
+}
+/* A reserved slot, not a state that failed to load — the flat sort is fixed at 3 rows now
+   (RelationsGrid.tsx's FLAT_ROWS) and a roster that isn't an exact multiple of the resulting
+   column count needs something to hold the last row's empty seats. No pointer-events, no visible
+   mark: a real "this is deliberately blank" reads better here than a dashed placeholder outline
+   inventing a visual language nothing else on the grid uses. */
+.rel-grid__cell--placeholder {
+  pointer-events: none;
   /* No container entrance. The cell used to rise and fade as one block; it now loads in three
      phases from the inside out (outline → constellation → caption, see below), and a container
      move on top of that would smear all three into one gesture. */
