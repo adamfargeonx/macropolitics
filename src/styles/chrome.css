@@ -15,11 +15,11 @@
 }
 /* country/entity names are never bold anywhere on the site (house rule) — great-power labels stay
    distinguished by size and color (white vs. the other tiers' yellow), not weight. */
-.lbl--great    { color: var(--white); font-weight: var(--fw-regular); font-size: var(--text-lg); }
-.lbl--regional { color: var(--yellow); font-weight: var(--fw-regular); font-size: var(--text-lg); }
-.lbl--intermediate { color: var(--yellow); font-weight: var(--fw-regular); font-size: var(--text-sm); }
-.lbl--edge     { color: var(--yellow); font-weight: var(--fw-regular); font-size: var(--text-sm); opacity: 0.9; }
-.lbl--nonstate { color: var(--yellow); font-weight: var(--fw-regular); font-size: var(--text-xs); opacity: 0.75; letter-spacing: calc(var(--tracking-title-loose) + 0.048em); }
+.lbl--great    { color: var(--white); font-weight: var(--fw-light); font-size: var(--text-lg); }
+.lbl--regional { color: var(--yellow); font-weight: var(--fw-light); font-size: var(--text-lg); }
+.lbl--intermediate { color: var(--yellow); font-weight: var(--fw-light); font-size: var(--text-sm); }
+.lbl--edge     { color: var(--yellow); font-weight: var(--fw-light); font-size: var(--text-sm); opacity: 0.9; }
+.lbl--nonstate { color: var(--yellow); font-weight: var(--fw-light); font-size: var(--text-xs); opacity: 0.75; letter-spacing: calc(var(--tracking-title-loose) + 0.048em); }
 
 /* Custom cursor (reactive: dot + trailing ring) ───────────── */
 .cursor {
@@ -193,7 +193,7 @@
 @keyframes readoutOutBelow { to { clip-path: inset(0 0 100% 0); } }
 @media (prefers-reduced-motion: reduce) { .readout, .readout--closing { animation: none; } }
 /* NOT bold — country/entity names are never bold anywhere on the site (house rule) */
-.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-regular); font-size: var(--text-lg); letter-spacing: var(--tracking-title-loose); display: flex; align-items: baseline; gap: 8px; }
+.readout__name { font-family: var(--display); color: var(--tooltip-fg); font-weight: var(--fw-light); font-size: var(--text-lg); letter-spacing: var(--tracking-title-loose); display: flex; align-items: baseline; gap: 8px; }
 .readout__g { font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); color: var(--tooltip-fg); opacity: 0.75; }
 .readout__row { font-family: var(--body); color: var(--tooltip-fg); font-size: var(--text-xs); letter-spacing: var(--tracking-loose); line-height: var(--leading-loose); opacity: 0.85; }
 .readout__dispo { opacity: 0.6; }

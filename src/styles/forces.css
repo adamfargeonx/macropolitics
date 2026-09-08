@@ -239,8 +239,8 @@
    0.08em instead, so it never moved with the rest of the sweep — the fourth instance of this
    exact gap found by the live computed-style audit (the other three: .rnode__name, .lbl--*,
    the ones fixed earlier). */
-.gindex__name { font-size: 12.5px; font-weight: var(--fw-regular); color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tracking-title-loose); }
-.gindex__row--ns .gindex__name { font-weight: var(--fw-regular); opacity: 0.72; }
+.gindex__name { font-size: 12.5px; font-weight: var(--fw-light); color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tracking-title-loose); }
+.gindex__row--ns .gindex__name { font-weight: var(--fw-light); opacity: 0.72; }
 .gindex__bar { height: 3px; background: rgba(255, 255, 255, 0.06); }
 .gindex__bar i { display: block; height: 100%; background: var(--yellow); opacity: 0.6; }
 .gindex__row--ns .gindex__bar i { opacity: 0.38; }
