@@ -620,11 +620,11 @@
 /* Pole is deliberately NOT in the blanket list above — a re-sort remounts every cell (the flat and
    banded layouts are different containers), and without its own rule the ambient cycle would be
    killed right along with the one-shot entrance it shares an element with. This drops relCapIn
-   (a re-sorted cell shouldn't replay the slide-up) but keeps nameCycle running, so a stance that
-   was mid-reveal before the sort just carries on after it lands in its new spot. */
-.rel-grid--settled .rel-grid__pole {
+   (a re-sorted cell shouldn't replay the slide-up) but keeps nameCycle running, PER LETTER, so a
+   stance that was mid-reveal before the sort just carries on after it lands in its new spot. */
+.rel-grid--settled .rel-grid__pole .letters__ch {
   animation: nameCycle var(--cp-dur, 9s) ease-in-out infinite;
-  animation-delay: var(--cp-delay, 0s);
+  animation-delay: calc(var(--cp-delay, 0s) + var(--ci, 0) * 0.026s);
   opacity: 0;
 }
 
@@ -636,23 +636,38 @@
   animation: relCapIn 0.5s var(--ease-out-expo) backwards;
   animation-delay: var(--cap-d, 0s);
 }
-/* ── Stance caption: hover-reveal + ambient cycling ──────────────────────────────────────────
+/* ── Stance caption: hover-reveal + ambient cycling, per-letter stagger-in ──────────────────
    Used to be permanently visible under every name — accurate, but a wall of 20 labels reads as
    noise, not signal. It now stays hidden at rest and surfaces two ways: on hover/focus (forced,
-   below), and sporadically on its own via nameCycle (the exact mechanism the relations FIELD's
-   star names already use — same keyframe, same "fade in / hold / fade out / hidden" shape, reused
-   rather than inventing a near-duplicate). Chained onto the existing entrance reveal exactly like
-   .rnode__name is: relCapIn plays once, backwards-filled through its own delay; nameCycle then
-   takes over once ITS delay (--cp-delay, computed in RelationsGrid.tsx: a flat settle past the
-   worst-case caption + a per-cell hash phase) elapses. */
+   below), and sporadically on its own, cascading in LETTER BY LETTER — the same per-character
+   stagger .home-intro__l1 .letters__ch already uses (Letters splits the word into .letters__ch
+   spans with --ci; reused rather than hand-rolling a second stagger mechanism), not a whole-word
+   block fade.
+   The one-shot ARRIVAL (relCapIn, when the cell first loads) stays on the PARENT and stays a
+   whole-word rise — the name and its stance land together as one beat, matching .rel-grid__name
+   right above it. Only the ONGOING AMBIENT LOOP moves to the per-letter children below; the
+   parent's own animation ends after that first arrival and is not re-declared afterward, so from
+   then on visibility is entirely the children's to control. */
 .rel-grid__pole {
-  animation: relCapIn 0.5s var(--ease-out-expo) backwards, nameCycle var(--cp-dur, 9s) ease-in-out infinite;
-  animation-delay: calc(var(--cap-d, 0s) + 0.07s), var(--cp-delay, 0s);
+  animation: relCapIn 0.5s var(--ease-out-expo) backwards;
+  animation-delay: calc(var(--cap-d, 0s) + 0.07s);
+}
+/* nameCycle, per letter: each character's own delay is the cell's shared --cp-delay PLUS a small
+   per-character offset off --ci, so the word cascades into view left-letter-to-right-letter (RTL:
+   document order, same convention Letters/LetterSwap already use everywhere) instead of appearing
+   as one block. 0.026s matches .home-intro__l1's own step exactly — reusing the established
+   stagger pace, not inventing a new one. */
+.rel-grid__pole .letters__ch {
+  display: inline-block;
+  animation: nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation-delay: calc(var(--cp-delay, 0s) + var(--ci, 0) * 0.026s);
 }
 /* A stance you're actually pointing at must never be mid-fade or hidden — same contract as the
-   field's own .rnode--hover .rnode__name override, same reasoning. */
-.rel-grid__cell:hover .rel-grid__pole,
-.rel-grid__cell:focus-visible .rel-grid__pole { animation: none; opacity: var(--edge-mul, 1); }
+   field's own .rnode--hover .rnode__name override, same reasoning. Targets the LETTER spans, not
+   the word-level parent: opacity set on the parent wouldn't override each letter's own
+   independently-running nameCycle instance. */
+.rel-grid__cell:hover .rel-grid__pole .letters__ch,
+.rel-grid__cell:focus-visible .rel-grid__pole .letters__ch { animation: none; opacity: var(--edge-mul, 1); }
 @keyframes relCapIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 .rel-grid__name {
   /* The whole gap now, near enough: the svg's viewBox was cropped to the triangle's base (see
@@ -676,7 +691,7 @@
 .rel-grid__pole--h { color: var(--ok); }
 @media (prefers-reduced-motion: reduce) {
   .rel-grid__sortbar, .rel-grid__cell, .rel-grid__band,
-  .rel-grid__poly, .rel-grid__dot, .rel-grid__name, .rel-grid__pole { animation: none; opacity: 1; }
+  .rel-grid__poly, .rel-grid__dot, .rel-grid__name, .rel-grid__pole, .rel-grid__pole .letters__ch { animation: none; opacity: 1; }
   .rel-grid__poly { stroke-dashoffset: 0; }
 }
 /* grid → field: a cell was picked, so the WHOLE overview steps back as one unit (not per-cell —

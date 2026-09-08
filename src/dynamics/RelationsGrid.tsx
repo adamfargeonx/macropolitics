@@ -3,6 +3,7 @@ import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
 import { GRID_BEAT, GRID_PICK } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
+import { Letters } from './Words'
 
 // Unit-triangle vertices for the mini constellations — the SAME vertex↔field weighting as
 // unifiedGeo() in RelationsView.tsx (top = friction field/מתח, bottom-left = tension field/חיכוך,
@@ -489,10 +490,14 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
         <span className="rel-grid__name">{row.he}</span>
         {/* the trailing asterisk is this site's existing "this is a judgment, not a measurement"
             mark (see the honesty disclosure in the utility nav) — reused rather than inventing a
-            second vocabulary for the same admission. */}
-        <span className={`rel-grid__pole rel-grid__pole--${STANCE_CLASS[row.stance]}${row.edge ? ' rel-grid__pole--edge' : ''}`}>
-          {STANCE_HE[row.stance]}{row.edge ? '*' : ''}
-        </span>
+            second vocabulary for the same admission.
+            Letters, not plain text: each ambient reveal now cascades per character (views.css's
+            .rel-grid__pole .letters__ch), the SAME per-letter stagger-in idiom already built for
+            the home intro line — reused rather than hand-rolling a second one. */}
+        <Letters
+          text={`${STANCE_HE[row.stance]}${row.edge ? '*' : ''}`}
+          className={`rel-grid__pole rel-grid__pole--${STANCE_CLASS[row.stance]}${row.edge ? ' rel-grid__pole--edge' : ''}`}
+        />
       </button>
     )
   }
