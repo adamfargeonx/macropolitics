@@ -307,7 +307,11 @@ export default function RelationsView() {
                 <span
                   key={v.k}
                   className={`rel-vtx rel-vtx--${v.k}`}
-                  style={{ left: v.left, top: v.top, opacity: emphasisPoint ? 0.95 : 0.6, '--vd': `${d}s` } as React.CSSProperties}
+                  // Rest opacity raised 0.6 -> 0.85 — at 0.6 a correctly-bold, correctly-sized
+                  // title still read as faded/secondary chrome rather than a title, on top of the
+                  // size fix above. Emphasized state gets the same bump (0.95 -> 1.0) so some
+                  // separation between the two states still survives.
+                  style={{ left: v.left, top: v.top, opacity: emphasisPoint ? 1 : 0.85, '--vd': `${d}s` } as React.CSSProperties}
                 >
                   <LetterSwap text={v.he} delay={d} />
                   <i>{v.sub}</i>

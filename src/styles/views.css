@@ -21,7 +21,13 @@
      stays bold for, not the entity-name category (star labels, panel headers for a country) that
      went Light. At --text-2xl/Light they read as body text with nowhere near enough presence to
      anchor a field of 20+ stars. */
-  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
+  /* --text-3xl (30px), not --text-2xl (20px) — the font-family/weight were already correct
+     (verified: identical letterforms to .panel__title, confirmed against the Heebo fallback side
+     by side), but at 20px a title-weight word still reads as a LABEL, not a title. This is a
+     structural axis name for the whole field (three of them, not a page hero), so it takes
+     .panel__title's own size tier rather than its --text-title/32px one, but the SAME size class
+     bold titles use elsewhere, not the label-tier size it was on. */
+  font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-title); color: var(--yellow);
   white-space: nowrap; text-align: center; pointer-events: none;
   transition: opacity 0.3s ease;
