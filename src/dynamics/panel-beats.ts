@@ -134,7 +134,7 @@ export const FIELD_BEAT = {
 // block (relGridOut: the whole container fading and shrinking 6% in 340ms), which read as a cut —
 // the screen you picked FROM and the screen you arrived AT shared no motion.
 //
-// It now runs as five stated beats, with a real hold between each so the sequence is legible:
+// Seven stated beats now, with a real hold between each so the sequence is legible:
 //   1. glow      — the picked triangle lights; nothing else moves yet.
 //   2. dismiss   — every OTHER cell scales out and fades, staggered by distance from the pick, so
 //                  the field empties outward from the thing you chose rather than in reading order.
@@ -142,17 +142,39 @@ export const FIELD_BEAT = {
 //                  stars, leaving only the outline. (Its parts arrived in that order on load; they
 //                  leave in it too.)
 //   4. travel    — the bare outline moves to the centre of the screen.
-//   5. expand    — it scales up to the size of the field's own triangle and fades out as the field
-//                  zooms in underneath, so the outline you were looking at becomes the frame you
-//                  land in. Nothing "arrives"; the same shape carries you across.
+//   5. close     — it collapses into itself (scale -> 0) at the centre, rather than opening out
+//                  into the field's own triangle — the shape you were looking at folds away
+//                  instead of becoming the next screen directly.
+//   6. title     — into the empty centre, a full-screen line writes itself in letter by letter
+//                  (the same per-character stagger every other title on the site uses), names the
+//                  constellation you're about to see, holds a beat, then clears fast — a genuine
+//                  interstitial, not a loading spinner.
+//   7. field mounts, right behind the title's own fade.
 // Seconds (CSS), except GRID_PICK_MS which is the total the VIEW waits before swapping mode.
 export const GRID_PICK = {
   glow: 0,
   dismissStart: 0.26, dismissSpread: 0.36, dismissDur: 0.32,
   poleOut: 0.82, nameOut: 0.90,
   dotsStart: 0.98, dotsSpread: 0.22, partDur: 0.26,
-  travelStart: 1.32, travelDur: 0.98, // travel + expand are ONE animation; 53% of it is the move
+  travelStart: 1.32, travelDur: 0.55, // beat 4: move to centre only — arrival, not arrival+resize
+  closeDur: 0.34,                     // beat 5: the arrived outline collapses to nothing
+  // beat 6: title card. Step matches the grid's own per-character cascades elsewhere (0.018s);
+  // holdDur is the beat it sits fully written before clearing; outDur is deliberately much
+  // shorter than the write-in — "animating out quickly" was explicit, and a fast plain fade reads
+  // as a different, snappier gesture than the considered letter-by-letter arrival.
+  titlePause: 0.12, titleStep: 0.018, titleHoldDur: 0.35, titleOutDur: 0.22,
 } as const
-// The field mounts at 2260 while the outline's fade runs to 2300 — a deliberate 40ms overlap, so
-// the field's own relZoomOut begins UNDER the last frames of the outline rather than after them.
-export const GRID_PICK_MS = 2260
+// The moment the outline finishes collapsing (beat 5 ends) — everything from the title card on is
+// timed as an offset from THIS, not as more literals, so the two can never drift out of step.
+const GRID_PICK_CLOSE_END = GRID_PICK.travelStart + GRID_PICK.travelDur + GRID_PICK.closeDur
+export const GRID_PICK_TITLE_START = GRID_PICK_CLOSE_END + GRID_PICK.titlePause
+// Longest realistic constellation title ("קונסטלציית היחסים של האמירויות" ≈ 30 characters) sets
+// the worst-case write-in span this waits out; shorter names simply finish their own cascade
+// earlier and sit in the hold a little longer, never held up by the schedule.
+const GRID_PICK_TITLE_WORST_CHARS = 30
+const GRID_PICK_TITLE_WRITE_MS = (GRID_PICK_TITLE_WORST_CHARS * GRID_PICK.titleStep + 0.4) * 1000
+export const GRID_PICK_TITLE_OUT_START =
+  GRID_PICK_TITLE_START + GRID_PICK_TITLE_WRITE_MS / 1000 + GRID_PICK.titleHoldDur
+// The field mounts right as the title's own fade-out finishes, so there's no dead frame of empty
+// black between the interstitial clearing and the constellation being there.
+export const GRID_PICK_MS = Math.round((GRID_PICK_TITLE_OUT_START + GRID_PICK.titleOutDur) * 1000)

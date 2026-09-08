@@ -782,28 +782,58 @@
 @keyframes relPickPartOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(4px); } }
 @keyframes relPickDotOut  { from { opacity: 1; } to { opacity: 0; } }
 
-/* ── beats 4+5: the bare outline travels to centre, then opens out to the field's own triangle.
-   ONE animation, not two: a gap between them (even a frame) reintroduces exactly the stutter this
-   whole sequence exists to remove. 53% is the arrival — everything after it is the expansion. */
+/* ── beats 4+5: the bare outline travels to the screen's centre, THEN collapses into itself —
+   two keyframes on one element, chained rather than run as one animation the way travel+expand
+   used to be. They can be separate here (unlike the old pairing) because neither needs a curve
+   the other doesn't: TWO transforms, not a transform racing an opacity fade, so there's no split-
+   curve problem to solve by fusing them.
+   --close-d is the travel's own end (--travel-d + --travel-dur), published from
+   RelationsGrid.tsx rather than restated as a second literal here.
+   Collapsing to scale(0) needs no separate opacity keyframe — an element at scale(0) is already
+   gone — which is also why the old pairing's relPickFade (a linear fade fused into the transform
+   timeline to dodge --ease-panel's front-loaded curve eating the fade too early) is gone too. */
 .rel-grid__cell--chosen .rel-grid__svg {
   transform-origin: var(--ox, 50%) var(--oy, 50%);
-  /* TWO animations, because the move and the fade need different curves. Running opacity inside
-     the transform's own keyframes put it on --ease-panel, which is heavily front-loaded: measured
-     at 86% of the timeline the outline was already down to opacity 0.04 — it had vanished before
-     it finished opening, so the last thing you saw was empty screen rather than the frame you
-     were about to land inside. The fade is now linear and confined to the final stretch. */
   animation:
-    relPickTravel var(--travel-dur, 0.98s) var(--ease-panel) var(--travel-d, 1.32s) both,
-    relPickFade calc(var(--travel-dur, 0.98s) * 0.34) linear calc(var(--travel-d, 1.32s) + var(--travel-dur, 0.98s) * 0.66) both;
+    relPickTravel var(--travel-dur, 0.55s) var(--ease-panel) var(--travel-d, 1.32s) both,
+    relPickClose var(--close-dur, 0.34s) var(--ease-in-out-quart) var(--close-d, 1.87s) both;
 }
 @keyframes relPickTravel {
-  0%   { transform: translate(0, 0) scale(1); }
-  /* 53% is the arrival: the outline is at the field triangle's centroid, barely grown. Everything
-     after it is the opening-out to that triangle's actual size (--ts, measured at click time). */
-  53%  { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1.05); }
-  100% { transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--ts, 6)); }
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1); }
 }
-@keyframes relPickFade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes relPickClose { to { transform: translate(var(--tx, 0), var(--ty, 0)) scale(0); } }
+
+/* ── beat 6: the title card ──────────────────────────────────────────────────────────────────
+   Full-screen, fixed — sits above everything (z-index matches the chosen cell's own z-index:40
+   plus headroom) so it reads as its OWN moment, not a label attached to the grid still behind it.
+   The container itself only ever fades OUT (--title-out-*); it has no fade-IN of its own because
+   the letters' own per-character rise already reads as the card arriving — a second, redundant
+   fade on the wrapper would just soften that first impression. */
+.rel-grid__pick-title {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  animation: relPickTitleOut var(--title-out-dur, 0.22s) linear var(--title-out-d, 3.62s) both;
+}
+@keyframes relPickTitleOut { to { opacity: 0; } }
+.rel-grid__pick-title-text {
+  font-family: var(--display); font-weight: var(--fw-light);
+  font-size: clamp(28px, 4.4vw, 56px); letter-spacing: var(--tracking-display-loose);
+  color: var(--yellow); text-align: center; padding: 0 24px;
+}
+/* Per-letter stagger-in — homeIntroWaterfall (views.css, home-intro__l1's own reveal), reused
+   rather than a near-duplicate keyframe invented for this one screen. --title-step matches
+   GRID_PICK.titleStep exactly (panel-beats.ts), the same "one definition, both sides read it"
+   discipline the rest of this sequence already keeps. */
+.rel-grid__pick-title-text .letters__ch {
+  display: inline-block;
+  animation: homeIntroWaterfall 0.46s var(--ease-out-expo) both;
+  animation-delay: calc(var(--title-d, 2.33s) + var(--ci, 0) * var(--title-step, 0.018s));
+}
+@media (prefers-reduced-motion: reduce) {
+  .rel-grid__pick-title { animation: none; }
+  .rel-grid__pick-title-text .letters__ch { animation: none; }
+}
 /* scale 0.94, not 0.98 — a 2% shrink over 280ms was invisible, so the handoff read as a hard cut
    even though the transition was running. */
 @keyframes relGridOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.94); } }

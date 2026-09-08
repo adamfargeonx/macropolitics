@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
-import { GRID_BEAT, GRID_PICK } from './panel-beats'
+import { GRID_BEAT, GRID_PICK, GRID_PICK_TITLE_START, GRID_PICK_TITLE_OUT_START } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
 import { Letters } from './Words'
 
@@ -255,7 +255,7 @@ const LOAD_MS = 3700
 // itself to pivot around. All of it is measured from the LIVE rects at click time rather than
 // assumed from the layout — the grid is fluid (column count snaps to a divisor of the roster, rows
 // divide the leftover viewport height), so a cell's size and position are not knowable statically.
-interface Pick { id: string; tx: number; ty: number; ts: number; ox: number; oy: number }
+interface Pick { id: string; he: string; tx: number; ty: number; ts: number; ox: number; oy: number }
 
 // Mirrors unifiedGeo() in RelationsView — deliberately, and the duplication is the point: this has
 // to land on the field's triangle as it will ACTUALLY be drawn a beat later, and that triangle is
@@ -276,7 +276,7 @@ function fieldTriangle() {
 // preserveAspectRatio="xMidYMax meet", so the drawing is letterboxed: uniformly scaled to fit,
 // centred horizontally, flushed to the BOTTOM. Getting this wrong (assuming the drawing fills the
 // box) would put the pivot off-centre and the triangle would visibly slide sideways as it grew.
-function pickGeometry(svg: Element): Omit<Pick, 'id'> {
+function pickGeometry(svg: Element): Omit<Pick, 'id' | 'he'> {
   const r = svg.getBoundingClientRect()
   const k = Math.min(r.width / 100, r.height / 85)
   const ox = (r.width - 100 * k) / 2          // xMid
@@ -443,7 +443,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           const svg = e.currentTarget.querySelector('.rel-grid__svg')
           // Measure BEFORE anything animates. If the <svg> somehow isn't there the pick still has
           // to work — fall through with no flight plan and the cell simply fades with the rest.
-          if (svg) setPick({ id: row.id, ...pickGeometry(svg) })
+          if (svg) setPick({ id: row.id, he: row.he, ...pickGeometry(svg) })
           onSelect(row.id)
         }}
         aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}${row.edge ? ' (קרוב לגבול הסיווג)' : ''}`}
@@ -530,6 +530,8 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
         '--name-out': `${GRID_PICK.nameOut}s`,
         '--travel-d': `${GRID_PICK.travelStart}s`,
         '--travel-dur': `${GRID_PICK.travelDur}s`,
+        '--close-d': `${GRID_PICK.travelStart + GRID_PICK.travelDur}s`,
+        '--close-dur': `${GRID_PICK.closeDur}s`,
       } as React.CSSProperties) : undefined}
     >
       {/* No screen title or standfirst here. The bottom tab bar already names this screen, and
@@ -587,6 +589,26 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           </div>
         )}
       </div>
+      {/* ── beat 6: the title card ────────────────────────────────────────────────────────────
+          Fixed full-screen overlay, not scoped to the grid's own box — the collapsed outline just
+          vanished at screen centre, and this fills exactly the emptiness it left. Renders only
+          while a pick is in flight (unmounts itself once the field takes over), text set with
+          Letters — the SAME per-character stagger every other title on the site cascades in with,
+          not a bespoke reveal invented for this one screen. */}
+      {pick && (
+        <div
+          className="rel-grid__pick-title"
+          aria-hidden="true"
+          style={{
+            '--title-d': `${GRID_PICK_TITLE_START}s`,
+            '--title-step': `${GRID_PICK.titleStep}s`,
+            '--title-out-d': `${GRID_PICK_TITLE_OUT_START}s`,
+            '--title-out-dur': `${GRID_PICK.titleOutDur}s`,
+          } as React.CSSProperties}
+        >
+          <Letters text={`קונסטלציית היחסים של ${pick.he}`} className="rel-grid__pick-title-text" />
+        </div>
+      )}
     </div>
   )
 }
