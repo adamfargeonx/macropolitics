@@ -409,7 +409,7 @@ export default function RelationsView() {
       {/* Relations is DOM-rendered, not canvas: its node cascade is done by ~1.4s (see the
           per-node animationDelay below), so it doesn't need the canvas views' 4s entrance window
           before the panel may enter — just that same settle + one beat. */}
-      <PanelDock enterAfter={2400} reopenOn={pinned}>
+      <PanelDock enterAfter={2400} reopenOn={pinned} autoOpen={false}>
       {panelPoint && panelDom ? (() => {
         // Everything below `why` in reading order is timed OFF of it, not off t=0 — a static
         // delay couldn't be right for both a 13-word description and a 30-word one (this data

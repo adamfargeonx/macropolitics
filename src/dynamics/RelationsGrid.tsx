@@ -165,6 +165,18 @@ function leadOffset(count: number, cols: number, align: Align): number {
 // the page → home transition; overshoot it and the last cells are cut off mid-animation.
 const EXIT_SPREAD = 300
 
+// Stance-caption ambient cycling (views.css: .rel-grid__pole shares the field's own nameCycle
+// keyframe — same "fade in, hold, fade out, hidden" shape, no reason for a second one). Removed
+// from being permanently visible under every name; it now surfaces on hover, and sporadically on
+// its own for whichever cells the per-cell phase below currently favours, so the grid keeps a
+// little life in it at rest instead of reading as a static wall of labels once settled.
+// SETTLE is a flat delay past the WORST-CASE caption: capStart + capMax (GRID_BEAT) + relCapIn's
+// own 0.5s reveal lands the last caption at 3.56s — SETTLE gives it a small margin past that, same
+// idiom as the field's own NAME_CYCLE_SETTLE, so the loop never fights the entrance for any cell
+// regardless of its position in the cascade.
+const POLE_CYCLE_SETTLE = 4.0
+const POLE_CYCLE_PERIOD = 9 // seconds — matches the field's own cycle period
+
 // Deterministic pseudo-random in [0,1) (FNV-1a). The dot phase needs a SCATTER, but it must be the
 // same scatter on every render — Math.random() would reshuffle the constellations on any re-render
 // that lands mid-cascade, and a re-sort would visibly re-roll dots that hadn't moved.
@@ -408,6 +420,10 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     // sweep at all — see GRID_BEAT and the per-circle --dot-d below.
     const strokeDelay = GRID_BEAT.strokeStart + Math.min(i * GRID_BEAT.strokeStep, GRID_BEAT.strokeMax)
     const capDelay = GRID_BEAT.capStart + Math.min(i * GRID_BEAT.capStep, GRID_BEAT.capMax)
+    // per-cell phase, hashed (not by index) for the same reason the dots are — a sweep in reading
+    // order would just be phase 3's own cascade motion repeating one layer down; independent
+    // phases are what reads as "sporadic" instead.
+    const poleCycleDelay = POLE_CYCLE_SETTLE + hash01(`${row.id}:pole`) * POLE_CYCLE_PERIOD
     return (
       <button
         key={row.id}
@@ -418,6 +434,8 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
         style={{
           '--stroke-d': `${strokeDelay}s`,
           '--cap-d': `${capDelay}s`,
+          '--cp-delay': `${poleCycleDelay.toFixed(3)}s`,
+          '--cp-dur': `${POLE_CYCLE_PERIOD}s`,
           '--exit-cd': `${exitDelay}ms`,
           '--dismiss-d': `${dismissDelay}s`,
           ...(chosen && pick

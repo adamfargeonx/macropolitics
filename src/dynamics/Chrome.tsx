@@ -33,7 +33,7 @@ const CANVAS_ENTRANCE_MS = 4000
 const PANEL_BEAT_MS = 1000
 export const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
 
-export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null }) {
+export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn, autoOpen = true }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null; autoOpen?: boolean }) {
   // mounts closed, then slides in once the screen's entrance has fully landed (see above) — the
   // panel arriving a clear beat later reads as a considered reveal, not a competing animation.
   const [open, setOpen] = useState(false)
@@ -46,10 +46,16 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
      component's own first commit, so finding it necessarily happens a render late. */
   useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
+  // autoOpen=false: the constellation screens (RelationsView) — a field of 20+ stars is the
+  // whole point of the view, and the panel used to slide open over it unprompted a couple of
+  // seconds after arrival with nothing selected yet. Skipping the timer leaves the dock closed
+  // until something actually earns it: a star gets pinned (the reopenOn effect below), or the
+  // handle is clicked by hand.
   useEffect(() => {
+    if (!autoOpen) return
     const t = window.setTimeout(() => setOpen(true), enterAfter)
     return () => window.clearTimeout(t)
-  }, [enterAfter])
+  }, [enterAfter, autoOpen])
   // Direct feedback: clicking empty space (unrelated to the panel) should close it; clicking
   // something that correlates to the panel's content should reopen it, even after a manual close
   // via the handle. `reopenOn` is whatever id the calling view uses to mean "something is

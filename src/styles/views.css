@@ -15,12 +15,14 @@
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  /* Light + loose, matching every other title on the site (the entity names in the panels, the
-     grid cell names). This was fw-bold on the TIGHT token, which is the treatment reserved for
-     titles that name a VIEW rather than a thing in it — these name the three poles, which is the
-     same class of label as an entity name. */
-  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-light);
-  letter-spacing: var(--tracking-title-loose); color: var(--yellow);
+  /* Reverted from Light+loose back to Bold+tight — a miscall in the weight sweep. These name
+     the three POLES of the field itself (a structural axis of the whole screen: מתח/חיכוך/
+     הרמוניה), not a thing plotted within it — the same "titles a VIEW" category .panel__title
+     stays bold for, not the entity-name category (star labels, panel headers for a country) that
+     went Light. At --text-2xl/Light they read as body text with nowhere near enough presence to
+     anchor a field of 20+ stars. */
+  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-title); color: var(--yellow);
   white-space: nowrap; text-align: center; pointer-events: none;
   transition: opacity 0.3s ease;
   /* No animation on the container itself any more. These are TITLES, so the reveal moved onto the
@@ -107,7 +109,10 @@
      the star. */
   position: relative;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, #fff 0%, var(--light) 55%, rgba(244, 242, 236, 0.35) 100%);
+  /* Flat fill, not the radial gradient this used to be — the soft falloff was already coming from
+     the box-shadow glow around the disk; the gradient INSIDE it was a second, redundant softening
+     doing the same job as the shadow. One flat white circle plus the shadow is the actual star. */
+  background: var(--light);
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.85), 0 0 15px rgba(255, 255, 255, 0.3);
   /* was a plain `ease` — swapped for the token the hovercard's own reveal already uses
      (relHoverIn, views.css) so the star's grow and the tooltip's expand read as ONE coordinated
@@ -154,8 +159,12 @@
    are never seen fighting each other. */
 @keyframes nameCycle {
   0%   { opacity: 0; transform: translateY(3px); }
-  10%  { opacity: 1; transform: translateY(0); }
-  32%  { opacity: 1; transform: translateY(0); }
+  /* --edge-mul, not a flat 1 — .rel-grid__pole--edge sets it to 0.68 so a near-tie stance still
+     reads slightly quieter during its own visible window instead of the dimming being overridden
+     outright by whichever rule sets opacity last (the field's star names never set --edge-mul, so
+     they're unaffected — the var's own default covers them). */
+  10%  { opacity: var(--edge-mul, 1); transform: translateY(0); }
+  32%  { opacity: var(--edge-mul, 1); transform: translateY(0); }
   44%  { opacity: 0; transform: translateY(-3px); }
   100% { opacity: 0; }
 }
@@ -184,7 +193,9 @@
    which a shadow alone (confined near the edge) can't deliver. transform-box/-origin match the
    disk's own so the ring stays centred on it, not the whole .rnode flex column. */
 .rnode--hover .rnode__disk {
-  transform: scale(1.45); background: radial-gradient(circle at 50% 50%, #fff 0%, var(--yellow) 70%, rgba(251, 255, 0, 0.4) 100%);
+  /* Flat, not the radial gradient this used to be — same reasoning as the rest state above:
+     the glow (box-shadow) already carries the soft falloff, the fill itself is flat colour. */
+  transform: scale(1.45); background: var(--yellow);
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 30px rgba(251, 255, 0, 0.55);
 }
 .rnode--hover .rnode__disk::before {
@@ -530,14 +541,19 @@
    the whole grid can compress into one fold on a short laptop screen. */
 .rel-grid__svg {
   flex: 1 1 auto; min-height: 0; width: 100%; height: 100%;
-  /* transform-box/origin so the scale pivots on the drawn triangle's own centre rather than the
-     svg element's padding box, which would make it drift up-left as it grows. */
-  transform-origin: center; transition: transform 0.34s var(--ease-out-expo);
+  /* Pivots on the BOTTOM edge, not the centre. The viewBox (0 0 100 85, preserveAspectRatio
+     xMidYMax meet) was deliberately cropped so the triangle's own base sits flush against the
+     svg box's bottom edge — see RelationsGrid.tsx. A centre pivot therefore grew the triangle
+     downward by half of every hover, straight into the name sitting right below it (reported:
+     overlapping on hover). Growing from the bottom instead pushes the whole gain UPWARD, into
+     the cell's own empty headroom, so the base — and the name beneath it — never moves. */
+  transform-origin: center bottom; transition: transform 0.34s var(--ease-out-expo);
 }
 /* hover grows the whole triangle — the cell is the target, so the figure inside it is what
-   answers. overflow stays visible on the cell (below) or the growth would just be clipped. */
+   answers. overflow stays visible on the cell (below) or the growth would just be clipped.
+   1.2, not 1.3 — turned down a notch after the first pass read as too much. */
 .rel-grid__cell:hover .rel-grid__svg,
-.rel-grid__cell:focus-visible .rel-grid__svg { transform: scale(1.3); }
+.rel-grid__cell:focus-visible .rel-grid__svg { transform: scale(1.2); }
 @media (prefers-reduced-motion: reduce) {
   .rel-grid__svg { transition: none; }
   .rel-grid__cell:hover .rel-grid__svg, .rel-grid__cell:focus-visible .rel-grid__svg { transform: none; }
@@ -599,19 +615,44 @@
 .rel-grid--settled .rel-grid__poly,
 .rel-grid--settled .rel-grid__dot,
 .rel-grid--settled .rel-grid__name,
-.rel-grid--settled .rel-grid__pole,
 .rel-grid--settled .rel-grid__band { animation: none; }
 .rel-grid--settled .rel-grid__poly { stroke-dashoffset: 0; }
+/* Pole is deliberately NOT in the blanket list above — a re-sort remounts every cell (the flat and
+   banded layouts are different containers), and without its own rule the ambient cycle would be
+   killed right along with the one-shot entrance it shares an element with. This drops relCapIn
+   (a re-sorted cell shouldn't replay the slide-up) but keeps nameCycle running, so a stance that
+   was mid-reveal before the sort just carries on after it lands in its new spot. */
+.rel-grid--settled .rel-grid__pole {
+  animation: nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation-delay: var(--cp-delay, 0s);
+  opacity: 0;
+}
 
 /* ── Phase 3: the caption names it ────────────────────────────────────────────────────────────
    Last, and only once the constellation has finished landing — you read the figure, then you're
    told what it is. The stance line trails its country by one short beat so the pair still reads as
    one caption arriving, not two lines. */
-.rel-grid__name, .rel-grid__pole {
+.rel-grid__name {
   animation: relCapIn 0.5s var(--ease-out-expo) backwards;
   animation-delay: var(--cap-d, 0s);
 }
-.rel-grid__pole { animation-delay: calc(var(--cap-d, 0s) + 0.07s); }
+/* ── Stance caption: hover-reveal + ambient cycling ──────────────────────────────────────────
+   Used to be permanently visible under every name — accurate, but a wall of 20 labels reads as
+   noise, not signal. It now stays hidden at rest and surfaces two ways: on hover/focus (forced,
+   below), and sporadically on its own via nameCycle (the exact mechanism the relations FIELD's
+   star names already use — same keyframe, same "fade in / hold / fade out / hidden" shape, reused
+   rather than inventing a near-duplicate). Chained onto the existing entrance reveal exactly like
+   .rnode__name is: relCapIn plays once, backwards-filled through its own delay; nameCycle then
+   takes over once ITS delay (--cp-delay, computed in RelationsGrid.tsx: a flat settle past the
+   worst-case caption + a per-cell hash phase) elapses. */
+.rel-grid__pole {
+  animation: relCapIn 0.5s var(--ease-out-expo) backwards, nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation-delay: calc(var(--cap-d, 0s) + 0.07s), var(--cp-delay, 0s);
+}
+/* A stance you're actually pointing at must never be mid-fade or hidden — same contract as the
+   field's own .rnode--hover .rnode__name override, same reasoning. */
+.rel-grid__cell:hover .rel-grid__pole,
+.rel-grid__cell:focus-visible .rel-grid__pole { animation: none; opacity: var(--edge-mul, 1); }
 @keyframes relCapIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 .rel-grid__name {
   /* The whole gap now, near enough: the svg's viewBox was cropped to the triangle's base (see
@@ -1442,4 +1483,7 @@
    still the honest best call, but it is a call, so it is set slightly quieter than a clear-cut one
    and carries the site's own judgment asterisk. No new colour and no icon: the same three stance
    colours still read at a glance, this only removes the false crispness. */
-.rel-grid__pole--edge { opacity: 0.68; }
+/* --edge-mul, read by nameCycle's own peak-opacity keyframes above and by the hover override — 
+   NOT a flat opacity here, which would simply overrule whichever visibility state (hidden at 
+   rest / mid-cycle / hover-forced) is currently active regardless of what it is. */
+.rel-grid__pole--edge { --edge-mul: 0.68; }
