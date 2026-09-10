@@ -166,17 +166,18 @@ function leadOffset(count: number, cols: number, align: Align): number {
 // the page → home transition; overshoot it and the last cells are cut off mid-animation.
 const EXIT_SPREAD = 300
 
-// Stance-caption ambient cycling (views.css: .rel-grid__pole shares the field's own nameCycle
-// keyframe — same "fade in, hold, fade out, hidden" shape, no reason for a second one). Removed
-// from being permanently visible under every name; it now surfaces on hover, and sporadically on
-// its own for whichever cells the per-cell phase below currently favours, so the grid keeps a
-// little life in it at rest instead of reading as a static wall of labels once settled.
-// SETTLE is a flat delay past the WORST-CASE caption: capStart + capMax (GRID_BEAT) + relCapIn's
-// own 0.5s reveal lands the last caption at 3.56s — SETTLE gives it a small margin past that, same
-// idiom as the field's own NAME_CYCLE_SETTLE, so the loop never fights the entrance for any cell
-// regardless of its position in the cascade.
-const POLE_CYCLE_SETTLE = 4.0
-const POLE_CYCLE_PERIOD = 9 // seconds — matches the field's own cycle period
+// Stance-caption ambient cycling (views.css: .rel-grid__pole uses its OWN poleCycle keyframe, a
+// slower cousin of the field's nameCycle — see the CSS for why the two diverged). Removed from
+// being permanently visible under every name; it now surfaces on hover, and sporadically on its
+// own for whichever cells the per-cell phase below currently favours, so the grid keeps a little
+// life in it at rest instead of reading as a static wall of labels once settled.
+// There is deliberately no SETTLE constant any more: the loop is phase-offset with a NEGATIVE
+// delay (see the call site), so there is no leading wait to place past the entrance — and none is
+// needed, because .rel-grid__pole's own relCapIn is `backwards`-filled and holds the parent at
+// opacity 0 until its caption beat, masking the cycling letters underneath until then.
+// 10, not the field's 9 — poleCycle's own keyframe percentages (views.css) are tuned against this
+// exact period; the field's nameCycle keyframe is a different shape.
+const POLE_CYCLE_PERIOD = 10
 
 // Deterministic pseudo-random in [0,1) (FNV-1a). The dot phase needs a SCATTER, but it must be the
 // same scatter on every render — Math.random() would reshuffle the constellations on any re-render
@@ -269,7 +270,12 @@ function fieldTriangle() {
   const Vt = { x: cx, y: Math.max(cy - sy * 0.95, 110) }
   const Vf = { x: cx - sx * 0.92, y: cy + sy * 0.72 }
   const Vh = { x: cx + sx * 0.92, y: cy + sy * 0.72 }
-  return { base: Vh.x - Vf.x, cx: (Vt.x + Vf.x + Vh.x) / 3, cy: (Vt.y + Vf.y + Vh.y) / 3 }
+  // BBOX centre, not the centroid — must use the SAME convention as pickGeometry's own gx/gy anchor
+  // below, since tx/ty is just the delta between the two. They disagreed for one round (source
+  // moved to bbox centre, this target left on the centroid) and the flown triangle landed ~13*k
+  // too LOW as a result — reported as "doesn't animate in the centre, it's a bit down". x is
+  // unaffected either way (the triangle is symmetric about cx), y is not.
+  return { base: Vh.x - Vf.x, cx, cy: (Vt.y + Vf.y) / 2 }
 }
 
 // Maps the cell's <svg> box to the triangle actually painted inside it. The viewBox is 100x85 with
@@ -281,9 +287,14 @@ function pickGeometry(svg: Element): Omit<Pick, 'id' | 'he'> {
   const k = Math.min(r.width / 100, r.height / 85)
   const ox = (r.width - 100 * k) / 2          // xMid
   const oy = r.height - 85 * k                // YMax
-  // centroid of the polygon in viewBox units: (50, (6+84+84)/3)
+  // bounding-box centre of the triangle in viewBox units: (50, (6+84)/2) — NOT the polygon's
+  // centroid (50, (6+84+84)/3 = 58). The centroid sits closer to the base (two of the three
+  // vertices live there), so anchoring the close-scale on it pulled everything toward that
+  // lower point as it shrank — reported live as the triangle sinking/nudging down instead of
+  // closing evenly into its own middle. The bbox centre is what "its own centre" actually reads
+  // as for a shape being scaled to a point.
   const gx = ox + 50 * k
-  const gy = oy + 58 * k
+  const gy = oy + 45 * k
   const f = fieldTriangle()
   return {
     tx: f.cx - (r.left + gx),
@@ -411,7 +422,16 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     // per-cell phase, hashed (not by index) for the same reason the dots are — a sweep in reading
     // order would just be phase 3's own cascade motion repeating one layer down; independent
     // phases are what reads as "sporadic" instead.
-    const poleCycleDelay = POLE_CYCLE_SETTLE + hash01(`${row.id}:pole`) * POLE_CYCLE_PERIOD
+    // NEGATIVE — a phase offset, not a wait. animation-delay is spent once, BEFORE the first
+    // iteration, so a positive value is re-served in full on every restart. And the cycle DOES get
+    // restarted constantly: the hover rule overrides it with its own animation, so the moment the
+    // cursor leaves a cell, poleCycle re-attaches from scratch and the caption both pops out with
+    // no fade AND goes dark for the whole 4-14s wait again. Mousing across the grid blanked most of
+    // it. Negative starts each cell already at its own offset, so a restart drops straight back
+    // into the loop mid-phase instead of hiding the label. The entrance is still protected without
+    // the old settle: .rel-grid__pole's own relCapIn is `backwards`-filled, so the PARENT holds
+    // opacity 0 until its caption beat and masks whatever the letters are doing underneath.
+    const poleCycleDelay = -(hash01(`${row.id}:pole`) * POLE_CYCLE_PERIOD)
     return (
       <button
         key={row.id}
@@ -582,10 +602,41 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           >
             {sorted.map((row) => cell(row))}
             {/* fills out row 3 when the roster isn't an exact multiple of flatCols — inert, no
-                interaction, no caption; a reserved slot rather than a claim about a real state */}
-            {Array.from({ length: flatPlaceholders }, (_, i) => (
-              <div key={`ph-${i}`} className="rel-grid__cell rel-grid__cell--placeholder" aria-hidden="true" />
-            ))}
+                interaction, no caption. Renders the same bare triangle geometry as a real cell
+                (dimmed, static — see .rel-grid__cell--placeholder) so the empty seat reads as a
+                reserved slot in the grid's own visual language rather than a hole in it. */}
+            {Array.from({ length: flatPlaceholders }, (_, i) => {
+              // A placeholder is a CELL for layout, so it has to be a cell for every CASCADE the
+              // grid runs too. --gone is applied inside cell(), which placeholders never go through,
+              // so on a pick every real triangle dismissed and this one just sat there lit — and on
+              // a page exit it carried no --exit-cd, so it left first instead of in sequence.
+              // Ranked one past the last real cell: it is the last seat in reading order, so it
+              // dismisses furthest-from-the-pick and exits last, exactly like a real trailing cell.
+              const phRank = n + i
+              const pickRank = pick ? (rank.get(pick.id) ?? 0) : 0
+              const spread = Math.max(1, Math.max(pickRank, n - 1 - pickRank))
+              const dismissDelay = GRID_PICK.dismissStart + (Math.abs(phRank - pickRank) / spread) * GRID_PICK.dismissSpread
+              return (
+              <div
+                key={`ph-${i}`}
+                className={`rel-grid__cell rel-grid__cell--placeholder${pick ? ' rel-grid__cell--gone' : ''}`}
+                aria-hidden="true"
+                style={{ '--exit-cd': `${EXIT_SPREAD}ms`, '--dismiss-d': `${dismissDelay}s` } as React.CSSProperties}
+              >
+                <svg viewBox="0 0 100 85" preserveAspectRatio="xMidYMax meet" className="rel-grid__svg">
+                  <polygon className="rel-grid__poly" points={`${VT.x},${VT.y} ${VF.x},${VF.y} ${VH.x},${VH.y}`} />
+                </svg>
+                {/* invisible spacers, not just the bare svg — a real cell's column is svg+name+pole
+                    centered as ONE group (.rel-grid__cell's justify-content:center), so the two text
+                    lines below the triangle push IT up within the cell. Without them here the lone
+                    svg centers on the FULL cell height instead and sits visibly lower than its row —
+                    reported live as "still disconnected from grid". visibility:hidden (not display:
+                    none) keeps the box in layout while painting nothing. */}
+                <span className="rel-grid__name" style={{ visibility: 'hidden' }}>&nbsp;</span>
+                <span className="rel-grid__pole" style={{ visibility: 'hidden' }}>&nbsp;</span>
+              </div>
+              )
+            })}
           </div>
         )}
       </div>

@@ -15,19 +15,14 @@
 .rel-vtx {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  /* Reverted from Light+loose back to Bold+tight — a miscall in the weight sweep. These name
-     the three POLES of the field itself (a structural axis of the whole screen: מתח/חיכוך/
-     הרמוניה), not a thing plotted within it — the same "titles a VIEW" category .panel__title
-     stays bold for, not the entity-name category (star labels, panel headers for a country) that
-     went Light. At --text-2xl/Light they read as body text with nowhere near enough presence to
-     anchor a field of 20+ stars. */
-  /* --text-3xl (30px), not --text-2xl (20px) — the font-family/weight were already correct
-     (verified: identical letterforms to .panel__title, confirmed against the Heebo fallback side
-     by side), but at 20px a title-weight word still reads as a LABEL, not a title. This is a
-     structural axis name for the whole field (three of them, not a page hero), so it takes
-     .panel__title's own size tier rather than its --text-title/32px one, but the SAME size class
-     bold titles use elsewhere, not the label-tier size it was on. */
-  font-family: var(--display); font-size: var(--text-3xl); font-weight: var(--fw-bold);
+  /* Bold+tight, not Light+loose — these name the three POLES of the field itself (a structural
+     axis of the whole screen: מתח/חיכוך/הרמוניה), not a thing plotted within it, so they stay in
+     the "titles a VIEW" weight category rather than the entity-name one. */
+  /* --text-2xl (20px) — sized down twice on direct feedback (was --text-3xl/30px, then
+     --text-title/26px, both still read as too big/loud against the field they sit over). This is
+     now the smallest title-tier size on the scale; if it still reads too heavy the next lever is
+     weight/tracking, not a further size cut into the label tier. */
+  font-family: var(--display); font-size: var(--text-2xl); font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-title); color: var(--yellow);
   white-space: nowrap; text-align: center; pointer-events: none;
   transition: opacity 0.3s ease;
@@ -290,21 +285,47 @@
    scaffold (svg, reference marker, vertex labels) fades together so the field clears cleanly before
    home blooms in. Per-node duration 300ms + ~360ms stagger spread is kept in sync with App's EXIT_MS. */
 .rel-field--leaving .rnode {
-  animation: rnodeExit 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+  /* was a raw ease-in cubic — that curve holds opacity near 1 for most of the 300ms and only
+     collapses it in the final fraction, so the whole field read as "nothing happens, then it all
+     vanishes at once" (reported live as the exit "just cutting out"). --ease-in-out-quart is the
+     house exit token (motion.md) and spreads the visible fade across the full duration instead of
+     hiding it at the end. */
+  animation: rnodeExit 0.3s var(--ease-in-out-quart) both;
   pointer-events: none;
 }
 @keyframes rnodeExit {
   from { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
   to   { opacity: 0; transform: translate(-50%, -50%) scale(0.16); filter: blur(3px); }
 }
+/* An ANIMATION, not a bare `opacity: 0` — .rel-vtx carries an INLINE opacity (RelationsView sets
+   0.85 at rest / 1 while a star is emphasised), and an inline style outranks any stylesheet
+   declaration, so the old `opacity: 0` here NEVER applied: the pole titles (מתח / חיכוך / הרמוניה)
+   and the reference caption simply stayed lit at full strength until React unmounted them, while
+   every star around them shrank away properly. Reported as the constellation's text "not exiting
+   out" like the rest of the screen. CSS animations sit above inline styles in the cascade, so this
+   one actually lands.
+   Only a `to` frame: the implicit `from` is then the element's own underlying values, which is what
+   keeps the inline 0.85-vs-1 opacity from jumping to full on the first frame — and preserves each
+   element's translate(-50%,-50%), which IS its centering (both .rel-ref and .rel-vtx position that
+   way, so a plain translateY here would fling them off-centre as they left). They lift as they go,
+   opposite the way their sub-labels drop in.
+   Delay is --vxd, the vertex's own EXIT beat (RelationsView, 0.06s apart) — NOT --vd, which is the
+   entrance beat at 2.4s+; even a fifth of that ran the exit to ~0.95s, past the 660ms FIELD_EXIT_MS
+   unmount, so the titles were pulled off-screen before they had visibly moved. 0.42s + a 0.12s
+   spread fits inside that budget with room to spare. */
 .rel-field--leaving .rel-ref,
 .rel-field--leaving .rel-vtx {
-  transition: opacity 0.3s ease; opacity: 0; pointer-events: none;
+  animation: relVtxExit 0.42s var(--ease-in-out-quart) both;
+  animation-delay: var(--vxd, 0s);
+  pointer-events: none;
+}
+@keyframes relVtxExit {
+  to { opacity: 0; transform: translate(-50%, calc(-50% - 12px)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .rel-field--leaving .rnode { animation: none; opacity: 0; }
   .rel-field--leaving .rel-ref,
-  .rel-field--leaving .rel-vtx { transition: none; opacity: 0; }
+  .rel-field--leaving .rel-vtx { animation: none; opacity: 0; }
 }
 
 /* ── Relations drill-down — clearer hierarchy: kicker · name · verdict · why · bars ──
@@ -507,24 +528,29 @@
   pointer-events: none;
 }
 
-/* Column count comes from useEvenColumns() in RelationsGrid.tsx, not auto-fill: it must always
-   divide the number of countries exactly so no row is left part-empty, and auto-fill only knows
-   the available width, not the item count. */
+/* Column count is a fixed structural derivation — RelationsGrid.tsx's FLAT_ROWS pins the flat
+   sort to 3 rows and divides the roster across however many columns that needs (Math.ceil(n /
+   FLAT_ROWS)), not auto-fill, which only knows the available width, not the item count. */
 .rel-grid__cells {
   display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr);
-  /* flex:1 + min-height:0 lets this absorb the leftover viewport height and then divide it into
-     equal rows; without min-height:0 the grid refuses to shrink below its content and the last
-     row falls off the fold. */
   grid-template-rows: repeat(var(--rows, 4), minmax(0, 1fr));
-  flex: 1 1 auto; min-height: 0;
   /* Centred block, not a full-bleed span. The triangles are sized by ROW HEIGHT (the svg
      letterboxes inside its cell), so letting the grid run the whole width only ever bought dead
      horizontal air — measured at 112px between triangles against 39px between rows, nearly 3:1.
-     The block's width is now derived from its own height instead: one column of pitch is ~0.92 of
-     a row's height, which lands the horizontal gap on the vertical one. Expressed as an
-     aspect-ratio rather than a px max-width so it tracks the viewport height, which is what sets
-     the triangle size in the first place. align-self:center is what lets width go auto — a
-     stretched flex item would ignore the ratio. */
+     The block's width is derived from its own height instead: one column of pitch is ~0.92 of a
+     row's height, expressed as aspect-ratio rather than a px max-width so it tracks the viewport
+     height. align-self:center is what lets width go auto — a stretched flex item would ignore the
+     ratio.
+     flex:0 1 auto (NOT 1 1 auto) is the load-bearing half of this fix: at 7 columns (20 countries
+     ÷ FLAT_ROWS 3) the aspect-ratio's ideal width exceeds the viewport, so max-width:100% clamps
+     it — but a forced flex-GROW still stretched this block to fill the full available fold height
+     regardless, decoupling the height from that clamped width and breaking the 0.91 ratio (measured
+     177×239 cells, 0.74, not 0.91 — the excess row height became dead air ABOVE every triangle
+     via preserveAspectRatio's bottom anchor, read live as an oversized, lopsided vertical gap
+     between rows against a comparatively tight horizontal one). Without the forced grow, height is
+     derived FROM the clamped width via aspect-ratio like it should be, and margin:auto below turns
+     the resulting leftover fold space into one symmetric outer margin instead of per-row distortion. */
+  flex: 0 1 auto; margin: auto 0;
   align-self: center; width: auto; max-width: 100%;
   aspect-ratio: calc(var(--cols, 5) / var(--rows, 4) * 0.91);
 }
@@ -544,14 +570,17 @@
 }
 /* A reserved slot, not a state that failed to load — the flat sort is fixed at 3 rows now
    (RelationsGrid.tsx's FLAT_ROWS) and a roster that isn't an exact multiple of the resulting
-   column count needs something to hold the last row's empty seats. No pointer-events, no visible
-   mark: a real "this is deliberately blank" reads better here than a dashed placeholder outline
-   inventing a visual language nothing else on the grid uses. */
+   column count needs something to hold the last row's empty seats. It renders the same bare
+   triangle outline a real cell does (no dots, no name, no stance label) so the seat still reads
+   as part of the grid's own shape — just dimmed and static, never mistakable for a live country. */
 .rel-grid__cell--placeholder {
   pointer-events: none;
-  /* No container entrance. The cell used to rise and fade as one block; it now loads in three
-     phases from the inside out (outline → constellation → caption, see below), and a container
-     move on top of that would smear all three into one gesture. */
+}
+.rel-grid__cell--placeholder .rel-grid__poly {
+  /* static, not the self-drawing relPolyDraw entrance — this outline was never "loaded", so it
+     shouldn't play an animation that claims it was. --yellow-12 sits well under the real cells'
+     resting --yellow-38, the gap that reads as "reserved" rather than "just a quiet country". */
+  stroke: var(--yellow-12); stroke-dasharray: none; animation: none;
 }
 /* No background tint on hover — a wash over the whole card muddied the figure it was meant to
    highlight. The feedback moves onto the marks themselves instead: the triangle's own stroke
@@ -653,10 +682,10 @@
 /* Pole is deliberately NOT in the blanket list above — a re-sort remounts every cell (the flat and
    banded layouts are different containers), and without its own rule the ambient cycle would be
    killed right along with the one-shot entrance it shares an element with. This drops relCapIn
-   (a re-sorted cell shouldn't replay the slide-up) but keeps nameCycle running, PER LETTER, so a
+   (a re-sorted cell shouldn't replay the slide-up) but keeps poleCycle running, PER LETTER, so a
    stance that was mid-reveal before the sort just carries on after it lands in its new spot. */
 .rel-grid--settled .rel-grid__pole .letters__ch {
-  animation: nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation: poleCycle var(--cp-dur, 10s) ease-in-out infinite;
   animation-delay: calc(var(--cp-delay, 0s) + var(--ci, 0) * 0.026s);
   opacity: 0;
 }
@@ -685,22 +714,51 @@
   animation: relCapIn 0.5s var(--ease-out-expo) backwards;
   animation-delay: calc(var(--cap-d, 0s) + 0.07s);
 }
-/* nameCycle, per letter: each character's own delay is the cell's shared --cp-delay PLUS a small
+/* poleCycle, per letter: each character's own delay is the cell's shared --cp-delay PLUS a small
    per-character offset off --ci, so the word cascades into view left-letter-to-right-letter (RTL:
    document order, same convention Letters/LetterSwap already use everywhere) instead of appearing
    as one block. 0.026s matches .home-intro__l1's own step exactly — reusing the established
    stagger pace, not inventing a new one. */
 .rel-grid__pole .letters__ch {
   display: inline-block;
-  animation: nameCycle var(--cp-dur, 9s) ease-in-out infinite;
+  animation: poleCycle var(--cp-dur, 10s) ease-in-out infinite;
   animation-delay: calc(var(--cp-delay, 0s) + var(--ci, 0) * 0.026s);
+}
+/* Its own keyframe, not a reuse of nameCycle (the field's own ambient cycle) — reported live as
+   the stance flashing in and out "rapidly, like a mistake", and still too brief after a first pass
+   that only widened the HOLD. The hold was measurably 2s by then; what kept it reading as a blink
+   is the ENVELOPE around it. At --text-xs (11px) in a dim accent, the low-opacity thirds of a slow
+   1.0s ramp-in and a 1.2s ramp-out are effectively invisible, so the caption is only legible for
+   the plateau — and the long tail reads as lingering rather than leaving. So: ramps cut hard
+   (0.5s each, enough to not pop), plateau widened to 4.0s — past the brief's own "2-3 seconds"
+   because it was still reported as too quick at 3s, and because a label is only ON for its share
+   of the loop: at 40% duty the grid read as mostly-dark no matter how long any single caption
+   held. 50% duty puts roughly half the captions up at any moment.
+   At the 10s period: in 0-5%, hold 5-45%, out 45-50%, dark 50-100%. */
+@keyframes poleCycle {
+  0%   { opacity: 0; transform: translateY(3px); }
+  5%   { opacity: var(--edge-mul, 1); transform: translateY(0); }
+  45%  { opacity: var(--edge-mul, 1); transform: translateY(0); }
+  50%  { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 0; }
 }
 /* A stance you're actually pointing at must never be mid-fade or hidden — same contract as the
    field's own .rnode--hover .rnode__name override, same reasoning. Targets the LETTER spans, not
    the word-level parent: opacity set on the parent wouldn't override each letter's own
-   independently-running nameCycle instance. */
+   independently-running poleCycle instance.
+   An ANIMATION, not `animation: none; opacity: 1`. That pair was the real reason the stances read
+   as "disappearing super quick": it revealed the caption by KILLING the cycle, so on mouse-out the
+   override was dropped, poleCycle re-attached from scratch, and the label vanished on a single
+   frame with no fade at all — every cell the cursor crossed, every time. poleHold has no `from`,
+   so it starts at whatever the cycle is currently showing and eases UP to full; and because it is
+   an animation rather than a static override, leaving the hover hands back to a cycle that (now
+   phase-offset by a negative delay, see RelationsGrid) resumes mid-loop instead of restarting into
+   its own dark phase. */
 .rel-grid__cell:hover .rel-grid__pole .letters__ch,
-.rel-grid__cell:focus-visible .rel-grid__pole .letters__ch { animation: none; opacity: var(--edge-mul, 1); }
+.rel-grid__cell:focus-visible .rel-grid__pole .letters__ch {
+  animation: poleHold 0.18s var(--ease-out-expo) forwards;
+}
+@keyframes poleHold { to { opacity: var(--edge-mul, 1); transform: translateY(0); } }
 @keyframes relCapIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 .rel-grid__name {
   /* The whole gap now, near enough: the svg's viewBox was cropped to the triangle's base (see
@@ -768,6 +826,13 @@
 
 /* ── beat 1: the picked cell glows, and keeps glowing while it undresses ── */
 .rel-grid__cell--chosen { position: relative; z-index: 40; overflow: visible; background: transparent; }
+/* The focus ring lives on the CELL BOX, so it does not travel or scale with the triangle inside it
+   — during the pick it was left behind as a lone yellow rectangle sitting in the emptied grid for
+   the whole ~2s flight (visible in a live capture of the transition). Dropped only while THIS cell
+   is the chosen one and the pick is running: the element is being flown away and unmounted, and
+   focus moves to the field that replaces it, so there is no state left for the ring to indicate.
+   Every other cell keeps its ring — the keyboard contract in accessibility.md is untouched. */
+.rel-grid--picking .rel-grid__cell--chosen:focus-visible { outline: none; }
 .rel-grid__cell--chosen .rel-grid__poly {
   animation: relPickGlow 0.5s var(--ease-out-expo) both;
 }

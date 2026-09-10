@@ -46,6 +46,13 @@ const NAME_CYCLE_SETTLE = 3.9
 const REF_SWITCH_PAUSE = 0.28  // seconds — matches .rnode's transition-delay in views.css
 const REF_SWITCH_GLIDE = 1.4   // seconds — matches .rnode's transition-duration in views.css
 const REF_SWITCH_EXIT_MS = 300 // matches .rnode--refswitch-out's rnodeExit duration in views.css
+// The field's own per-star exit cascade (360ms spread + rnodeExit's 300ms duration, see the
+// exitDelay comment below) — backToGrid waits this long before actually swapping to grid mode,
+// the same "play the exit, THEN swap" pattern enterField already uses via GRID_PICK_MS. Without
+// it, mode flipped to 'grid' the same tick .rel-field--leaving was set, so .rel-field unmounted
+// before a single frame of its own cascade ever painted — reported live as the constellation
+// "just cutting out" on the way back to the grid, unlike every other exit on the site.
+const FIELD_EXIT_MS = 660
 
 interface NodePoint { e: (typeof MEMBERS)[number]; r: Rel; x: number; y: number; d: number }
 
@@ -268,10 +275,23 @@ export default function RelationsView() {
     sound.play('select')
     setGridSelecting(true)
     handoffRef.current = window.setTimeout(() => {
-      setRefId(id); setPinned(null); setHovered(null); setMode('field'); setGridSelecting(false)
+      // leaving reset here too, not just cleared by backToGrid's own timeout below — a field
+      // exited via backToGrid and re-entered before that timeout fires would otherwise mount the
+      // new field already mid-"leaving", playing the exit cascade on what should be an entrance.
+      setRefId(id); setPinned(null); setHovered(null); setMode('field'); setGridSelecting(false); setLeaving(false)
     }, GRID_PICK_MS)
   }
-  const backToGrid = () => { sound.play('select'); setPinned(null); setHovered(null); setMode('grid') }
+  // Plays the field's own per-star exit cascade before swapping to grid mode, rather than
+  // unmounting .rel-field the instant it's clicked — the same "exit, THEN swap" shape enterField
+  // uses above. `leaving` already drives that exact cascade (.rel-field--leaving in views.css);
+  // it was previously wired ONLY to the page-level `mp-exit` event, so this is the local trigger
+  // for the same mechanism, not a new animation.
+  const backToGrid = () => {
+    sound.play('select')
+    setPinned(null); setHovered(null)
+    setLeaving(true)
+    handoffRef.current = window.setTimeout(() => { setMode('grid'); setLeaving(false) }, FIELD_EXIT_MS)
+  }
 
   if (mode === 'grid') {
     return (
@@ -311,7 +331,11 @@ export default function RelationsView() {
                   // title still read as faded/secondary chrome rather than a title, on top of the
                   // size fix above. Emphasized state gets the same bump (0.95 -> 1.0) so some
                   // separation between the two states still survives.
-                  style={{ left: v.left, top: v.top, opacity: emphasisPoint ? 1 : 0.85, '--vd': `${d}s` } as React.CSSProperties}
+                  // --vxd is the EXIT beat and is deliberately NOT derived from --vd: that one is an
+                  // entrance beat (2.4s+), and any fraction of it large enough to read as a stagger
+                  // still pushed the exit past FIELD_EXIT_MS, so the titles were unmounted before
+                  // they had finished leaving. Its own small number instead.
+                  style={{ left: v.left, top: v.top, opacity: emphasisPoint ? 1 : 0.85, '--vd': `${d}s`, '--vxd': `${vi * 0.06}s` } as React.CSSProperties}
                 >
                   <LetterSwap text={v.he} delay={d} />
                   <i>{v.sub}</i>
