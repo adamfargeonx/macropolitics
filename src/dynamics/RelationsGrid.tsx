@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
-import { STATES, MEMBERS, isActor, relation, sharpen, dominantOf, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Pole, type Stance } from './relations-model'
-import { GRID_BEAT, GRID_PICK, GRID_PICK_TITLE_START, GRID_PICK_TITLE_OUT_START } from './panel-beats'
+import { STATES, MEMBERS, isActor, relation, sharpen, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Stance } from './relations-model'
+import { GRID_BEAT, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
 import { Letters } from './Words'
 
@@ -75,11 +75,13 @@ function snapToGrid(pts: MiniPoint[]): MiniPoint[] {
 
 // `dom` is the dot's OWN dominant pole — kept per-dot so a hover can light up exactly the
 // relations that drive the country's overall label (see .rel-grid__dot--lit).
-interface MiniPoint { x: number; y: number; d: number; dom: Pole; actor: boolean }
+interface MiniPoint { x: number; y: number; d: number; stance: Stance; actor: boolean }
 interface GridRow {
   id: string; he: string; power: number; items: MiniPoint[]
-  // dom drives which dots light up on hover; stance is what the caption prints.
-  mean: Rel; dom: Pole; stance: Stance
+  // Each dot's OWN stance drives which ones light up — see the --lit comment at the JSX site for
+  // why this used to be dominantOf() (a different, 3-pole axis: חיכוך/מתח/הרמוניה) instead of the
+  // stance actually printed in the caption below (אגרסיבית/אסרטיבית/זהירה).
+  mean: Rel; stance: Stance
   // posture sits within STANCE_EDGE of a bucket boundary — the caption says so rather than
   // rounding to one side in silence (see stanceIsEdge in relations-model).
   edge: boolean
@@ -250,59 +252,18 @@ interface RelationsGridProps {
 
 // How long the three-phase load runs end to end (captions finish at capStart + capMax + 0.5s).
 // After this the screen is "settled" and re-sorts REFLOW instead of replaying — see below.
-const LOAD_MS = 3700
+const LOAD_MS = 4550
 
 // What the picked cell needs in order to fly: where to go, how big to get, and which point of
 // itself to pivot around. All of it is measured from the LIVE rects at click time rather than
 // assumed from the layout — the grid is fluid (column count snaps to a divisor of the roster, rows
 // divide the leftover viewport height), so a cell's size and position are not knowable statically.
-interface Pick { id: string; he: string; tx: number; ty: number; ts: number; ox: number; oy: number }
-
-// Mirrors unifiedGeo() in RelationsView — deliberately, and the duplication is the point: this has
-// to land on the field's triangle as it will ACTUALLY be drawn a beat later, and that triangle is
-// derived from the field box's own size, not from a shared constant either file could import.
-// (.rel-field is inset top:20 bottom:64 — see views.css — hence the 84px of vertical inset here.)
-function fieldTriangle() {
-  const w = window.innerWidth
-  const fh = window.innerHeight - 84
-  const cx = w / 2, cy = fh / 2 + fh * 0.02 + 20
-  const sx = w * 0.46, sy = fh * 0.5
-  const Vt = { x: cx, y: Math.max(cy - sy * 0.95, 110) }
-  const Vf = { x: cx - sx * 0.92, y: cy + sy * 0.72 }
-  const Vh = { x: cx + sx * 0.92, y: cy + sy * 0.72 }
-  // BBOX centre, not the centroid — must use the SAME convention as pickGeometry's own gx/gy anchor
-  // below, since tx/ty is just the delta between the two. They disagreed for one round (source
-  // moved to bbox centre, this target left on the centroid) and the flown triangle landed ~13*k
-  // too LOW as a result — reported as "doesn't animate in the centre, it's a bit down". x is
-  // unaffected either way (the triangle is symmetric about cx), y is not.
-  return { base: Vh.x - Vf.x, cx, cy: (Vt.y + Vf.y) / 2 }
-}
-
-// Maps the cell's <svg> box to the triangle actually painted inside it. The viewBox is 100x85 with
-// preserveAspectRatio="xMidYMax meet", so the drawing is letterboxed: uniformly scaled to fit,
-// centred horizontally, flushed to the BOTTOM. Getting this wrong (assuming the drawing fills the
-// box) would put the pivot off-centre and the triangle would visibly slide sideways as it grew.
-function pickGeometry(svg: Element): Omit<Pick, 'id' | 'he'> {
-  const r = svg.getBoundingClientRect()
-  const k = Math.min(r.width / 100, r.height / 85)
-  const ox = (r.width - 100 * k) / 2          // xMid
-  const oy = r.height - 85 * k                // YMax
-  // bounding-box centre of the triangle in viewBox units: (50, (6+84)/2) — NOT the polygon's
-  // centroid (50, (6+84+84)/3 = 58). The centroid sits closer to the base (two of the three
-  // vertices live there), so anchoring the close-scale on it pulled everything toward that
-  // lower point as it shrank — reported live as the triangle sinking/nudging down instead of
-  // closing evenly into its own middle. The bbox centre is what "its own centre" actually reads
-  // as for a shape being scaled to a point.
-  const gx = ox + 50 * k
-  const gy = oy + 45 * k
-  const f = fieldTriangle()
-  return {
-    tx: f.cx - (r.left + gx),
-    ty: f.cy - (r.top + gy),
-    ts: f.base / (84 * k),                    // the polygon's base spans 84 viewBox units
-    ox: gx, oy: gy,
-  }
-}
+// he is all that's still needed once picking — the title card is the only thing that reads it.
+// Used to also carry a measured flight plan (tx/ty/ts/ox/oy, via getBoundingClientRect) for flying
+// the bare outline to the field's own future triangle and landing there — dropped along with that
+// travel beat (see relPickShrink in views.css): the picked cell now just shrinks where it sits, so
+// nothing about the field's eventual position or size needs measuring any more.
+interface Pick { id: string; he: string }
 
 export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridProps) {
   const [sort, setSort] = useState<SortKey>('power')
@@ -345,7 +306,10 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
         // wider than half a slot gap, so neighbouring dots would touch and close the very gaps
         // the lattice exists to create. Holds roughly the original's dot-to-spacing ratio.
         d: Math.max(0.9, Math.min(1.9, powerSize(e.power) * 0.0104)),
-        dom: dominantOf(raw),
+        // Same stanceOf() the country's own MEAN is classified by, applied per-relationship — so
+        // "lit" answers "which of this country's ties are themselves aggressive/assertive/cautious
+        // enough to match its overall reading", not a different, invisible axis (see the JSX site).
+        stance: stanceOf(raw),
         actor: isActor(e.id),
       }
     }))
@@ -358,7 +322,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     // parent — reclassifying it there would silently move Pakistan's orbit on a completely
     // different screen as a side effect of a grid-layout request. Scoped to this one computation.
     const isGlobal = ref.kind === 'great' || ref.id === 'pakistan'
-    return { id: ref.id, he: ref.he, power: ref.power, items, mean, dom: dominantOf(mean), stance: stanceOf(mean), edge: stanceIsEdge(mean), isGlobal, axis: AXIS[ref.id] ?? 'none' }
+    return { id: ref.id, he: ref.he, power: ref.power, items, mean, stance: stanceOf(mean), edge: stanceIsEdge(mean), isGlobal, axis: AXIS[ref.id] ?? 'none' }
   }), [])
 
   const sorted = useMemo(() => rows.slice().sort(SORTS[sort].fn), [rows, sort])
@@ -415,9 +379,13 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     // per-cell exit delay — spread over EXIT_SPREAD in rank order, count-independent,
     // mirroring RelationsView's own exitDelay for .rnode (same idiom, same spread window).
     const exitDelay = (n <= 1 ? 0 : i / (n - 1)) * EXIT_SPREAD
-    // Phases 1 and 3 sweep in reading order (capped, as every cascade here is); phase 2 doesn't
-    // sweep at all — see GRID_BEAT and the per-circle --dot-d below.
-    const strokeDelay = GRID_BEAT.strokeStart + Math.min(i * GRID_BEAT.strokeStep, GRID_BEAT.strokeMax)
+    // Phase 1 does NOT sweep in reading order — a per-rank ladder read as one row after another,
+    // which is a real offset but a *legible, expected* one; the brief was scattered, not sequential.
+    // Hashed on row.id (the same idiom already used for the dots/pole-cycle below), so each triangle
+    // gets an independent, uncorrelated delay — no relationship to its row, column, or rank.
+    const strokeDelay = GRID_BEAT.strokeStart + hash01(`${row.id}:stroke`) * GRID_BEAT.strokeSpread
+    // Phase 3 still sweeps in reading order (capped) — the caption naming what's already visible
+    // reads better as "the eye's own path catches up", unlike phase 1's spawn.
     const capDelay = GRID_BEAT.capStart + Math.min(i * GRID_BEAT.capStep, GRID_BEAT.capMax)
     // per-cell phase, hashed (not by index) for the same reason the dots are — a sweep in reading
     // order would just be phase 3's own cascade motion repeating one layer down; independent
@@ -446,24 +414,12 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           '--cp-dur': `${POLE_CYCLE_PERIOD}s`,
           '--exit-cd': `${exitDelay}ms`,
           '--dismiss-d': `${dismissDelay}s`,
-          ...(chosen && pick
-            ? {
-                '--tx': `${pick.tx}px`,
-                '--ty': `${pick.ty}px`,
-                '--ts': pick.ts,
-                '--ox': `${pick.ox}px`,
-                '--oy': `${pick.oy}px`,
-              }
-            : null),
           // only ever set on a band's first cell — see leadOffset()
           gridColumnStart: offset > 0 ? offset + 1 : undefined,
         } as React.CSSProperties}
-        onClick={(e) => {
+        onClick={() => {
           if (pick) return
-          const svg = e.currentTarget.querySelector('.rel-grid__svg')
-          // Measure BEFORE anything animates. If the <svg> somehow isn't there the pick still has
-          // to work — fall through with no flight plan and the cell simply fades with the rest.
-          if (svg) setPick({ id: row.id, he: row.he, ...pickGeometry(svg) })
+          setPick({ id: row.id, he: row.he })
           onSelect(row.id)
         }}
         aria-label={`פתחו את מערכת היחסים של ${row.he} — עמדה ${STANCE_HE[row.stance]}${row.edge ? ' (קרוב לגבול הסיווג)' : ''}`}
@@ -477,19 +433,25 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
             height-bound, so the caption gap can't reopen at another viewport size. */}
         <svg viewBox="0 0 100 85" preserveAspectRatio="xMidYMax meet" className="rel-grid__svg" aria-hidden="true">
           <polygon className="rel-grid__poly" points={`${VT.x},${VT.y} ${VF.x},${VF.y} ${VH.x},${VH.y}`} />
-          {/* --lit marks the relations whose own dominant pole IS the country's overall
-              label, so hovering the card answers "which ties actually make it read מתח?" */}
+          {/* --lit marks the relations that are THEMSELVES aggressive/assertive/cautious enough to
+              match the country's own overall stance — the same stanceOf() classification, just
+              applied per-relationship instead of to the mean — so hovering the card answers
+              "which ties actually make this read אגרסיבית?" with an answer that traces back to the
+              stance actually printed below, not a separate invisible axis. (Used to compare
+              dominantOf() — a 3-pole חיכוך/מתח/הרמוניה read that, per relations-model.ts's own
+              documented reasoning, the חיכוך pole never wins on ANY country's mean — so an
+              "aggressive" country's lit dots were clustering at the מתח vertex regardless of how
+              aggressive it read, reported live as confrontational countries lighting up the wrong
+              corner of their own triangle.) */}
           {row.items.map((p, pi) => (
             <circle
               key={pi}
-              className={`rel-grid__dot${p.actor ? ' rel-grid__dot--actor' : ''}${p.dom === row.dom ? ' rel-grid__dot--lit' : ''}`}
+              className={`rel-grid__dot${p.actor ? ' rel-grid__dot--actor' : ''}${p.stance === row.stance ? ' rel-grid__dot--lit' : ''}`}
               cx={p.x} cy={p.y} r={p.d}
               // hashed on the dot's own identity, NOT its index — so the fill-in reads as rain
               // across the whole screen rather than a second sweep in cell order.
               style={{
                 '--dot-d': `${(GRID_BEAT.dotsStart + hash01(`${row.id}:${pi}`) * GRID_BEAT.dotsSpread).toFixed(3)}s`,
-                // stars leave the picked triangle scattered, the same way they filled it
-                '--dot-out': `${(GRID_PICK.dotsStart + hash01(`out:${row.id}:${pi}`) * GRID_PICK.dotsSpread).toFixed(3)}s`,
               } as React.CSSProperties}
             />
           ))}
@@ -545,13 +507,8 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
       // stylesheet — the schedule has ONE definition (panel-beats.ts) that both sides read.
       style={pick ? ({
         '--dismiss-dur': `${GRID_PICK.dismissDur}s`,
-        '--part-dur': `${GRID_PICK.partDur}s`,
-        '--pole-out': `${GRID_PICK.poleOut}s`,
-        '--name-out': `${GRID_PICK.nameOut}s`,
-        '--travel-d': `${GRID_PICK.travelStart}s`,
-        '--travel-dur': `${GRID_PICK.travelDur}s`,
-        '--close-d': `${GRID_PICK.travelStart + GRID_PICK.travelDur}s`,
-        '--close-dur': `${GRID_PICK.closeDur}s`,
+        '--shrink-d': `${GRID_PICK_SHRINK_START}s`,
+        '--shrink-dur': `${GRID_PICK.shrinkDur}s`,
       } as React.CSSProperties) : undefined}
     >
       {/* No screen title or standfirst here. The bottom tab bar already names this screen, and
@@ -640,26 +597,10 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
           </div>
         )}
       </div>
-      {/* ── beat 6: the title card ────────────────────────────────────────────────────────────
-          Fixed full-screen overlay, not scoped to the grid's own box — the collapsed outline just
-          vanished at screen centre, and this fills exactly the emptiness it left. Renders only
-          while a pick is in flight (unmounts itself once the field takes over), text set with
-          Letters — the SAME per-character stagger every other title on the site cascades in with,
-          not a bespoke reveal invented for this one screen. */}
-      {pick && (
-        <div
-          className="rel-grid__pick-title"
-          aria-hidden="true"
-          style={{
-            '--title-d': `${GRID_PICK_TITLE_START}s`,
-            '--title-step': `${GRID_PICK.titleStep}s`,
-            '--title-out-d': `${GRID_PICK_TITLE_OUT_START}s`,
-            '--title-out-dur': `${GRID_PICK.titleOutDur}s`,
-          } as React.CSSProperties}
-        >
-          <Letters text={`קונסטלציית היחסים של ${pick.he}`} className="rel-grid__pick-title-text" />
-        </div>
-      )}
+      {/* The title card used to render here — moved to RelationsView.tsx. It now has to outlive
+          this component: the field mounts WHILE the title is still rising/fading (not after), so
+          the title needs its own lifecycle independent of `pick`, which dies the instant this
+          whole component unmounts at the mode switch. See RelationsView's pickTitleId. */}
     </div>
   )
 }

@@ -553,6 +553,15 @@
   flex: 0 1 auto; margin: auto 0;
   align-self: center; width: auto; max-width: 100%;
   aspect-ratio: calc(var(--cols, 5) / var(--rows, 4) * 0.91);
+  /* The "one fold" contract has no ceiling of its own — on a short laptop it correctly shrinks the
+     block to fit, but on a large/wide monitor it grows to fill the WHOLE available height just as
+     eagerly (measured 743px tall — 84% of an 883px-tall window — with the fold barely shorter than
+     the viewport), dwarfing the fixed-size chrome (sort rail, captions) around it. Reported live as
+     "too huge on full screen". min(): the vh term caps growth on a big display, the px term is the
+     actual ceiling on anything taller (a vh-only cap would grow it back to full size on an ultrawide
+     with lots of vertical room too) — whichever is smaller wins, so short screens are untouched
+     (this only ever makes the block SMALLER than the fold would already give it, never bigger). */
+  max-height: min(640px, 72vh);
 }
 /* --surface-2 (near-opaque), not --surface-1 (3% white) — a cell here sits directly over
    .stage's own ambient radial gradients, not over an already-opaque panel like most --surface-1
@@ -567,7 +576,16 @@
      rectangle behind every triangle, hiding the ambient starfield the grid otherwise sits over. */
   background: none; border: 0; padding: 10px 10px 8px; cursor: none;
   min-height: 0; overflow: hidden;
+  /* The per-cell stagger lived ONLY on the outline's own stroke-draw (--stroke-d, below on
+     .rel-grid__poly) — but the CELL ITSELF was already fully opaque the instant .rel-grid's single,
+     shared relGridIn fade finished, so every triangle's silhouette appeared at once and only a thin
+     1px outline kept drawing on top of already-visible shapes. Reading as "they all showed up
+     together", which it effectively was. Reusing the SAME --stroke-d here makes the triangle's own
+     arrival staggered, not just its outline's finishing touch. */
+  animation: relCellIn 0.42s var(--ease-out-expo) backwards;
+  animation-delay: var(--stroke-d, 0s);
 }
+@keyframes relCellIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
 /* A reserved slot, not a state that failed to load — the flat sort is fixed at 3 rows now
    (RelationsGrid.tsx's FLAT_ROWS) and a roster that isn't an exact multiple of the resulting
    column count needs something to hold the last row's empty seats. It renders the same bare
@@ -575,6 +593,9 @@
    as part of the grid's own shape — just dimmed and static, never mistakable for a live country. */
 .rel-grid__cell--placeholder {
   pointer-events: none;
+  /* this seat was never "loaded", so — same reasoning as its outline below — it shouldn't play the
+     new relCellIn arrival either; it's just there, dimmed, from the start. */
+  animation: none; opacity: 1;
 }
 .rel-grid__cell--placeholder .rel-grid__poly {
   /* static, not the self-drawing relPolyDraw entrance — this outline was never "loaded", so it
@@ -595,7 +616,13 @@
    then cleared, and the clearing step is what strands cells when the tab is hidden mid-sort).
    Duration/easing live there as GLIDE_MS / GLIDE_EASE, matching --ease-panel. */
 .rel-grid__cell:hover, .rel-grid__cell:focus-visible { overflow: visible; z-index: 5; }
-.rel-grid__cell:hover .rel-grid__poly, .rel-grid__cell:focus-visible .rel-grid__poly { stroke: var(--yellow); }
+/* stroke-width 0.6, not the resting 1 — the SVG itself also grows 1.2x on hover (below), and
+   stroke-width scales WITH it (it's a viewBox-unit property, not a screen px one), so leaving it
+   at 1 rendered at 1*1.2 — noticeably heavier than the resting line rather than the same crisp
+   outline at a bigger size. 0.6*1.2 lands under the resting weight instead of over it. Color was
+   already var(--yellow) at stroke-opacity:1 (confirmed live) — full solid, not the base state's
+   dimmed --yellow-38; only the width needed thinning. */
+.rel-grid__cell:hover .rel-grid__poly, .rel-grid__cell:focus-visible .rel-grid__poly { stroke: var(--yellow); stroke-width: 0.6; }
 .rel-grid__cell:hover .rel-grid__name, .rel-grid__cell:focus-visible .rel-grid__name { color: var(--yellow); }
 
 /* Sized by the HEIGHT the row leaves it, not a fixed width — the SVG's own viewBox +
@@ -824,14 +851,24 @@
   to   { opacity: 0; transform: scale(0.72); }
 }
 
-/* ── beat 1: the picked cell glows, and keeps glowing while it undresses ── */
-.rel-grid__cell--chosen { position: relative; z-index: 40; overflow: visible; background: transparent; }
-/* The focus ring lives on the CELL BOX, so it does not travel or scale with the triangle inside it
-   — during the pick it was left behind as a lone yellow rectangle sitting in the emptied grid for
-   the whole ~2s flight (visible in a live capture of the transition). Dropped only while THIS cell
-   is the chosen one and the pick is running: the element is being flown away and unmounted, and
-   focus moves to the field that replaces it, so there is no state left for the ring to indicate.
-   Every other cell keeps its ring — the keyboard contract in accessibility.md is untouched. */
+/* ── beat 1: the picked cell glows; beat 3: it shrinks to nothing in place ──
+   Beat 3 was three chained beats (shed each part in turn → fly the bare outline to the screen's
+   centre → collapse it there, landing on the field's own triangle position/size via a live
+   getBoundingClientRect read). Reported as too slow and not what was asked for — the travel-and-
+   land was answering a question nobody asked ("arrive where the field's triangle will be"); the
+   simpler, requested read is just the thing you picked — outline, stars, name, stance, as ONE
+   object — disappearing where it already sits. */
+.rel-grid__cell--chosen {
+  position: relative; z-index: 40; overflow: visible; background: transparent;
+  animation: relPickShrink var(--shrink-dur, 0.42s) var(--ease-in-out-quart) var(--shrink-d, 0.65s) both;
+}
+@keyframes relPickShrink { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0); } }
+/* The focus ring lives on the CELL BOX, so it does not scale with the triangle inside it — during
+   the pick it was left behind as a lone yellow rectangle sitting in the emptied grid (visible in a
+   live capture of the transition). Dropped only while THIS cell is the chosen one and the pick is
+   running: the element is being shrunk away and unmounted, and focus moves to the field that
+   replaces it, so there is no state left for the ring to indicate. Every other cell keeps its
+   ring — the keyboard contract in accessibility.md is untouched. */
 .rel-grid--picking .rel-grid__cell--chosen:focus-visible { outline: none; }
 .rel-grid__cell--chosen .rel-grid__poly {
   animation: relPickGlow 0.5s var(--ease-out-expo) both;
@@ -840,47 +877,36 @@
   from { stroke: var(--line-yellow); filter: none; }
   to   { stroke: var(--yellow); filter: drop-shadow(0 0 7px rgba(251, 255, 0, 0.75)); }
 }
-/* ── beat 3: it sheds its parts in the order it grew them ── */
-.rel-grid__cell--chosen .rel-grid__pole { animation: relPickPartOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--pole-out) both; }
-.rel-grid__cell--chosen .rel-grid__name { animation: relPickPartOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--name-out) both; }
-.rel-grid__cell--chosen .rel-grid__dot  { animation: relPickDotOut var(--part-dur, 0.26s) var(--ease-in-out-quart) var(--dot-out) both; }
-@keyframes relPickPartOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(4px); } }
-@keyframes relPickDotOut  { from { opacity: 1; } to { opacity: 0; } }
-
-/* ── beats 4+5: the bare outline travels to the screen's centre, THEN collapses into itself —
-   two keyframes on one element, chained rather than run as one animation the way travel+expand
-   used to be. They can be separate here (unlike the old pairing) because neither needs a curve
-   the other doesn't: TWO transforms, not a transform racing an opacity fade, so there's no split-
-   curve problem to solve by fusing them.
-   --close-d is the travel's own end (--travel-d + --travel-dur), published from
-   RelationsGrid.tsx rather than restated as a second literal here.
-   Collapsing to scale(0) needs no separate opacity keyframe — an element at scale(0) is already
-   gone — which is also why the old pairing's relPickFade (a linear fade fused into the transform
-   timeline to dodge --ease-panel's front-loaded curve eating the fade too early) is gone too. */
-.rel-grid__cell--chosen .rel-grid__svg {
-  transform-origin: var(--ox, 50%) var(--oy, 50%);
-  animation:
-    relPickTravel var(--travel-dur, 0.55s) var(--ease-panel) var(--travel-d, 1.32s) both,
-    relPickClose var(--close-dur, 0.34s) var(--ease-in-out-quart) var(--close-d, 1.87s) both;
+/* ── beat 1, the stance half: the LETTERS are on their own ambient poleCycle loop (views.css,
+   .rel-grid__pole .letters__ch), so a pick landing during its dark half showed nothing at all for
+   the whole PICK_HOLD pause the hold exists to fill. Same poleHold reveal the hover state already
+   uses (below), so picking reliably lights the stance the instant it's chosen, same as pointing at
+   it does — not a new mechanism, the existing one applied to a second trigger. The PARENT's own
+   relPickShrink (above) still fades the whole thing including these letters when its turn comes:
+   opacity composites down the tree, so the parent fading to 0 erases the child regardless of the
+   child's own value. */
+.rel-grid__cell--chosen .rel-grid__pole .letters__ch {
+  animation: poleHold 0.18s var(--ease-out-expo) forwards;
 }
-@keyframes relPickTravel {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1); }
-}
-@keyframes relPickClose { to { transform: translate(var(--tx, 0), var(--ty, 0)) scale(0); } }
 
 /* ── beat 6: the title card ──────────────────────────────────────────────────────────────────
    Full-screen, fixed — sits above everything (z-index matches the chosen cell's own z-index:40
    plus headroom) so it reads as its OWN moment, not a label attached to the grid still behind it.
-   The container itself only ever fades OUT (--title-out-*); it has no fade-IN of its own because
-   the letters' own per-character rise already reads as the card arriving — a second, redundant
-   fade on the wrapper would just soften that first impression. */
+   Rendered from RelationsView.tsx now (its pickTitleId), not RelationsGrid — the field mounts
+   the instant this exit STARTS (GRID_PICK_FIELD_MOUNT_MS in panel-beats.ts), so the grid — and
+   the title, if it still lived there — would otherwise be unmounted before this animation got to
+   play a single frame.
+   The container itself only ever fades IN via the letters' own per-character rise (a second,
+   redundant fade on the wrapper would just soften that first impression) but fades AND RISES on
+   the way out — a plain fade read as disconnected from the field's own stars-rising-in entrance,
+   which is playing at the exact same time underneath it; the matching upward drift is what makes
+   the title read as carried off by that same motion instead of just dissolving alongside it. */
 .rel-grid__pick-title {
   position: fixed; inset: 0; z-index: 50; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
-  animation: relPickTitleOut var(--title-out-dur, 0.22s) linear var(--title-out-d, 3.62s) both;
+  animation: relPickTitleOut var(--title-out-dur, 0.5s) var(--ease-in-out-quart) var(--title-out-d, 3.62s) both;
 }
-@keyframes relPickTitleOut { to { opacity: 0; } }
+@keyframes relPickTitleOut { to { opacity: 0; transform: translateY(-70px); } }
 .rel-grid__pick-title-text {
   font-family: var(--display); font-weight: var(--fw-light);
   font-size: clamp(28px, 4.4vw, 56px); letter-spacing: var(--tracking-display-loose);
@@ -923,7 +949,8 @@
   /* the pick sequence is a 2.3s full-screen flight — resolve it to a plain disappearance */
   .rel-grid--picking .rel-grid__sortbar, .rel-grid--picking .rel-grid__band-head,
   .rel-grid__cell--gone, .rel-grid__cell--chosen .rel-grid__poly,
-  .rel-grid__cell--chosen .rel-grid__pole, .rel-grid__cell--chosen .rel-grid__name,
+  .rel-grid__cell--chosen .rel-grid__pole, .rel-grid__cell--chosen .rel-grid__pole .letters__ch,
+  .rel-grid__cell--chosen .rel-grid__name,
   .rel-grid__cell--chosen .rel-grid__dot, .rel-grid__cell--chosen .rel-grid__svg { animation: none; }
   .rel-grid--picking { opacity: 0; transition: opacity 0.2s linear; }
   .rel-grid--leaving .rel-grid__cell { animation: none; opacity: 0; }
@@ -1081,29 +1108,12 @@
 .home--open .home-title .letters__ch { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; filter: blur(0); transition-delay: 0.14s; }
 
 /* ── Home leaving (home → a page): a three-beat choreographed exit —
-   1) the wordmark shatters letter-by-letter — every glyph SCALES OUT to nothing (no fade, no
-      blur — the defining motion is scale, not a dissolve) while alternating characters carry a
-      different translate/rotate offset, so the motion reads as an organic "fly-apart" burst
-      rather than every glyph collapsing straight down to the same point (fast wave, right-to-left
-      reading order via --ci). The offset transforms are written BEFORE `scale(0)` in each rule —
-      since CSS composes transform functions with the rightmost applied first, that ordering keeps
-      the translate/rotate a fixed offset in the parent's space instead of also being crushed
-      toward zero by the shrink, so the letter visibly shrinks AND drifts, not just shrinks in place.
-      Uses LINEAR, not an eased curve: a "back" ease's overshoot (progress > 100%) crosses the
-      scale(0) target within roughly the first quarter of the duration, so the letter is already
-      fully vanished for the remaining three-quarters — only a LINEAR rate of change guarantees the
-      shrink/rotate/drift is visible continuously across the full duration.
-      (There was a SECOND, separate bug here, now fixed at the rest/`.home--open` rules above: the
-      rest state was plain `scale(0.55)`/`scale(1)` — a single-function transform — while this rule
-      is a 3-function `translateY() rotate() scale()` composite. A transition only interpolates
-      transform per-function when both endpoints share the identical function list; on a mismatch
-      the browser falls back to full matrix decomposition, which — confirmed via frame-by-frame
-      getComputedStyle sampling in isolation — is numerically unstable animating toward scale(0):
-      it holds the START matrix for ~90% of the duration then snaps to the end matrix within a
-      single frame, regardless of easing curve — three different curves, including this LINEAR one,
-      all reproduced the identical snap while the lists mismatched. Giving the rest/open rules the
-      same translateY(0) rotate(0deg) prefix made the lists match and restored true per-function
-      linear interpolation.)
+   1) the wordmark retreats letter-by-letter, back up the way it waterfalled in on entrance — the
+      SAME house stagger-out every other title on this screen already uses (tagline, nav labels,
+      just below): translateY(-0.7em) + fade, staggered right-to-left via --ci. This replaced an
+      earlier alternating rotate+scale(0) "fly-apart" burst that was reported live as "a bit too
+      crazy" — the wordmark now exits in the same language as the rest of the page instead of its
+      own one-off effect.
    2) tagline/equation retreat back into their entrance mask, and the nav ("section") titles exit
       through the SAME masked slide they entered by — just reversed — rather than a generic fade
    3) the ring itself zooms into the void (App.tsx then applies .nav-rail--zoom-up)
@@ -1111,14 +1121,18 @@
    sequenced even though it's one class toggle — simpler and less brittle than chained timers
    for each visual layer, while still matching the requested order. ── */
 .home--leaving .home-title .letters__ch {
-  transition: transform 0.6s linear;
+  transition: transform 0.34s var(--ease-out-back), opacity 0.22s ease;
   transition-delay: calc(var(--ci, 0) * 0.02s);
+  /* rotate(0deg) scale(1), not translateY alone — .home-title's OWN rest/entrance rules above are
+     a 3-function translateY/rotate/scale composite (kept for the entrance blast), so a 1-function
+     leaving transform mismatches that list and falls back to matrix decomposition — the exact
+     "holds the start matrix, snaps in the last frame" bug the entrance rules' own comment already
+     diagnosed and fixed once. Matching the function list (rotate/scale pinned at their identity
+     values, only translateY actually moves) keeps this a clean per-function interpolation instead
+     of reopening it. .home-tagline/.home-nav__label don't need this: both of THEIR states are
+     already single-function, so they were never at risk. */
+  transform: translateY(-0.7em) rotate(0deg) scale(1); opacity: 0;
 }
-/* alternating variants so neighbouring letters never move identically — one direction would read
-   as a single push; this reads as a burst. Each ends in scale(0) — full scale-out, no partial. */
-.home--leaving .home-title .letters__ch:nth-child(odd) { transform: translateY(-26px) rotate(-16deg) scale(0); }
-.home--leaving .home-title .letters__ch:nth-child(even) { transform: translateY(21px) rotate(14deg) scale(0); }
-.home--leaving .home-title .letters__ch:nth-child(3n) { transform: translateX(18px) rotate(9deg) scale(0); }
 
 /* tagline retreats the way it entered — letter by letter, back up — mirroring the waterfall-in
    above rather than one block sliding out. */

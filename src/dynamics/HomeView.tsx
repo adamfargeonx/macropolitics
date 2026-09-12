@@ -100,7 +100,13 @@ export default function HomeView({ open, intro = false, lockTo = null, leaving =
     const root = rootRef.current
     if (!spin || !root) return
     const BASE = 8.2, GAIN = 0.05, MAX = 900, DECAY = 2.6, NEAR = 16
-    let angle = 0, vel = BASE, last = performance.now(), raf = 0, near: View | null = null
+    // START_ANGLE 60, not 0 — LOCK_ANGLE above puts dynamics at 0° (12 o'clock) and relations at
+    // 120° (4 o'clock, its own 'br' position), and rotate() sweeps clockwise, so the arc between
+    // them runs 0→120. 60 sits at its midpoint — visually ~2 o'clock — which is where the dot
+    // should be sitting the instant the ring opens, every time this screen is arrived at, not
+    // wherever a idle spin from 0 happened to leave it.
+    const START_ANGLE = 60
+    let angle = START_ANGLE, vel = BASE, last = performance.now(), raf = 0, near: View | null = null
     const onWheel = (e: WheelEvent) => { e.preventDefault(); vel = Math.max(-MAX, Math.min(MAX, vel + e.deltaY * GAIN)) }
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now

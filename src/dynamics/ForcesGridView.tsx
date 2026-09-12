@@ -66,7 +66,7 @@ export default function ForcesGridView() {
         selected={selected} onSelect={setSelected} onHover={setHovered}
       />
 
-      <PanelDock reopenOn={selected}>
+      <PanelDock reopenOn={selected} autoOpen={false}>
         <ForcesPanelFrame
           selected={selected} detail={detail} onClose={() => setSelected(null)}
           indexProps={{

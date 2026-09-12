@@ -33,6 +33,13 @@ const LIGHT = '244,242,236'
 // the body fill is near-white, so labels drawn on top need a dark colour to stay legible.
 const DARK = '11,0,36'
 const TAU = Math.PI * 2
+// native radius of a cached glow sprite (see glowSprite) — drawImage scales it to whatever radius a
+// body actually needs; a gradient has no fine detail or hard edges, so upscaling it just softens an
+// already-soft glow further, never reveals pixelation
+const GLOW_SPRITE_R = 64
+
+// Cached shape of one body's in-circle name label — see `labelFitCache` on the class.
+type LabelFit = { rrB: number; fontPx: number; mode: 'one' | 'two' | 'none'; lines?: [string, string] }
 
 // The field's usable fraction of the shorter side — radii scale by this so packing stays isotropic.
 const PLAY = 0.92
@@ -212,19 +219,10 @@ class GravityWell {
   private mass: Float32Array
   private massTarget: Float32Array
   private metricAlpha: Float32Array
-  // live 0–10 eco/mil/geo axis scores per body — feeds the in-circle axis graph on the focused
-  // body (setField() populates these from the same `grav` map the component already has).
-  private axisEco: Float32Array
-  private axisMil: Float32Array
-  private axisGeo: Float32Array
   // scroll-tour recede: 0 (in place) → 1 for every state that is NOT the current focus — a LENS
   // effect only now (dims via RECEDE_DIM in the draw loop). Position/centring is the camera's job
   // (see camPan/camZoom below), not a per-body pull hack.
   private recede: Float32Array
-  // hoverProg: per-body 0→1 reveal value, eased in the draw loop (NOT a CSS transition).
-  // Drives ONLY the grow-to-readable-floor on the hovered/selected body (the fill turns solid
-  // yellow immediately via isFocus — no hollowing, no abstract signature any more).
-  private hoverProg: Float32Array
   // shared fade-in curve for in-circle name labels (set once per frame, read per body)
   private labelIntro = 0
   // indices that carry an on-canvas name label this frame (top-N by active metric + focus)
@@ -266,11 +264,32 @@ class GravityWell {
   // recomputing when rank changes (a sort/filter change), not every frame. gridDepthFor() used to
   // recompute + reallocate this per body, per call site (gridBodyR, hitTest, drawBody's glow), up
   // to 3x/body/frame at 60fps for values that never change between layout changes.
-  private gridDepth: { scale: number; glow: number }[] = []
+  private gridDepth: { glow: number }[] = []
+  // Flips true after setGridLayout's first-ever call — see the snap it guards there. Stays true
+  // across later resizes/sort changes, which should keep their normal glide, not re-snap.
+  private gridLaidOutOnce = false
   private revealProg: Float32Array
+  // per-body 0→1 hover/select/tour-focus progress, eased in the draw loop — grid mode's OTHER
+  // trigger for the uniform→true-power radius reveal (gridBodyR), alongside the one-shot wave.
+  private hoverProg: Float32Array
   // last (filter, order, grav) handed to setLayout — replayed on resize, since the grid's column
   // count depends on the canvas aspect and must re-solve when the box changes shape.
   private lastLayoutArgs: { filterBloc: Bloc; order: Order; grav: Map<string, GravityResult> } | null = null
+
+  // Per-body label fit (font size, one-line vs. two-line wrap) — a name's shape only depends on its
+  // RADIUS, which is otherwise re-measured via ctx.measureText() (a layout-triggering call) up to
+  // several times per body, every frame, even though the radius barely moves at rest (the ambient
+  // breathing pulse is the only thing still nudging it). Bucketing the radius and caching the fit
+  // keyed on that bucket turns "every frame" into "only when the radius actually crosses a bucket."
+  private labelFitCache: (LabelFit | undefined)[] = []
+  // Glow SPRITES (tiny offscreen canvases, one per color × alpha bucket) instead of a live radial
+  // gradient per body per frame. Caching just the CanvasGradient object (an earlier pass here) only
+  // avoided rebuilding the JS-side gradient — the browser still rasterizes a fresh gradient shader
+  // on every ctx.fill(), which is the actually expensive part for a soft, large-radius glow drawn
+  // ~29 times a frame. A sprite is rasterized ONCE per color/alpha, then every subsequent glow is a
+  // cheap drawImage blit scaled to that body's live radius — radius itself needs no bucketing at all
+  // now, since scaling a bitmap is nearly free.
+  private glowSpriteCache = new Map<string, HTMLCanvasElement>()
 
   setGrid(on: boolean) {
     if (this.gridMode === on) return
@@ -320,15 +339,12 @@ class GravityWell {
     this.nxTarget = new Float32Array(n).map((_, i) => BODIES[i].nx)
     this.nyTarget = new Float32Array(n).map((_, i) => BODIES[i].ny)
     this.metricAlpha = new Float32Array(n).fill(1)
-    this.axisEco = new Float32Array(n)
-    this.axisMil = new Float32Array(n)
-    this.axisGeo = new Float32Array(n)
-    this.hoverProg = new Float32Array(n)
     this.recede = new Float32Array(n)
     this.exitDelay = new Float32Array(n)
     this.exitProg = new Float32Array(n)
     this.gridRank = new Int32Array(n).map((_, i) => i)
     this.revealProg = new Float32Array(n)
+    this.hoverProg = new Float32Array(n)
 
     this.resize()
     this.container.addEventListener('pointermove', this.onMove)
@@ -376,9 +392,6 @@ class GravityWell {
       this.massTarget[i] = metric
       // size carries the story; alpha is a gentle assist so weak-in-this-lens bodies recede
       this.metricAlpha[i] = order === 'total' ? 1 : Math.max(0.45, metric / 100)
-      this.axisEco[i] = g?.eco ?? 0
-      this.axisMil[i] = g?.mil ?? 0
-      this.axisGeo[i] = g?.geo ?? 0
     }
   }
 
@@ -412,10 +425,23 @@ class GravityWell {
       this.gridRank[i] = rank
       this.nxTarget[i] = cells[rank].nx
       this.nyTarget[i] = cells[rank].ny
+      // The FIRST time the grid ever lays out, snap straight to it instead of leaving the frame
+      // loop's position-ease to glide there — nx/ny start out seeded at the packed field's own
+      // (unrelated) coordinates, so without this a body's entrance was a scale-up FROM THE RIGHT
+      // CELL blended with a cross-screen drift FROM THE WRONG ONE. Reported live as "the circles
+      // need to appear from their position exactly, without moving, and scale up from 0%" — the
+      // scale-from-0 (bodyAppear, in drawBody) was already correct; only the position wasn't.
+      // Every later layout call (a sort change) is untouched and keeps its glide — that motion is
+      // the intended "the dial re-forms" read, just not appropriate for the very first paint.
+      if (!this.gridLaidOutOnce) {
+        this.nx[i] = cells[rank].nx
+        this.ny[i] = cells[rank].ny
+      }
     }
+    this.gridLaidOutOnce = true
     for (let i = 0; i < n; i++) {
       const t = n > 1 ? 1 - this.gridRank[i] / (n - 1) : 1 // 1 = strongest (rank 0) → 0 = weakest
-      this.gridDepth[i] = { scale: 0.86 + t * 0.14, glow: 0.35 + t * 0.5 }
+      this.gridDepth[i] = { glow: 0.35 + t * 0.5 }
     }
   }
 
@@ -556,32 +582,39 @@ class GravityWell {
   }
 
   // ── Static rank-based depth (grid composition only) ─────────────────────────────────────────
-  // A PERMANENT, NON-ANIMATED scale/glow falloff by rank: rank 0 (strongest) reads full-size with
-  // the strongest glow, easing smoothly toward a floor for the weakest. Pure function of rank —
-  // no timers, no eased/interpolated state of its own — so the uniform grid states a real resting
-  // hierarchy even with zero motion, instead of relying entirely on the one-shot reveal wave
-  // (`revealAt`, forces-grid.ts) to ever show it. Composes with hoverProg's bloom rather than
-  // replacing it (see gridBodyR and the glow computation in drawBody). Precomputed in
-  // setGridLayout() into `gridDepth` — this just indexes it.
-  private gridDepthFor(i: number): { scale: number; glow: number } {
-    return this.gridDepth[i] ?? { scale: 1, glow: 0.35 }
+  // A PERMANENT, NON-ANIMATED glow falloff by rank: rank 0 (strongest) reads with the strongest
+  // glow, easing smoothly toward a floor for the weakest. Used to also carry a per-rank SIZE
+  // scale, dropped once bodies were made uniformly sized at rest ("all countries same size") —
+  // glow alone still states a real resting hierarchy even with zero size difference. Pure
+  // function of rank — no timers, no eased/interpolated state of its own. Composes with the
+  // hover/select bloom rather than replacing it (see the glow computation in drawBody).
+  // Precomputed in setGridLayout() into `gridDepth` — this just indexes it.
+  private gridDepthFor(i: number): { glow: number } {
+    return this.gridDepth[i] ?? { glow: 0.35 }
   }
 
-  // Grid mode radius for body `i`: the shared uniform cell radius, scaled by its permanent rank
-  // depth at rest, easing toward this body's TRUE power-proportional radius as the reveal wave
-  // passes over it — the one moment the grid admits the full hierarchy. Power radii are normalized
-  // against the strongest body so the biggest reveal still fits its cell instead of spilling into
-  // its neighbours.
+  // Grid mode radius for body `i`: a genuinely UNIFORM rest size (no per-rank depth-scale any
+  // more — "make all countries the same size" was explicit; gridDepthFor's `.glow` half still
+  // applies elsewhere, only its `.scale` half stopped feeding radius), REST_SCALE small, easing
+  // toward this body's TRUE power-proportional radius as either the reveal wave OR the hover/
+  // select/tour-focus progress reaches it — whichever is further along, so the one-shot entrance
+  // wave and a deliberate hover both open the same way instead of fighting over the value. Power
+  // radii are normalized against the strongest body so the biggest reveal still fits its cell.
+  // A non-state actor's ceiling is scaled down further (ACTOR_SCALE) so it stays visibly smaller
+  // than a state of equal power even fully revealed — "remain smaller in their own tier".
   private gridBodyR(i: number) {
-    const uniform = gridRadius(BODIES.length, Math.max(1, this.w), Math.max(1, this.h))
-    const base = uniform * this.gridDepthFor(i).scale
-    const rev = this.revealProg[i]
+    const REST_SCALE = 0.3
+    const ACTOR_SCALE = 0.7
+    const isNonstate = BODIES[i].kind === 'nonstate'
+    const trueUniform = gridRadius(BODIES.length, Math.max(1, this.w), Math.max(1, this.h))
+    const base = trueUniform * REST_SCALE * (isNonstate ? ACTOR_SCALE : 1)
+    const rev = Math.max(this.revealProg[i], this.hoverProg[i])
     if (rev <= 0.001) return base
     let peak = 0
     for (let k = 0; k < BODIES.length; k++) peak = Math.max(peak, this.mass[k])
     const share = peak > 0 ? Math.max(0, this.mass[i]) / peak : 0
     // floor at 0.42 so even the weakest body still reads as a deliberate reveal, not a vanishing act
-    const powered = uniform * (0.42 + share * 1.18)
+    const powered = trueUniform * (0.42 + share * 1.18) * (isNonstate ? ACTOR_SCALE : 1)
     return base + (powered - base) * rev
   }
 
@@ -658,31 +691,24 @@ class GravityWell {
       this.bloom[i] += (target - this.bloom[i]) * rate
       this.mass[i] += this.reduced ? (this.massTarget[i] - this.mass[i]) : (this.massTarget[i] - this.mass[i]) * 0.12
 
-      // ── Hover reveal progress (0→1) ───────────────────────────────────────
-      // Expo-out feel: a per-frame lerp toward the hover state. Asymmetric rates —
-      // a touch quicker in than out — land the ~280–360ms "fast then settle" curve.
-      // reduced-motion: snap to the end state (no tween).
-      // grow-to-readable-floor on hover OR selection (tap) — touch has no hover, so a
-      // tapped/selected body must open the same way a hovered one does. (Fill goes solid
-      // yellow immediately via isFocus; this only drives the size floor.)
+      // ── Grid reveal wave ──────────────────────────────────────────────────
+      // The travelling "show their size and power" pass. Runs independently of hover/select/tour
+      // focus now — the score finishes revealing on schedule either way, instead of hover
+      // cancelling a wave that was already mid-flight. Reduced-motion holds the grid uniform and
+      // never runs the wave.
+      this.revealProg[i] = (this.gridMode && !this.reduced) ? revealAt(this.gridRank[i], t) : 0
+
+      // ── Hover/select/tour-focus progress (0→1) ─────────────────────────────
+      // Grid mode's OTHER trigger for the same uniform→true-power radius reveal (gridBodyR):
+      // "hovering expands and opens each one to their true size" — a deliberate, on-demand
+      // counterpart to the one-shot entrance wave above, not a replacement for it. Expo-out
+      // feel via an asymmetric per-frame lerp (quicker in than out); reduced-motion snaps.
       const hoverTarget = (isHov || isSel || isScroll) ? 1 : 0
       if (this.reduced) {
         this.hoverProg[i] = hoverTarget
       } else {
         const hrate = hoverTarget > this.hoverProg[i] ? 0.09 : 0.07
         this.hoverProg[i] += (hoverTarget - this.hoverProg[i]) * hrate
-      }
-
-      // ── Grid reveal wave ──────────────────────────────────────────────────
-      // The travelling "show their size and power" pass. Suppressed while this body is the
-      // subject (hover/select/tour focus) — the focus treatment already opens it to a readout, and
-      // stacking the two would fight over the same radius. Reduced-motion holds the grid uniform
-      // and never runs the wave.
-      if (this.gridMode && !this.reduced) {
-        const raw = revealAt(this.gridRank[i], t)
-        this.revealProg[i] = raw * (1 - this.hoverProg[i])
-      } else {
-        this.revealProg[i] = 0
       }
     }
 
@@ -691,18 +717,23 @@ class GravityWell {
     // whichever body is focused) — only the POSITION moved (in-circle instead of below),
     // and the rank NUMBER is gone. fewer labels on a narrow phone field so they don't pile up.
     const focus = this.selectedIdx ?? this.hoveredIdx ?? (scrollFocus >= 0 ? scrollFocus : null)
-    const order = Array.from({ length: BODIES.length }, (_, i) => i)
-      .sort((a, b) => this.massTarget[b] - this.massTarget[a])
-    const TOP_N = this.narrow ? 5 : 8
-    this.labelSet.clear()
     if (this.gridMode) {
       // uniform cells are uniformly legible — there's no "too small to label" body any more, and a
       // top-N ledger would reintroduce exactly the hierarchy the grid composition is arguing against.
-      for (let i = 0; i < BODIES.length; i++) this.labelSet.add(i)
+      // Every body is always in the set, so — unlike the packed field's metric-ordered top-N, which
+      // genuinely can reshuffle frame to frame — there's nothing here to re-sort or rebuild once full.
+      if (this.labelSet.size !== BODIES.length) {
+        this.labelSet.clear()
+        for (let i = 0; i < BODIES.length; i++) this.labelSet.add(i)
+      }
     } else {
+      const order = Array.from({ length: BODIES.length }, (_, i) => i)
+        .sort((a, b) => this.massTarget[b] - this.massTarget[a])
+      const TOP_N = this.narrow ? 5 : 8
+      this.labelSet.clear()
       order.slice(0, TOP_N).forEach((idx) => this.labelSet.add(idx))
+      if (focus !== null) this.labelSet.add(focus)
     }
-    if (focus !== null) this.labelSet.add(focus)
 
     // ── Page-exit cascade progress (0 = present → 1 = gone), per-body staggered ─
     if (this.exiting) {
@@ -746,16 +777,11 @@ class GravityWell {
     const pulse = this.reduced ? 1 : 1 + 0.035 * Math.sin(t * 1.3 + this.breathPhase[i])
     const scale = (1 + (bloom - 1) * 0.18) * pulse
     let rr = r * scale * bodyA
-    // Hovered/selected body grows to a readable floor so its in-circle gauge is legible
-    // (and so even small states open into a real readout). Eased by hoverProg → smooth grow
-    // AND smooth shrink: gated on hoverProg itself (not isFocus), so leaving a body continues
-    // to ease the radius back down in step with the fading glow/signature instead of the size
-    // snapping to its base value the instant focus moves elsewhere while hoverProg is still > 0.
-    if (this.hoverProg[i] > 0.001) {
-      const floor = Math.max(48, this.playSize * 0.09) * bodyA
-      if (rr < floor) rr += (floor - rr) * this.hoverProg[i]
-    }
-    // fold in the per-body exit shrink last, after any hover-floor grow
+    // No more hover-grows-to-a-readable-floor: that existed solely to make room for an in-circle
+    // axis gauge that's since been removed. Radius is THE encoded variable on this screen (bigger
+    // circle = more power); inflating the one body you're pointing at was quietly lying about
+    // that variable for as long as the pointer sat there.
+    // fold in the per-body exit shrink last
     rr *= exitScale
     // the tour camera's zoom scales apparent size too (a real lens push-in enlarges everything it
     // frames, not just position) — applied uniformly so every body stays proportionally consistent
@@ -783,11 +809,11 @@ class GravityWell {
       if (glowR > 0) {
         // a hollow non-state body casts a softer, more diffuse glow — no solid mass behind it
         const glowMul = hollow ? 0.55 : 1
-        const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR)
-        grd.addColorStop(0, `rgba(${glowCol},${(0.1 + (bloom - 1) * 0.14 + depthGlow * 0.12) * glowMul})`)
-        grd.addColorStop(1, `rgba(${glowCol},0)`)
-        ctx.fillStyle = grd
-        ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill()
+        const stopA = (0.1 + (bloom - 1) * 0.14 + depthGlow * 0.12) * glowMul
+        const sprite = this.glowSprite(glowCol, stopA)
+        // the sprite is a small, pre-rasterized bitmap — drawImage scales it to this body's live
+        // radius directly, no bucketing needed (a raster blit is cheap at any destination size)
+        ctx.drawImage(sprite, sx - glowR, sy - glowR, glowR * 2, glowR * 2)
       }
 
       if (isFocus && !this.reduced && bloom > 1.04) {
@@ -806,13 +832,6 @@ class GravityWell {
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU)
       ctx.fillStyle = isFocus ? `rgb(${YELLOW})` : hollow ? `rgba(${LIGHT},0.16)` : `rgb(${LIGHT})`
       ctx.fill()
-
-      // In-circle axis graph — reveals on the focused (solid yellow) body: three concentric value-
-      // arcs in dark ink, legible on the yellow fill exactly like the name label below. Gated on
-      // hoverProg (the same eased 0→1 value that grows the body's radius) rather than the hard
-      // isFocus boolean, so it sweeps/fades in and back out smoothly instead of popping instantly —
-      // hoverProg already accounts for all three focus conditions (hover, select, tour-focus).
-      if (this.hoverProg[i] > 0.001) this.drawAxisSegmentedRing(sx, sy, rr, i, bodyA * tAlpha, this.hoverProg[i])
 
       // In-circle name label — dark ink, legible on both the light and the yellow fill. Only the
       // "ledger" set (top-N by active metric + whatever's focused) attempts a label. Every body's
@@ -840,6 +859,29 @@ class GravityWell {
     })
   }
 
+  // A body's glow as a small pre-rasterized bitmap (one per color × alpha bucket), so the expensive
+  // part — rasterizing a soft radial gradient — happens once per bucket instead of on every one of
+  // ~29 bodies, every frame. Drawn at a fixed native size and scaled up via drawImage at the call
+  // site; a blurred glow has no hard edges to reveal the upscale, so this costs nothing visually.
+  private glowSprite(color: string, stopA: number): HTMLCanvasElement {
+    const aB = Math.round(stopA * 100) / 100
+    const key = `${color}:${aB}`
+    let sprite = this.glowSpriteCache.get(key)
+    if (!sprite) {
+      const r = GLOW_SPRITE_R
+      sprite = document.createElement('canvas')
+      sprite.width = sprite.height = r * 2
+      const sctx = sprite.getContext('2d')!
+      const grd = sctx.createRadialGradient(r, r, 0, r, r, r)
+      grd.addColorStop(0, `rgba(${color},${aB})`)
+      grd.addColorStop(1, `rgba(${color},0)`)
+      sctx.fillStyle = grd
+      sctx.beginPath(); sctx.arc(r, r, r, 0, TAU); sctx.fill()
+      this.glowSpriteCache.set(key, sprite)
+    }
+    return sprite
+  }
+
   // In-circle name label — the state name centred INSIDE the body, like a real map/bubble-chart
   // label, instead of floating text below it. Font scales to the body radius; if the name still
   // doesn't fit at the minimum legible size, skip it rather than let it overflow the rim. Always
@@ -850,43 +892,60 @@ class GravityWell {
     if (alpha <= 0.01) return
     const b = BODIES[i]
     const ctx = this.ctx
-    const MIN_PX = 9
-    // font-size scales with radius; cap so it never dwarfs small circles
-    let fontPx = Math.min(15, Math.max(MIN_PX, rr * 0.34))
+    const fit = this.labelFitFor(i, b.he, rr)
+    if (fit.mode === 'none') return
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
+    ctx.font = `400 ${fit.fontPx}px 'Tel Aviv Brutalist', sans-serif`
+    ctx.globalAlpha = alpha * this.labelIntro
+    ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
+    if (fit.mode === 'two') {
+      const lh = fit.fontPx * 1.12
+      ctx.fillText(fit.lines![0], sx, sy - lh / 2)
+      ctx.fillText(fit.lines![1], sx, sy + lh / 2)
+    } else {
+      ctx.fillText(b.he, sx, sy)
+    }
+    ctx.restore()
+  }
+
+  // The expensive half of drawInCircleLabel — measuring/shrinking/wrapping a name to fit its body —
+  // isolated so it only runs when the body's bucketed radius actually changes (see `labelFitCache`),
+  // instead of on every one of the ~29 bodies, every frame, at 60fps.
+  private labelFitFor(i: number, text: string, rr: number): LabelFit {
+    const rrB = Math.round(rr * 2) / 2 // half-px buckets — absorbs the ambient breathing wobble
+    const cached = this.labelFitCache[i]
+    if (cached && cached.rrB === rrB) return cached
+    const ctx = this.ctx
+    const MIN_PX = 9
+    // font-size scales with radius; cap so it never dwarfs small circles
+    let fontPx = Math.min(15, Math.max(MIN_PX, rrB * 0.34))
     ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
     // the usable chord width inside the circle at label height — shrink font until it fits,
     // bail out (no label) rather than overflow past the rim
-    const maxWidth = rr * 1.7
-    let width = ctx.measureText(b.he).width
+    const maxWidth = rrB * 1.7
+    let width = ctx.measureText(text).width
     while (width > maxWidth && fontPx > MIN_PX) {
       fontPx -= 1
       ctx.font = `400 ${fontPx}px 'Tel Aviv Brutalist', sans-serif`
-      width = ctx.measureText(b.he).width
+      width = ctx.measureText(text).width
     }
+    let fit: LabelFit
     // Grid composition: every cell is the same size, so a body whose name won't fit one line must
     // still be named — a blank circle is a hole in a reading whose whole premise is that each state
     // is equally present. Wrap onto two lines rather than dropping the label (the packed field keeps
     // the original bail-out: there, an unfittable name belongs to a speck nobody is reading).
-    if (width > maxWidth && this.gridMode) {
-      const lines = wrapToTwo(ctx, b.he, maxWidth)
-      if (lines) {
-        ctx.globalAlpha = alpha * this.labelIntro
-        ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
-        const lh = fontPx * 1.12
-        ctx.fillText(lines[0], sx, sy - lh / 2)
-        ctx.fillText(lines[1], sx, sy + lh / 2)
-        ctx.restore()
-        return
-      }
+    const lines = width > maxWidth && this.gridMode ? wrapToTwo(ctx, text, maxWidth) : null
+    if (lines) {
+      fit = { rrB, fontPx, mode: 'two', lines }
+    } else if (width > maxWidth || rrB < 16) {
+      fit = { rrB, fontPx, mode: 'none' }
+    } else {
+      fit = { rrB, fontPx, mode: 'one' }
     }
-    if (width > maxWidth || rr < 16) { ctx.restore(); return }
-    ctx.globalAlpha = alpha * this.labelIntro
-    ctx.fillStyle = hollow ? `rgba(${LIGHT},0.92)` : `rgb(${DARK})`
-    ctx.fillText(b.he, sx, sy)
-    ctx.restore()
+    this.labelFitCache[i] = fit
+    return fit
   }
 
   // Grid reveal score — the live metric value (0–10), set under the name inside the swelled body.
@@ -906,97 +965,6 @@ class GravityWell {
     ctx.restore()
   }
 
-  // ── In-circle axis gauge — ONE ring split into three proportional arc segments (Task: "single
-  // ring split into three proportional arc segments, replacing the three-concentric-ring gauge") ──
-  // The old gauge swept three independently-scaled 0–10 rings (eco/mil/geo) nested inside one
-  // small hover circle — flagged as illegible: too much crammed into too little room, arcs
-  // overlapping. This gauge is ONE stroke at ONE radius; each axis's ANGULAR SPAN is its own share
-  // of (eco+mil+geo) rather than an independent 0–10 sweep, so "which axis dominates" reads as a
-  // proportion of the circle at a glance, and a small fixed gap (radians) between segments keeps
-  // the boundaries unambiguous even at small hover size:
-  //   · a faint full-circle TRACK marks the ring's baseline;
-  //   · the DOMINANT axis's segment is the file's own YELLOW accent — no new hue — with a thin
-  //     DARK casing stroke behind it, since a plain yellow arc would vanish into the focused
-  //     body's own solid-yellow fill; the other two segments stay the plain dark-ink-on-yellow
-  //     convention the rings being replaced already used;
-  //   · the כ/צ/ג tick + its numeral sit TOGETHER at the segment's own arc MIDPOINT, just outside
-  //     the ring — adapted from the old rings' "tick at a fixed start / numeral near the live tip"
-  //     pair into one legible anchor point, since a proportional segment has no single fixed start.
-  // `prog` (0→1) is the body's eased hoverProg — the SAME value that eases the radius to its hover
-  // floor — so the gauge reveals in lockstep with the grow/shrink instead of on a hard isFocus
-  // gate: it drives the whole gauge's alpha AND each segment's own angular sweep-in from nothing.
-  private drawAxisSegmentedRing(sx: number, sy: number, rr: number, i: number, alpha: number, prog: number) {
-    if (rr < 26 || alpha <= 0.01 || prog <= 0.001) return
-    const ctx = this.ctx
-    const AX: { v: number; k: string }[] = [
-      { v: this.axisEco[i], k: 'כ' },
-      { v: this.axisMil[i], k: 'צ' },
-      { v: this.axisGeo[i], k: 'ג' },
-    ]
-    const total = AX.reduce((s, ax) => s + Math.max(0, ax.v), 0)
-    const maxV = Math.max(...AX.map((ax) => ax.v))
-    const a = alpha * prog
-    const ringR = rr * 0.7
-    const lw = Math.max(1.6, Math.min(4, rr * 0.06))
-    const GAP = 0.06 // radians — small fixed gap between segments, not pixels
-    // Was clamp(8, rr*0.13, 12) — the design review flagged these axis-abbreviation-plus-value
-    // readings ("צ 6.3", "ג 9.0") as illegible; measured, most bodies landed at or near the 8px
-    // floor. Raised the floor and ceiling, and the scaling coefficient slightly, so a body has to
-    // be genuinely small before it drops toward the new 10px floor rather than the old 8px one.
-    const labelFont = Math.max(10, Math.min(14, rr * 0.15))
-
-    ctx.save()
-    ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.clip()
-
-    // baseline track — the ring's full range, faint (fades in/out with the same reveal)
-    ctx.strokeStyle = `rgba(${DARK},${0.16 * a})`
-    ctx.lineWidth = lw
-    ctx.beginPath(); ctx.arc(sx, sy, ringR, 0, TAU); ctx.stroke()
-
-    let start = -Math.PI / 2
-    AX.forEach((ax) => {
-      // sweep-in: the proportional fraction itself scales by `prog`, so each segment sweeps from
-      // zero up to its true angular share as the reveal eases in (and back to zero on the way out).
-      const frac = total > 0 ? (Math.max(0, ax.v) / total) * prog : 0
-      const span = Math.max(0, frac * TAU - GAP)
-      const end = start + span
-      const isDominant = total > 0 && ax.v === maxV
-      if (span > 0.003) {
-        ctx.lineCap = 'butt'
-        if (isDominant) {
-          // a plain yellow stroke here would sit on the body's own solid-yellow focus fill and
-          // vanish (confirmed: a thin casing left only a ~4% tonal shift — imperceptible). A bold
-          // DARK channel with a bright yellow centre line reads as a distinct "racetrack" groove
-          // instead — legible contrast while the accent colour itself is still literally YELLOW.
-          ctx.strokeStyle = `rgba(${DARK},${0.9 * a})`
-          ctx.lineWidth = lw * 2.4
-          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
-          ctx.strokeStyle = `rgba(${YELLOW},${a})`
-          ctx.lineWidth = lw * 0.85
-          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
-        } else {
-          ctx.strokeStyle = `rgba(${DARK},${0.82 * a})`
-          ctx.lineWidth = lw
-          ctx.beginPath(); ctx.arc(sx, sy, ringR, start, end); ctx.stroke()
-        }
-      }
-      // tick + value TOGETHER at the segment's own arc midpoint, just outside the ring — gated on
-      // rr so the label never has to spill past the body's own rim (matches the old rings' room-
-      // dependent tick/numeral floors, now a single combined floor for the merged label).
-      if (frac > 0.02 && rr >= 42) {
-        const mid = start + span / 2
-        const labelR = ringR + lw + labelFont * 0.9
-        const tx = sx + Math.cos(mid) * labelR
-        const ty = sy + Math.sin(mid) * labelR
-        ctx.font = `700 ${labelFont}px 'Tel Aviv Brutalist', sans-serif`
-        ctx.fillStyle = isDominant ? `rgba(${YELLOW},${0.95 * a})` : `rgba(${DARK},${0.85 * a})`
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-        ctx.fillText(`${ax.k} ${ax.v.toFixed(1)}`, tx, ty)
-      }
-      start += frac * TAU
-    })
-    ctx.restore()
-  }
 
   getBodyAt(idx: number): WellBody | null { return BODIES[idx] ?? null }
   selectById(id: string | null) {
@@ -1252,7 +1220,7 @@ export function ForcesSheet({ grav, orderBy, filterBloc, selected, onSelect, onH
         ref={canvasRef}
         className="field"
         role="img"
-        aria-label="שדה כוח — כל גוף הוא מדינה; ככל שהיא חזקה יותר, הגוף גדול יותר. ממוין מהחזק לחלש."
+        aria-label="שדה כוח — כל גוף הוא מדינה, מסודר מהחזק לחלש. העוצמה מתגלה זמנית באנימציית פתיחה או במעבר עכבר וכן בבחירה."
       />
 
       {/* ── Affordance — the self-retiring coach line (see Affordance.tsx), replacing the old

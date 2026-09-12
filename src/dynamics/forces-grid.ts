@@ -13,24 +13,44 @@
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 // Reading order is RTL (Hebrew): rank 1 lands top-RIGHT, filling leftward, then wrapping down.
+//
+// Rows, not columns, are the fixed structural unit — 29 (BODIES.length) is PRIME, so no column
+// count above 1 ever divides it evenly, and the old approach (one shared column count, last row
+// centred with empty margin on both sides when it came up short) left visible dead space in that
+// last row. Reported live as "grid; always full in each row, no empty spaces/slots". Rows are
+// still chosen for a near-square overall composition, same as columns used to be, but the ITEM
+// COUNT per row is redistributed as evenly as possible across those rows instead — some rows get
+// one more item than others, but every row is genuinely full at whatever column count it has, so
+// nothing is ever centred against a gap.
 
-// Cell aspect target — columns are chosen so cells land close to square at the canvas's own ratio.
+// Cell aspect target — the row count is chosen so cells land close to square at the canvas's own
+// ratio (kept as a ratio comparison, not a fixed aspect number, so it still adapts to width/height).
 const CELL_ASPECT = 1
 
-/** Column count that keeps cells nearest to square for `n` bodies in a `w × h` box. */
-function gridColumns(n: number, w: number, h: number): number {
+/** Row count that keeps cells nearest to square for `n` bodies in a `w × h` box. */
+function idealRows(n: number, w: number, h: number): number {
   if (n <= 0) return 1
   const ratio = (w / Math.max(1, h)) / CELL_ASPECT
-  // start from the ideal continuous solution, then pick the integer neighbour with the squarest cell
-  const ideal = Math.sqrt(n * ratio)
-  const lo = Math.max(1, Math.floor(ideal))
+  const idealCols = Math.sqrt(n * ratio)
+  const lo = Math.max(1, Math.floor(n / idealCols))
   const hi = Math.min(n, lo + 1)
-  const squareness = (cols: number) => {
-    const rows = Math.ceil(n / cols)
+  const squareness = (rows: number) => {
+    const cols = Math.ceil(n / rows)
     const cw = w / cols, ch = h / rows
     return Math.max(cw, ch) / Math.min(cw, ch) // 1 = perfectly square
   }
   return squareness(lo) <= squareness(hi) ? lo : hi
+}
+
+/**
+ * How many items land in each of `rows` rows for `n` total items — as equal as possible, e.g.
+ * 29 across 4 rows is [8, 7, 7, 7], never [8, 8, 8, 5]. Every entry is a real, full row; there is
+ * no "leftover" row by construction.
+ */
+function rowCounts(n: number, rows: number): number[] {
+  const base = Math.floor(n / rows)
+  const extra = n % rows
+  return Array.from({ length: rows }, (_, r) => base + (r < extra ? 1 : 0))
 }
 
 /**
@@ -39,29 +59,29 @@ function gridColumns(n: number, w: number, h: number): number {
  * hit-testing and tour camera all work unchanged.
  */
 export function gridLayout(n: number, w: number, h: number): { nx: number; ny: number }[] {
-  const cols = gridColumns(n, w, h)
-  const rows = Math.ceil(n / cols)
+  const rows = idealRows(n, w, h)
+  const counts = rowCounts(n, rows)
   const out: { nx: number; ny: number }[] = []
-  for (let i = 0; i < n; i++) {
-    const r = Math.floor(i / cols)
-    const c = i % cols
-    // count of items in THIS row — the last row is centred rather than left-ragged, so an
-    // incomplete final row reads as deliberate composition instead of a truncated table.
-    const inRow = Math.min(cols, n - r * cols)
-    const rowPad = (cols - inRow) / 2
-    // RTL: column 0 sits at the RIGHT edge
-    const cx = (cols - 1 - (c + rowPad) + 0.5) / cols
-    const cy = (r + 0.5) / rows
-    out.push({ nx: cx, ny: cy })
-  }
+  counts.forEach((cols, r) => {
+    for (let c = 0; c < cols; c++) {
+      // RTL: column 0 sits at the RIGHT edge. No centring offset — every row spans the FULL
+      // width at its own column count, which is exactly what makes it full rather than short.
+      const cx = (cols - 1 - c + 0.5) / cols
+      const cy = (r + 0.5) / rows
+      out.push({ nx: cx, ny: cy })
+    }
+  })
   return out
 }
 
 /** Uniform body radius (px) that fits every grid cell with breathing room. */
 export function gridRadius(n: number, w: number, h: number): number {
-  const cols = gridColumns(n, w, h)
-  const rows = Math.ceil(n / cols)
-  const cell = Math.min(w / cols, h / rows)
+  const rows = idealRows(n, w, h)
+  const counts = rowCounts(n, rows)
+  // the WIDEST row (most columns, per rowCounts' "extra" rows) sets the ceiling — every row
+  // shares one radius, so it has to be small enough that even the tightest row's cells fit.
+  const maxCols = Math.max(...counts)
+  const cell = Math.min(w / maxCols, h / rows)
   return cell * 0.34
 }
 

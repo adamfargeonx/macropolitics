@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize } from '../data/entities'
 import { PanelDock } from './Chrome'
 import { AXIS_ICON, DISPO_ICON } from './panel-icons'
-import { Words } from './Words'
+import { Words, Letters } from './Words'
 import { CountUp, LetterSwap, Seg } from './PanelMotion'
 import { Affordance } from './Affordance'
 import { Icon } from './Icon'
 import { RelationsGrid } from './RelationsGrid'
-import { REL_BEAT, FIELD_BEAT, GRID_PICK_MS } from './panel-beats'
+import { REL_BEAT, FIELD_BEAT, GRID_PICK, GRID_PICK_FIELD_MOUNT_MS, GRID_PICK_MS, GRID_PICK_TITLE_START, GRID_PICK_TITLE_OUT_START } from './panel-beats'
 import { useDeCollide } from './useDeCollide'
 import { sound } from '../sound'
 import { usePresenceValue } from './usePresence'
@@ -15,7 +15,11 @@ import { byId, MEMBERS, isActor, hash, relation, sharpen, dominantOf, POLE_HE, V
 
 // entrance stagger (seconds) — see the comment at its use site (the .rnode map) for why there's a
 // held beat before the first star at all, rather than starting immediately.
-const ENTRANCE_HOLD = 0.5
+// Was 0.5s. The field now mounts the INSTANT the pick title begins rising away (GRID_PICK_FIELD_
+// MOUNT_MS below), not after it finishes — the two are meant to read as one upward motion, so the
+// first star has to actually be moving near the same moment the title starts lifting, not half a
+// second later. Cut to a token beat, just enough to not look like a hard cut.
+const ENTRANCE_HOLD = 0.03
 const ENTRANCE_STEP = 0.045
 // Ambient name-cycling (views.css: .rnode__name's nameCycle animation). One shared source for
 // both numbers so the JS-computed delay and the CSS animation-duration can never drift apart —
@@ -27,12 +31,17 @@ const NAME_CYCLE_PERIOD = 9      // seconds — one star's full fade-in/hold/fad
 // margin. Same for every star regardless of render index — only the per-star hash phase below
 // varies — so cycling never looks like it's still finishing the initial reveal for a straggler.
 const NAME_CYCLE_SETTLE = 3.9
-// grid → field handoff. The grid no longer cross-fades as a block — it plays the five-beat pick
-// choreography (GRID_PICK / GRID_PICK_MS in panel-beats.ts: glow → dismiss → undress → travel →
-// expand), and the field mounts at the END of it, as the picked triangle's outline finishes
-// opening out to the size the field's own triangle is about to occupy.
+// grid → field handoff. The grid no longer cross-fades as a block — it plays the pick choreography
+// (GRID_PICK / GRID_PICK_MS in panel-beats.ts: glow → dismiss → shrink → title), and the field
+// mounts the instant the title's own rise-away STARTS (GRID_PICK_FIELD_MOUNT_MS), so the title's
+// exit and the field's entrance play concurrently — the title reads as carried off by the same
+// upward motion the stars arrive on, not two disconnected events (vanish, then separately rise).
+// Because of that overlap the title can no longer live inside RelationsGrid, which unmounts the
+// instant the field mounts: pickTitleId/titleTimerRef below keep it alive, independently, through
+// its own full exit animation (see the render below, and relPickTitleOut in views.css).
 // The old 340ms cross-fade constant is gone from here; .rel-grid--selecting keeps its own 0.34s
-// in views.css purely as the fallback arm for a pick whose rect could not be measured.
+// in views.css as a leftover fallback rule from when a pick's flight plan could fail to measure —
+// picking no longer measures anything, so that arm should be unreachable now.
 // Reference switch (picking a new state from the panel while already in field mode) — distinct
 // from the grid→field handoff above. Two numbers, kept here rather than
 // only in CSS, because the newly-JOINING star's entrance delay (below) has to land in the same
@@ -152,6 +161,9 @@ export default function RelationsView() {
   // staggered by its per-node --exit-d delay, mirroring the canvas views' body-by-body exit.
   const [leaving, setLeaving] = useState(false)
   const [gridSelecting, setGridSelecting] = useState(false)
+  // The pick title card, rendered here rather than inside RelationsGrid — see enterField below
+  // and the GRID_PICK comment block in panel-beats.ts for why it needs to outlive the grid.
+  const [pickTitleId, setPickTitleId] = useState<string | null>(null)
   useEffect(() => {
     const onExit = () => setLeaving(true)
     window.addEventListener('mp-exit', onExit)
@@ -270,16 +282,24 @@ export default function RelationsView() {
   // invariant held by comment discipline across two files. App.tsx already established this
   // pattern for its own view-transition timers; this call site had just missed it.
   const handoffRef = useRef<number | null>(null)
-  useEffect(() => () => { if (handoffRef.current) window.clearTimeout(handoffRef.current) }, [])
+  const titleTimerRef = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (handoffRef.current) window.clearTimeout(handoffRef.current)
+    if (titleTimerRef.current) window.clearTimeout(titleTimerRef.current)
+  }, [])
   const enterField = (id: string) => {
     sound.play('select')
     setGridSelecting(true)
+    setPickTitleId(id)
     handoffRef.current = window.setTimeout(() => {
       // leaving reset here too, not just cleared by backToGrid's own timeout below — a field
       // exited via backToGrid and re-entered before that timeout fires would otherwise mount the
       // new field already mid-"leaving", playing the exit cascade on what should be an entrance.
       setRefId(id); setPinned(null); setHovered(null); setMode('field'); setGridSelecting(false); setLeaving(false)
-    }, GRID_PICK_MS)
+    }, GRID_PICK_FIELD_MOUNT_MS)
+    // The title outlives the mode switch above (it's still mid rise-away when the field mounts),
+    // so it gets its own timer rather than being cleared by the same one.
+    titleTimerRef.current = window.setTimeout(() => setPickTitleId(null), GRID_PICK_MS)
   }
   // Plays the field's own per-star exit cascade before swapping to grid mode, rather than
   // unmounting .rel-field the instant it's clicked — the same "exit, THEN swap" shape enterField
@@ -293,16 +313,37 @@ export default function RelationsView() {
     handoffRef.current = window.setTimeout(() => { setMode('grid'); setLeaving(false) }, FIELD_EXIT_MS)
   }
 
-  if (mode === 'grid') {
-    return (
-      <div className="stage relations" dir="rtl">
-        <RelationsGrid onSelect={enterField} leaving={leaving} selecting={gridSelecting} />
-      </div>
-    )
-  }
+  // Fixed full-screen overlay, not scoped to either mode's own box. Rendered from ONE stable
+  // position in the tree (a sibling of the mode ternary below, never itself inside either branch)
+  // — it used to sit inside each branch's own JSX, which LOOKS the same but isn't: the grid branch
+  // and the field branch are two structurally different trees, so React tore the title's DOM node
+  // down and built a fresh one the instant mode flipped, restarting its animation-delay from that
+  // new element's own creation time instead of continuing the one already mid-flight. Confirmed
+  // live with a MutationObserver: the old approach added a SECOND `.rel-grid__pick-title` node at
+  // the exact mode-switch moment, which is why the rise never visibly connected to anything — the
+  // one instance a viewer could see was a brand-new, independently-timed one, not the original.
+  const pickTitle = pickTitleId && (
+    <div
+      className="rel-grid__pick-title"
+      aria-hidden="true"
+      style={{
+        '--title-d': `${GRID_PICK_TITLE_START}s`,
+        '--title-step': `${GRID_PICK.titleStep}s`,
+        '--title-out-d': `${GRID_PICK_TITLE_OUT_START}s`,
+        '--title-out-dur': `${GRID_PICK.titleOutDur}s`,
+      } as React.CSSProperties}
+    >
+      <Letters text={`קונסטלציית היחסים של ${byId.get(pickTitleId)?.he ?? ''}`} className="rel-grid__pick-title-text" />
+    </div>
+  )
 
   return (
     <div className="stage relations" dir="rtl">
+      {pickTitle}
+      {mode === 'grid' ? (
+        <RelationsGrid onSelect={enterField} leaving={leaving} selecting={gridSelecting} />
+      ) : (
+        <>
       <div className={`rel-field${leaving ? ' rel-field--leaving' : ''}`} ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>
         <button className="rel-back" onClick={(ev) => { ev.stopPropagation(); backToGrid() }}>
           כל המדינות <Icon name="arrow-back" className="rel-back__arrow" />
@@ -563,6 +604,8 @@ export default function RelationsView() {
         </aside>
       )}
       </PanelDock>
+        </>
+      )}
     </div>
   )
 }

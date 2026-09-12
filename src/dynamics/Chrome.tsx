@@ -46,11 +46,11 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
      component's own first commit, so finding it necessarily happens a render late. */
   useEffect(() => { setRoot(document.getElementById('panel-root')) }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
-  // autoOpen=false: the constellation screens (RelationsView) — a field of 20+ stars is the
-  // whole point of the view, and the panel used to slide open over it unprompted a couple of
-  // seconds after arrival with nothing selected yet. Skipping the timer leaves the dock closed
-  // until something actually earns it: a star gets pinned (the reopenOn effect below), or the
-  // handle is clicked by hand.
+  // autoOpen=false: the constellation screens (RelationsView) and the Forces grid — a field of
+  // circles/stars is the whole point of the view, and the panel used to slide open over it
+  // unprompted a couple of seconds after arrival with nothing selected yet. Skipping the timer
+  // leaves the dock closed until something actually earns it: a body gets pinned/selected (the
+  // reopenOn effect below), or the handle is clicked by hand.
   useEffect(() => {
     if (!autoOpen) return
     const t = window.setTimeout(() => setOpen(true), enterAfter)
