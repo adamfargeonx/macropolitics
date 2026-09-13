@@ -706,6 +706,50 @@
 .rel-grid--settled .rel-grid__name,
 .rel-grid--settled .rel-grid__band { animation: none; }
 .rel-grid--settled .rel-grid__poly { stroke-dashoffset: 0; }
+/* ── Fast re-entrance: coming BACK to the grid from the field ───────────────────────────────────
+   Set only by RelationsView once you've already watched the grid load this visit (see the `fast`
+   prop) — every other arrival (home, another screen, the true first load) keeps the three-phase
+   reveal above untouched. Not a sped-up version of that sequence — a different one: every cell
+   arrives PRE-FORMED (outline already drawn, dots already scattered, name/stance already lit) and
+   the whole cell just rises up from below as one beat, the same "spawn and rise" language the
+   field's own stars already use. There's nothing left to stroke-draw/rain-in/caption when the
+   shape is already complete the instant it appears. */
+/* Shortens the container's own relGridIn entrance (0.9s normally, see its @keyframes above) to
+   match the quicker re-entrance — without this the outer wrapper would still take the slow first-
+   visit beat to fade/settle in even though every cell inside it is already arriving fast. */
+.rel-grid--fast { animation-duration: 0.3s; }
+/* :not(--gone):not(--chosen):not(--leaving parent) — a bare single/double-class selector here
+   loses to `.rel-grid__cell--gone`/`--chosen` (rules/color.md's "no two rules fighting over the
+   same property" case) EXCEPT this selector has THREE class-level terms (0-3-0 before the two
+   :not()s, 0-5-0 with them) against their ONE (0-1-0) or the leaving-cascade rule's TWO (0-2-0),
+   so it always won regardless of source order. Every re-entrance after the first (`fast` stays
+   true for the rest of the visit — see the comment above) picking a state meant this rule silently
+   pinned every cell to relCellRiseIn's resting frame (opacity 1, in place) instead of letting it
+   dismiss or shrink — reported live as "triangles stuck, the title just overlays on top of them",
+   exactly what a frozen grid under a still-live title timer looks like. The `:not(.rel-grid--
+   leaving)` guard on the container closes the same hole for the OTHER thing that can coexist with
+   `fast`: navigating away to home (mp-exit) while already in fast mode, which without it silently
+   skipped the per-cell relGridCellOut exit cascade the same way picking silently skipped dismiss/
+   shrink — same root cause, different reachable path. All three states are mutually exclusive in
+   practice, so excluding them costs the fast-entrance nothing and lets every other rule apply
+   normally when it's live. */
+.rel-grid--fast:not(.rel-grid--leaving) .rel-grid__cell:not(.rel-grid__cell--gone):not(.rel-grid__cell--chosen) {
+  animation: relCellRiseIn 0.32s var(--ease-out-expo) backwards;
+  animation-delay: var(--fast-d, 0s);
+}
+/* relCellRiseIn fades opacity 0→1 on the whole button, which composites its own focus ring along
+   with it — a keyboard user tabbing in during the ~0.5s worst-case rise window could land on a
+   cell whose ring was still at or near zero opacity. `!important` here is deliberate: normal
+   `!important` declarations outrank a running animation for the same property (per the CSS
+   cascade spec), so this pins opacity to 1 the instant the cell is focus-visible without touching
+   the animation's own transform — the ring is guaranteed visible, the rise still plays underneath. */
+.rel-grid--fast .rel-grid__cell:focus-visible { opacity: 1 !important; }
+@keyframes relCellRiseIn { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: translateY(0); } }
+.rel-grid--fast .rel-grid__poly,
+.rel-grid--fast .rel-grid__dot,
+.rel-grid--fast .rel-grid__name,
+.rel-grid--fast .rel-grid__pole { animation: none; opacity: 1; }
+.rel-grid--fast .rel-grid__poly { stroke-dashoffset: 0; }
 /* Pole is deliberately NOT in the blanket list above — a re-sort remounts every cell (the flat and
    banded layouts are different containers), and without its own rule the ambient cycle would be
    killed right along with the one-shot entrance it shares an element with. This drops relCapIn
@@ -811,6 +855,12 @@
   .rel-grid__sortbar, .rel-grid__cell, .rel-grid__band,
   .rel-grid__poly, .rel-grid__dot, .rel-grid__name, .rel-grid__pole, .rel-grid__pole .letters__ch { animation: none; opacity: 1; }
   .rel-grid__poly { stroke-dashoffset: 0; }
+  /* Same selector as the fast-entrance rule above (matching specificity), declared later — the
+     plain `.rel-grid__cell` rule two lines up is far lower specificity and loses to that rule
+     regardless of order, so reduced-motion users were still getting the full rise-in on every
+     return to the grid. Repeating the exact selector here ties on specificity and wins on source
+     order instead. */
+  .rel-grid--fast:not(.rel-grid--leaving) .rel-grid__cell:not(.rel-grid__cell--gone):not(.rel-grid__cell--chosen) { animation: none; opacity: 1; }
 }
 /* grid → field: a cell was picked, so the WHOLE overview steps back as one unit (not per-cell —
    that cascade is reserved for the home-exit below) to make room for the field's own relZoomOut
@@ -843,8 +893,13 @@
 @keyframes relPickFurnitureOut { to { opacity: 0; } }
 
 /* ── beat 2: every OTHER cell leaves, staggered outward from the pick ── */
+/* --ease-in-out-quart (slow-start, slow-end) held opacity essentially at 1 for close to HALF this
+   animation's own duration before any visible fade registered — measured live: opacity was still
+   reading 1.0 at 47% of the way through. Stacked under the shortened PICK_HOLD/dismissStart above,
+   that read as the grid freezing for a beat before catching up, not a quick dismiss. --ease-out-
+   expo (fast-start, decelerating) makes the fade visible from the very first frame instead. */
 .rel-grid__cell--gone {
-  animation: relPickDismiss var(--dismiss-dur, 0.32s) var(--ease-in-out-quart) var(--dismiss-d, 0s) both;
+  animation: relPickDismiss var(--dismiss-dur, 0.32s) var(--ease-out-expo) var(--dismiss-d, 0s) both;
 }
 @keyframes relPickDismiss {
   from { opacity: 1; transform: scale(1); }
@@ -860,7 +915,9 @@
    object — disappearing where it already sits. */
 .rel-grid__cell--chosen {
   position: relative; z-index: 40; overflow: visible; background: transparent;
-  animation: relPickShrink var(--shrink-dur, 0.42s) var(--ease-in-out-quart) var(--shrink-d, 0.65s) both;
+  /* --ease-out-expo, not --ease-in-out-quart — same reasoning as .rel-grid__cell--gone below: a
+     slow-start curve on a short exit reads as a stall before it catches up, not a quick vanish. */
+  animation: relPickShrink var(--shrink-dur, 0.42s) var(--ease-out-expo) var(--shrink-d, 0.65s) both;
 }
 @keyframes relPickShrink { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0); } }
 /* The focus ring lives on the CELL BOX, so it does not scale with the triangle inside it — during
@@ -946,9 +1003,13 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rel-grid--selecting { animation: none; opacity: 0; }
-  /* the pick sequence is a 2.3s full-screen flight — resolve it to a plain disappearance */
+  /* the pick sequence is a 2.3s full-screen flight — resolve it to a plain disappearance. The
+     CONTAINER's own opacity:0 transition below is what actually hides everything; these per-cell
+     rules just stop each cell running its own motion underneath that fade. `--chosen` (the bare
+     selector, not just its children) was missing here — relPickShrink kept scaling the picked
+     cell down to nothing for the container fade's first ~0.2s instead of just sitting still. */
   .rel-grid--picking .rel-grid__sortbar, .rel-grid--picking .rel-grid__band-head,
-  .rel-grid__cell--gone, .rel-grid__cell--chosen .rel-grid__poly,
+  .rel-grid__cell--gone, .rel-grid__cell--chosen, .rel-grid__cell--chosen .rel-grid__poly,
   .rel-grid__cell--chosen .rel-grid__pole, .rel-grid__cell--chosen .rel-grid__pole .letters__ch,
   .rel-grid__cell--chosen .rel-grid__name,
   .rel-grid__cell--chosen .rel-grid__dot, .rel-grid__cell--chosen .rel-grid__svg { animation: none; }

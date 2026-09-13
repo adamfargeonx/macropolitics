@@ -163,11 +163,12 @@ export const FIELD_BEAT = {
 //                  itself unmounts the moment the field mounts, and the title needs to keep
 //                  animating past that instant.
 // Seconds (CSS), except GRID_PICK_MS which is the total the VIEW waits before swapping mode.
-// PICK_HOLD (beat 1's own length) was 1.0s — cut to 0.45s as part of trimming the whole sequence;
-// every beat-2-onward literal below is that same country's OWN start time, just offset by one
-// constant, so the whole sequence still moves as one block and nothing needed re-deriving
-// individually.
-const PICK_HOLD = 0.45
+// PICK_HOLD (beat 1's own length) was 1.0s, then 0.45s — cut again to 0.18s: still a real glow-
+// flash (long enough to register "that one, right there"), but no longer a beat you have to wait
+// through before the rest of the sequence gets moving. Every beat-2-onward literal below is that
+// same country's OWN start time, just offset by one constant, so the whole sequence still moves
+// as one block and nothing needed re-deriving individually.
+const PICK_HOLD = 0.18
 export const GRID_PICK = {
   glow: 0,
   dismissStart: PICK_HOLD + 0.2, dismissSpread: 0.36, dismissDur: 0.32,
@@ -179,7 +180,11 @@ export const GRID_PICK = {
   // in below while the title just dissolved in place, in two unrelated gestures). Lengthened to
   // 0.5s and paired with an upward rise (relPickTitleOut in views.css) so the title reads as
   // being carried off by the SAME upward motion the stars arrive on, not a separate event.
-  titlePause: 0.12, titleStep: 0.018, titleHoldDur: 0.35, titleOutDur: 0.5,
+  // holdDur was 0.35s — harmless on its own, but once the beats around it (dismiss/shrink) got
+  // cut down, a fully-written title just sitting there motionless for a third of a second read
+  // as the whole sequence stalling ("stuck on screen"), not a considered pause. Cut to a beat
+  // just long enough to register as read, not as a wait.
+  titlePause: 0.12, titleStep: 0.018, titleHoldDur: 0.12, titleOutDur: 0.5,
 } as const
 const GRID_PICK_DISMISS_END = GRID_PICK.dismissStart + GRID_PICK.dismissSpread + GRID_PICK.dismissDur
 export const GRID_PICK_SHRINK_START = GRID_PICK_DISMISS_END + GRID_PICK.shrinkPause

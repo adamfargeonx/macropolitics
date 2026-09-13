@@ -161,6 +161,9 @@ export default function RelationsView() {
   // staggered by its per-node --exit-d delay, mirroring the canvas views' body-by-body exit.
   const [leaving, setLeaving] = useState(false)
   const [gridSelecting, setGridSelecting] = useState(false)
+  // Flips true the first time backToGrid runs and stays true for the rest of this visit — see
+  // backToGrid below and RelationsGrid's `fast` prop / .rel-grid--fast in views.css.
+  const [gridFast, setGridFast] = useState(false)
   // The pick title card, rendered here rather than inside RelationsGrid — see enterField below
   // and the GRID_PICK comment block in panel-beats.ts for why it needs to outlive the grid.
   const [pickTitleId, setPickTitleId] = useState<string | null>(null)
@@ -310,6 +313,11 @@ export default function RelationsView() {
     sound.play('select')
     setPinned(null); setHovered(null)
     setLeaving(true)
+    // Once true it stays true for the rest of this visit — the grid only needs its full
+    // three-phase reveal ONCE; every later return from the field is the fast re-entrance
+    // (RelationsGrid's `fast` prop). Arriving fresh from home/another screen never sets this,
+    // so those paths keep the full reveal exactly as before.
+    setGridFast(true)
     handoffRef.current = window.setTimeout(() => { setMode('grid'); setLeaving(false) }, FIELD_EXIT_MS)
   }
 
@@ -341,7 +349,7 @@ export default function RelationsView() {
     <div className="stage relations" dir="rtl">
       {pickTitle}
       {mode === 'grid' ? (
-        <RelationsGrid onSelect={enterField} leaving={leaving} selecting={gridSelecting} />
+        <RelationsGrid onSelect={enterField} leaving={leaving} selecting={gridSelecting} fast={gridFast} />
       ) : (
         <>
       <div className={`rel-field${leaving ? ' rel-field--leaving' : ''}`} ref={fieldRef} onClick={() => { setPinned(null); setHovered(null) }}>

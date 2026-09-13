@@ -248,11 +248,22 @@ interface RelationsGridProps {
   // a cell was just picked — the WHOLE grid cross-fades out as one unit (not per-cell) before the
   // field mounts; see RelationsView's enterField/GRID_EXIT_MS.
   selecting?: boolean
+  // RelationsView sets this once you've been to the field and come BACK — every other arrival
+  // (home, another screen's nav, the very first load) keeps the full three-phase reveal below
+  // unchanged. Coming back from the field is different: you've already watched the grid load
+  // once this visit, so replaying that ~3.5s show every time you tap "back" read as the app
+  // stalling on something you'd already seen. See .rel-grid--fast in views.css.
+  fast?: boolean
 }
 
 // How long the three-phase load runs end to end (captions finish at capStart + capMax + 0.5s).
 // After this the screen is "settled" and re-sorts REFLOW instead of replaying — see below.
 const LOAD_MS = 4550
+// The fast (back-from-field) re-entrance settles almost as soon as it starts. Duration/rise
+// distance live in views.css (relCellRiseIn); only the per-cell delay spread is needed here.
+const FAST_LOAD_MS = 650
+const FAST_START = 0.04
+const FAST_SPREAD = 0.14
 
 // What the picked cell needs in order to fly: where to go, how big to get, and which point of
 // itself to pivot around. All of it is measured from the LIVE rects at click time rather than
@@ -265,7 +276,7 @@ const LOAD_MS = 4550
 // nothing about the field's eventual position or size needs measuring any more.
 interface Pick { id: string; he: string }
 
-export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridProps) {
+export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsGridProps) {
   const [sort, setSort] = useState<SortKey>('power')
   // the cell being flown to the field, with its measured flight plan
   const [pick, setPick] = useState<Pick | null>(null)
@@ -273,12 +284,13 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
   // swaps the flat grid for the banded one (a different container, so React remounts every cell)
   // and the whole 3.7s outline → dots → captions sequence played again — a reveal the first time,
   // a wait for a table to re-sort by the third. Once settled, the cells appear immediately and
-  // only their POSITION changes.
+  // only their POSITION changes. `fast` settles almost immediately — its own reveal is one quick
+  // beat, not three, so there's nothing left to protect a re-sort from replaying.
   const [settled, setSettled] = useState(false)
   useEffect(() => {
-    const t = window.setTimeout(() => setSettled(true), LOAD_MS)
+    const t = window.setTimeout(() => setSettled(true), fast ? FAST_LOAD_MS : LOAD_MS)
     return () => window.clearTimeout(t)
-  }, [])
+  }, [fast])
 
   // Per-country label is the MEAN of its own 19 relations (raw, pre-sharpen), reduced to a
   // dominant pole — not DISPO, which already feeds INTO relation() and would make the caption
@@ -400,6 +412,11 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
     // the old settle: .rel-grid__pole's own relCapIn is `backwards`-filled, so the PARENT holds
     // opacity 0 until its caption beat and masks whatever the letters are doing underneath.
     const poleCycleDelay = -(hash01(`${row.id}:pole`) * POLE_CYCLE_PERIOD)
+    // Fast (back-from-field) re-entrance: a single quick rise, hashed the same way phase 1 is —
+    // see .rel-grid--fast in views.css, which swaps out the three-phase reveal entirely rather
+    // than just speeding it up (there's nothing left to draw-in/rain-in/caption when the whole
+    // cell arrives pre-formed).
+    const fastDelay = FAST_START + hash01(`${row.id}:fast`) * FAST_SPREAD
     return (
       <button
         key={row.id}
@@ -409,6 +426,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
         className={`rel-grid__cell${chosen ? ' rel-grid__cell--chosen' : ''}${pick && !chosen ? ' rel-grid__cell--gone' : ''}`}
         style={{
           '--stroke-d': `${strokeDelay}s`,
+          '--fast-d': `${fastDelay.toFixed(3)}s`,
           '--cap-d': `${capDelay}s`,
           '--cp-delay': `${poleCycleDelay.toFixed(3)}s`,
           '--cp-dur': `${POLE_CYCLE_PERIOD}s`,
@@ -502,7 +520,7 @@ export function RelationsGrid({ onSelect, leaving, selecting }: RelationsGridPro
 
   return (
     <div
-      className={`rel-grid${settled ? ' rel-grid--settled' : ''}${pick ? ' rel-grid--picking' : ''}${selecting && !pick ? ' rel-grid--selecting' : ''}${leaving ? ' rel-grid--leaving' : ''}`}
+      className={`rel-grid${settled ? ' rel-grid--settled' : ''}${pick ? ' rel-grid--picking' : ''}${selecting && !pick ? ' rel-grid--selecting' : ''}${leaving ? ' rel-grid--leaving' : ''}${fast ? ' rel-grid--fast' : ''}`}
       // the pick beats are published to CSS from GRID_PICK rather than restated as literals in the
       // stylesheet — the schedule has ONE definition (panel-beats.ts) that both sides read.
       style={pick ? ({
