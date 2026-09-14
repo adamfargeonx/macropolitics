@@ -423,13 +423,25 @@
 }
 /* The sort row IS the header now (no title/standfirst — see the comment in RelationsGrid.tsx).
    flex:none so it never gets squeezed when the cells area claims the remaining height. */
-/* Delay comes from GRID_BEAT.sort via inline animationDelay (RelationsGrid.tsx), not a literal. */
+/* Delay comes from GRID_BEAT_SORT_START via inline animationDelay (RelationsGrid.tsx), not a
+   literal — used to be GRID_BEAT.sort (0s, the FIRST thing on screen); moved to arrive LAST,
+   once every triangle has actually finished its own three-phase load, per the live request. */
 .rel-grid__sortbar {
   /* align-self:center is the "center" half of the brief — the rail sits at the vertical middle of
      the screen, not pinned to the top like the header band it replaces. */
   flex: none; align-self: center; display: flex; flex-direction: column; align-items: stretch; gap: 7px;
-  animation: textRise 0.6s var(--ease-out-expo) both;
+  /* A real physical rise, not textRise's clip-path text-mask (used everywhere else) — asked for
+     explicitly as "a slow rise in", and a slower, more deliberate motion reads as the deck's own
+     closing beat rather than another instance of the same reveal every other element already
+     uses. 0.9s sits above motion.md's 600-800ms entrance band on purpose, same justification the
+     fast-entrance rule already uses elsewhere in this file: a single, once-per-load accent beat,
+     not a repeated interaction. */
+  animation: relSortRiseIn 0.9s var(--ease-out-expo) both;
 }
+@keyframes relSortRiseIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+/* Fast re-entrance timing lives in RelationsGrid.tsx's own animationDelay (an inline style always
+   outranks a class rule, so a CSS override here could never win against it) — see the `fast`
+   branch at the sortbar's JSX for why the delay itself switches instead. */
 .rel-grid__sort-l {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: var(--text-xs);
   color: var(--ink-faint); letter-spacing: var(--tracking-loose); margin-bottom: 3px;

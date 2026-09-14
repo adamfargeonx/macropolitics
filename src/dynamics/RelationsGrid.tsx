@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Stance } from './relations-model'
-import { GRID_BEAT, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
+import { GRID_BEAT, GRID_BEAT_SORT_START, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
 import { Letters } from './Words'
 
@@ -538,7 +538,12 @@ export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsG
           empty margin on each side; the sort control moves into it instead of spending a row of
           the fold. The coverage note that used to ride this bar is gone — it stated a number
           (20/20) that never changes for the reader. */}
-      <div className="rel-grid__sortbar" style={{ animationDelay: `${GRID_BEAT.sort}s` }}>
+      {/* fast (back-from-field) re-entrance collapses the whole reveal to ~0.65s — waiting out
+          the SLOW load's own finish time here would leave this rail stranded off-screen for
+          seconds after every cell has already reappeared. FAST_START + FAST_SPREAD + relCellRiseIn's
+          own 0.32s (views.css) ≈ 0.5s is that cascade's own end, the fast-mode equivalent of
+          GRID_BEAT_SORT_START below. */}
+      <div className="rel-grid__sortbar" style={{ animationDelay: `${fast ? 0.5 : GRID_BEAT_SORT_START}s` }}>
         <span className="rel-grid__sort-l">מיון</span>
         {(Object.keys(SORTS) as SortKey[]).map((key) => (
           <button

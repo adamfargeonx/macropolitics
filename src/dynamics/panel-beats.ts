@@ -89,7 +89,6 @@ export const REL_BEAT = {
 // analog to a grid of cells) rather than reusing INDEX_BEAT itself, since this schedule also
 // carries the per-cell `cellStep`/`cellMax` cascade that the axis/index schedules don't need.
 export const GRID_BEAT = {
-  sort: 0,
   note: 0.2, // band headers ride this too, +0.07 each — all landed by ~0.34
   // ── The cell's three-phase load ──────────────────────────────────────────────────────────────
   // A cell doesn't arrive as one object. Its OUTLINE draws itself first, then the constellation
@@ -116,6 +115,13 @@ export const GRID_BEAT = {
   capStep: 0.02,
   capMax: 0.36,
 } as const
+// The sort rail used to be the FIRST thing on screen (sort: 0) — reported live as wanting it to
+// read as the last thing instead, arriving only once every triangle has actually finished loading.
+// Offset from the caption phase's own measured end (capStart + capMax + its 0.5s CSS duration —
+// see the comment above, "measured ends 2.25 / 3.38 / 4.40s") rather than a fresh literal, so it
+// can never drift ahead of a cascade it's supposed to wait out. +0.15s so it doesn't land in the
+// exact instant the last caption settles — a small breath first, then its own (slower) rise.
+export const GRID_BEAT_SORT_START = GRID_BEAT.capStart + GRID_BEAT.capMax + 0.5 + 0.15
 
 // ── The relations FIELD's post-landing load ───────────────────────────────────────────────────
 // Everything here waits for the stars to STOP. A star's own flight ends at ENTRANCE_HOLD (0.5s) +
@@ -172,7 +178,11 @@ const PICK_HOLD = 0.18
 export const GRID_PICK = {
   glow: 0,
   dismissStart: PICK_HOLD + 0.2, dismissSpread: 0.36, dismissDur: 0.32,
-  shrinkPause: 0.16, // the "small pause" the picked cell sits alone before it shrinks
+  // Was 0.16s — reported live as the picked cell just sitting there too long once everything
+  // else had already cleared out ("without the long pause"). Cut to a token beat: still enough
+  // gap that the shrink doesn't start on the exact same frame the last dismissal lands, but no
+  // longer a held beat you have to wait through.
+  shrinkPause: 0.03,
   shrinkDur: 0.42,   // beat 3: the whole cell scales to nothing in place
   // beat 4: title card. Step matches the grid's own per-character cascades elsewhere (0.018s);
   // holdDur is the beat it sits fully written before clearing. outDur was 0.22s, a fast plain
