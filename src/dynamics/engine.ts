@@ -362,16 +362,18 @@ export class OrbitalField {
   // the whole scene (stars, orbiting bodies) repeatedly until the next drawn frame caught up,
   // reported as "the screen blacking out" every time the side panel opens.
   //
-  // Split into two tiers: this (the ResizeObserver's own handler) only does the CHEAP part on
-  // every tick — syncing the canvas's own CSS box to the container, which just stretches the
-  // already-drawn bitmap and never clears it — then debounces the actual buffer rebuild
-  // (resizeBuffer) to run once 120ms has passed with no further resize activity. The brief window
-  // where the drawn bitmap is very slightly stretched to a not-yet-final box size is a non-issue
-  // next to the alternative of the content vanishing outright.
+  // First fix attempt updated the canvas's own CSS box size on every tick (to at least track the
+  // container smoothly) while debouncing the actual buffer rebuild — but that meant the browser
+  // was continuously STRETCHING the still-old-resolution bitmap to fit a new box size on every
+  // tick, reported live as the scene "morphing and stretching" while the panel opens/closes: a
+  // different, equally visible artifact from the same root idea. The canvas simply doesn't need
+  // to track the container AT ALL until the transition has actually finished — nothing here reads
+  // `this.w`/`this.h` mid-transition, so leaving the canvas alone (old size, old buffer, old
+  // composition) for that ~0.66s and only ever resizing ONCE, fully, after it settles, has no
+  // visible cost: the sliding panel itself covers the column the canvas would otherwise be
+  // yielding, so nothing in the still-full-size canvas is exposed there anyway.
   private resizeTimer = 0
   resize = () => {
-    const w = this.container.clientWidth, h = this.container.clientHeight
-    this.canvas.style.width = `${w}px`; this.canvas.style.height = `${h}px`
     window.clearTimeout(this.resizeTimer)
     this.resizeTimer = window.setTimeout(this.resizeBuffer, 120)
   }
