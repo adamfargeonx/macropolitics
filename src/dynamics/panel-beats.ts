@@ -182,11 +182,21 @@ const PICK_HOLD = 0.18
 export const GRID_PICK = {
   glow: 0,
   dismissStart: PICK_HOLD + 0.2, dismissSpread: 0.36, dismissDur: 0.32,
-  // Was 0.16s — reported live as the picked cell just sitting there too long once everything
-  // else had already cleared out ("without the long pause"). Cut to a token beat: still enough
-  // gap that the shrink doesn't start on the exact same frame the last dismissal lands, but no
-  // longer a held beat you have to wait through.
-  shrinkPause: 0.03,
+  // beat 2.5: the picked cell sheds its OWN stars before the outline itself goes. This existed in
+  // the original three-part beat 3 ("shed each part in turn → fly the outline → collapse it") and
+  // was dropped wholesale when the travel-and-land half of that was cut for being too slow — but
+  // the shed was never the slow part, and losing it meant the one triangle you actually chose
+  // vanished as an undifferentiated block. Reported live as the transition "missing the selected
+  // triangle first-stars-disappear phase". Restored, but brisk: ~0.38s end to end, and it STARTS
+  // slightly before the last of the other cells has finished leaving (shedLead) so the two read as
+  // one continuous emptying — the field clearing and the chosen figure undressing at once — rather
+  // than as two queued events, which is what made the original version drag.
+  shedLead: 0.08, shedSpread: 0.16, shedDur: 0.22,
+  // Was 0.16s, then 0.03s — reported live as the picked cell just sitting there too long once
+  // everything else had already cleared out ("without the long pause"). Now measured from the end
+  // of the shed above rather than from the dismissal, so it only has to be the hairline gap that
+  // keeps the outline's own collapse from starting on the same frame its last star disappears.
+  shrinkPause: 0.05,
   shrinkDur: 0.42,   // beat 3: the whole cell scales to nothing in place
   // beat 4: title card. Step matches the grid's own per-character cascades elsewhere (0.018s);
   // holdDur is the beat it sits fully written before clearing. outDur was 0.22s, a fast plain
@@ -201,7 +211,12 @@ export const GRID_PICK = {
   titlePause: 0.12, titleStep: 0.018, titleHoldDur: 0.12, titleOutDur: 0.5,
 } as const
 const GRID_PICK_DISMISS_END = GRID_PICK.dismissStart + GRID_PICK.dismissSpread + GRID_PICK.dismissDur
-export const GRID_PICK_SHRINK_START = GRID_PICK_DISMISS_END + GRID_PICK.shrinkPause
+// beat 2.5 — see shedLead's own comment for why this lands BEFORE the dismissal has fully
+// finished rather than after it. Each dot adds its own hashed 0..shedSpread scatter on top of
+// this (`--shed-d` in RelationsGrid.tsx), so the stars go individually, not as one block.
+export const GRID_PICK_SHED_START = GRID_PICK_DISMISS_END - GRID_PICK.shedLead
+const GRID_PICK_SHED_END = GRID_PICK_SHED_START + GRID_PICK.shedSpread + GRID_PICK.shedDur
+export const GRID_PICK_SHRINK_START = GRID_PICK_SHED_END + GRID_PICK.shrinkPause
 // The moment the picked cell finishes shrinking away (beat 3 ends) — everything from the title
 // card on is timed as an offset from THIS, not as more literals, so the two can never drift.
 const GRID_PICK_SHRINK_END = GRID_PICK_SHRINK_START + GRID_PICK.shrinkDur

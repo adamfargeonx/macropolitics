@@ -944,6 +944,20 @@
    replaces it, so there is no state left for the ring to indicate. Every other cell keeps its
    ring — the keyboard contract in accessibility.md is untouched. */
 .rel-grid--picking .rel-grid__cell--chosen:focus-visible { outline: none; }
+/* ── beat 2.5: the chosen triangle sheds its own stars, leaving the bare outline ──
+   The one cell you picked shouldn't leave as an undifferentiated block — it undresses first, then
+   the outline collapses (beat 3 above). Each dot carries its own hashed `--shed-d` scatter on top
+   of the shared `--shed-d0` start (both from panel-beats.ts), so the stars go out individually
+   rather than as one layer. This selector is 0-2-0, same as the .rel-grid--settled/.rel-grid--fast
+   `animation: none` rules on .rel-grid__dot further up — it only wins because it is declared after
+   them, which is deliberate: those two states are exactly the ones a pick is made FROM, so losing
+   that tie would mean the shed silently never plays (the same specificity trap that cost this
+   screen its dismiss animation once already — see .rel-grid--fast's own comment). */
+.rel-grid__cell--chosen .rel-grid__dot {
+  animation: relPickShed var(--shed-dur, 0.22s) var(--ease-out-expo)
+    calc(var(--shed-d0, 0.98s) + var(--shed-d, 0s)) both;
+}
+@keyframes relPickShed { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0); } }
 .rel-grid__cell--chosen .rel-grid__poly {
   animation: relPickGlow 0.5s var(--ease-out-expo) both;
 }

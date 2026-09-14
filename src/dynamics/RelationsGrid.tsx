@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Stance } from './relations-model'
-import { GRID_BEAT, GRID_BEAT_SORT_START, GRID_BEAT_SORT_STEP, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
+import { GRID_BEAT, GRID_BEAT_SORT_START, GRID_BEAT_SORT_STEP, GRID_PICK, GRID_PICK_SHED_START, GRID_PICK_SHRINK_START } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
 import { Letters } from './Words'
 
@@ -471,8 +471,13 @@ export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsG
               cx={p.x} cy={p.y} r={p.d}
               // hashed on the dot's own identity, NOT its index — so the fill-in reads as rain
               // across the whole screen rather than a second sweep in cell order.
+              // --shed-d is the pick sequence's own scatter (beat 2.5, see GRID_PICK.shedSpread):
+              // a SEPARATE salt from the rain above, so the stars don't leave in the same order
+              // they arrived in — the same "independent, uncorrelated phases" reasoning the stroke
+              // and pole-cycle delays already use, applied to the one cell that gets picked.
               style={{
                 '--dot-d': `${(GRID_BEAT.dotsStart + hash01(`${row.id}:${pi}`) * GRID_BEAT.dotsSpread).toFixed(3)}s`,
+                '--shed-d': `${(hash01(`${row.id}:${pi}:shed`) * GRID_PICK.shedSpread).toFixed(3)}s`,
               } as React.CSSProperties}
             />
           ))}
@@ -528,6 +533,8 @@ export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsG
       // stylesheet — the schedule has ONE definition (panel-beats.ts) that both sides read.
       style={pick ? ({
         '--dismiss-dur': `${GRID_PICK.dismissDur}s`,
+        '--shed-d0': `${GRID_PICK_SHED_START}s`,
+        '--shed-dur': `${GRID_PICK.shedDur}s`,
         '--shrink-d': `${GRID_PICK_SHRINK_START}s`,
         '--shrink-dur': `${GRID_PICK.shrinkDur}s`,
       } as React.CSSProperties) : undefined}
