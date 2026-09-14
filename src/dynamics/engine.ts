@@ -87,9 +87,21 @@ const WARP = {
   // Measured: a single tick and a slow, spaced-out scroll both land at energy ≈ 88–93; a real
   // flick lands at 210–550. `deadEnergy` sits in the gap between those two clusters.
   deadEnergy: 120, // wheelEnergy below this reads as "not really scrolling" — draws no streak
-  spread: 0.55, // distance-from-anchor lengthens a streak (perspective feel)
+  // Response curve applied to the 0..1 energy ramp before it becomes length. LINEAR (the original)
+  // meant a merely-moderate scroll already drew most of the effect: at energy 240 — a casual
+  // half-speed scroll — a mid-field star measured ~105px of streak, and at full energy nearly
+  // every star outside the centre pegged the ceiling, so the field went to hard lines on almost
+  // any real input. Reported as too harsh. Squaring it keeps the SAME ceiling for a genuine flick
+  // while collapsing the bottom half of the range (0.4 raw → 0.16 applied), so a gentle scroll is
+  // a hint and only deliberate speed earns the full effect — which is what makes it read as
+  // responding to intensity rather than to merely having scrolled at all.
+  curve: 2,
+  spread: 0.3, // distance-from-anchor lengthens a streak (perspective feel)
   minLen: 1.2, // px below which a star draws as a dot instead — avoids 1px "dashes" at rest
-  maxLen: 150, // px ceiling, reached once wheelEnergy saturates WHEEL.ref
+  // 64, was 150: at 150 the cap was reached by most of the field at once, which flattened the
+  // perspective the `spread`/`dep` terms exist to create — every streak the same maximum length
+  // reads as a wall, not a dive. Lower ceiling keeps the graduation visible across the field.
+  maxLen: 64,
   // zoomVel is still used, but ONLY for its SIGN (streak points outward while zooming in, inward
   // while zooming out) — smoothed so the sign doesn't flicker for one frame at the tail of decay.
   attack: 0.55,
@@ -821,7 +833,7 @@ export class OrbitalField {
     // why this reads wheelEnergy rather than zoomVel.
     const mag = this.reduced || !WARP.on
       ? 0
-      : clamp01((this.wheelEnergy - WARP.deadEnergy) / (WHEEL.ref - WARP.deadEnergy))
+      : Math.pow(clamp01((this.wheelEnergy - WARP.deadEnergy) / (WHEEL.ref - WARP.deadEnergy)), WARP.curve)
     const ax = this.zoomAnchor?.x ?? this.cx, ay = this.zoomAnchor?.y ?? this.cy
     const sign = this.zoomVel >= 0 ? 1 : -1
 
