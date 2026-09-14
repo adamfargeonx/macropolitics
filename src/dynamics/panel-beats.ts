@@ -122,6 +122,10 @@ export const GRID_BEAT = {
 // can never drift ahead of a cascade it's supposed to wait out. +0.15s so it doesn't land in the
 // exact instant the last caption settles — a small breath first, then its own (slower) rise.
 export const GRID_BEAT_SORT_START = GRID_BEAT.capStart + GRID_BEAT.capMax + 0.5 + 0.15
+// The rail's 4 items (מיון label + 3 sort buttons) used to rise in as ONE rigid block off a single
+// container-level delay — reported live as wanting each to appear individually, offset from one
+// another, not uniform. Per-item delay is GRID_BEAT_SORT_START/its fast equivalent + index * this.
+export const GRID_BEAT_SORT_STEP = 0.09
 
 // ── The relations FIELD's post-landing load ───────────────────────────────────────────────────
 // Everything here waits for the stars to STOP. A star's own flight ends at ENTRANCE_HOLD (0.5s) +

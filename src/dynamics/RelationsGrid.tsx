@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AXIS, AXIS_LABEL, powerSize, type Axis } from '../data/entities'
 import { STATES, MEMBERS, isActor, relation, sharpen, stanceOf, stanceIsEdge, STANCE_HE, type Rel, type Stance } from './relations-model'
-import { GRID_BEAT, GRID_BEAT_SORT_START, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
+import { GRID_BEAT, GRID_BEAT_SORT_START, GRID_BEAT_SORT_STEP, GRID_PICK, GRID_PICK_SHRINK_START } from './panel-beats'
 import { useFlipReorder } from './useFlipReorder'
 import { Letters } from './Words'
 
@@ -340,6 +340,9 @@ export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsG
   const sorted = useMemo(() => rows.slice().sort(SORTS[sort].fn), [rows, sort])
 
   const n = sorted.length
+  // Base entrance delay for the sort rail's 4 items (label + 3 buttons) — see GRID_BEAT_SORT_STEP
+  // at the JSX site for why each one adds its own offset on top of this instead of sharing it.
+  const sortBase = fast ? 0.5 : GRID_BEAT_SORT_START
   const bodyRef = useRef<HTMLDivElement>(null)
   const bodyWidth = useElementWidth(bodyRef)
   // The flat (power) sort is fixed at 3 rows now — a deliberate structural choice, not the
@@ -543,14 +546,19 @@ export function RelationsGrid({ onSelect, leaving, selecting, fast }: RelationsG
           seconds after every cell has already reappeared. FAST_START + FAST_SPREAD + relCellRiseIn's
           own 0.32s (views.css) ≈ 0.5s is that cascade's own end, the fast-mode equivalent of
           GRID_BEAT_SORT_START below. */}
-      <div className="rel-grid__sortbar" style={{ animationDelay: `${fast ? 0.5 : GRID_BEAT_SORT_START}s` }}>
-        <span className="rel-grid__sort-l">מיון</span>
-        {(Object.keys(SORTS) as SortKey[]).map((key) => (
+      {/* The four items (label + 3 buttons) each carry their OWN entrance delay now — see
+          GRID_BEAT_SORT_STEP — rather than the container animating as one rigid block: reported
+          live as wanting them to appear individually, offset from one another. The container
+          itself no longer animates (see views.css), so it carries no delay of its own. */}
+      <div className="rel-grid__sortbar">
+        <span className="rel-grid__sort-l" style={{ animationDelay: `${sortBase}s` }}>מיון</span>
+        {(Object.keys(SORTS) as SortKey[]).map((key, si) => (
           <button
             key={key}
             className={`rel-grid__sort-btn${sort === key ? ' rel-grid__sort-btn--on' : ''}`}
             aria-pressed={sort === key}
             onClick={() => setSort(key)}
+            style={{ animationDelay: `${sortBase + (si + 1) * GRID_BEAT_SORT_STEP}s` }}
           >
             {SORTS[key].label}
           </button>
