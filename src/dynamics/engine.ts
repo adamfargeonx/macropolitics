@@ -231,6 +231,10 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): st
 export class OrbitalField {
   private ctx: CanvasRenderingContext2D
   private w = 0; private h = 0; private dpr = 1
+  // The canvas's OWN buffer/CSS box — only ever changes inside resizeBuffer, and only THIS pair
+  // (never w/h above) is safe to clear against every frame. See resize's own comment for why the
+  // two are no longer the same thing during a panel-open/close transition.
+  private bufW = 0; private bufH = 0
   private nodes: NodeState[]
   private labelOrder: NodeState[]
   private nearBuf: OrbitalField['particles'] = [] // reused scratch for mouse-proximate particles (no per-frame alloc)
@@ -362,18 +366,30 @@ export class OrbitalField {
   // the whole scene (stars, orbiting bodies) repeatedly until the next drawn frame caught up,
   // reported as "the screen blacking out" every time the side panel opens.
   //
-  // First fix attempt updated the canvas's own CSS box size on every tick (to at least track the
-  // container smoothly) while debouncing the actual buffer rebuild — but that meant the browser
-  // was continuously STRETCHING the still-old-resolution bitmap to fit a new box size on every
-  // tick, reported live as the scene "morphing and stretching" while the panel opens/closes: a
-  // different, equally visible artifact from the same root idea. The canvas simply doesn't need
-  // to track the container AT ALL until the transition has actually finished — nothing here reads
-  // `this.w`/`this.h` mid-transition, so leaving the canvas alone (old size, old buffer, old
-  // composition) for that ~0.66s and only ever resizing ONCE, fully, after it settles, has no
-  // visible cost: the sliding panel itself covers the column the canvas would otherwise be
-  // yielding, so nothing in the still-full-size canvas is exposed there anyway.
+  // Two things went wrong chasing that fix before landing here:
+  //  1. Updating the canvas's own CSS box size on every tick (while debouncing the buffer
+  //     rebuild) made the browser continuously STRETCH the still-old-resolution bitmap to fit a
+  //     new box every tick — reported live as the scene "morphing and stretching".
+  //  2. Freezing EVERYTHING (this.w/this.h included) until the debounced settle avoided both the
+  //     wipe and the stretch, but the composition doesn't read from anything BUT this.w/this.h —
+  //     the constructor's own comment even documents why live tracking exists ("the field yields
+  //     the side dock's column... without this the composition stays centred behind the panel"),
+  //     so freezing it meant the whole scene sat static for the full ~0.66s and then SNAPPED to
+  //     its new layout in one frame the instant the debounce fired — reported as still stretching
+  //     (a sudden resize/reposition of every body at once reads the same as a stretch would).
+  //
+  // The actual fix: keep this.w/this.h tracking the container LIVE, every tick — that's what
+  // cx/cy/viewScale/every body's screen position derive from, so the composition keeps recentring
+  // smoothly in step with the panel's own slide, exactly as intended. What must NOT happen on
+  // every tick is touching the canvas ELEMENT itself (its buffer resolution or CSS box) — that's
+  // the only thing that actually wipes drawn content or stretches a bitmap, and it's debounced
+  // below same as before. The one thing that changes: clearRect (frame(), below) must clear
+  // against the BUFFER's own still-fixed size (bufW/bufH), not the live-shrinking this.w/this.h —
+  // otherwise each frame only wipes the CURRENT (shrinking) rect, leaving a stale, never-cleared
+  // strip of old pixels in the region the composition has already recentred away from.
   private resizeTimer = 0
   resize = () => {
+    this.w = this.container.clientWidth; this.h = this.container.clientHeight
     window.clearTimeout(this.resizeTimer)
     this.resizeTimer = window.setTimeout(this.resizeBuffer, 120)
   }
@@ -384,6 +400,7 @@ export class OrbitalField {
     // unlike getBoundingClientRect(). Reading the rect during stageIn was giving stale, shrunken
     // dims for the whole session → the "offset / can't hover" bug. This reads true size always.
     this.w = this.container.clientWidth; this.h = this.container.clientHeight
+    this.bufW = this.w; this.bufH = this.h
     this.canvas.width = this.w * this.dpr; this.canvas.height = this.h * this.dpr
     this.canvas.style.width = `${this.w}px`; this.canvas.style.height = `${this.h}px`
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
@@ -753,7 +770,10 @@ export class OrbitalField {
     const t = (now - this.start) / 1000
     const intro = clamp01(t / 4.0)
     const ctx = this.ctx
-    ctx.clearRect(0, 0, this.w, this.h)
+    // bufW/bufH, not this.w/this.h — see resize's own comment. The buffer can be LARGER than the
+    // live-tracking this.w/h mid-transition; clearing only the (shrinking) live rect would leave
+    // a stale, never-wiped strip of old pixels behind as the composition recentres away from it.
+    ctx.clearRect(0, 0, this.bufW, this.bufH)
     ;(window as unknown as { __nodes?: unknown }).__nodes = this.nodes.map((n) => ({ id: n.e.id, sx: n.sx, sy: n.sy }))
     ;(window as unknown as { __rect?: unknown }).__rect = this.container.getBoundingClientRect()
 
