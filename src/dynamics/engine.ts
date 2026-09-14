@@ -313,7 +313,10 @@ export class OrbitalField {
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     this.nodes = NODES.map((e, i) => ({ e, wx: 0, wy: 0, sx: 0, sy: 0, sr: 0, appear: 0, pulse: (i * 1.7) % TAU, power: e.power, powerTarget: e.power, exitDelay: 0, exitP: 0, bloom: 1 }))
     this.labelOrder = [...this.nodes].sort((a, b) => PRI[a.e.kind] - PRI[b.e.kind])
-    this.resize()
+    // The initial sizing runs the real buffer rebuild directly, not the debounced `resize` below —
+    // there's no previously-drawn bitmap yet for the CSS-stretch tier to fall back on, so going
+    // through the 120ms debounce would leave the canvas at its default (near-zero) size that long.
+    this.resizeBuffer()
     // Re-measure when the CONTAINER changes width, not only the window: the field yields the side
     // dock's column while the panel is open (body:has(.pdock--open), forces.css). Without this the
     // canvas keeps its full-width backing store and the composition stays centred behind the panel.
@@ -351,7 +354,29 @@ export class OrbitalField {
   private get captionW() { return this.w > 760 ? Math.max(this.w - Math.min(400, this.w * 0.3), this.w * 0.6) : this.w }
   private get viewScale() { return this.maxR / 520 } // world px → screen px at zoom 1
 
+  // Reassigning canvas.width/height (inside resizeBuffer below) always wipes the canvas to fully
+  // transparent — that's how the element works, not a bug in this file. The side dock's slide
+  // (forces.css: `transition: right 0.66s`) means the ResizeObserver below fires on every
+  // intermediate frame of that transition, not once at the end — measured live, 13 separate
+  // firings over one 660ms panel-open. Rebuilding the actual buffer on every one of those blanked
+  // the whole scene (stars, orbiting bodies) repeatedly until the next drawn frame caught up,
+  // reported as "the screen blacking out" every time the side panel opens.
+  //
+  // Split into two tiers: this (the ResizeObserver's own handler) only does the CHEAP part on
+  // every tick — syncing the canvas's own CSS box to the container, which just stretches the
+  // already-drawn bitmap and never clears it — then debounces the actual buffer rebuild
+  // (resizeBuffer) to run once 120ms has passed with no further resize activity. The brief window
+  // where the drawn bitmap is very slightly stretched to a not-yet-final box size is a non-issue
+  // next to the alternative of the content vanishing outright.
+  private resizeTimer = 0
   resize = () => {
+    const w = this.container.clientWidth, h = this.container.clientHeight
+    this.canvas.style.width = `${w}px`; this.canvas.style.height = `${h}px`
+    window.clearTimeout(this.resizeTimer)
+    this.resizeTimer = window.setTimeout(this.resizeBuffer, 120)
+  }
+
+  private resizeBuffer = () => {
     this.dpr = Math.min(2, window.devicePixelRatio || 1)
     // clientWidth/Height are LAYOUT metrics — immune to the .stage entrance transform (scale),
     // unlike getBoundingClientRect(). Reading the rect during stageIn was giving stale, shrunken
@@ -523,6 +548,7 @@ export class OrbitalField {
   destroy() {
     cancelAnimationFrame(this.raf)
     this.ro?.disconnect(); this.ro = null
+    window.clearTimeout(this.resizeTimer)
     this.container.removeEventListener('pointermove', this.onMove)
     this.container.removeEventListener('pointerleave', this.onLeave)
     this.container.removeEventListener('pointerdown', this.onDown)
