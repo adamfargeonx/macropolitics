@@ -32,6 +32,12 @@ export function usePresence(active: boolean, exitMs = 240) {
 // `value` is null/undefined while inactive; passing a non-null value re-arms it. Direct handoff
 // from one non-null value to another (never through null) updates immediately with no exit step —
 // only actually going null triggers the shrink-out window.
+//
+// CALLERS: `value` must be referentially STABLE while it means the same thing — memoise it if you
+// build it inline. The effect below keys on its identity, so a fresh object per render re-runs the
+// effect per render, and its own setLast() then causes the next render: a self-feeding loop that
+// surfaces as React's "Maximum update depth exceeded" rather than as anything visibly broken.
+// HoverReadout shipped exactly that bug (see the memo at its call site).
 export function usePresenceValue<T>(value: T | null | undefined, exitMs = 240) {
   const [last, setLast] = useState<T | null>(value ?? null)
   const [exiting, setExiting] = useState(false)

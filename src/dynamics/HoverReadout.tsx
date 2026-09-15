@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { NODES, AXIS, AXIS_LABEL, forceScore } from '../data/entities'
 import { usePresenceValue } from './usePresence'
 
@@ -16,7 +17,16 @@ export function HoverReadout({ id, screen }: { id: string | null; screen: { x: n
   // value once the animation has had time to finish. Switching directly from one hovered body to
   // another (id A → id B, never through null) updates immediately with no closing step at all —
   // only genuinely hovering nothing triggers the exit.
-  const { value: last, exiting: closing } = usePresenceValue(id && screen ? { id, screen } : null, EXIT_MS)
+  // MEMOISED, and it has to be: usePresenceValue keys its effect on this value's IDENTITY, so the
+  // bare `id && screen ? { id, screen } : null` this used to pass built a new object on every
+  // render — the effect re-ran every render, its setLast() forced another render, and that fed
+  // itself until React bailed out with "Maximum update depth exceeded", repeatedly, for as long as
+  // a body stayed hovered or selected. Nothing looked broken before a hover because the falsy arm
+  // is a stable `null`; the loop only started once there was an object to rebuild. `id`/`screen`
+  // themselves are stable between real hover changes (the engine's setHovered is change-guarded),
+  // so keying on them is enough.
+  const shown = useMemo(() => (id && screen ? { id, screen } : null), [id, screen])
+  const { value: last, exiting: closing } = usePresenceValue(shown, EXIT_MS)
 
   if (!last) return null
   const e = byId.get(last.id)
