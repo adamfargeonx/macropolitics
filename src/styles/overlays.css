@@ -434,10 +434,15 @@
   .legend__scrim.is-closing,
   .legend__scrim.is-closing .about, .legend__scrim.is-closing .evid { animation: none; }
 }
-.legend__rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+/* Spacing here is doing the grouping, so the three distances are deliberately GRADED: ~10px from a
+   mark to its own label, 18px between two pairs on a line, 16px between one section and the next.
+   They used to be nearly equal (a 16px mark floated in a 40px box + a 12px gap put its label ~24px
+   away, while the next pair started only 24px further on), so proximity carried no information and
+   every mark read as unattached to every label — reported as the rows feeling disconnected. */
+.legend__rows { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
 /* item 10: row dividers removed — each row carries the language's vertical accent instead */
 .legend__row {
-  display: flex; align-items: center; gap: 16px; padding: 13px 0;
+  display: flex; align-items: center; gap: 10px; padding: 0;
   padding-inline-start: 16px;
   animation: textRise 0.77s 0.30s var(--ease-panel) both;
 }
@@ -449,7 +454,18 @@
    a rigid column count. Same entrance rhythm as .legend__row (which owns the size-ramp row above),
    continuing the cascade into these two groups. */
 .legend__group {
-  display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 4px; padding-inline-start: 16px;
+  /* A real 2-column grid, not flex-wrap: wrapping let each pair start wherever the previous one
+     happened to end, so no swatch or label lined up with the one above it and the block read as
+     scattered marks rather than a key. Fixed columns put every swatch on one of two x positions
+     and every label at a predictable offset from it, which is what makes it scannable — and it
+     also lets an odd item out (ניטרלי) sit in its column instead of dangling on a line of its own. */
+  /* max-content, not 1fr: equal fractions divide the panel's width regardless of what's in them, so
+     at the 900px breakpoint (where --panel-w drops to 296px) "לא-מדינתי" was handed a column
+     narrower than the word and wrapped to two lines, standing that row taller than every other and
+     undoing the rhythm. Content-sized tracks still align — a grid's columns are shared by all its
+     rows — they just refuse to be squeezed below the label they hold. */
+  display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); justify-content: start;
+  gap: 10px 18px; margin-top: 0; padding-inline-start: 16px;
   /* base delay covers both "this is the only group" (Relations, no state/non-state row above it)
      and "this is the first of two groups" (Forces/Dynamics, state/non-state group). */
   animation: textRise 0.77s 0.65s var(--ease-panel) both;
@@ -460,18 +476,28 @@
    and the colour group got none at all). An adjacent-sibling selector targets the SECOND
    .legend__group correctly regardless of how many non-group divs (namely .legend__row) precede it. */
 .legend__group + .legend__group { animation-delay: 1.00s; }
-.legend__pair { display: inline-flex; align-items: center; gap: 12px; padding: 8px 0; }
-.legend__swatch--pair { flex: 0 0 40px; height: 40px; }
+.legend__pair { display: flex; align-items: center; gap: 10px; padding: 0; }
+/* Sized to the MARK (a 16-17px disk/rim), not to a 40px box it rattled around in — the box's dead
+   space was pure distance between a mark and the word explaining it. The 40px height was also
+   setting every pair's row height, which is where most of the block's vertical drift came from. */
+.legend__swatch--pair { flex: 0 0 22px; height: 22px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
-.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
+/* nowrap: every label here is one to three fixed words, and as a flex item each was free to shrink
+   to its own min-content — for "לא-מדינתי" that is the segment after the hyphen, so it broke into
+   two lines at the 296px panel width and stood its whole grid row taller than the rest. Content-
+   sized tracks (see .legend__group) then size themselves to the unbroken label, so nothing clips. */
+.legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; white-space: nowrap; }
 /* The `.legend__txt b` rule that lived here is gone with the <b> it styled: every row used to
    bold-and-yellow the NAME of its own swatch ("כחול = מערב"), which the swatch already says. The
    heading above still carries the block's yellow, so the key keeps its anchor without each row
    spending an accent on a word the reader doesn't need. */
 /* no background fill — the graphic itself (dots/disks/rings) is the whole point; a tinted box
    behind every single one added a container the eye had to see past, not read through. */
+/* 52px is exactly the size ramp's own width (7 + 12 + 19 dots, two 7px gaps), so this column is the
+   graphic rather than a box around it — at 58×34 the ramp sat centred with slack on every side,
+   pushing its label away from it for no reason and standing the row taller than the pairs below. */
 .legend__swatch {
-  flex: 0 0 58px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
+  flex: 0 0 52px; height: 22px; display: flex; align-items: center; justify-content: center; gap: 7px;
 }
 .legend__sizeramp i { display: block; border-radius: 50%; background: var(--light); }
 .legend__sizeramp i:nth-child(1) { width: 7px; height: 7px; opacity: 0.55; }
