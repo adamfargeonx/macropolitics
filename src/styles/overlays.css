@@ -442,7 +442,7 @@
 .legend__rows { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
 /* item 10: row dividers removed — each row carries the language's vertical accent instead */
 .legend__row {
-  display: flex; align-items: center; gap: 10px; padding: 0;
+  display: flex; align-items: center; gap: 8px; padding: 0;
   padding-inline-start: 16px;
   animation: textRise 0.77s 0.30s var(--ease-panel) both;
 }
@@ -476,21 +476,19 @@
    and the colour group got none at all). An adjacent-sibling selector targets the SECOND
    .legend__group correctly regardless of how many non-group divs (namely .legend__row) precede it. */
 .legend__group + .legend__group { animation-delay: 1.00s; }
-.legend__pair { display: flex; align-items: center; gap: 10px; padding: 0; }
-/* Sized to the MARK (a 16-17px disk/rim), not to a 40px box it rattled around in — the box's dead
-   space was pure distance between a mark and the word explaining it. The 40px height was also
-   setting every pair's row height, which is where most of the block's vertical drift came from. */
-.legend__swatch--pair { flex: 0 0 22px; height: 22px; }
+.legend__pair { display: flex; align-items: center; gap: 8px; padding: 0; }
 /* item 8: legend row copy unified to the primary body size (13px) */
 /* nowrap: every label here is one to three fixed words, and as a flex item each was free to shrink
    to its own min-content — for "לא-מדינתי" that is the segment after the hyphen, so it broke into
    two lines at the 296px panel width and stood its whole grid row taller than the rest. Content-
    sized tracks (see .legend__group) then size themselves to the unbroken label, so nothing clips. */
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; white-space: nowrap; }
-/* The `.legend__txt b` rule that lived here is gone with the <b> it styled: every row used to
-   bold-and-yellow the NAME of its own swatch ("כחול = מערב"), which the swatch already says. The
-   heading above still carries the block's yellow, so the key keeps its anchor without each row
-   spending an accent on a word the reader doesn't need. */
+/* Only the size-ramp row still uses a <b>. The colour and shape rows dropped theirs — naming the
+   swatch ("כחול = מערב") restated what the mark already showed — but a ramp of three dots is the
+   one mark here whose MEANING isn't self-evident from looking at it: it shows that size varies,
+   not that size encodes gravitational pull. That row keeps its explanation, and the accent that
+   makes the term findable. */
+.legend__txt b { color: var(--yellow); font-weight: var(--fw-bold); opacity: 1; }
 /* no background fill — the graphic itself (dots/disks/rings) is the whole point; a tinted box
    behind every single one added a container the eye had to see past, not read through. */
 /* 52px is exactly the size ramp's own width (7 + 12 + 19 dots, two 7px gaps), so this column is the
@@ -499,6 +497,14 @@
 .legend__swatch {
   flex: 0 0 52px; height: 22px; display: flex; align-items: center; justify-content: center; gap: 7px;
 }
+/* MUST stay after .legend__swatch: both are single-class selectors, so the one declared later wins.
+   This override sat BEFORE it and silently never applied — every pair's 16-17px mark was centred in
+   the ramp's 52px box, putting ~17px of dead space on each side of it. The measured mark-to-label
+   distance was 28px, not the 10px the `gap` implied, which is why the pairs still read as loose
+   after the last pass: `gap` was never the number doing the damage. Sized to the mark itself now,
+   so the visible gap IS the gap. (Right edges still align across every row regardless of box width
+   — in RTL the boxes all start at the same inline-start edge and grow leftward.) */
+.legend__swatch--pair { flex: 0 0 18px; height: 18px; }
 .legend__sizeramp i { display: block; border-radius: 50%; background: var(--light); }
 .legend__sizeramp i:nth-child(1) { width: 7px; height: 7px; opacity: 0.55; }
 .legend__sizeramp i:nth-child(2) { width: 12px; height: 12px; opacity: 0.75; }
@@ -559,7 +565,9 @@
 /* the map's own visual key, inline — was the "יחסי הכוחות = הכוחות + היחסים" formula. Reuses
    Legend.tsx's own .legend__row/group/pair/swatch classes verbatim for the graphics themselves;
    this only styles the heading and the wrapper's own spacing. */
-.panel__legend { margin-top: 28px; }
+/* 44px, was 28px: the key is a distinct register from the prose above it — a set of marks, not more
+   sentences — and at 28px it read as the paragraph's last line rather than its own block. */
+.panel__legend { margin-top: 44px; }
 .panel__legend-h {
   font-family: var(--body); font-weight: var(--fw-bold); font-size: 10px;
   letter-spacing: var(--tracking-wide); color: var(--yellow); opacity: 0.85;

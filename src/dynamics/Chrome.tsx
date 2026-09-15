@@ -827,7 +827,12 @@ export function SidePanel({ detail, onClose, onRelSelect, view }: { detail?: Ent
         <div className="legend__rows">
           <div className="legend__row">
             <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
-            <span className="legend__txt">כוח משיכה</span>
+            {/* This row KEEPS its "X = Y" explanation while the rows below dropped theirs, and the
+                distinction is not inconsistency: a blue rim shows you it is blue, a hollow disk
+                shows you it is hollow — but three dots of different sizes only show you that size
+                VARIES. Which quantity it stands for is the one thing the mark cannot say for
+                itself, so it still has to be said. */}
+            <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
           </div>
           <div className="legend__group">
             <div className="legend__pair">
