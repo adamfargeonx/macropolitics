@@ -817,33 +817,40 @@ export function SidePanel({ detail, onClose, onRelSelect, view }: { detail?: Ent
           disk/rim marks) survive in overlays.css and are reused verbatim here. */}
       <div className="panel__legend">
         <p className="panel__legend-h">איך לקרוא את המפה</p>
+        {/* Each row is SWATCH → MEANING, nothing else. Every row used to read "<b>name of the
+            swatch</b> = meaning" (כחול = מערב, מלא = מדינה, גודל = כוח משיכה) — but the swatch
+            sitting right there IS the blue, IS the filled disk, IS the size ramp, so naming it
+            spent the reader's attention restating what they could already see and buried the one
+            word that actually carried information. The mark shows the form; the label says what
+            it means. Colours come from the same --rim-* tokens the canvas paints the bodies with
+            (base.css), not re-typed literals, so a bloc's key can never drift from its rims. */}
         <div className="legend__rows">
           <div className="legend__row">
             <span className="legend__swatch legend__sizeramp"><i /><i /><i /></span>
-            <span className="legend__txt"><b>גודל</b> = כוח משיכה</span>
+            <span className="legend__txt">כוח משיכה</span>
           </div>
           <div className="legend__group">
             <div className="legend__pair">
               <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--full" /></span>
-              <span className="legend__txt"><b>מלא</b> = מדינה</span>
+              <span className="legend__txt">מדינה</span>
             </div>
             <div className="legend__pair">
               <span className="legend__swatch legend__swatch--pair"><i className="legend__disk legend__disk--hollow" /></span>
-              <span className="legend__txt"><b>חלולה</b> = לא-מדינתי</span>
+              <span className="legend__txt">לא-מדינתי</span>
             </div>
           </div>
           <div className="legend__group">
             <div className="legend__pair">
-              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(132,160,196,0.95)' }} /></span>
-              <span className="legend__txt"><b>כחול</b> = מערב</span>
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(var(--rim-west), 0.95)' }} /></span>
+              <span className="legend__txt">מערב</span>
             </div>
             <div className="legend__pair">
-              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(198,134,98,0.95)' }} /></span>
-              <span className="legend__txt"><b>חום</b> = מזרח</span>
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(var(--rim-east), 0.95)' }} /></span>
+              <span className="legend__txt">מזרח</span>
             </div>
             <div className="legend__pair">
-              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(150,150,150,0.7)' }} /></span>
-              <span className="legend__txt"><b>אפור</b> = ניטרלי</span>
+              <span className="legend__swatch legend__swatch--pair"><i className="legend__rim" style={{ borderColor: 'rgba(var(--rim-neutral), 0.7)' }} /></span>
+              <span className="legend__txt">ניטרלי</span>
             </div>
           </div>
         </div>

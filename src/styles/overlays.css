@@ -464,7 +464,10 @@
 .legend__swatch--pair { flex: 0 0 40px; height: 40px; }
 /* item 8: legend row copy unified to the primary body size (13px) */
 .legend__txt { font-family: var(--body); font-weight: var(--fw-regular); font-size: var(--text-base); line-height: var(--leading-loose); letter-spacing: var(--tracking-body); color: var(--light); opacity: 0.88; }
-.legend__txt b { color: var(--yellow); font-weight: var(--fw-bold); opacity: 1; }
+/* The `.legend__txt b` rule that lived here is gone with the <b> it styled: every row used to
+   bold-and-yellow the NAME of its own swatch ("כחול = מערב"), which the swatch already says. The
+   heading above still carries the block's yellow, so the key keeps its anchor without each row
+   spending an accent on a word the reader doesn't need. */
 /* no background fill — the graphic itself (dots/disks/rings) is the whole point; a tinted box
    behind every single one added a container the eye had to see past, not read through. */
 .legend__swatch {
