@@ -288,6 +288,7 @@ export class OrbitalField {
   // not instantaneous deltaY/dt, is what "scroll speed" has to mean across a mouse wheel (one
   // ~100-unit notch, long gaps) and a trackpad (a stream of small deltas) alike.
   private wheelEnergy = 0
+  private bodyClickAt = -1 // see onUp / consumeBodyClick
   // particles (screen space) — `dep` is a per-star depth/parallax factor for the warp streak
   // length (closer stars tear further), unrelated to and never influenced by any body's mass —
   // see the flatness contract in the WARP comment for why that distinction matters here.
@@ -646,8 +647,22 @@ export class OrbitalField {
     if (this.pointers.size > 0) { this.down = null; this.dragging = false; return } // fingers remain
     if (this.down && !this.dragging) {
       if (this.hovered) {
-        // click/tap on a body → pin/unpin it
-        this.setSelected(this.selected === this.hovered ? null : this.hovered)
+        // click/tap on a body → select it. NOT a pin/unpin toggle any more: re-clicking the body
+        // you already had selected used to deselect it, which meant that once the reader had
+        // closed the side panel by hand, clicking that same country again — the obvious gesture
+        // for "show me this one again" — cleared the selection instead of bringing its panel back,
+        // and left nothing on screen to show for the click. A body-click now always means "show
+        // me this". Deselecting still has two clear affordances that a body-click was a poor third
+        // for: clicking empty space (just below) and the panel's own close button.
+        this.setSelected(this.hovered)
+        // Mark the `click` event that the browser fires right after this pointerup, so the view
+        // can stop it reaching PanelDock's window-level "clicked outside → close" listener. The
+        // canvas has no DOM click handler of its own to call stopPropagation (unlike every other
+        // view, whose bodies are real elements), so that listener was closing the dock on the very
+        // click that had just asked for it — and whether the dock ended up open came down to
+        // whether React flushed the reopen effect before or after that listener ran, which is a
+        // race, and read as the panel opening only sometimes. See DynamicsView's onClickCapture.
+        this.bodyClickAt = performance.now()
       } else {
         // click on empty space → deselect + scatter particles
         if (this.selected) this.setSelected(null)
@@ -697,15 +712,33 @@ export class OrbitalField {
     this.onHover?.(id, screen)
   }
   private setSelected(id: string | null) {
-    if (id === this.selected) return
-    this.selected = id; this.hoverSince = this.now
-    this.refreshConnected()
-    // recenter the field on the chosen body (gentle zoom-in); empty/close eases back to the frame
-    if (id) this.focusOn(id); else this.resetView()
+    // The no-change guard covers the internal work ONLY — the notification below fires either way.
+    // It used to wrap the whole method, so clicking the body that was already selected did
+    // literally nothing: no onSelect, no state change anywhere. But that same click still reached
+    // the window listener that closes the side dock (the canvas has no DOM click handler to stop
+    // it), so re-clicking a selected country CLOSED its panel with nothing left to reopen it —
+    // and then clicking it again did nothing at all, because the guard hit once more. Clicking a
+    // body is the one gesture a reader has to mean "show me this", so it must always say so;
+    // PanelDock's reopenSignal is what turns that into "open, whether or not you closed it".
+    if (id !== this.selected) {
+      this.selected = id; this.hoverSince = this.now
+      this.refreshConnected()
+      // recenter the field on the chosen body (gentle zoom-in); empty/close eases back to the frame
+      if (id) this.focusOn(id); else this.resetView()
+    }
     this.onSelect?.(id)
   }
   clearSelection() { this.setSelected(null) }
   select(id: string | null) { this.setSelected(id) }
+  // True exactly once, for the click event that immediately follows a body-selecting pointerup
+  // (see onUp). Time-bounded as well as one-shot so a pointerup that never produces a click —
+  // touch, a cancelled gesture — can't leave the flag armed for an unrelated later click, which
+  // would swallow a genuine empty-space "close the panel" click.
+  consumeBodyClick(): boolean {
+    if (this.bodyClickAt < 0 || performance.now() - this.bodyClickAt > 500) return false
+    this.bodyClickAt = -1
+    return true
+  }
 
   private resolve(t: number) {
     const W = this.world

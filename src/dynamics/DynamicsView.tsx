@@ -47,6 +47,11 @@ export default function DynamicsView() {
   const [engine, setEngine] = useState<OrbitalField | null>(null)
   const [hover, setHover] = useState<Hover>({ id: null, screen: null })
   const [selected, setSelected] = useState<string | null>(null)
+  // Bumped on every body-SELECT event, including re-selecting the one already selected (which
+  // leaves `selected` untouched and so can't reopen the dock on its own) — see PanelDock's
+  // reopenSignal. Only a real body counts: clicking empty space deselects, and that should leave
+  // the dock free to close rather than yanking it back open.
+  const [selectSignal, setSelectSignal] = useState(0)
 
   // The synthesis view is now live: weights (Scenario Sandbox) and year (Time Axis) recompute the
   // model, and the engine eases body sizes toward the new scores.
@@ -62,7 +67,7 @@ export default function DynamicsView() {
     // floating + cursor-connecting starfield (the engine's own), reverted from the global inward field
     const orbital = new OrbitalField(canvasRef.current, stageRef.current, { noStarfield: false })
     orbital.onHover = (id, screen) => { if (id) sound.play('hover'); document.body.classList.toggle('cursor-grab', !!id); setHover({ id, screen }) }
-    orbital.onSelect = (id) => { if (id) sound.play('select'); setSelected(id) }
+    orbital.onSelect = (id) => { if (id) sound.play('select'); setSelected(id); if (id) setSelectSignal((n) => n + 1) }
     orbital.start_()
     setEngine(orbital)
     // logo hover → freeze all motion sitewide
@@ -103,7 +108,11 @@ export default function DynamicsView() {
       {/* The engine's container is this wrapper, not .stage: .stage is fixed to the viewport and
           never changes size, so nothing could tell the orrery that the dock had opened. The label
           layer and hover readout live inside it too, so all three share one coordinate space. */}
-      <div className="dyn-field" ref={stageRef}>
+      {/* A click that just selected a body must not also read as a click OUTSIDE the side dock —
+          PanelDock closes on those, and on this view the canvas has no element-level handler to
+          stop the event the way the DOM-based views' own bodies do. Capture phase, so it never
+          reaches that window listener at all. */}
+      <div className="dyn-field" ref={stageRef} onClickCapture={(e) => { if (engine?.consumeBodyClick()) e.stopPropagation() }}>
         <canvas ref={canvasRef} className="field" role="img" aria-label="מפת כוחות המזרח התיכון — מערך מסלולי של גופים גאופוליטיים לפי כוח" />
         {engine && <LabelLayer engine={engine} />}
         {!selected && <HoverReadout id={hover.id} screen={hover.screen} />}
@@ -119,7 +128,7 @@ export default function DynamicsView() {
         </ol>
       </div>
 
-      <PanelDock reopenOn={selected}>
+      <PanelDock reopenOn={selected} reopenSignal={selectSignal}>
         <SidePanel detail={detail} view="dynamics" onClose={() => engine?.clearSelection()} onRelSelect={(id) => engine?.select(id)} />
       </PanelDock>
     </div>

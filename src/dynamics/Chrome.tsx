@@ -33,7 +33,7 @@ const CANVAS_ENTRANCE_MS = 4000
 const PANEL_BEAT_MS = 1000
 const PANEL_ENTER_MS = CANVAS_ENTRANCE_MS + PANEL_BEAT_MS
 
-export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn, autoOpen = true }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null; autoOpen?: boolean }) {
+export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, enterAfter = PANEL_ENTER_MS, reopenOn, reopenSignal, autoOpen = true }: { children: ReactNode; forceOpen?: boolean; forceClosed?: boolean; onHandleClick?: () => void; enterAfter?: number; reopenOn?: string | null; reopenSignal?: number; autoOpen?: boolean }) {
   // mounts closed, then slides in once the screen's entrance has fully landed (see above) — the
   // panel arriving a clear beat later reads as a considered reveal, not a competing animation.
   const [open, setOpen] = useState(false)
@@ -67,6 +67,16 @@ export function PanelDock({ children, forceOpen, forceClosed, onHandleClick, ent
      cascade: setOpen(true) when open is already true hits React's bail-out and schedules no
      re-render. Annotated rather than silently failing the gate, matching the disable above. */
   useEffect(() => { if (reopenOn != null) setOpen(true) }, [reopenOn])
+  // `reopenOn` above can only fire when the selected id CHANGES — which is exactly the case
+  // re-selecting the body you already had selected doesn't produce. `reopenSignal` is a counter the
+  // caller bumps on every selection EVENT instead, so "click a body" reliably means "show me its
+  // panel" whether or not it was the same body, and whether or not the reader had closed the dock
+  // by hand since. Deliberately NOT merged into reopenOn: that one also has to survive a re-render
+  // with an unchanged id without re-opening a dock the reader just closed, which is why it keys on
+  // the id rather than on every commit.
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- same annotated sync-to-prop class
+     as the reopenOn effect above: setOpen(true) when already open hits React's bail-out. */
+  useEffect(() => { if (reopenSignal) setOpen(true) }, [reopenSignal])
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (dockRef.current && !dockRef.current.contains(e.target as Node)) setOpen(false)
